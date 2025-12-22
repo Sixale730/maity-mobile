@@ -2,9 +2,24 @@
 .env
 .env.local
 .env.*.local
+*.env
+
+# Keep template files
+!.env.template
+!.env.example
 
 # MCP config (may contain API keys)
 .mcp.json
+
+# Keystore files (Android signing)
+*.keystore
+*.jks
+key.properties
+
+# Firebase config (may contain sensitive project info)
+# Uncomment if these contain sensitive data you don't want public
+# google-services.json
+# GoogleService-Info.plist
 
 # Miscellaneous
 *.class
