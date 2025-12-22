@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "7874727378",
+    "project_id": "maityomi-fb601",
+    "storage_bucket": "maityomi-fb601.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:7874727378:android:8cb93e0b78451c8b5f0c0b",
+        "android_client_info": {
+          "package_name": "com.maity.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "7874727378-2kdhekb8ev4tngmgvkthjsj1q53ut4s2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.maity.app",
+            "certificate_hash": "d89402965be4b23f37bae481f13bd8cc6f452a87"
+          }
+        },
+        {
+          "client_id": "7874727378-spv607dd1h0gb04nalsc3hghtu73s44s.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.maity.app",
+            "certificate_hash": "4cd271273d87f2304478fc99582b937cd5578cb6"
+          }
+        },
+        {
+          "client_id": "7874727378-3sicailo20cl0s78mp36vn51bhvcs8kj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbtuCVwbM6_aNfgJSyYnLCvrRkBRmo3FQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "7874727378-3sicailo20cl0s78mp36vn51bhvcs8kj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

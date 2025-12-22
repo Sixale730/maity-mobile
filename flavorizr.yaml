@@ -1,0 +1,29 @@
+flavors:
+  prod:
+    app:
+      name: "Maity"
+      icon: "assets/images/maity_icon.png"
+    android:
+      applicationId: "com.maity.app"
+      icon: "assets/images/maity_icon.png"
+      firebase:
+        config: "app/android/app/src/prod/google-services.json"
+    ios:
+      bundleId: "com.maity.app"
+      icon: "assets/images/maity_icon.png"
+      firebase:
+        config: "app/ios/Config/Prod/GoogleService-Info.plist"
+  dev:
+    app:
+      name: "Maity Dev"
+      icon: "assets/images/maity_icon.png"
+    android:
+      icon: "assets/images/maity_icon.png"
+      applicationId: "com.maity.app.dev"
+      firebase:
+        config: "app/android/app/src/dev/google-services.json"
+    ios:
+      bundleId: "com.maity.app.dev"
+      icon: "assets/images/maity_icon.png"
+      firebase:
+        config: "app/ios/Config/Dev/GoogleService-Info.plist"
