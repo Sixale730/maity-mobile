@@ -135,10 +135,19 @@ class _SearchWidgetState extends State<SearchWidget> {
               onChanged: (value) {
                 var provider = Provider.of<ConversationProvider>(context, listen: false);
                 _debouncer.run(() async {
-                  await provider.searchConversations(value);
+                  if (provider.useSemanticSearch) {
+                    // Use semantic search with Firebase UID
+                    // TODO: Get actual Firebase UID from auth provider
+                    await provider.semanticSearchConversations(value);
+                  } else {
+                    await provider.searchConversations(value);
+                  }
                   if (value.isNotEmpty) {
                     // Track search query with results count
-                    MixpanelManager().searchQueryEntered(value, provider.searchedConversations.length);
+                    int resultsCount = provider.useSemanticSearch
+                        ? provider.semanticSearchResults.length
+                        : provider.searchedConversations.length;
+                    MixpanelManager().searchQueryEntered(value, resultsCount);
                   }
                 });
                 setShowClearButton();
@@ -181,9 +190,37 @@ class _SearchWidgetState extends State<SearchWidget> {
               style: const TextStyle(color: Colors.white),
             ),
           ),
-          const SizedBox(
-            width: 8,
+          const SizedBox(width: 8),
+          // Semantic search toggle button
+          Consumer<ConversationProvider>(
+            builder: (BuildContext context, ConversationProvider convoProvider, Widget? child) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: convoProvider.useSemanticSearch
+                      ? Colors.deepPurple.withOpacity(0.5)
+                      : const Color(0xFF1F1F25),
+                  borderRadius: const BorderRadius.all(Radius.circular(16)),
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    convoProvider.toggleSemanticSearch();
+                  },
+                  icon: Icon(
+                    convoProvider.useSemanticSearch
+                        ? Icons.psychology
+                        : Icons.text_fields,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  tooltip: convoProvider.useSemanticSearch
+                      ? 'Semantic search (AI)'
+                      : 'Text search',
+                ),
+              );
+            },
           ),
+          const SizedBox(width: 8),
           // Calendar button
           Consumer<ConversationProvider>(
             builder: (BuildContext context, ConversationProvider convoProvider, Widget? child) {

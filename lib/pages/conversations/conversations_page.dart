@@ -5,6 +5,7 @@ import 'package:omi/pages/capture/widgets/widgets.dart';
 import 'package:omi/pages/conversations/widgets/processing_capture.dart';
 import 'package:omi/pages/conversations/widgets/search_result_header_widget.dart';
 import 'package:omi/pages/conversations/widgets/search_widget.dart';
+import 'package:omi/pages/conversations/widgets/semantic_search_result_card.dart';
 import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/conversation_provider.dart';
 import 'package:omi/services/app_review_service.dart';
