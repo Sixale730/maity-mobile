@@ -1165,10 +1165,9 @@ class CaptureProvider extends ChangeNotifier
     if (_conversation != null) {
       segments = _conversation!.transcriptSegments;
       photos = _conversation!.photos;
-    } else {
-      segments = [];
-      photos = [];
     }
+    // NOTE: No resetear segments/photos si no hay conversación en servidor
+    // Los segmentos locales (custom STT) se acumulan correctamente sin servidor
     setHasTranscripts(segments.isNotEmpty);
     notifyListeners();
   }
@@ -1370,6 +1369,8 @@ class CaptureProvider extends ChangeNotifier
   void _processNewSegmentReceived(List<TranscriptSegment> newSegments) async {
     if (newSegments.isEmpty) return;
 
+    debugPrint('[CaptureProvider] Received ${newSegments.length} new segments, current total: ${segments.length}');
+
     if (segments.isEmpty) {
       if (!PlatformService.isDesktop) {
         FlutterForegroundTask.sendDataToTask(jsonEncode({'location': true}));
@@ -1379,6 +1380,7 @@ class CaptureProvider extends ChangeNotifier
 
     final remainSegments = TranscriptSegment.updateSegments(segments, newSegments);
     segments.addAll(remainSegments);
+    debugPrint('[CaptureProvider] After update: ${segments.length} total segments');
     hasTranscripts = true;
     notifyListeners();
   }

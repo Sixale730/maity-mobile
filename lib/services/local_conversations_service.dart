@@ -20,6 +20,7 @@ class LocalConversationsService {
 
   /// Saves a conversation locally
   /// Optionally accepts a Structured object with full metadata (title, emoji, category, etc.)
+  /// NOTE: Guarda PRIMERO en Supabase para obtener el ID, luego guarda localmente con el mismo ID
   static Future<ServerConversation> saveConversation({
     required List<TranscriptSegment> segments,
     required DateTime startedAt,
@@ -29,7 +30,6 @@ class LocalConversationsService {
     Structured? structured,
   }) async {
     final now = DateTime.now();
-    final conversationId = const Uuid().v4();
 
     // Use provided structured data or create default
     final finalStructured = structured ??
@@ -40,7 +40,32 @@ class LocalConversationsService {
           category: category ?? 'personal',
         );
 
-    // Create the conversation object
+    // 1. PRIMERO: Intentar guardar en Supabase para obtener el ID
+    // Esto asegura que el ID local y el de Supabase sean el mismo
+    String? supabaseId;
+    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+    if (firebaseUid != null) {
+      try {
+        final response = await OmiSupabaseService.storeConversation(
+          firebaseUid: firebaseUid,
+          segments: segments,
+          structured: finalStructured,
+          startedAt: startedAt,
+          finishedAt: now,
+        );
+        supabaseId = response?.id;
+        if (supabaseId != null) {
+          debugPrint('[LocalConversationsService] Got Supabase ID: $supabaseId');
+        }
+      } catch (e) {
+        debugPrint('[LocalConversationsService] Failed to save to Supabase: $e');
+      }
+    }
+
+    // 2. Usar ID de Supabase o generar uno local como fallback
+    final conversationId = supabaseId ?? const Uuid().v4();
+
+    // 3. Create the conversation object with the synchronized ID
     final conversation = ServerConversation(
       id: conversationId,
       createdAt: now,
@@ -52,6 +77,7 @@ class LocalConversationsService {
       source: ConversationSource.friend,
     );
 
+    // 4. Save locally with the same ID as Supabase
     await _addToStorage(conversation);
 
     // Record metrics
@@ -66,25 +92,9 @@ class LocalConversationsService {
       category: finalStructured.category,
     );
 
-    // Save to Supabase (replaces Firestore)
-    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
-    if (firebaseUid != null) {
-      try {
-        await OmiSupabaseService.storeConversation(
-          firebaseUid: firebaseUid,
-          segments: segments,
-          structured: finalStructured,
-          startedAt: startedAt,
-          finishedAt: now,
-        );
-        debugPrint('[LocalConversationsService] Saved to Supabase');
-      } catch (e) {
-        debugPrint('[LocalConversationsService] Failed to save to Supabase: $e');
-      }
-    }
-
     debugPrint('[LocalConversationsService] Saved conversation: $conversationId with ${segments.length} segments');
     debugPrint('[LocalConversationsService] Category: ${finalStructured.category}, Duration: ${durationSeconds}s, Words: $wordsCount');
+    debugPrint('[LocalConversationsService] ID source: ${supabaseId != null ? "Supabase" : "Local fallback"}');
 
     return conversation;
   }

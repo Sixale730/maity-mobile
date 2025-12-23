@@ -20,7 +20,7 @@ class ConversationProvider extends ChangeNotifier {
 
   bool isLoadingConversations = false;
   bool showDiscardedConversations = false;
-  bool showShortConversations = false; // conversations < 2 minutes
+  bool showShortConversations = true; // show all conversations by default
   DateTime? selectedDate;
 
   String previousQuery = '';

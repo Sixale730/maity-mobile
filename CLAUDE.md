@@ -87,7 +87,29 @@ La funcion `_isRequiredAuthCheck()` en `shared.dart` determina que URLs requiere
 
 ## Flujo de Datos
 
-### Guardar Conversacion
+### Guardar Conversacion (LocalConversationsService)
+Cuando se finaliza una conversación con custom STT (Deepgram directo):
+
+1. `LocalConversationsService.saveConversation()` se ejecuta
+2. **PRIMERO** guarda en Supabase via `OmiSupabaseService.storeConversation()`
+3. Supabase genera el UUID y lo retorna en `StoredConversationResponse.id`
+4. Usa ese ID para crear el objeto `ServerConversation`
+5. Guarda localmente en SharedPreferences con el MISMO ID
+
+**Importante**: Este orden asegura que el ID local y el de Supabase sean idénticos.
+Si Supabase falla, genera un UUID local como fallback.
+
+### Segmentos de Transcripción
+Los segmentos de transcripción se acumulan durante una conversación:
+
+1. `CaptureProvider.onSegmentReceived()` recibe segmentos del servicio STT
+2. `TranscriptSegment.updateSegments()` compara por ID para detectar duplicados
+3. Segmentos con IDs nuevos se agregan a la lista
+
+**Importante**: Los segmentos de Deepgram/Gemini Live necesitan un campo `id` único.
+Los servicios STT (streaming y polling) generan IDs con formato: `{timestamp}_{start}_{index}`
+
+### Guardar via MaityApiService (legacy)
 1. MaityApiService.processConversation() procesa con OpenAI
 2. Automaticamente llama OmiSupabaseService.storeConversation()
 3. Vercel backend genera embeddings y guarda en Supabase

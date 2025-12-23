@@ -244,7 +244,11 @@ class GeminiStreamingSttSocket implements IPureSocket {
       }
 
       if (text != null && text.trim().isNotEmpty) {
+        // Generate unique ID based on timestamp and audio offset
+        final segmentId = '${DateTime.now().millisecondsSinceEpoch}_${_audioOffsetSeconds.toStringAsFixed(2)}';
+
         final segment = {
+          'id': segmentId,  // Unique ID for segment accumulation
           'text': text.trim(),
           'speaker': 'SPEAKER_0',
           'speaker_id': 0,
@@ -609,6 +613,9 @@ class PureStreamingSttSocket implements IPureSocket {
 
         // Aggregate words by speaker (matching backend TranscriptSegment format)
         final segments = <Map<String, dynamic>>[];
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        var segmentIndex = 0;
+
         for (final segment in result.segments) {
           if (segment.text.trim().isEmpty) continue;
 
@@ -616,7 +623,12 @@ class PureStreamingSttSocket implements IPureSocket {
           final speaker = 'SPEAKER_$speakerId';
 
           if (segments.isEmpty || segments.last['speaker'] != speaker) {
+            // Generate unique ID based on timestamp, start time, and index
+            final segmentId = '${timestamp}_${segment.start.toStringAsFixed(2)}_$segmentIndex';
+            segmentIndex++;
+
             segments.add({
+              'id': segmentId,  // Unique ID for segment accumulation
               'text': segment.text.trim(),
               'speaker': speaker,
               'speaker_id': speakerId,
