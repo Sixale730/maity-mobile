@@ -377,7 +377,29 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                         }
 
                                         await stopDeviceRecording();
-                                        await provider.initialise(finalizedCallback: restartDeviceRecording);
+                                        try {
+                                          await provider.initialise(finalizedCallback: restartDeviceRecording);
+                                        } catch (e) {
+                                          debugPrint('Speech profile initialise error: $e');
+                                          if (context.mounted) {
+                                            showDialog(
+                                              context: context,
+                                              barrierDismissible: false,
+                                              builder: (c) => getDialog(
+                                                context,
+                                                () {
+                                                  Navigator.of(context).pop();
+                                                },
+                                                () => {},
+                                                'Connection Error',
+                                                'Failed to start speech profile recording. Please check your internet connection and try again.\n\nError: ${e.toString().replaceAll('Exception:', '').trim()}',
+                                                singleButton: true,
+                                              ),
+                                            );
+                                            await restartDeviceRecording();
+                                          }
+                                          return;
+                                        }
                                         // 1.5 minutes seems reasonable
                                         provider.forceCompletionTimer =
                                             Timer(Duration(seconds: provider.maxDuration), () {

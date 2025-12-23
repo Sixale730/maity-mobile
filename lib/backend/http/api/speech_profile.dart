@@ -6,18 +6,10 @@ import 'package:omi/backend/http/shared.dart';
 import 'package:omi/env/env.dart';
 
 Future<bool> userHasSpeakerProfile() async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v3/speech-profile',
-    headers: {},
-    method: 'GET',
-    body: '',
-  );
-  if (response == null) return true;
-  debugPrint('userHasSpeakerProfile: ${response.body}');
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body)['has_profile'] ?? false;
-  }
-  return true; // to avoid showing the banner if the request fails or there's no internet.
+  // Disabled: api.omi.me doesn't accept our Firebase tokens
+  // Return true to avoid showing the "setup speaker profile" banner
+  debugPrint('[API Disabled] userHasSpeakerProfile skipped');
+  return true;
 }
 
 Future<String?> getUserSpeechProfile() async {

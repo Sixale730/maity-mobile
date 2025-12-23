@@ -31,23 +31,8 @@ Future<List<ServerConversation>> getConversations(
     int offset = 0,
     List<ConversationStatus> statuses = const [],
     bool includeDiscarded = true}) async {
-  var response = await makeApiCall(
-      url:
-          '${Env.apiBaseUrl}v1/conversations?include_discarded=$includeDiscarded&limit=$limit&offset=$offset&statuses=${statuses.map((val) => val.toString().split(".").last).join(",")}',
-      headers: {},
-      method: 'GET',
-      body: '');
-  if (response == null) return [];
-  if (response.statusCode == 200) {
-    // decode body bytes to utf8 string and then parse json so as to avoid utf8 char issues
-    var body = utf8.decode(response.bodyBytes);
-    var memories =
-        (jsonDecode(body) as List<dynamic>).map((conversation) => ServerConversation.fromJson(conversation)).toList();
-    debugPrint('getConversations length: ${memories.length}');
-    return memories;
-  } else {
-    debugPrint('getConversations error ${response.statusCode}');
-  }
+  // Disabled: api.omi.me doesn't accept our Firebase tokens
+  // Using Supabase instead via OmiSupabaseService.getConversations()
   return [];
 }
 
@@ -400,31 +385,9 @@ Future<ActionItemsResponse> getActionItems({
   DateTime? startDate,
   DateTime? endDate,
 }) async {
-  String url = '${Env.apiBaseUrl}v1/action-items?limit=$limit&offset=$offset&include_completed=$includeCompleted';
-
-  if (startDate != null) {
-    url += '&start_date=${startDate.toIso8601String()}';
-  }
-  if (endDate != null) {
-    url += '&end_date=${endDate.toIso8601String()}';
-  }
-
-  var response = await makeApiCall(
-    url: url,
-    headers: {},
-    method: 'GET',
-    body: '',
-  );
-
-  if (response == null) return ActionItemsResponse(actionItems: [], hasMore: false);
-
-  if (response.statusCode == 200) {
-    var body = utf8.decode(response.bodyBytes);
-    return ActionItemsResponse.fromJson(jsonDecode(body));
-  } else {
-    debugPrint('getActionItems error ${response.statusCode}');
-    return ActionItemsResponse(actionItems: [], hasMore: false);
-  }
+  // Disabled: api.omi.me doesn't accept our Firebase tokens
+  // TODO: Implement action items with Supabase
+  return ActionItemsResponse(actionItems: [], hasMore: false);
 }
 
 Future<List<App>> getConversationSuggestedApps(String conversationId) async {

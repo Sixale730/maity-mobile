@@ -34,20 +34,8 @@ Future<bool> updateMemoryVisibilityServer(String memoryId, String visibility) as
 }
 
 Future<List<Memory>> getMemories({int limit = 100, int offset = 0}) async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v3/memories?limit=$limit&offset=$offset',
-    headers: {},
-    method: 'GET',
-    body: '',
-  );
-  if (response == null) return [];
-  if (response.statusCode == 200) {
-    debugPrint('getMemories response: ${response.body}');
-    var decoded = json.decode(response.body);
-    if (decoded is List) {
-      return decoded.map((e) => Memory.fromJson(e)).toList();
-    }
-  }
+  // Disabled: api.omi.me doesn't accept our Firebase tokens
+  debugPrint('[API Disabled] getMemories skipped');
   return [];
 }
 

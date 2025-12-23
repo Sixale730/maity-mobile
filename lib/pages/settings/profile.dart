@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -217,6 +218,62 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Column(
           children: <Widget>[
             const SizedBox(height: 20),
+
+            // DEBUG: Firebase Login Status
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: FirebaseAuth.instance.currentUser != null
+                    ? Colors.green.withOpacity(0.2)
+                    : Colors.red.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: FirebaseAuth.instance.currentUser != null
+                      ? Colors.green
+                      : Colors.red,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    FirebaseAuth.instance.currentUser != null
+                        ? Icons.check_circle
+                        : Icons.error,
+                    color: FirebaseAuth.instance.currentUser != null
+                        ? Colors.green
+                        : Colors.red,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          FirebaseAuth.instance.currentUser != null
+                              ? '✅ Firebase Login OK'
+                              : '❌ No Firebase User',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        if (FirebaseAuth.instance.currentUser != null)
+                          Text(
+                            'UID: ${FirebaseAuth.instance.currentUser!.uid}',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 11,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
             // YOUR INFORMATION SECTION
             _buildSectionContainer(

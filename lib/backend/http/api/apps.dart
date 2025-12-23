@@ -547,21 +547,9 @@ Future<Map<String, dynamic>?> getAppDetailsServer(String appId) async {
 }
 
 Future<List<PaymentPlan>> getPaymentPlansServer() async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/app/plans',
-    headers: {},
-    body: '',
-    method: 'GET',
-  );
-  try {
-    if (response == null || response.statusCode != 200) return [];
-    log('getPaymentPlansServer: ${response.body}');
-    return PaymentPlan.fromJsonList(jsonDecode(response.body));
-  } catch (e, stackTrace) {
-    debugPrint(e.toString());
-    PlatformManager.instance.crashReporter.reportCrash(e, stackTrace);
-    return [];
-  }
+  // Disabled: api.omi.me doesn't accept our Firebase tokens
+  debugPrint('[API Disabled] getPaymentPlansServer skipped');
+  return [];
 }
 
 Future<String> getGenratedDescription(String name, String description) async {

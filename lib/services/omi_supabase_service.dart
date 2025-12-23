@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:omi/backend/http/shared.dart';
+import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 
@@ -378,6 +379,25 @@ class OmiConversation {
       durationSeconds: json['duration_seconds'] ?? 0,
       status: json['status'] ?? 'completed',
       discarded: json['discarded'] ?? false,
+    );
+  }
+
+  /// Convert to ServerConversation for compatibility with existing UI
+  ServerConversation toServerConversation() {
+    return ServerConversation(
+      id: id,
+      createdAt: createdAt,
+      startedAt: startedAt,
+      finishedAt: finishedAt,
+      structured: Structured(
+        title,
+        overview,
+        emoji: emoji,
+        category: category,
+      ),
+      transcriptSegments: [],
+      status: status == 'completed' ? ConversationStatus.completed : ConversationStatus.processing,
+      discarded: discarded,
     );
   }
 }

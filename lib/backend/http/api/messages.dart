@@ -5,32 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/schema/message.dart';
 import 'package:omi/env/env.dart';
-import 'package:omi/utils/logger.dart';
+// import 'package:omi/utils/logger.dart'; // Unused after API disabled
 import 'package:omi/utils/other/string_utils.dart';
 
 Future<List<ServerMessage>> getMessagesServer({
   String? appId,
   bool dropdownSelected = false,
 }) async {
-  if (appId == 'no_selected') appId = null;
-  // TODO: Add pagination
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v2/messages?app_id=${appId ?? ''}&dropdown_selected=$dropdownSelected',
-    headers: {},
-    method: 'GET',
-    body: '',
-  );
-  if (response == null) return [];
-  if (response.statusCode == 200) {
-    var body = utf8.decode(response.bodyBytes);
-    var decodedBody = jsonDecode(body) as List<dynamic>;
-    if (decodedBody.isEmpty) {
-      return [];
-    }
-    var messages = decodedBody.map((conversation) => ServerMessage.fromJson(conversation)).toList();
-    debugPrint('getMessages length: ${messages.length}');
-    return messages;
-  }
+  // Disabled: api.omi.me doesn't accept our Firebase tokens
+  debugPrint('[API Disabled] getMessagesServer skipped');
   return [];
 }
 

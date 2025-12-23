@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:collection/collection.dart';
+// import 'package:collection/collection.dart'; // Unused after API disabled
 import 'package:flutter/material.dart';
 import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/schema/geolocation.dart';
@@ -10,14 +10,8 @@ import 'package:omi/models/subscription.dart';
 import 'package:omi/models/user_usage.dart';
 
 Future<bool> updateUserGeolocation({required Geolocation geolocation}) async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/users/geolocation',
-    headers: {},
-    method: 'PATCH',
-    body: jsonEncode(geolocation.toJson()),
-  );
-  if (response == null) return false;
-  if (response.statusCode == 200) return true;
+  // Disabled: api.omi.me doesn't accept our Firebase tokens
+  debugPrint('[API Disabled] updateUserGeolocation skipped');
   return false;
 }
 
@@ -153,18 +147,8 @@ Future<bool> setPrivateCloudSyncEnabled(bool value) async {
 }
 
 Future<bool> getPrivateCloudSyncEnabled() async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/users/private-cloud-sync',
-    headers: {},
-    method: 'GET',
-    body: '',
-  );
-  if (response == null) return false;
-  debugPrint('getPrivateCloudSyncEnabled response: ${response.body}');
-  if (response.statusCode == 200) {
-    var jsonResponse = jsonDecode(response.body);
-    return jsonResponse['private_cloud_sync_enabled'] as bool? ?? false;
-  }
+  // Disabled: api.omi.me doesn't accept our Firebase tokens
+  debugPrint('[API Disabled] getPrivateCloudSyncEnabled skipped');
   return false;
 }
 
@@ -199,23 +183,8 @@ Future<Person?> getSinglePerson(String personId, {bool includeSpeechSamples = fa
 }
 
 Future<List<Person>> getAllPeople({bool includeSpeechSamples = true}) async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/users/people?include_speech_samples=$includeSpeechSamples',
-    headers: {},
-    method: 'GET',
-    body: '',
-  );
-  if (response == null) return [];
-  if (response.statusCode == 200) {
-    List<dynamic> peopleJson = jsonDecode(response.body);
-    List<Person> people = peopleJson.mapIndexed((idx, json) {
-      json['color_idx'] = idx % speakerColors.length;
-      return Person.fromJson(json);
-    }).toList();
-    // sort by name
-    people.sort((a, b) => a.name.compareTo(b.name));
-    return people;
-  }
+  // Disabled: api.omi.me doesn't accept our Firebase tokens
+  debugPrint('[API Disabled] getAllPeople skipped');
   return [];
 }
 
@@ -367,17 +336,8 @@ Future<UserUsageResponse?> getUserUsage({required String period}) async {
 }
 
 Future<Map<String, dynamic>> getTrainingDataOptIn() async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/users/training-data-opt-in',
-    headers: {},
-    method: 'GET',
-    body: '',
-  );
-  if (response == null) return {'opted_in': false, 'status': null};
-  debugPrint('getTrainingDataOptIn response: ${response.body}');
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body);
-  }
+  // Disabled: api.omi.me doesn't accept our Firebase tokens
+  debugPrint('[API Disabled] getTrainingDataOptIn skipped');
   return {'opted_in': false, 'status': null};
 }
 
@@ -394,16 +354,7 @@ Future<bool> setTrainingDataOptIn() async {
 }
 
 Future<UserSubscriptionResponse?> getUserSubscription() async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/users/me/subscription',
-    headers: {},
-    method: 'GET',
-    body: '',
-  );
-  if (response == null) return null;
-  debugPrint('getUserSubscription response: ${response.body}');
-  if (response.statusCode == 200) {
-    return UserSubscriptionResponse.fromJson(jsonDecode(response.body));
-  }
+  // Disabled: api.omi.me doesn't accept our Firebase tokens
+  debugPrint('[API Disabled] getUserSubscription skipped');
   return null;
 }

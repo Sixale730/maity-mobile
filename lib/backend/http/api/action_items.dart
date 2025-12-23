@@ -13,37 +13,9 @@ Future<ActionItemsResponse> getActionItems({
   DateTime? startDate,
   DateTime? endDate,
 }) async {
-  String url = '${Env.apiBaseUrl}v1/action-items?limit=$limit&offset=$offset';
-
-  if (completed != null) {
-    url += '&completed=$completed';
-  }
-  if (conversationId != null) {
-    url += '&conversation_id=$conversationId';
-  }
-  if (startDate != null) {
-    url += '&start_date=${startDate.toUtc().toIso8601String()}';
-  }
-  if (endDate != null) {
-    url += '&end_date=${endDate.toUtc().toIso8601String()}';
-  }
-
-  var response = await makeApiCall(
-    url: url,
-    headers: {},
-    method: 'GET',
-    body: '',
-  );
-
-  if (response == null) return ActionItemsResponse(actionItems: [], hasMore: false);
-
-  if (response.statusCode == 200) {
-    var body = utf8.decode(response.bodyBytes);
-    return ActionItemsResponse.fromJson(jsonDecode(body));
-  } else {
-    debugPrint('getActionItems error ${response.statusCode}');
-    return ActionItemsResponse(actionItems: [], hasMore: false);
-  }
+  // Disabled: api.omi.me doesn't accept our Firebase tokens
+  debugPrint('[API Disabled] getActionItems skipped');
+  return ActionItemsResponse(actionItems: [], hasMore: false);
 }
 
 Future<ActionItemWithMetadata?> getActionItem(String actionItemId) async {

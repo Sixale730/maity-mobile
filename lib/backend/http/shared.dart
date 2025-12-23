@@ -34,7 +34,8 @@ Future<String> getAuthHeader() async {
     SharedPreferencesUtil().authToken = await AuthService.instance.getIdToken() ?? '';
   }
 
-  if (!hasAuthToken) {
+  // Re-check after attempting to get token (hasAuthToken was set BEFORE the assignment above)
+  if (SharedPreferencesUtil().authToken.isEmpty) {
     if (AuthService.instance.isSignedIn()) {
       // should only throw if the user is signed in but the token is not found
       // if the user is not signed in, the token will always be empty
@@ -120,16 +121,17 @@ Future<http.Response?> makeApiCall({
         response = await _performRequest(url, refreshedHeaders, body, method);
         Logger.log('Token refreshed and request retried');
         if (response.statusCode == 401) {
-          // Force user to sign in again
-          await AuthService.instance.signOut();
-          Logger.handle(Exception('Authentication failed. Please sign in again.'), StackTrace.current,
-              message: 'Authentication failed. Please sign in again.');
+          // Log error but DON'T sign out - the external API (api.omi.me) may not accept our tokens
+          // This prevents cascading sign-outs when using a different Firebase project
+          Logger.handle(Exception('API rejected token (401). External API may not accept this Firebase project.'), StackTrace.current,
+              message: 'API rejected token - continuing without sign-out');
+          debugPrint('[Auth] 401 from $url - NOT signing out (external API may not accept our Firebase tokens)');
         }
       } else {
-        // Force user to sign in again
-        await AuthService.instance.signOut();
-        Logger.handle(Exception('Authentication failed. Please sign in again.'), StackTrace.current,
-            message: 'Authentication failed. Please sign in again.');
+        // No token available - log but don't sign out
+        Logger.handle(Exception('No auth token available'), StackTrace.current,
+            message: 'No auth token - continuing without sign-out');
+        debugPrint('[Auth] No token for $url - NOT signing out');
       }
     }
 

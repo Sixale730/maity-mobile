@@ -25,28 +25,12 @@ class MigrationRequest {
 
 class PrivacyApi {
   static Future<Map<String, dynamic>> getUserProfile() async {
-    try {
-      final response = await makeApiCall(
-        url: '${Env.apiBaseUrl}v1/users/profile',
-        method: 'GET',
-        headers: {},
-        body: '',
-      );
-
-      if (response != null && response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        if (response?.statusCode == 410) {
-          Logger.error('User profile not found: ${response?.statusCode} ${response?.body}');
-          throw Exception('User profile not found');
-        }
-        Logger.error('Failed to get user profile: ${response?.statusCode} ${response?.body}');
-        throw Exception('Failed to load user profile');
-      }
-    } catch (e, stackTrace) {
-      Logger.error('Error getting user profile: $e\n$stackTrace');
-      rethrow;
-    }
+    // Disabled: api.omi.me doesn't accept our Firebase tokens
+    // Return default values instead of calling the API
+    return {
+      'data_protection_level': 'standard',
+      'migration_status': null,
+    };
   }
 
   static Future<void> startMigration(String targetLevel) async {

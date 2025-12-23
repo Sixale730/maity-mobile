@@ -108,38 +108,32 @@ class HomeProvider extends ChangeNotifier {
   }
 
   Future<void> setupUserPrimaryLanguage() async {
-    if (SharedPreferencesUtil().hasSetPrimaryLanguage && SharedPreferencesUtil().userPrimaryLanguage.isNotEmpty) {
+    // Use local storage only - api.omi.me doesn't accept our Firebase tokens
+    final storedLanguage = SharedPreferencesUtil().userPrimaryLanguage;
+    final hasSet = SharedPreferencesUtil().hasSetPrimaryLanguage;
+
+    if (hasSet && storedLanguage.isNotEmpty) {
+      userPrimaryLanguage = storedLanguage;
+      hasSetPrimaryLanguage = true;
+      AnalyticsManager().setUserAttribute('Primary Language', storedLanguage);
+      debugPrint('setupUserPrimaryLanguage: loaded from local storage: $storedLanguage');
+      notifyListeners();
       return;
     }
 
-    try {
-      final language = await getUserPrimaryLanguage();
-      if (language == null) {
-        // User hasn't set a primary language yet
-        userPrimaryLanguage = '';
-        hasSetPrimaryLanguage = false;
+    // User hasn't set a primary language yet - show dialog
+    userPrimaryLanguage = '';
+    hasSetPrimaryLanguage = false;
 
-        // Show language dialog after a short delay to ensure UI is ready
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (MyApp.navigatorKey.currentContext != null) {
-            showLanguageDialogIfNeeded(MyApp.navigatorKey.currentContext!);
-          }
-        });
-      } else {
-        userPrimaryLanguage = language;
-        hasSetPrimaryLanguage = true;
-        SharedPreferencesUtil().userPrimaryLanguage = language;
-        SharedPreferencesUtil().hasSetPrimaryLanguage = true;
-        AnalyticsManager().setUserAttribute('Primary Language', language);
+    // Show language dialog after a short delay to ensure UI is ready
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (MyApp.navigatorKey.currentContext != null) {
+        showLanguageDialogIfNeeded(MyApp.navigatorKey.currentContext!);
       }
-      debugPrint('setupUserPrimaryLanguage: $language, hasSet: $hasSetPrimaryLanguage');
-    } catch (e) {
-      debugPrint('Error setting up user primary language: $e');
-      userPrimaryLanguage = '';
-      hasSetPrimaryLanguage = false;
-    }
+    });
+
+    debugPrint('setupUserPrimaryLanguage: no language set, showing dialog');
     notifyListeners();
-    return;
   }
 
   void showLanguageDialogIfNeeded(BuildContext context) {
@@ -149,18 +143,16 @@ class HomeProvider extends ChangeNotifier {
   }
 
   Future<bool> updateUserPrimaryLanguage(String languageCode) async {
+    // Save locally only - api.omi.me doesn't accept our Firebase tokens
     try {
-      final success = await setUserPrimaryLanguage(languageCode);
-      if (success) {
-        userPrimaryLanguage = languageCode;
-        hasSetPrimaryLanguage = true;
-        SharedPreferencesUtil().userPrimaryLanguage = languageCode;
-        SharedPreferencesUtil().hasSetPrimaryLanguage = true;
-        AnalyticsManager().setUserAttribute('Primary Language', languageCode);
-        notifyListeners();
-        return true;
-      }
-      return false;
+      userPrimaryLanguage = languageCode;
+      hasSetPrimaryLanguage = true;
+      SharedPreferencesUtil().userPrimaryLanguage = languageCode;
+      SharedPreferencesUtil().hasSetPrimaryLanguage = true;
+      AnalyticsManager().setUserAttribute('Primary Language', languageCode);
+      debugPrint('updateUserPrimaryLanguage: saved $languageCode to local storage');
+      notifyListeners();
+      return true;
     } catch (e) {
       debugPrint('Error setting user primary language: $e');
       return false;

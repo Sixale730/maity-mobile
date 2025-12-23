@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/http/api/conversations.dart';
 import 'package:omi/backend/preferences.dart';
@@ -11,7 +12,6 @@ import 'package:omi/services/local_conversations_service.dart';
 import 'package:omi/services/omi_supabase_service.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/services/app_review_service.dart';
-import 'package:omi/services/firestore_service.dart';
 
 class ConversationProvider extends ChangeNotifier {
   List<ServerConversation> conversations = [];
@@ -478,17 +478,27 @@ class ConversationProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future _getConversationsFromServer() async {
-    // Try to get from Firestore first
-    try {
-      final firestoreConvos = await FirestoreService().getConversations();
-      if (firestoreConvos.isNotEmpty) {
-        debugPrint('Loaded ${firestoreConvos.length} conversations from Firestore');
-        return firestoreConvos;
+  Future<List<ServerConversation>> _getConversationsFromServer() async {
+    // Try to get from Supabase first (our own database)
+    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+    if (firebaseUid != null) {
+      try {
+        final supabaseConvos = await OmiSupabaseService.getConversations(
+          firebaseUid: firebaseUid,
+          limit: 50,
+          includeDiscarded: showDiscardedConversations,
+        );
+        if (supabaseConvos.isNotEmpty) {
+          debugPrint('Loaded ${supabaseConvos.length} conversations from Supabase');
+          // Convert OmiConversation to ServerConversation
+          return supabaseConvos.map((c) => c.toServerConversation()).toList();
+        }
+      } catch (e) {
+        debugPrint('Error loading from Supabase: $e');
       }
-    } catch (e) {
-      debugPrint('Error loading from Firestore: $e');
     }
+
+    // Fallback to api.omi.me (will likely fail with 401)
     return await getConversations(includeDiscarded: showDiscardedConversations);
   }
 

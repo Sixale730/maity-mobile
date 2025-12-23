@@ -1,15 +1,16 @@
 import 'dart:convert';
 import 'dart:math' show min;
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/services/local_metrics_service.dart';
+import 'package:omi/services/omi_supabase_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:uuid/uuid.dart';
-import 'package:omi/services/firestore_service.dart';
 
 /// Service for storing and retrieving conversations locally
 /// Used when direct Deepgram transcription is enabled (bypasses Omi backend)
@@ -65,8 +66,22 @@ class LocalConversationsService {
       category: finalStructured.category,
     );
 
-    // Also save to Firestore
-    await FirestoreService().saveConversation(conversation);
+    // Save to Supabase (replaces Firestore)
+    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+    if (firebaseUid != null) {
+      try {
+        await OmiSupabaseService.storeConversation(
+          firebaseUid: firebaseUid,
+          segments: segments,
+          structured: finalStructured,
+          startedAt: startedAt,
+          finishedAt: now,
+        );
+        debugPrint('[LocalConversationsService] Saved to Supabase');
+      } catch (e) {
+        debugPrint('[LocalConversationsService] Failed to save to Supabase: $e');
+      }
+    }
 
     debugPrint('[LocalConversationsService] Saved conversation: $conversationId with ${segments.length} segments');
     debugPrint('[LocalConversationsService] Category: ${finalStructured.category}, Duration: ${durationSeconds}s, Words: $wordsCount');

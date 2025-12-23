@@ -1237,21 +1237,9 @@ class CaptureProvider extends ChangeNotifier
 
   Future<void> forceProcessingCurrentConversation() async {
     _resetStateVariables();
-    conversationProvider!.addProcessingConversation(
-      ServerConversation(
-          id: '0', createdAt: DateTime.now(), structured: Structured('', ''), status: ConversationStatus.processing),
-    );
-    processInProgressConversation().then((result) {
-      if (result == null || result.conversation == null) {
-        conversationProvider!.removeProcessingConversation('0');
-        return;
-      }
-      conversationProvider!.removeProcessingConversation('0');
-      result.conversation!.isNew = true;
-      _processConversationCreated(result.conversation, result.messages);
-    });
-
-    return;
+    // Use local/Supabase flow instead of api.omi.me which fails with 401
+    debugPrint('[Maity] Force processing conversation via local/Supabase flow');
+    await _finalizeLocalConversation();
   }
 
   Future<void> _processConversationCreated(ServerConversation? conversation, List<ServerMessage> messages) async {
