@@ -1236,10 +1236,11 @@ class CaptureProvider extends ChangeNotifier
   }
 
   Future<void> forceProcessingCurrentConversation() async {
-    _resetStateVariables();
     // Use local/Supabase flow instead of api.omi.me which fails with 401
     debugPrint('[Maity] Force processing conversation via local/Supabase flow');
+    // IMPORTANT: Save BEFORE resetting state, otherwise segments will be empty
     await _finalizeLocalConversation();
+    _resetStateVariables();
   }
 
   Future<void> _processConversationCreated(ServerConversation? conversation, List<ServerMessage> messages) async {

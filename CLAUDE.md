@@ -113,3 +113,17 @@ La funcion `_isRequiredAuthCheck()` en `shared.dart` determina que URLs requiere
 | `/v1/omi/conversations/search` | POST | Busqueda semantica |
 | `/v1/omi/conversations` | GET | Listar conversaciones |
 | `/v1/omi/conversations/{id}` | GET | Obtener conversacion con segmentos |
+
+## Backend (Monorepo)
+Codigo en `C:\OMI\api\` (misma carpeta que Flutter app):
+- `api/index.py` - FastAPI entry point
+- `api/routers/omi.py` - Endpoints OMI para Supabase
+- `api/services/supabase_client.py` - Cliente Supabase con service_role
+- `api/services/embeddings.py` - Generacion de embeddings OpenAI
+- `vercel.json` - Configuracion de deploy Vercel
+- `requirements.txt` - Dependencias Python
+
+Variables de entorno requeridas (configurar en Vercel):
+- `OPENAI_API_KEY` - Para embeddings y procesamiento
+- `SUPABASE_URL` - URL del proyecto Supabase
+- `SUPABASE_SERVICE_KEY` - Service role key (NO anon key)
