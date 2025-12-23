@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
@@ -30,11 +31,13 @@ class MaityApiService {
     try {
       debugPrint('[MaityApiService] Processing ${segments.length} segments for user $userId');
 
+      final authHeader = await getAuthHeader();
       final response = await http
           .post(
             Uri.parse('$_baseUrl/v1/conversations/process'),
             headers: {
               'Content-Type': 'application/json; charset=utf-8',
+              'Authorization': authHeader,
             },
             body: jsonEncode({
               'user_id': userId,
@@ -88,9 +91,11 @@ class MaityApiService {
   /// Get user metrics for a specific period
   static Future<UserMetrics?> getMetrics(String userId, String period) async {
     try {
+      final authHeader = await getAuthHeader();
       final response = await http
           .get(
             Uri.parse('$_baseUrl/v1/users/$userId/metrics?period=$period'),
+            headers: {'Authorization': authHeader},
           )
           .timeout(_timeout);
 
@@ -110,9 +115,11 @@ class MaityApiService {
   /// Get metrics summary (today, monthly, all-time)
   static Future<MetricsSummary?> getMetricsSummary(String userId) async {
     try {
+      final authHeader = await getAuthHeader();
       final response = await http
           .get(
             Uri.parse('$_baseUrl/v1/users/$userId/metrics/summary'),
+            headers: {'Authorization': authHeader},
           )
           .timeout(_timeout);
 
@@ -141,7 +148,11 @@ class MaityApiService {
         url += '&completed=$completed';
       }
 
-      final response = await http.get(Uri.parse(url)).timeout(_timeout);
+      final authHeader = await getAuthHeader();
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {'Authorization': authHeader},
+      ).timeout(_timeout);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -166,10 +177,14 @@ class MaityApiService {
       if (completed != null) body['completed'] = completed;
       if (description != null) body['description'] = description;
 
+      final authHeader = await getAuthHeader();
       final response = await http
           .patch(
             Uri.parse('$_baseUrl/v1/action-items/$itemId?user_id=$userId'),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': authHeader,
+            },
             body: jsonEncode(body),
           )
           .timeout(_timeout);

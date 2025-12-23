@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 
@@ -30,10 +31,14 @@ class OmiSupabaseService {
     try {
       debugPrint('[OmiSupabaseService] Storing conversation for user $firebaseUid');
 
+      final authHeader = await getAuthHeader();
       final response = await http
           .post(
             Uri.parse('$_baseUrl/v1/omi/conversations/store'),
-            headers: {'Content-Type': 'application/json; charset=utf-8'},
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              'Authorization': authHeader,
+            },
             body: jsonEncode({
               'firebase_uid': firebaseUid,
               'started_at': startedAt.toUtc().toIso8601String(),
@@ -91,10 +96,14 @@ class OmiSupabaseService {
     try {
       debugPrint('[OmiSupabaseService] Semantic search: "$query"');
 
+      final authHeader = await getAuthHeader();
       final response = await http
           .post(
             Uri.parse('$_baseUrl/v1/omi/conversations/search'),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': authHeader,
+            },
             body: jsonEncode({
               'query': query,
               'firebase_uid': firebaseUid,
@@ -129,10 +138,14 @@ class OmiSupabaseService {
     if (query.isEmpty) return [];
 
     try {
+      final authHeader = await getAuthHeader();
       final response = await http
           .post(
             Uri.parse('$_baseUrl/v1/omi/conversations/search'),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': authHeader,
+            },
             body: jsonEncode({
               'query': query,
               'firebase_uid': firebaseUid,
@@ -171,7 +184,11 @@ class OmiSupabaseService {
         },
       );
 
-      final response = await http.get(uri).timeout(_timeout);
+      final authHeader = await getAuthHeader();
+      final response = await http.get(
+        uri,
+        headers: {'Authorization': authHeader},
+      ).timeout(_timeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -194,7 +211,11 @@ class OmiSupabaseService {
         queryParameters: {'firebase_uid': firebaseUid},
       );
 
-      final response = await http.get(uri).timeout(_timeout);
+      final authHeader = await getAuthHeader();
+      final response = await http.get(
+        uri,
+        headers: {'Authorization': authHeader},
+      ).timeout(_timeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));

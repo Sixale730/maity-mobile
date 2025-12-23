@@ -60,7 +60,28 @@ Segmentos individuales de transcripcion con embeddings granulares:
 - lib/providers/conversation_provider.dart - Estado de conversaciones + busqueda semantica
 - lib/services/maity_api_service.dart - API backend (procesa y almacena en Supabase)
 - lib/services/omi_supabase_service.dart - Servicio para operaciones Supabase
+- lib/backend/http/shared.dart - Cliente HTTP con autenticacion centralizada
 - lib/backend/schema/conversation.dart - Modelos de datos
+
+## Autenticacion
+
+### Flujo de Token
+1. Usuario inicia sesion con Firebase Auth
+2. `AuthService.getIdToken()` obtiene/renueva el token JWT
+3. Token se almacena en `SharedPreferencesUtil().authToken`
+4. `getAuthHeader()` en `shared.dart` devuelve `Bearer <token>`
+
+### Dominios Autenticados
+La funcion `_isRequiredAuthCheck()` en `shared.dart` determina que URLs requieren el header Authorization:
+- URLs que contienen `Env.apiBaseUrl` (API principal OMI)
+- `maity-backend.vercel.app` (Backend Maity/Supabase)
+
+### Retry de Token
+`makeApiCall()` implementa retry automatico en caso de 401:
+1. Detecta respuesta 401
+2. Llama `AuthService.getIdToken()` para renovar token
+3. Reintenta la peticion con nuevo token
+4. Si falla de nuevo, fuerza sign-out del usuario
 
 ## Flujo de Datos
 

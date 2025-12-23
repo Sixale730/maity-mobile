@@ -67,10 +67,18 @@ Future<Map<String, String>> buildHeaders({
 }
 
 bool _isRequiredAuthCheck(String url) {
-  if (url.contains(Env.apiBaseUrl!)) {
+  // Dominios que requieren autenticación con Firebase token
+  const authDomains = [
+    'maity-backend.vercel.app',
+  ];
+
+  // Verificar dominio principal de la API
+  if (Env.apiBaseUrl != null && url.contains(Env.apiBaseUrl!)) {
     return true;
   }
-  return false;
+
+  // Verificar dominios adicionales que requieren auth
+  return authDomains.any((domain) => url.contains(domain));
 }
 
 Future<http.StreamedResponse> makeRawApiCall({
