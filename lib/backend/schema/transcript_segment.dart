@@ -180,6 +180,35 @@ class TranscriptSegment {
     segments.addAll(joinedSimilarSegments);
   }
 
+  /// Fusiona segmentos consecutivos del mismo speaker si el gap de tiempo es pequeño
+  /// Útil para streaming donde Deepgram envía segmentos fragmentados por pausas naturales
+  static void mergeConsecutiveSegmentsByTime(
+    List<TranscriptSegment> segments, {
+    double maxTimeGapSeconds = 3.0,
+  }) {
+    if (segments.length < 2) return;
+
+    int i = 0;
+    while (i < segments.length - 1) {
+      final current = segments[i];
+      final next = segments[i + 1];
+
+      final sameSpeaker = current.speaker == next.speaker;
+      final sameIsUser = current.isUser == next.isUser;
+      final timeGap = next.start - current.end;
+      final shouldMerge = sameSpeaker && sameIsUser && timeGap <= maxTimeGapSeconds && timeGap >= 0;
+
+      if (shouldMerge) {
+        current.text = '${current.text} ${next.text}'.trim();
+        current.end = next.end;
+        segments.removeAt(i + 1);
+        // No incrementar i, verificar si se puede seguir fusionando
+      } else {
+        i++;
+      }
+    }
+  }
+
   static String segmentsAsString(
     List<TranscriptSegment> segments, {
     bool includeTimestamps = false,

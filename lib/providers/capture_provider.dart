@@ -1380,6 +1380,10 @@ class CaptureProvider extends ChangeNotifier
 
     final remainSegments = TranscriptSegment.updateSegments(segments, newSegments);
     segments.addAll(remainSegments);
+
+    // Fusionar segmentos consecutivos del mismo speaker con gap < 3 segundos
+    TranscriptSegment.mergeConsecutiveSegmentsByTime(segments);
+
     debugPrint('[CaptureProvider] After update: ${segments.length} total segments');
     hasTranscripts = true;
     notifyListeners();
