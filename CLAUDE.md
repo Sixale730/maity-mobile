@@ -120,6 +120,37 @@ Los servicios STT (streaming y polling) generan IDs con formato: `{timestamp}_{s
 3. Vercel genera embedding del query y busca por similitud coseno
 4. Fallback automatico a busqueda de texto si falla
 
+### Auto-guardado con Custom STT
+Con custom STT (Deepgram directo), el guardado automático funciona así:
+
+1. `CaptureProvider._resetSilenceTimer()` inicia timer al recibir segmentos
+2. Timer se resetea con cada nuevo segmento
+3. Si expira (N segundos sin segmentos), llama `_onSilenceTimeout()`
+4. Esto ejecuta `_finalizeLocalConversation()` y guarda en Supabase
+
+**Configuración**: `SharedPreferencesUtil().conversationSilenceDuration`
+- Default: 120 segundos (2 minutos)
+- -1 = Solo manual (sin auto-guardado)
+
+**Nota**: OMI original usaba `conversation_timeout` parámetro enviado a api.omi.me,
+pero con custom STT el timer es client-side.
+
+### Fusión de Segmentos
+Los segmentos de transcripción se fusionan automáticamente:
+
+1. `TranscriptSegment.mergeConsecutiveSegmentsByTime()` fusiona segmentos
+2. Condiciones: mismo speaker, mismo isUser, gap < 3 segundos
+3. Se llama en `_processNewSegmentReceived()` después de agregar segmentos
+
+Esto evita que Deepgram fragmente segmentos por pausas naturales del habla.
+
+### Speech Profile con Custom STT
+Speech Profile ahora funciona con custom STT (Deepgram):
+
+- `SocketServicePool.speechProfile()` usa `customSttConfig` si está habilitado
+- Permite entrenar perfil de voz cuando api.omi.me está deshabilitado
+- Ubicación: `lib/services/sockets.dart`
+
 ## Pendiente
 1. ~~Crear proyecto Supabase con pgvector~~ DONE
 2. ~~Crear backend en Vercel~~ DONE (endpoints OMI)
