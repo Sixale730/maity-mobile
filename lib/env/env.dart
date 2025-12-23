@@ -33,6 +33,8 @@ abstract class Env {
   static bool get useAuthCustomToken => _instance.useAuthCustomToken ?? false;
 
   static String? get deepgramApiKey => _instance.deepgramApiKey;
+
+  static String? get maityBackendUrl => _instance.maityBackendUrl;
 }
 
 abstract class EnvFields {
@@ -61,4 +63,6 @@ abstract class EnvFields {
   bool? get useAuthCustomToken;
 
   String? get deepgramApiKey;
+
+  String? get maityBackendUrl;
 }

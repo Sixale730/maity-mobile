@@ -35,4 +35,6 @@ final class _DevEnv {
   static const bool? useAuthCustomToken = false;
 
   static final String? deepgramApiKey = null;
+
+  static final String? maityBackendUrl = null;
 }

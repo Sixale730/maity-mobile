@@ -71,10 +71,11 @@ bool _isRequiredAuthCheck(String url) {
   // Dominios que requieren autenticación con Firebase token
   const authDomains = [
     'maity-backend.vercel.app',
+    'maity-mobile.vercel.app',
   ];
 
-  // Verificar dominio principal de la API
-  if (Env.apiBaseUrl != null && url.contains(Env.apiBaseUrl!)) {
+  // Verificar dominio principal de la API (si está configurado)
+  if (Env.apiBaseUrl != null && Env.apiBaseUrl!.isNotEmpty && url.contains(Env.apiBaseUrl!)) {
     return true;
   }
 

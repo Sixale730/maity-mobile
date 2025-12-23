@@ -6,11 +6,12 @@ import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
+import 'package:omi/env/env.dart';
 
 /// Service for OMI wearable data storage in Supabase
 /// All operations go through Vercel backend which uses service_role key
 class OmiSupabaseService {
-  static const String _baseUrl = 'https://maity-backend.vercel.app';
+  static String get _baseUrl => Env.maityBackendUrl ?? 'https://maity-mobile.vercel.app';
   static const Duration _timeout = Duration(seconds: 60);
 
   /// Store a processed conversation with embeddings in Supabase

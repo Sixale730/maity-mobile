@@ -73,8 +73,10 @@ Segmentos individuales de transcripcion con embeddings granulares:
 
 ### Dominios Autenticados
 La funcion `_isRequiredAuthCheck()` en `shared.dart` determina que URLs requieren el header Authorization:
-- URLs que contienen `Env.apiBaseUrl` (API principal OMI)
-- `maity-backend.vercel.app` (Backend Maity/Supabase)
+- `maity-mobile.vercel.app` (Backend Maity/Supabase - ACTIVO)
+- `maity-backend.vercel.app` (Legacy, ya no se usa)
+
+**Nota**: `API_BASE_URL` (api.omi.me) está deshabilitado porque no acepta tokens del proyecto Firebase `maityomi-fb601`.
 
 ### Retry de Token
 `makeApiCall()` implementa retry automatico en caso de 401:

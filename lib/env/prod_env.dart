@@ -59,4 +59,8 @@ final class ProdEnv implements EnvFields {
   @override
   @EnviedField(varName: 'DEEPGRAM_API_KEY', obfuscate: true)
   final String? deepgramApiKey = _ProdEnv.deepgramApiKey;
+
+  @override
+  @EnviedField(varName: 'MAITY_BACKEND_URL', obfuscate: true)
+  final String? maityBackendUrl = _ProdEnv.maityBackendUrl;
 }
