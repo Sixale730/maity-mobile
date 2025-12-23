@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/utils/mutex.dart';
@@ -126,14 +127,19 @@ class SocketServicePool extends ISocketService {
     String? source,
   }) async {
     debugPrint("socket speech profile > $codec $sampleRate $force source: $source");
-    // Speech profile always uses default Omi service (no custom STT)
+
+    // Use custom STT if enabled (allows speech profile with Deepgram when api.omi.me is disabled)
+    final customSttConfig = SharedPreferencesUtil().useCustomStt
+        ? SharedPreferencesUtil().customSttConfig
+        : null;
+
     return await socket(
       codec: codec,
       sampleRate: sampleRate,
       language: language,
       force: force,
       source: source,
-      customSttConfig: null,
+      customSttConfig: customSttConfig,
     );
   }
 }

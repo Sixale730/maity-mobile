@@ -76,6 +76,9 @@ class CaptureProvider extends ChangeNotifier
   int _reconnectCountdown = 5;
   int get reconnectCountdown => _reconnectCountdown;
 
+  // Silence timer for auto-save with custom STT
+  Timer? _silenceTimer;
+
   Timer? _recordingTimer;
   int _recordingDuration = 0; // in seconds
   DateTime? _recordingStartTime; // Track when recording started for local conversations
@@ -556,6 +559,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   Future _cleanupCurrentState() async {
+    _cancelSilenceTimer();
     await _closeBleStream();
     notifyListeners();
   }
@@ -1386,6 +1390,10 @@ class CaptureProvider extends ChangeNotifier
 
     debugPrint('[CaptureProvider] After update: ${segments.length} total segments');
     hasTranscripts = true;
+
+    // Reset silence timer (auto-save after N seconds of no speech)
+    _resetSilenceTimer();
+
     notifyListeners();
   }
 
@@ -1480,6 +1488,38 @@ class CaptureProvider extends ChangeNotifier
     } catch (e) {
       debugPrint('[Maity] Error saving local conversation: $e');
     }
+  }
+
+  /// Resets the silence timer - called when new segments arrive
+  /// Only active for custom STT mode
+  void _resetSilenceTimer() {
+    final customSttConfig = SharedPreferencesUtil().customSttConfig;
+    if (!customSttConfig.isEnabled) return;
+
+    _silenceTimer?.cancel();
+
+    final timeoutSeconds = SharedPreferencesUtil().conversationSilenceDuration;
+    if (timeoutSeconds <= 0) return; // -1 = manual only, no auto-save
+
+    _silenceTimer = Timer(Duration(seconds: timeoutSeconds), () {
+      _onSilenceTimeout();
+    });
+  }
+
+  /// Called when silence timeout expires - auto-finalize conversation
+  void _onSilenceTimeout() async {
+    if (segments.isEmpty) return;
+
+    debugPrint('[Maity] Silence timeout (${SharedPreferencesUtil().conversationSilenceDuration}s) - auto-finalizing conversation');
+    await _finalizeLocalConversation();
+    _resetStateVariables();
+    notifyListeners();
+  }
+
+  /// Cancels the silence timer
+  void _cancelSilenceTimer() {
+    _silenceTimer?.cancel();
+    _silenceTimer = null;
   }
 
   Future<void> pauseDeviceRecording() async {
