@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/pages/capture/widgets/widgets.dart';
+import 'package:omi/pages/conversation_detail/page.dart';
 import 'package:omi/pages/conversations/widgets/processing_capture.dart';
 import 'package:omi/pages/conversations/widgets/search_result_header_widget.dart';
 import 'package:omi/pages/conversations/widgets/search_widget.dart';
@@ -9,6 +10,8 @@ import 'package:omi/pages/conversations/widgets/semantic_search_result_card.dart
 import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/conversation_provider.dart';
 import 'package:omi/services/app_review_service.dart';
+import 'package:omi/services/local_conversations_service.dart';
+import 'package:omi/utils/other/temp.dart';
 import 'package:omi/utils/ui_guidelines.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
@@ -160,7 +163,32 @@ class _ConversationsPageState extends State<ConversationsPage> with AutomaticKee
             const SliverToBoxAdapter(child: SizedBox(height: 0)), //below search widget
             const SliverToBoxAdapter(child: SearchResultHeaderWidget()),
             getProcessingConversationsWidget(convoProvider.processingConversations),
-            if (convoProvider.groupedConversations.isEmpty && !convoProvider.isLoadingConversations)
+            // Show semantic search results when active
+            if (convoProvider.useSemanticSearch && convoProvider.semanticSearchResults.isNotEmpty)
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  childCount: convoProvider.semanticSearchResults.length,
+                  (context, index) {
+                    final result = convoProvider.semanticSearchResults[index];
+                    return SemanticSearchResultCard(
+                      result: result,
+                      index: index,
+                      onTap: () {
+                        // Navigate to conversation detail from local storage
+                        final conversation = LocalConversationsService.getConversation(result.id);
+                        if (conversation != null && context.mounted) {
+                          routeToPage(
+                            context,
+                            ConversationDetailPage(conversation: conversation),
+                          );
+                        }
+                      },
+                    );
+                  },
+                ),
+              )
+            // Show empty state
+            else if (convoProvider.groupedConversations.isEmpty && !convoProvider.isLoadingConversations)
               const SliverToBoxAdapter(
                 child: Center(
                   child: Padding(
@@ -169,8 +197,10 @@ class _ConversationsPageState extends State<ConversationsPage> with AutomaticKee
                   ),
                 ),
               )
+            // Show loading shimmer
             else if (convoProvider.groupedConversations.isEmpty && convoProvider.isLoadingConversations)
               _buildLoadingShimmer()
+            // Show grouped conversations (normal mode)
             else
               SliverList(
                 delegate: SliverChildBuilderDelegate(

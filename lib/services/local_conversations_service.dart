@@ -146,6 +146,36 @@ class LocalConversationsService {
     }
   }
 
+  /// Searches local conversations by query text
+  /// Searches in title, overview, and transcript text (case-insensitive)
+  static List<ServerConversation> searchConversations(String query) {
+    if (query.trim().isEmpty) return [];
+
+    final conversations = getLocalConversations();
+    final queryLower = query.toLowerCase().trim();
+
+    return conversations.where((conv) {
+      // Search in title
+      final titleMatch = conv.structured.title.toLowerCase().contains(queryLower);
+      if (titleMatch) return true;
+
+      // Search in overview
+      final overviewMatch = conv.structured.overview.toLowerCase().contains(queryLower);
+      if (overviewMatch) return true;
+
+      // Search in transcript text
+      final transcriptText = conv.transcriptSegments.map((s) => s.text).join(' ').toLowerCase();
+      final transcriptMatch = transcriptText.contains(queryLower);
+      if (transcriptMatch) return true;
+
+      // Search in category
+      final categoryMatch = conv.structured.category.toLowerCase().contains(queryLower);
+      if (categoryMatch) return true;
+
+      return false;
+    }).toList();
+  }
+
   /// Deletes a local conversation by ID
   static Future<void> deleteConversation(String id) async {
     final conversations = getLocalConversations();

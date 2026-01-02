@@ -87,11 +87,13 @@ class ConversationProvider extends ChangeNotifier {
     }
 
     previousQuery = query;
-    var (convos, current, total) = await searchConversationsServer(query, includeDiscarded: showDiscardedConversations);
+
+    // Use local search instead of disabled api.omi.me
+    final convos = LocalConversationsService.searchConversations(query);
     convos.sort((a, b) => (b.startedAt ?? b.createdAt).compareTo(a.startedAt ?? a.createdAt));
     searchedConversations = convos;
-    currentSearchPage = current;
-    totalSearchPages = total;
+    currentSearchPage = 1;
+    totalSearchPages = 1; // Local search returns all results at once
     groupSearchConvosByDate();
 
     if (showShimmer) {
@@ -104,22 +106,11 @@ class ConversationProvider extends ChangeNotifier {
   }
 
   Future<void> searchMoreConversations() async {
-    if (totalSearchPages < currentSearchPage + 1) {
+    // Local search returns all results at once, no pagination needed
+    if (totalSearchPages <= currentSearchPage) {
       return;
     }
-    setLoadingConversations(true);
-    var (newConvos, current, total) = await searchConversationsServer(
-      previousQuery,
-      page: currentSearchPage + 1,
-      includeDiscarded: showDiscardedConversations,
-    );
-    searchedConversations.addAll(newConvos);
-    searchedConversations.sort((a, b) => (b.startedAt ?? b.createdAt).compareTo(a.startedAt ?? a.createdAt));
-    totalSearchPages = total;
-    currentSearchPage = current;
-    groupSearchConvosByDate();
-    setLoadingConversations(false);
-    notifyListeners();
+    // No-op for local search since all results are returned in the first call
   }
 
   /// Toggle between semantic search and text-based search

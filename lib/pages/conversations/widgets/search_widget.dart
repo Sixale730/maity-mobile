@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:omi/backend/preferences.dart';
 import 'package:omi/providers/conversation_provider.dart';
 import 'package:omi/providers/home_provider.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
@@ -136,9 +137,9 @@ class _SearchWidgetState extends State<SearchWidget> {
                 var provider = Provider.of<ConversationProvider>(context, listen: false);
                 _debouncer.run(() async {
                   if (provider.useSemanticSearch) {
-                    // Use semantic search with Firebase UID
-                    // TODO: Get actual Firebase UID from auth provider
-                    await provider.semanticSearchConversations(value);
+                    // Use semantic search with user UID
+                    final uid = SharedPreferencesUtil().uid;
+                    await provider.semanticSearchConversations(value, firebaseUid: uid);
                   } else {
                     await provider.searchConversations(value);
                   }
