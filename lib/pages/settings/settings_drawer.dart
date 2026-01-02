@@ -24,6 +24,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:omi/l10n/app_localizations.dart';
+import 'package:omi/main.dart';
 import 'device_settings.dart';
 import '../conversations/sync_page.dart';
 
@@ -260,6 +262,80 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
     }
   }
 
+  void _showLanguageSelector(BuildContext context) {
+    final currentLanguage = SharedPreferencesUtil().appLanguage;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 4,
+                width: 36,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3C3C43),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Text(
+                AppLocalizations.of(context)?.selectLanguage ?? 'Select Language',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Text('🇪🇸', style: TextStyle(fontSize: 24)),
+                title: const Text('Español', style: TextStyle(color: Colors.white)),
+                trailing: currentLanguage == 'es'
+                    ? const Icon(Icons.check, color: Color(0xFFFF0050))
+                    : null,
+                onTap: () {
+                  SharedPreferencesUtil().appLanguage = 'es';
+                  Navigator.pop(ctx);
+                  Navigator.pop(context);
+                  // Restart app to apply language change
+                  MyApp.navigatorKey.currentState?.pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const AppShell()),
+                    (route) => false,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Text('🇺🇸', style: TextStyle(fontSize: 24)),
+                title: const Text('English', style: TextStyle(color: Colors.white)),
+                trailing: currentLanguage == 'en'
+                    ? const Icon(Icons.check, color: Color(0xFFFF0050))
+                    : null,
+                onTap: () {
+                  SharedPreferencesUtil().appLanguage = 'en';
+                  Navigator.pop(ctx);
+                  Navigator.pop(context);
+                  // Restart app to apply language change
+                  MyApp.navigatorKey.currentState?.pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const AppShell()),
+                    (route) => false,
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showCopyNotification() {
     final overlay = Overlay.of(context);
     late OverlayEntry overlayEntry;
@@ -461,7 +537,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
           _buildSectionContainer(
             children: [
               _buildSettingsItem(
-                title: 'Data & Privacy',
+                title: AppLocalizations.of(context)?.dataPrivacy ?? 'Data & Privacy',
                 icon: const FaIcon(FontAwesomeIcons.shield, color: Color(0xFF8E8E93), size: 20),
                 onTap: () {
                   Navigator.pop(context);
@@ -474,7 +550,17 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               ),
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
-                title: 'Developer Settings',
+                title: AppLocalizations.of(context)?.language ?? 'Language',
+                icon: const FaIcon(FontAwesomeIcons.globe, color: Color(0xFF8E8E93), size: 20),
+                trailingChip: Text(
+                  SharedPreferencesUtil().appLanguage == 'es' ? 'Español' : 'English',
+                  style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 14),
+                ),
+                onTap: () => _showLanguageSelector(context),
+              ),
+              const Divider(height: 1, color: Color(0xFF3C3C43)),
+              _buildSettingsItem(
+                title: AppLocalizations.of(context)?.developerSettings ?? 'Developer Settings',
                 icon: const FaIcon(FontAwesomeIcons.code, color: Color(0xFF8E8E93), size: 20),
                 onTap: () async {
                   Navigator.pop(context);

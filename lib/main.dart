@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as ble;
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/core/app_shell.dart';
@@ -372,11 +373,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               title: F.title,
               navigatorKey: MyApp.navigatorKey,
               localizationsDelegates: const [
+                AppLocalizations.delegate,
                 GlobalMaterialLocalizations.delegate,
                 GlobalWidgetsLocalizations.delegate,
                 GlobalCupertinoLocalizations.delegate,
               ],
-              supportedLocales: const [Locale('en')],
+              supportedLocales: const [
+                Locale('es'), // Spanish (default)
+                Locale('en'), // English
+              ],
+              locale: Locale(SharedPreferencesUtil().appLanguage),
               theme: ThemeData(
                   useMaterial3: false,
                   colorScheme: const ColorScheme.dark(

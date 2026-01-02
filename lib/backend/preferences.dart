@@ -252,7 +252,7 @@ class SharedPreferencesUtil {
 
   set showDiscardedMemories(bool value) => saveBool('showDiscardedMemories', value);
 
-  // User primary language preferences
+  // User primary language preferences (for transcription)
   String get userPrimaryLanguage => getString('userPrimaryLanguage');
 
   set userPrimaryLanguage(String value) => saveString('userPrimaryLanguage', value);
@@ -260,6 +260,11 @@ class SharedPreferencesUtil {
   bool get hasSetPrimaryLanguage => getBool('hasSetPrimaryLanguage');
 
   set hasSetPrimaryLanguage(bool value) => saveBool('hasSetPrimaryLanguage', value);
+
+  // App UI language (es = Spanish default, en = English)
+  String get appLanguage => getString('appLanguage', defaultValue: 'es');
+
+  set appLanguage(String value) => saveString('appLanguage', value);
 
   int get currentStorageBytes => getInt('currentStorageBytes');
 
