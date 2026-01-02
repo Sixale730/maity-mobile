@@ -179,7 +179,7 @@ class PurePollingSocket implements IPureSocket {
                     'text': s.text.trim(),
                     'speaker': 'SPEAKER_${s.speakerId}',
                     'speaker_id': s.speakerId,
-                    'is_user': false,
+                    'is_user': s.speakerId == 0,
                     'start': s.start,
                     'end': s.end,
                   };

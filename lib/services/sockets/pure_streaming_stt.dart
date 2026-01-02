@@ -252,7 +252,7 @@ class GeminiStreamingSttSocket implements IPureSocket {
           'text': text.trim(),
           'speaker': 'SPEAKER_0',
           'speaker_id': 0,
-          'is_user': false,
+          'is_user': true,  // Gemini streaming: user is always speaker 0
           'start': _audioOffsetSeconds,
           'end': _audioOffsetSeconds + 3.0,
           'person_id': null,
@@ -632,7 +632,7 @@ class PureStreamingSttSocket implements IPureSocket {
               'text': segment.text.trim(),
               'speaker': speaker,
               'speaker_id': speakerId,
-              'is_user': false,
+              'is_user': speakerId == 0,  // Speaker 0 = user (closest to OMI mic)
               'start': segment.start,
               'end': segment.end,
               'person_id': null,
