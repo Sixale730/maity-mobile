@@ -175,7 +175,7 @@ class _LanguageSelectorWidgetState extends State<LanguageSelectorWidget> {
                         ),
                         trailing: isSelected ? const Icon(Icons.check_circle, color: Colors.deepPurple) : null,
                         selected: isSelected,
-                        selectedTileColor: Colors.deepPurple.withOpacity(0.2),
+                        selectedTileColor: Colors.deepPurple.withValues(alpha: 0.2),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),

@@ -59,7 +59,7 @@ class ConversationBottomBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               spreadRadius: 1,
               blurRadius: 5,
               offset: const Offset(0, 2),
@@ -110,7 +110,7 @@ class ConversationBottomBar extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Colors.red.withOpacity(0.4),
+            color: Colors.red.withValues(alpha: 0.4),
             spreadRadius: 1,
             blurRadius: 4,
           ),

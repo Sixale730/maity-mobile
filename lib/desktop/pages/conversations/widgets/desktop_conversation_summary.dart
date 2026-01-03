@@ -222,10 +222,10 @@ class DesktopConversationSummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+        color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+          color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -264,7 +264,7 @@ class DesktopConversationSummary extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: ResponsiveHelper.backgroundTertiary.withOpacity(0.6),
+                  color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -327,10 +327,10 @@ class DesktopConversationSummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+        color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+          color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -344,10 +344,10 @@ class DesktopConversationSummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+        color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+          color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -492,7 +492,7 @@ class _DesktopAppSelectionSheetState extends State<_DesktopAppSelectionSheet> {
             color: ResponsiveHelper.backgroundSecondary,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             border: Border.all(
-              color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+              color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
               width: 1,
             ),
           ),

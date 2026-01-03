@@ -248,7 +248,7 @@ class _DesktopLanguageScreenState extends State<DesktopLanguageScreen> with Tick
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: _searchFocusNode.hasFocus
-                        ? ResponsiveHelper.purplePrimary.withOpacity(0.6)
+                        ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.6)
                         : const Color(0xFF2A2A2A),
                     width: 1,
                   ),
@@ -395,7 +395,7 @@ class _DesktopLanguageScreenState extends State<DesktopLanguageScreen> with Tick
               borderRadius: BorderRadius.circular(8),
               border: isSelected
                   ? Border.all(
-                      color: ResponsiveHelper.purplePrimary.withOpacity(0.3),
+                      color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.3),
                       width: 1,
                     )
                   : null,

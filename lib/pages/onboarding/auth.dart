@@ -184,7 +184,7 @@ class _AuthComponentState extends State<AuthComponent> {
                       textAlign: TextAlign.center,
                       text: TextSpan(
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           fontSize: 11,
                           fontFamily: 'Manrope',
                         ),

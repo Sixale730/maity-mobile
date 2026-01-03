@@ -115,7 +115,7 @@ class _DesktopAddAppPageState extends State<DesktopAddAppPage> with TickerProvid
                 end: Alignment.bottomCenter,
                 colors: [
                   ResponsiveHelper.backgroundPrimary,
-                  ResponsiveHelper.backgroundSecondary.withOpacity(0.8),
+                  ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.8),
                 ],
               ),
             ),
@@ -125,7 +125,7 @@ class _DesktopAddAppPageState extends State<DesktopAddAppPage> with TickerProvid
                 // Main content
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.02),
+                    color: Colors.white.withValues(alpha: 0.02),
                   ),
                   child: Column(
                     children: [
@@ -160,7 +160,7 @@ class _DesktopAddAppPageState extends State<DesktopAddAppPage> with TickerProvid
             center: Alignment.topRight,
             radius: 2.0,
             colors: [
-              ResponsiveHelper.purplePrimary.withOpacity(0.05),
+              ResponsiveHelper.purplePrimary.withValues(alpha: 0.05),
               Colors.transparent,
             ],
           ),
@@ -177,7 +177,7 @@ class _DesktopAddAppPageState extends State<DesktopAddAppPage> with TickerProvid
               center: Alignment.topRight,
               radius: 2.0,
               colors: [
-                ResponsiveHelper.purplePrimary.withOpacity(0.05 + _pulseAnimation.value * 0.03),
+                ResponsiveHelper.purplePrimary.withValues(alpha: 0.05 + _pulseAnimation.value * 0.03),
                 Colors.transparent,
               ],
             ),
@@ -234,7 +234,7 @@ class _DesktopAddAppPageState extends State<DesktopAddAppPage> with TickerProvid
           // Container(
           //   padding: const EdgeInsets.all(8),
           //   decoration: BoxDecoration(
-          //     color: ResponsiveHelper.purplePrimary.withOpacity(0.2),
+          //     color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.2),
           //     borderRadius: BorderRadius.circular(8),
           //   ),
           //   child: Icon(
@@ -852,7 +852,7 @@ class _DesktopAddAppPageState extends State<DesktopAddAppPage> with TickerProvid
                   decoration: BoxDecoration(
                     color: provider.isValid
                         ? ResponsiveHelper.purplePrimary
-                        : ResponsiveHelper.backgroundTertiary.withOpacity(0.6),
+                        : ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: provider.isValid
                         ? [

@@ -68,13 +68,13 @@ class _DesktopConversationSearchState extends State<DesktopConversationSearch> w
           color: ResponsiveHelper.backgroundSecondary,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: _isFocused ? ResponsiveHelper.purplePrimary.withOpacity(0.6) : ResponsiveHelper.backgroundTertiary,
+            color: _isFocused ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.6) : ResponsiveHelper.backgroundTertiary,
             width: 1,
           ),
           boxShadow: _isFocused
               ? [
                   BoxShadow(
-                    color: ResponsiveHelper.purplePrimary.withOpacity(0.1),
+                    color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 4),
                   ),

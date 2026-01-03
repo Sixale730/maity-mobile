@@ -75,7 +75,7 @@ class _ReviewsListPageState extends State<ReviewsListPage> {
                     hintText: 'Write your reply...',
                     hintStyle: TextStyle(color: Colors.grey.shade500),
                     filled: true,
-                    fillColor: Colors.black.withOpacity(0.3),
+                    fillColor: Colors.black.withValues(alpha: 0.3),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide.none,
@@ -187,7 +187,7 @@ class _ReviewsListPageState extends State<ReviewsListPage> {
           height: 36,
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.grey.withOpacity(0.3),
+            color: Colors.grey.withValues(alpha: 0.3),
             shape: BoxShape.circle,
           ),
           child: IconButton(
@@ -291,7 +291,7 @@ class _ReviewsListPageState extends State<ReviewsListPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? Colors.deepPurple : Colors.grey.shade800.withOpacity(0.5),
+          color: selected ? Colors.deepPurple : Colors.grey.shade800.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected ? Colors.deepPurple : Colors.grey.shade700,
@@ -318,7 +318,7 @@ class _ReviewsListPageState extends State<ReviewsListPage> {
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F1F25).withOpacity(0.8),
+        color: const Color(0xFF1F1F25).withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(16.0),
       ),
       child: Column(
@@ -425,7 +425,7 @@ class _ReviewsListPageState extends State<ReviewsListPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(

@@ -73,7 +73,7 @@ class _DesktopShortcutsPageState extends State<DesktopShortcutsPage> {
                       color: ResponsiveHelper.backgroundSecondary,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+                        color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Column(
@@ -85,7 +85,7 @@ class _DesktopShortcutsPageState extends State<DesktopShortcutsPage> {
                         ),
                         Container(
                           height: 1,
-                          color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+                          color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
                         ),
                         _buildShortcutRow(
                           title: 'Ask Omi',
@@ -332,7 +332,7 @@ class _ShortcutRecorderBadgeState extends State<_ShortcutRecorderBadge> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: ResponsiveHelper.purplePrimary.withOpacity(0.15),
+          color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: ResponsiveHelper.purplePrimary, width: 1.5),
         ),

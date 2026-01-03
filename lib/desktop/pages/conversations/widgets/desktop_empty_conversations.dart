@@ -25,10 +25,10 @@ class DesktopEmptyConversations extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: ResponsiveHelper.backgroundSecondary.withOpacity(0.6),
+              color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: ResponsiveHelper.backgroundTertiary.withOpacity(0.5),
+                color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.5),
                 width: 1,
               ),
             ),

@@ -276,12 +276,12 @@ class _DesktopActionItemFormDialogState extends State<DesktopActionItemFormDialo
           color: ResponsiveHelper.backgroundSecondary,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+            color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -319,7 +319,7 @@ class _DesktopActionItemFormDialogState extends State<DesktopActionItemFormDialo
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+            color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -382,7 +382,7 @@ class _DesktopActionItemFormDialogState extends State<DesktopActionItemFormDialo
               fontSize: 16,
             ),
             filled: true,
-            fillColor: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+            fillColor: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
@@ -445,10 +445,10 @@ class _DesktopActionItemFormDialogState extends State<DesktopActionItemFormDialo
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+              color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: ResponsiveHelper.backgroundTertiary.withOpacity(0.5),
+                color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.5),
                 width: 1,
               ),
             ),
@@ -495,7 +495,7 @@ class _DesktopActionItemFormDialogState extends State<DesktopActionItemFormDialo
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
-            color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+            color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -632,10 +632,10 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet> {
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               decoration: BoxDecoration(
-                color: ResponsiveHelper.purplePrimary.withOpacity(0.1),
+                color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: ResponsiveHelper.purplePrimary.withOpacity(0.3),
+                  color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),

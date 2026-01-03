@@ -54,12 +54,12 @@ class _DesktopMemoryDialogState extends State<DesktopMemoryDialog> {
           color: ResponsiveHelper.backgroundSecondary,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+            color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 30,
               offset: const Offset(0, 15),
             ),
@@ -95,10 +95,10 @@ class _DesktopMemoryDialogState extends State<DesktopMemoryDialog> {
             // Content input
             Container(
               decoration: BoxDecoration(
-                color: ResponsiveHelper.backgroundTertiary.withOpacity(0.6),
+                color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+                  color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -196,10 +196,10 @@ class _DesktopMemoryDialogState extends State<DesktopMemoryDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: Colors.red.withOpacity(0.3),
+                    color: Colors.red.withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),

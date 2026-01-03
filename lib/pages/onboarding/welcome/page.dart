@@ -194,12 +194,12 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                           children: [
                             // Dim overlay
                             Container(
-                              color: Colors.black.withOpacity(0.4),
+                              color: Colors.black.withValues(alpha: 0.4),
                             ),
                             // Fade to black overlay (increases during expansion)
                             if (_isExpandingTop)
                               Container(
-                                color: Colors.black.withOpacity(_fadeToBlackAnimation.value * 0.9),
+                                color: Colors.black.withValues(alpha: _fadeToBlackAnimation.value * 0.9),
                               ),
                             // Content positioned in lower half
                             Positioned(
@@ -216,8 +216,8 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                                     child: InkWell(
                                       onTap: _handleTopButtonPress,
                                       borderRadius: BorderRadius.circular(28),
-                                      splashColor: Colors.green.withOpacity(0.7),
-                                      highlightColor: Colors.green.withOpacity(0.1),
+                                      splashColor: Colors.green.withValues(alpha: 0.7),
+                                      highlightColor: Colors.green.withValues(alpha: 0.1),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                                         child: Row(
@@ -283,7 +283,7 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                             children: [
                               // Dim overlay
                               Container(
-                                color: Colors.black.withOpacity(0.5),
+                                color: Colors.black.withValues(alpha: 0.5),
                               ),
 
                               // Content positioned in lower half
@@ -300,8 +300,8 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                                       child: InkWell(
                                         onTap: _handleBottomButtonPress,
                                         borderRadius: BorderRadius.circular(28),
-                                        splashColor: Colors.green.withOpacity(0.7),
-                                        highlightColor: Colors.green.withOpacity(0.1),
+                                        splashColor: Colors.green.withValues(alpha: 0.7),
+                                        highlightColor: Colors.green.withValues(alpha: 0.1),
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                                           decoration: BoxDecoration(

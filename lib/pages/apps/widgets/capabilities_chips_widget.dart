@@ -16,7 +16,7 @@ class CapabilitiesChipsWidget extends StatelessWidget {
           color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? Colors.white : Colors.grey.withOpacity(0.3),
+            color: isSelected ? Colors.white : Colors.grey.withValues(alpha: 0.3),
             width: 1,
           ),
         ),

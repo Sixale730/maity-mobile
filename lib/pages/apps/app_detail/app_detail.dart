@@ -446,7 +446,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
         bottom: 6,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F1F25).withOpacity(0.8),
+        color: const Color(0xFF1F1F25).withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(16.0),
       ),
       child: Column(
@@ -475,13 +475,13 @@ class _AppDetailPageState extends State<AppDetailPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: _getPermissionTypeColor(permission.type).withOpacity(0.1),
+              color: _getPermissionTypeColor(permission.type).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               permission.type,
               style: TextStyle(
-                color: _getPermissionTypeColor(permission.type).withOpacity(0.8),
+                color: _getPermissionTypeColor(permission.type).withValues(alpha: 0.8),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -539,7 +539,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
         bottom: 6,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F1F25).withOpacity(0.8),
+        color: const Color(0xFF1F1F25).withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(16.0),
       ),
       child: Column(
@@ -565,7 +565,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -617,7 +617,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
             height: 36,
             margin: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.3),
+              color: Colors.grey.withValues(alpha: 0.3),
               shape: BoxShape.circle,
             ),
             child: IconButton(
@@ -636,7 +636,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
                 height: 36,
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.3),
+                  color: Colors.grey.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
@@ -709,7 +709,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
                 height: 36,
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.3),
+                  color: Colors.grey.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
@@ -736,7 +736,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
                         height: 36,
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.3),
+                          color: Colors.grey.withValues(alpha: 0.3),
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
@@ -783,7 +783,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
                         height: 36,
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.3),
+                          color: Colors.grey.withValues(alpha: 0.3),
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
@@ -1308,10 +1308,10 @@ class _AppDetailPageState extends State<AppDetailPage> {
                             bottom: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1F1F25).withOpacity(0.8),
+                            color: const Color(0xFF1F1F25).withValues(alpha: 0.8),
                             borderRadius: BorderRadius.circular(16.0),
                             border: Border.all(
-                              color: setupCompleted ? Colors.green.withOpacity(0.3) : Colors.transparent,
+                              color: setupCompleted ? Colors.green.withValues(alpha: 0.3) : Colors.transparent,
                               width: 1,
                             ),
                           ),
@@ -1332,8 +1332,8 @@ class _AppDetailPageState extends State<AppDetailPage> {
                                       height: 32,
                                       decoration: BoxDecoration(
                                         color: setupCompleted
-                                            ? Colors.green.withOpacity(0.2)
-                                            : Colors.grey.withOpacity(0.2),
+                                            ? Colors.green.withValues(alpha: 0.2)
+                                            : Colors.grey.withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Center(
@@ -1604,7 +1604,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
                             bottom: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1F1F25).withOpacity(0.8),
+                            color: const Color(0xFF1F1F25).withValues(alpha: 0.8),
                             borderRadius: BorderRadius.circular(16.0),
                           ),
                           child: Column(
@@ -2104,9 +2104,9 @@ class _RecentReviewsSectionState extends State<RecentReviewsSection> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.deepPurple.withOpacity(0.1),
+        color: Colors.deepPurple.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.deepPurple.withOpacity(0.3)),
+        border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2171,7 +2171,7 @@ class _RecentReviewsSectionState extends State<RecentReviewsSection> {
               hintText: 'Write a review (optional)',
               hintStyle: TextStyle(color: Colors.grey.shade500),
               filled: true,
-              fillColor: Colors.black.withOpacity(0.3),
+              fillColor: Colors.black.withValues(alpha: 0.3),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide.none,
@@ -2241,7 +2241,7 @@ class _RecentReviewsSectionState extends State<RecentReviewsSection> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: isUserReview ? Colors.deepPurple.withOpacity(0.2) : Colors.grey.shade800,
+                          color: isUserReview ? Colors.deepPurple.withValues(alpha: 0.2) : Colors.grey.shade800,
                           shape: BoxShape.circle,
                         ),
                         child: Center(

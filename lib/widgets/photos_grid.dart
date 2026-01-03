@@ -46,7 +46,7 @@ class PhotosGridComponent extends StatelessWidget {
                   ),
                   if (photo.discarded)
                     Container(
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withValues(alpha: 0.5),
                       child: const Icon(
                         Icons.visibility_off_outlined,
                         color: Colors.white70,
@@ -55,7 +55,7 @@ class PhotosGridComponent extends StatelessWidget {
                     ),
                   if (isProcessing)
                     Container(
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withValues(alpha: 0.5),
                       child: const Center(
                         child: SizedBox(
                           width: 20,

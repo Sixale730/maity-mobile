@@ -202,7 +202,7 @@ class _VerifyIdentityScreenState extends State<VerifyIdentityScreen> {
                         Text(
                           'Please verify you\'re the owner of\nthis account',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 16,
                           ),
                           textAlign: TextAlign.center,
@@ -214,7 +214,7 @@ class _VerifyIdentityScreenState extends State<VerifyIdentityScreen> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.3),
+                              color: Colors.white.withValues(alpha: 0.3),
                               width: 3,
                             ),
                           ),
@@ -228,7 +228,7 @@ class _VerifyIdentityScreenState extends State<VerifyIdentityScreen> {
                                   child: Icon(
                                     Icons.person,
                                     size: 40,
-                                    color: Colors.white.withOpacity(0.5),
+                                    color: Colors.white.withValues(alpha: 0.5),
                                   ),
                                 );
                               },
@@ -241,7 +241,7 @@ class _VerifyIdentityScreenState extends State<VerifyIdentityScreen> {
                             Text(
                               tryDecodingText(provider.twitterProfile['name'] ?? ""),
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.78),
+                                color: Colors.white.withValues(alpha: 0.78),
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -265,7 +265,7 @@ class _VerifyIdentityScreenState extends State<VerifyIdentityScreen> {
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.12),
+                            backgroundColor: Colors.white.withValues(alpha: 0.12),
                             foregroundColor: Colors.white,
                             minimumSize: const Size(double.infinity, 56),
                             shape: RoundedRectangleBorder(
@@ -298,7 +298,7 @@ class _VerifyIdentityScreenState extends State<VerifyIdentityScreen> {
                                 child: Text(
                                   "Didn't post the tweet? click here",
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.8),
+                                    color: Colors.white.withValues(alpha: 0.8),
                                     fontSize: 14,
                                   ),
                                 ),

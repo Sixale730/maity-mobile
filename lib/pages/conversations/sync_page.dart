@@ -41,7 +41,7 @@ class WalListItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -159,7 +159,7 @@ class WalListItem extends StatelessWidget {
                                     width: 32,
                                     height: 32,
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.7),
+                                      color: Colors.white.withValues(alpha: 0.7),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Padding(
@@ -372,7 +372,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 16),
-          Divider(color: Colors.grey.withOpacity(0.2)),
+          Divider(color: Colors.grey.withValues(alpha: 0.2)),
           const SizedBox(height: 16),
           Consumer<UserProvider>(
             builder: (context, userProvider, child) {
@@ -495,7 +495,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white.withOpacity(0.1) : Colors.transparent,
+          color: isSelected ? Colors.white.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
@@ -539,7 +539,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.15),
+                    color: Colors.grey.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
@@ -673,7 +673,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.15),
+                color: Colors.grey.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -911,7 +911,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              Divider(color: Colors.grey.withOpacity(0.2)),
+              Divider(color: Colors.grey.withValues(alpha: 0.2)),
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1059,7 +1059,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.deepPurple.withOpacity(0.1),
+                                color: Colors.deepPurple.withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
@@ -1087,7 +1087,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.grey.withOpacity(0.15),
+                                color: Colors.grey.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
@@ -1123,7 +1123,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.grey.withOpacity(0.1),
+                                color: Colors.grey.withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(

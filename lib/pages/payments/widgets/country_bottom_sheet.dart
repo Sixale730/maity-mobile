@@ -58,7 +58,7 @@ class _CountryBottomSheetState extends State<CountryBottomSheet> {
                     hintText: 'Search countries...',
                     hintStyle: TextStyle(color: Colors.grey[400]),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.1),
+                    fillColor: Colors.white.withValues(alpha: 0.1),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,

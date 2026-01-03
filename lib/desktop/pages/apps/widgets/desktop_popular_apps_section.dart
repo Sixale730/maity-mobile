@@ -31,7 +31,7 @@ class DesktopPopularAppsSection extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: ResponsiveHelper.purplePrimary.withOpacity(0.15),
+                  color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -121,25 +121,25 @@ class _DesktopPopularAppCardState extends State<_DesktopPopularAppCard> {
             borderRadius: BorderRadius.circular(12),
             child: Container(
               decoration: BoxDecoration(
-                color: ResponsiveHelper.backgroundSecondary.withOpacity(0.8),
+                color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: _isHovered
-                      ? ResponsiveHelper.purplePrimary.withOpacity(0.3)
-                      : ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+                      ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.3)
+                      : ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
                   width: 1,
                 ),
                 boxShadow: _isHovered
                     ? [
                         BoxShadow(
-                          color: ResponsiveHelper.purplePrimary.withOpacity(0.1),
+                          color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.1),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
                       ]
                     : [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -186,7 +186,7 @@ class _DesktopPopularAppCardState extends State<_DesktopPopularAppCard> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -197,7 +197,7 @@ class _DesktopPopularAppCardState extends State<_DesktopPopularAppCard> {
         width: 48,
         height: 48,
         decoration: BoxDecoration(
-          color: ResponsiveHelper.backgroundTertiary.withOpacity(0.5),
+          color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(10),
         ),
         child: const Center(
@@ -215,7 +215,7 @@ class _DesktopPopularAppCardState extends State<_DesktopPopularAppCard> {
         width: 48,
         height: 48,
         decoration: BoxDecoration(
-          color: ResponsiveHelper.backgroundTertiary.withOpacity(0.5),
+          color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(10),
         ),
         child: const Icon(

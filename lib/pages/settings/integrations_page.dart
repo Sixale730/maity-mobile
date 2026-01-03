@@ -433,7 +433,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
                                   decoration: BoxDecoration(
-                                    color: isAvailable ? app.iconColor.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
+                                    color: isAvailable ? app.iconColor.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Icon(
@@ -447,7 +447,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
                           )
                         : Container(
                             decoration: BoxDecoration(
-                              color: isAvailable ? app.iconColor.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
+                              color: isAvailable ? app.iconColor.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
@@ -550,7 +550,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.2),
+                color: Colors.purple.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
@@ -575,7 +575,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.2),
+                color: Colors.purple.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(

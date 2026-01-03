@@ -124,14 +124,14 @@ class _DesktopRecordingWidgetState extends State<DesktopRecordingWidget> {
                   boxShadow: _isHovered
                       ? [
                           BoxShadow(
-                            color: ResponsiveHelper.purplePrimary.withOpacity(0.3),
+                            color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.3),
                             blurRadius: 25,
                             offset: const Offset(0, 10),
                           ),
                         ]
                       : [
                           BoxShadow(
-                            color: ResponsiveHelper.purplePrimary.withOpacity(0.2),
+                            color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.2),
                             blurRadius: 15,
                             offset: const Offset(0, 5),
                           ),
@@ -965,7 +965,7 @@ class _DesktopRecordingWidgetState extends State<DesktopRecordingWidget> {
         constraints: const BoxConstraints(maxWidth: 280, minWidth: 220),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -976,7 +976,7 @@ class _DesktopRecordingWidgetState extends State<DesktopRecordingWidget> {
               child: Text('Select Audio Input',
                   style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w600)),
             ),
-            Divider(height: 1, color: Colors.white.withOpacity(0.1)),
+            Divider(height: 1, color: Colors.white.withValues(alpha: 0.1)),
             const SizedBox(height: 4),
             if (_availableAudioDevices.isNotEmpty)
               ..._availableAudioDevices.map(_buildFloatingAudioDeviceItem)

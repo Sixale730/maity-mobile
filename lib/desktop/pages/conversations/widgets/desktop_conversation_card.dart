@@ -113,10 +113,10 @@ class _DesktopConversationCardState extends State<DesktopConversationCard> {
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.03),
+              color: Colors.white.withValues(alpha: 0.03),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: _isHovered ? Colors.white.withOpacity(0.3) : Colors.white.withOpacity(0.05),
+                color: _isHovered ? Colors.white.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.05),
                 width: 1,
               ),
             ),
@@ -446,7 +446,7 @@ class _DesktopConversationCardState extends State<DesktopConversationCard> {
           child: Container(
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.01),
+              color: Colors.black.withValues(alpha: 0.01),
             ),
             child: const Text(
               'Upgrade to unlimited',

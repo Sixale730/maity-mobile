@@ -162,7 +162,7 @@ class _DeviceSettingsState extends State<DeviceSettings> {
                           decoration: BoxDecoration(
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withValues(alpha: 0.1),
                                 spreadRadius: 5,
                                 blurRadius: 7,
                                 offset: const Offset(0, 3),
@@ -319,7 +319,7 @@ class _DeviceSettingsState extends State<DeviceSettings> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -522,7 +522,7 @@ class _DeviceSettingsState extends State<DeviceSettings> {
                   activeTrackColor: Colors.white,
                   inactiveTrackColor: Colors.grey.shade800,
                   thumbColor: Colors.white,
-                  overlayColor: Colors.white.withOpacity(0.1),
+                  overlayColor: Colors.white.withValues(alpha: 0.1),
                   thumbShape: const RoundSliderThumbShape(
                     enabledThumbRadius: 10,
                     elevation: 2,
@@ -626,7 +626,7 @@ class _DeviceSettingsState extends State<DeviceSettings> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? Colors.white.withOpacity(0.8) : Colors.transparent,
+            color: isSelected ? Colors.white.withValues(alpha: 0.8) : Colors.transparent,
             width: 1.5,
           ),
         ),

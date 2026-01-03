@@ -44,10 +44,10 @@ class DesktopActionItemsSection extends StatelessWidget {
             margin: EdgeInsets.only(bottom: index == actionItems.length - 1 ? 0 : 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+              color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+                color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
                 width: 1,
               ),
             ),

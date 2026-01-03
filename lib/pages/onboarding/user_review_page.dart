@@ -118,7 +118,7 @@ class _UserReviewPageState extends State<UserReviewPage> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28),
                       ),
-                      disabledBackgroundColor: Colors.deepPurple.withOpacity(0.5),
+                      disabledBackgroundColor: Colors.deepPurple.withValues(alpha: 0.5),
                     ),
                     child: _isLoading
                         ? const SizedBox(

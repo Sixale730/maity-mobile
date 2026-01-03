@@ -186,7 +186,7 @@ class _PersonaProfilePageState extends State<PersonaProfilePage> {
                                             child: Container(
                                               decoration: BoxDecoration(
                                                 shape: BoxShape.circle,
-                                                color: Colors.black.withOpacity(0.3),
+                                                color: Colors.black.withValues(alpha: 0.3),
                                               ),
                                               child: const Center(
                                                 child: Icon(
@@ -271,7 +271,7 @@ class _PersonaProfilePageState extends State<PersonaProfilePage> {
                                   );
                                 },
                                 style: TextButton.styleFrom(
-                                  backgroundColor: Colors.white.withOpacity(0.08),
+                                  backgroundColor: Colors.white.withValues(alpha: 0.08),
                                   minimumSize: const Size(double.infinity, 50),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(30),
@@ -285,7 +285,7 @@ class _PersonaProfilePageState extends State<PersonaProfilePage> {
                                     Text(
                                       'Share Public Link',
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.86),
+                                        color: Colors.white.withValues(alpha: 0.86),
                                         fontWeight: FontWeight.bold,
                                         fontSize: 18,
                                       ),
@@ -303,7 +303,7 @@ class _PersonaProfilePageState extends State<PersonaProfilePage> {
                                     Text(
                                       'Make Persona Public',
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.65),
+                                        color: Colors.white.withValues(alpha: 0.65),
                                         fontSize: 18,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -336,7 +336,7 @@ class _PersonaProfilePageState extends State<PersonaProfilePage> {
                                     child: Text(
                                       'Connected Knowledge Data',
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.65),
+                                        color: Colors.white.withValues(alpha: 0.65),
                                         fontSize: 18,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -442,7 +442,7 @@ class _PersonaProfilePageState extends State<PersonaProfilePage> {
                       ),
                       if (provider.isLoading)
                         Container(
-                          color: Colors.black.withOpacity(0.5),
+                          color: Colors.black.withValues(alpha: 0.5),
                           child: const Center(
                             child: CircularProgressIndicator(
                               valueColor: AlwaysStoppedAnimation(Colors.white),
@@ -596,7 +596,7 @@ class _PersonaProfilePageState extends State<PersonaProfilePage> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -615,7 +615,7 @@ class _PersonaProfilePageState extends State<PersonaProfilePage> {
                   'Create a more accurate clone with\nyour personal conversations',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 16,
                   ),
                 ),
@@ -635,7 +635,7 @@ class _PersonaProfilePageState extends State<PersonaProfilePage> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                             side: BorderSide(
-                              color: Colors.white.withOpacity(0.12),
+                              color: Colors.white.withValues(alpha: 0.12),
                               width: 4,
                             ),
                           ),
@@ -658,7 +658,7 @@ class _PersonaProfilePageState extends State<PersonaProfilePage> {
                           'I have Omi device',
                           style: TextStyle(
                             fontSize: 18,
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -690,7 +690,7 @@ class _PersonaProfilePageState extends State<PersonaProfilePage> {
         // color: Colors.grey[900],
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withOpacity(0.22),
+          color: Colors.white.withValues(alpha: 0.22),
           width: 1,
         ),
       ),

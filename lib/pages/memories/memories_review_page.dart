@@ -335,7 +335,7 @@ class _MemoriesReviewPageState extends State<MemoriesReviewPage> with TickerProv
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
+                                  color: Colors.black.withValues(alpha: 0.2),
                                   blurRadius: 8,
                                   offset: const Offset(0, 3),
                                 ),
@@ -358,7 +358,7 @@ class _MemoriesReviewPageState extends State<MemoriesReviewPage> with TickerProv
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.25),
+                                  color: Colors.black.withValues(alpha: 0.25),
                                   blurRadius: 8,
                                   offset: const Offset(0, 3),
                                 ),
@@ -375,7 +375,7 @@ class _MemoriesReviewPageState extends State<MemoriesReviewPage> with TickerProv
                                       child: Text(
                                         displayedMemories[currentCardIndex + 1].content.decodeString,
                                         style: TextStyle(
-                                          color: Colors.white.withOpacity(0.8),
+                                          color: Colors.white.withValues(alpha: 0.8),
                                           fontSize: 20,
                                           height: 1.5,
                                         ),
@@ -428,7 +428,7 @@ class _MemoriesReviewPageState extends State<MemoriesReviewPage> with TickerProv
                                       borderRadius: BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.3),
+                                          color: Colors.black.withValues(alpha: 0.3),
                                           blurRadius: 10,
                                           offset: const Offset(0, 4),
                                         ),
@@ -599,7 +599,7 @@ class _MemoriesReviewPageState extends State<MemoriesReviewPage> with TickerProv
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),

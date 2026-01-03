@@ -80,11 +80,11 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
 
   Widget _buildProgressSection() {
     return Card(
-      color: Colors.black.withOpacity(0.2),
+      color: Colors.black.withValues(alpha: 0.2),
       elevation: 2.0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -114,7 +114,7 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
                 Container(
                   height: 8,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -140,9 +140,9 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.yellow.withOpacity(0.1),
+                color: Colors.yellow.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.yellow.withOpacity(0.3)),
+                border: Border.all(color: Colors.yellow.withValues(alpha: 0.3)),
               ),
               child: const Row(
                 children: [
@@ -169,11 +169,11 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
 
   Widget _buildSuccessSection() {
     return Card(
-      color: Colors.black.withOpacity(0.2),
+      color: Colors.black.withValues(alpha: 0.2),
       elevation: 2.0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -201,7 +201,7 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 24),
@@ -258,11 +258,11 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
     bool hasChangelog = changelogData != null && changelogData is List && (List<String>.from(changelogData)).isNotEmpty;
 
     return Card(
-      color: Colors.black.withOpacity(0.2),
+      color: Colors.black.withValues(alpha: 0.2),
       elevation: 2.0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -279,7 +279,7 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
                       'Current Version',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -300,14 +300,14 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
                   ],
                 ),
                 if (latestFirmwareDetails['version'] != null) ...[
-                  Icon(Icons.arrow_forward_ios_rounded, size: 20, color: Colors.white.withOpacity(0.4)),
+                  Icon(Icons.arrow_forward_ios_rounded, size: 20, color: Colors.white.withValues(alpha: 0.4)),
                   Column(
                     children: [
                       Text(
                         'Latest Version',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -335,8 +335,8 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
               Theme(
                 data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                 child: ExpansionTile(
-                  iconColor: Colors.white.withOpacity(0.6),
-                  collapsedIconColor: Colors.white.withOpacity(0.6),
+                  iconColor: Colors.white.withValues(alpha: 0.6),
+                  collapsedIconColor: Colors.white.withValues(alpha: 0.6),
                   tilePadding: EdgeInsets.zero,
                   title: Text(
                     'View Changelog',
@@ -366,7 +366,7 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
                                       child: Text(
                                         change,
                                         style:
-                                            TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, height: 1.3),
+                                            TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14, height: 1.3),
                                       ),
                                     ),
                                   ],
@@ -384,9 +384,9 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.1))),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
                 child: Row(
                   children: [
                     Icon(Icons.info_outline_rounded, color: Colors.purpleAccent.shade100, size: 20),
@@ -411,11 +411,11 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
                 onPressed: () async {
                   await IntercomManager.instance.displayFirmwareUpdateArticle();
                 },
-                icon: Icon(Icons.help_outline, color: Colors.white.withOpacity(0.8)),
+                icon: Icon(Icons.help_outline, color: Colors.white.withValues(alpha: 0.8)),
                 label: Text(
                   'Open Update Guide',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     fontSize: 15,
                     decoration: TextDecoration.underline,
                   ),
@@ -515,7 +515,7 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
                         const SizedBox(height: 16),
                         Text(
                           'Checking for updates...',
-                          style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
                         ),
                       ],
                     )

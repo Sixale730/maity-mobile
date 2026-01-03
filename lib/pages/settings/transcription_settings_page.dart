@@ -585,7 +585,7 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
                             margin: const EdgeInsets.only(left: 8),
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.2),
+                              color: Colors.green.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
@@ -613,7 +613,7 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
                         child: Text(
                           'Coming Soon',
                           style: TextStyle(
-                            color: Colors.orange.withOpacity(0.5),
+                            color: Colors.orange.withValues(alpha: 0.5),
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1152,7 +1152,7 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: const Text(
@@ -1630,7 +1630,7 @@ class _JsonEditorPageState extends State<_JsonEditorPage> {
                           margin: const EdgeInsets.only(left: 8),
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.2),
+                            color: Colors.green.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: const Text(
@@ -1682,7 +1682,7 @@ class _JsonEditorPageState extends State<_JsonEditorPage> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.shade900.withOpacity(0.3),
+                color: Colors.red.shade900.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.red.shade700),
               ),

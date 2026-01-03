@@ -126,7 +126,7 @@ class DesktopMessageActionMenu extends StatelessWidget {
               Icon(
                 Icons.chevron_right,
                 size: 16,
-                color: isDestructive ? Colors.red.shade400.withOpacity(0.6) : ResponsiveHelper.textTertiary,
+                color: isDestructive ? Colors.red.shade400.withValues(alpha: 0.6) : ResponsiveHelper.textTertiary,
               ),
             ],
           ),

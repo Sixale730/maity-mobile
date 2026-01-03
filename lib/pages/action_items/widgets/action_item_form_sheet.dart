@@ -421,7 +421,7 @@ class _ActionItemFormSheetState extends State<ActionItemFormSheet> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -621,10 +621,10 @@ class _DateTimePickerSheetState extends State<DateTimePickerSheet> {
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               decoration: BoxDecoration(
-                color: Colors.deepPurpleAccent.withOpacity(0.1),
+                color: Colors.deepPurpleAccent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.deepPurpleAccent.withOpacity(0.3),
+                  color: Colors.deepPurpleAccent.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),

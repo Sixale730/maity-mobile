@@ -377,7 +377,7 @@ class _OnboardingWrapperState extends State<OnboardingWrapper> with TickerProvid
                               height: 36,
                               margin: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: Colors.grey.withOpacity(0.3),
+                                color: Colors.grey.withValues(alpha: 0.3),
                                 shape: BoxShape.circle,
                               ),
                               child: IconButton(
@@ -452,7 +452,7 @@ class _OnboardingWrapperState extends State<OnboardingWrapper> with TickerProvid
                                 height: 36,
                                 margin: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.withOpacity(0.3),
+                                  color: Colors.grey.withValues(alpha: 0.3),
                                   shape: BoxShape.circle,
                                 ),
                                 child: IconButton(

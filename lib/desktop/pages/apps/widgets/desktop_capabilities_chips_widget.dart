@@ -16,7 +16,7 @@ class DesktopCapabilitiesChipsWidget extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+            color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Center(

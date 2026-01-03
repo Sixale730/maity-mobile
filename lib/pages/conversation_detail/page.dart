@@ -367,7 +367,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
               height: 36,
               margin: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.3),
+                color: Colors.grey.withValues(alpha: 0.3),
                 shape: BoxShape.circle,
               ),
               child: IconButton(
@@ -415,7 +415,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                         height: 36,
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.3),
+                          color: Colors.grey.withValues(alpha: 0.3),
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
@@ -490,7 +490,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                           height: 36,
                           margin: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
-                            color: _isSearching ? Colors.deepPurple.withOpacity(0.8) : Colors.grey.withOpacity(0.3),
+                            color: _isSearching ? Colors.deepPurple.withValues(alpha: 0.8) : Colors.grey.withValues(alpha: 0.3),
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
@@ -565,7 +565,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                               width: 36,
                               height: 36,
                               decoration: BoxDecoration(
-                                color: Colors.grey.withOpacity(0.3),
+                                color: Colors.grey.withValues(alpha: 0.3),
                                 shape: BoxShape.circle,
                               ),
                               child: const Center(
@@ -714,7 +714,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
               //          color: const Color(0xFF1F1F25),
               //          boxShadow: [
               //            BoxShadow(
-              //              color: Colors.black.withOpacity(0.3),
+              //              color: Colors.black.withValues(alpha: 0.3),
               //              spreadRadius: 1,
               //              blurRadius: 2,
               //              offset: const Offset(0, 1),
@@ -748,7 +748,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
               //            ),
               //            ElevatedButton(
               //              style: ElevatedButton.styleFrom(
-              //                backgroundColor: Colors.deepPurple.withOpacity(0.5),
+              //                backgroundColor: Colors.deepPurple.withValues(alpha: 0.5),
               //                shape: RoundedRectangleBorder(
               //                  borderRadius: BorderRadius.circular(16),
               //                ),
@@ -821,7 +821,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                                               Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.grey.withOpacity(0.3),
+                                                  color: Colors.grey.withValues(alpha: 0.3),
                                                   borderRadius: BorderRadius.circular(8),
                                                 ),
                                                 child: Text(
@@ -896,7 +896,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                                       )
                                     : null,
                                 filled: true,
-                                fillColor: const Color(0xFF1C1C1E).withOpacity(0.95),
+                                fillColor: const Color(0xFF1C1C1E).withValues(alpha: 0.95),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: BorderSide.none,

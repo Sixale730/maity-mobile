@@ -38,12 +38,12 @@ class OmiSelectableTile extends AdaptiveWidget {
               : const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
             color:
-                selected ? ResponsiveHelper.backgroundSecondary : ResponsiveHelper.backgroundTertiary.withOpacity(0.6),
+                selected ? ResponsiveHelper.backgroundSecondary : ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected
-                  ? ResponsiveHelper.purplePrimary.withOpacity(0.5)
-                  : ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+                  ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.5)
+                  : ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
               width: 1,
             ),
           ),

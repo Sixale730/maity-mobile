@@ -30,7 +30,7 @@ class ConsentBottomSheet extends StatelessWidget {
             width: 36,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -186,7 +186,7 @@ class ConsentBottomSheet extends StatelessWidget {
                           Navigator.of(context).pop();
                         },
                         style: TextButton.styleFrom(
-                          foregroundColor: Colors.white.withOpacity(0.7),
+                          foregroundColor: Colors.white.withValues(alpha: 0.7),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),

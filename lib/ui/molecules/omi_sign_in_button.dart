@@ -33,7 +33,7 @@ class OmiSignInButton extends AdaptiveWidget {
       builder: (context, isHovered, _) {
         final borderColor = outline
             ? (isHovered && enabled
-                ? ResponsiveHelper.purplePrimary.withOpacity(0.3)
+                ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.3)
                 : ResponsiveHelper.backgroundTertiary)
             : Colors.transparent;
 
@@ -65,7 +65,7 @@ class OmiSignInButton extends AdaptiveWidget {
                   boxShadow: !outline && enabled
                       ? [
                           BoxShadow(
-                            color: ResponsiveHelper.purplePrimary.withOpacity(0.3),
+                            color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),

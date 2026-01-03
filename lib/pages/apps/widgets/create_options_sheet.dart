@@ -31,7 +31,7 @@ class CreateOptionsSheet extends StatelessWidget {
           const SizedBox(height: 24),
           Card(
             elevation: 0,
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -39,7 +39,7 @@ class CreateOptionsSheet extends StatelessWidget {
               leading: const Icon(Icons.apps, color: Colors.white),
               title:
                   Text('Create an App', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
-              subtitle: Text('Create and share your app', style: TextStyle(color: Colors.white.withOpacity(0.7))),
+              subtitle: Text('Create and share your app', style: TextStyle(color: Colors.white.withValues(alpha: 0.7))),
               onTap: () {
                 Navigator.pop(context);
                 MixpanelManager().pageOpened('Submit App');
@@ -50,7 +50,7 @@ class CreateOptionsSheet extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             elevation: 0,
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -58,7 +58,7 @@ class CreateOptionsSheet extends StatelessWidget {
               titleAlignment: ListTileTitleAlignment.center,
               title: Text('Create my Clone',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
-              subtitle: Text('Create your digital clone', style: TextStyle(color: Colors.white.withOpacity(0.7))),
+              subtitle: Text('Create your digital clone', style: TextStyle(color: Colors.white.withValues(alpha: 0.7))),
               onTap: () {
                 Navigator.pop(context);
                 MixpanelManager().pageOpened('Create Persona');

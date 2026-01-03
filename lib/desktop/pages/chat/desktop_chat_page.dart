@@ -1007,7 +1007,7 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -1033,14 +1033,14 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
                       if (provider.isFileUploading(provider.selectedFiles[idx].path))
                         Container(
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.6),
+                            color: Colors.black.withValues(alpha: 0.6),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Center(
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.1),
+                                color: Colors.white.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const SizedBox(
@@ -1067,7 +1067,7 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
                               borderRadius: BorderRadius.circular(10),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.red.withOpacity(0.3),
+                                  color: Colors.red.withValues(alpha: 0.3),
                                   blurRadius: 6,
                                   offset: const Offset(0, 2),
                                 ),
@@ -1141,8 +1141,8 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: isDisabled
-                  ? ResponsiveHelper.textQuaternary.withOpacity(0.1)
-                  : ResponsiveHelper.purplePrimary.withOpacity(0.15),
+                  ? ResponsiveHelper.textQuaternary.withValues(alpha: 0.1)
+                  : ResponsiveHelper.purplePrimary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -1199,7 +1199,7 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
                     return Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: ResponsiveHelper.purplePrimary.withOpacity(0.15 + _pulseAnimation.value * 0.05),
+                        color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.15 + _pulseAnimation.value * 0.05),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
@@ -1213,7 +1213,7 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
               : Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: ResponsiveHelper.purplePrimary.withOpacity(0.15),
+                    color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
@@ -1277,7 +1277,7 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
         buttonPosition.dx + 200,
         buttonPosition.dy,
       ),
-      color: ResponsiveHelper.backgroundSecondary.withOpacity(0.95),
+      color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.95),
       elevation: 8,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -1342,7 +1342,7 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: ResponsiveHelper.purplePrimary.withOpacity(0.2),
+              color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -1578,10 +1578,10 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+                            color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: ResponsiveHelper.purplePrimary.withOpacity(0.3),
+                              color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -1640,13 +1640,13 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isSelected
-                  ? ResponsiveHelper.purplePrimary.withOpacity(0.15)
-                  : ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+                  ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.15)
+                  : ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isSelected
-                    ? ResponsiveHelper.purplePrimary.withOpacity(0.3)
-                    : ResponsiveHelper.backgroundQuaternary.withOpacity(0.3),
+                    ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.3)
+                    : ResponsiveHelper.backgroundQuaternary.withValues(alpha: 0.3),
                 width: 1,
               ),
             ),

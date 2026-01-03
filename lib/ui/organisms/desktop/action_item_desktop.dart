@@ -158,7 +158,7 @@ class _DesktopActionItemState extends State<DesktopActionItem> with AutomaticKee
             decoration: BoxDecoration(
               color: Colors.green.shade600,
               borderRadius: BorderRadius.circular(8),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 4))],
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
@@ -195,37 +195,37 @@ class _DesktopActionItemState extends State<DesktopActionItem> with AutomaticKee
 
     // For snoozed tab, always show actual date/time instead of relative labels
     if (widget.isSnoozedTab) {
-      chipColor = ResponsiveHelper.backgroundTertiary.withOpacity(0.3);
+      chipColor = ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3);
       textColor = ResponsiveHelper.textTertiary;
       icon = FontAwesomeIcons.calendar;
       dueDateText = _formatDueDate(dueDate, showFullDate: true);
     } else if (widget.actionItem.completed) {
-      chipColor = ResponsiveHelper.backgroundTertiary.withOpacity(0.3);
+      chipColor = ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3);
       textColor = ResponsiveHelper.textTertiary;
       icon = FontAwesomeIcons.check;
       dueDateText = _formatDueDate(dueDate);
     } else if (isOverdue) {
-      chipColor = Colors.red.withOpacity(0.15);
+      chipColor = Colors.red.withValues(alpha: 0.15);
       textColor = Colors.red.shade300;
       icon = FontAwesomeIcons.triangleExclamation;
       dueDateText = 'Overdue';
     } else if (isToday) {
-      chipColor = Colors.orange.withOpacity(0.15);
+      chipColor = Colors.orange.withValues(alpha: 0.15);
       textColor = Colors.orange.shade300;
       icon = FontAwesomeIcons.calendarDay;
       dueDateText = 'Today';
     } else if (isTomorrow) {
-      chipColor = Colors.blue.withOpacity(0.15);
+      chipColor = Colors.blue.withValues(alpha: 0.15);
       textColor = Colors.blue.shade300;
       icon = FontAwesomeIcons.calendar;
       dueDateText = 'Tomorrow';
     } else if (isThisWeek) {
-      chipColor = Colors.green.withOpacity(0.15);
+      chipColor = Colors.green.withValues(alpha: 0.15);
       textColor = Colors.green.shade300;
       icon = FontAwesomeIcons.calendarWeek;
       dueDateText = _formatDueDate(dueDate);
     } else {
-      chipColor = ResponsiveHelper.purplePrimary.withOpacity(0.15);
+      chipColor = ResponsiveHelper.purplePrimary.withValues(alpha: 0.15);
       textColor = ResponsiveHelper.purplePrimary;
       icon = FontAwesomeIcons.clock;
       dueDateText = _formatDueDate(dueDate);
@@ -239,7 +239,7 @@ class _DesktopActionItemState extends State<DesktopActionItem> with AutomaticKee
           color: chipColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: textColor.withOpacity(0.3),
+            color: textColor.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -350,7 +350,7 @@ class _DesktopActionItemState extends State<DesktopActionItem> with AutomaticKee
           child: Container(
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.01),
+              color: Colors.black.withValues(alpha: 0.01),
             ),
             child: const Text(
               'Upgrade to unlimited',
@@ -375,18 +375,18 @@ class _DesktopActionItemState extends State<DesktopActionItem> with AutomaticKee
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: widget.isSelected
-              ? ResponsiveHelper.purplePrimary.withOpacity(0.1)
-              : ResponsiveHelper.backgroundSecondary.withOpacity(0.8),
+              ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.1)
+              : ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: widget.isSelected
-                ? ResponsiveHelper.purplePrimary.withOpacity(0.5)
+                ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.5)
                 : (_isEditing
-                    ? ResponsiveHelper.purplePrimary.withOpacity(0.5)
-                    : ResponsiveHelper.backgroundTertiary.withOpacity(0.3)),
+                    ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.5)
+                    : ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3)),
             width: widget.isSelected ? 2 : 1,
           ),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: GestureDetector(
           onLongPress: widget.onLongPress,
@@ -400,7 +400,7 @@ class _DesktopActionItemState extends State<DesktopActionItem> with AutomaticKee
                   width: 20,
                   height: 20,
                   decoration: BoxDecoration(
-                    color: ResponsiveHelper.purplePrimary.withOpacity(0.2),
+                    color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
@@ -853,10 +853,10 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet> {
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               decoration: BoxDecoration(
-                color: ResponsiveHelper.purplePrimary.withOpacity(0.1),
+                color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: ResponsiveHelper.purplePrimary.withOpacity(0.3),
+                  color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),

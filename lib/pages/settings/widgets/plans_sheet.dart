@@ -406,9 +406,9 @@ class _PlansSheetState extends State<PlansSheet> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.deepPurple.withOpacity(0.1),
+                  color: Colors.deepPurple.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.deepPurple.withOpacity(0.3)),
+                  border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -594,9 +594,9 @@ class _PlansSheetState extends State<PlansSheet> {
                 begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
                 colors: [
-                  Colors.deepPurple.withOpacity(0.5),
-                  Colors.deepPurple.withOpacity(0.3),
-                  Colors.black.withOpacity(0.8),
+                  Colors.deepPurple.withValues(alpha: 0.5),
+                  Colors.deepPurple.withValues(alpha: 0.3),
+                  Colors.black.withValues(alpha: 0.8),
                   Colors.black,
                 ],
                 stops: const [0.0, 0.2, 0.6, 1.0],
@@ -678,7 +678,7 @@ class _PlansSheetState extends State<PlansSheet> {
                                                 height: height,
                                                 margin: const EdgeInsets.symmetric(horizontal: 1.5),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.red.withOpacity(0.7),
+                                                  color: Colors.red.withValues(alpha: 0.7),
                                                   borderRadius: BorderRadius.circular(2),
                                                 ),
                                               );
@@ -699,7 +699,7 @@ class _PlansSheetState extends State<PlansSheet> {
                                                 height: height,
                                                 margin: const EdgeInsets.symmetric(horizontal: 1.5),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.red.withOpacity(0.7),
+                                                  color: Colors.red.withValues(alpha: 0.7),
                                                   borderRadius: BorderRadius.circular(2),
                                                 ),
                                               );
@@ -736,11 +736,11 @@ class _PlansSheetState extends State<PlansSheet> {
                                                 height: 55,
                                                 margin: const EdgeInsets.symmetric(horizontal: 5),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.white.withOpacity(0.95),
+                                                  color: Colors.white.withValues(alpha: 0.95),
                                                   borderRadius: BorderRadius.circular(8),
                                                   boxShadow: [
                                                     BoxShadow(
-                                                      color: Colors.black.withOpacity(0.15),
+                                                      color: Colors.black.withValues(alpha: 0.15),
                                                       blurRadius: 4,
                                                       offset: const Offset(0, 2),
                                                     ),
@@ -789,11 +789,11 @@ class _PlansSheetState extends State<PlansSheet> {
                                                 height: 55,
                                                 margin: const EdgeInsets.symmetric(horizontal: 5),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.white.withOpacity(0.95),
+                                                  color: Colors.white.withValues(alpha: 0.95),
                                                   borderRadius: BorderRadius.circular(8),
                                                   boxShadow: [
                                                     BoxShadow(
-                                                      color: Colors.black.withOpacity(0.15),
+                                                      color: Colors.black.withValues(alpha: 0.15),
                                                       blurRadius: 4,
                                                       offset: const Offset(0, 2),
                                                     ),
@@ -850,7 +850,7 @@ class _PlansSheetState extends State<PlansSheet> {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.blue.withOpacity(0.4),
+                                color: Colors.blue.withValues(alpha: 0.4),
                                 blurRadius: 20,
                                 spreadRadius: 3,
                               ),
@@ -1018,9 +1018,9 @@ class _PlansSheetState extends State<PlansSheet> {
                             return Container(
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: Colors.deepPurple.withOpacity(0.1),
+                                color: Colors.deepPurple.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.deepPurple.withOpacity(0.3)),
+                                border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.3)),
                               ),
                               child: Column(
                                 children: [
@@ -1051,9 +1051,9 @@ class _PlansSheetState extends State<PlansSheet> {
                             return Container(
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.1),
+                                color: Colors.blue.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                               ),
                               child: Column(
                                 children: [
@@ -1117,9 +1117,9 @@ class _PlansSheetState extends State<PlansSheet> {
                                       Container(
                                         padding: const EdgeInsets.all(20),
                                         decoration: BoxDecoration(
-                                          color: Colors.red.withOpacity(0.1),
+                                          color: Colors.red.withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(16),
-                                          border: Border.all(color: Colors.red.withOpacity(0.3)),
+                                          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                                         ),
                                         child: Column(
                                           children: [
@@ -1200,9 +1200,9 @@ class _PlansSheetState extends State<PlansSheet> {
                                   Container(
                                     padding: const EdgeInsets.all(20),
                                     decoration: BoxDecoration(
-                                      color: Colors.red.withOpacity(0.1),
+                                      color: Colors.red.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                                     ),
                                     child: Column(
                                       children: [
@@ -1281,9 +1281,9 @@ class _PlansSheetState extends State<PlansSheet> {
                                   Container(
                                     padding: const EdgeInsets.all(20),
                                     decoration: BoxDecoration(
-                                      color: Colors.red.withOpacity(0.1),
+                                      color: Colors.red.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                                     ),
                                     child: Column(
                                       children: [
@@ -1707,7 +1707,7 @@ class _PlansSheetState extends State<PlansSheet> {
         color: const Color(0xFF1F1F25), // Use conversation list background
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
           width: 2,
         ),
       ),
@@ -1723,26 +1723,26 @@ class _PlansSheetState extends State<PlansSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Shimmer.fromColors(
-                      baseColor: Colors.white.withOpacity(0.1),
-                      highlightColor: Colors.white.withOpacity(0.3),
+                      baseColor: Colors.white.withValues(alpha: 0.1),
+                      highlightColor: Colors.white.withValues(alpha: 0.3),
                       child: Container(
                         height: 18,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
                     ),
                     const SizedBox(height: 4),
                     Shimmer.fromColors(
-                      baseColor: Colors.white.withOpacity(0.1),
-                      highlightColor: Colors.white.withOpacity(0.3),
+                      baseColor: Colors.white.withValues(alpha: 0.1),
+                      highlightColor: Colors.white.withValues(alpha: 0.3),
                       child: Container(
                         height: 14,
                         width: 100,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -1754,26 +1754,26 @@ class _PlansSheetState extends State<PlansSheet> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Shimmer.fromColors(
-                    baseColor: Colors.white.withOpacity(0.1),
-                    highlightColor: Colors.white.withOpacity(0.3),
+                    baseColor: Colors.white.withValues(alpha: 0.1),
+                    highlightColor: Colors.white.withValues(alpha: 0.3),
                     child: Container(
                       height: 18,
                       width: 100,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Shimmer.fromColors(
-                    baseColor: Colors.white.withOpacity(0.1),
-                    highlightColor: Colors.white.withOpacity(0.3),
+                    baseColor: Colors.white.withValues(alpha: 0.1),
+                    highlightColor: Colors.white.withValues(alpha: 0.3),
                     child: Container(
                       height: 14,
                       width: 60,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),

@@ -255,7 +255,7 @@ class _DesktopVoiceRecorderWidgetState extends State<DesktopVoiceRecorderWidget>
             color: ResponsiveHelper.backgroundTertiary,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: ResponsiveHelper.purplePrimary.withOpacity(0.3),
+              color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -309,7 +309,7 @@ class _DesktopVoiceRecorderWidgetState extends State<DesktopVoiceRecorderWidget>
             color: ResponsiveHelper.backgroundTertiary,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: ResponsiveHelper.purplePrimary.withOpacity(0.3),
+              color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -342,7 +342,7 @@ class _DesktopVoiceRecorderWidgetState extends State<DesktopVoiceRecorderWidget>
                 color: ResponsiveHelper.backgroundTertiary,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: ResponsiveHelper.purplePrimary.withOpacity(0.3),
+                  color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -390,7 +390,7 @@ class _DesktopVoiceRecorderWidgetState extends State<DesktopVoiceRecorderWidget>
             color: ResponsiveHelper.backgroundTertiary,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: Colors.red.withOpacity(0.3),
+              color: Colors.red.withValues(alpha: 0.3),
               width: 1,
             ),
           ),

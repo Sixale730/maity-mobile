@@ -180,25 +180,25 @@ class _DesktopAppCardState extends State<_DesktopAppCard> {
             borderRadius: BorderRadius.circular(16),
             child: Container(
               decoration: BoxDecoration(
-                color: ResponsiveHelper.backgroundSecondary.withOpacity(0.6),
+                color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: _isHovered
-                      ? ResponsiveHelper.purplePrimary.withOpacity(0.15)
-                      : ResponsiveHelper.backgroundTertiary.withOpacity(0.2),
+                      ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.15)
+                      : ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.2),
                   width: 1,
                 ),
                 boxShadow: _isHovered
                     ? [
                         BoxShadow(
-                          color: ResponsiveHelper.purplePrimary.withOpacity(0.04),
+                          color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.04),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
                       ]
                     : [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
+                          color: Colors.black.withValues(alpha: 0.03),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -258,7 +258,7 @@ class _DesktopAppCardState extends State<_DesktopAppCard> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -269,7 +269,7 @@ class _DesktopAppCardState extends State<_DesktopAppCard> {
         width: iconSize,
         height: iconSize,
         decoration: BoxDecoration(
-          color: ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+          color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Center(
@@ -287,7 +287,7 @@ class _DesktopAppCardState extends State<_DesktopAppCard> {
         width: iconSize,
         height: iconSize,
         decoration: BoxDecoration(
-          color: ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+          color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(
@@ -387,7 +387,7 @@ class _DesktopAppCardState extends State<_DesktopAppCard> {
           vertical: widget.responsive.spacing(baseSpacing: 6),
         ),
         decoration: BoxDecoration(
-          color: ResponsiveHelper.purplePrimary.withOpacity(_isHovered ? 0.8 : 0.6),
+          color: ResponsiveHelper.purplePrimary.withValues(alpha: _isHovered ? 0.8 : 0.6),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(

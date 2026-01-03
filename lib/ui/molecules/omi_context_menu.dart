@@ -40,11 +40,11 @@ class OmiContextMenu {
       ),
       color: ResponsiveHelper.backgroundSecondary,
       surfaceTintColor: Colors.transparent,
-      shadowColor: Colors.black.withOpacity(0.3),
+      shadowColor: Colors.black.withValues(alpha: 0.3),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+          color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
           width: 1,
         ),
       ),
@@ -79,7 +79,7 @@ class OmiContextMenu {
                 gradient: LinearGradient(
                   colors: [
                     Colors.transparent,
-                    ResponsiveHelper.backgroundTertiary.withOpacity(0.5),
+                    ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.5),
                     Colors.transparent,
                   ],
                 ),

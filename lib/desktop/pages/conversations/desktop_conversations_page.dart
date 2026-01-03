@@ -235,7 +235,7 @@ class _DesktopConversationsPageState extends State<DesktopConversationsPage>
 
                   if (_isReloading) {
                     return Container(
-                      color: ResponsiveHelper.backgroundSecondary.withOpacity(0.85),
+                      color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.85),
                       child: const Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -259,7 +259,7 @@ class _DesktopConversationsPageState extends State<DesktopConversationsPage>
 
                   // Main View: Determine what to show based on state
                   return Container(
-                    color: ResponsiveHelper.backgroundSecondary.withOpacity(0.85),
+                    color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.85),
                     child: Stack(
                       children: [
                         // Main content layer
@@ -439,7 +439,7 @@ class _DesktopConversationsPageState extends State<DesktopConversationsPage>
                           Container(
                             width: double.infinity,
                             height: double.infinity,
-                            color: ResponsiveHelper.backgroundSecondary.withOpacity(0.95),
+                            color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.95),
                             child: DesktopRecordingWidget(
                               onBack: _hideExpandedRecordingView,
                               showTranscript: true,

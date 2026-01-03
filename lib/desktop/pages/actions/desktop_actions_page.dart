@@ -177,7 +177,7 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
                             end: Alignment.bottomCenter,
                             colors: [
                               ResponsiveHelper.backgroundPrimary,
-                              ResponsiveHelper.backgroundSecondary.withOpacity(0.8),
+                              ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.8),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(20),
@@ -189,7 +189,7 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
                               _buildAnimatedBackground(),
                               Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.02),
+                                  color: Colors.white.withValues(alpha: 0.02),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Column(
@@ -252,7 +252,7 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
             center: Alignment.topRight,
             radius: 2.0,
             colors: [
-              ResponsiveHelper.purplePrimary.withOpacity(0.05),
+              ResponsiveHelper.purplePrimary.withValues(alpha: 0.05),
               Colors.transparent,
             ],
           ),
@@ -269,7 +269,7 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
               center: Alignment.topRight,
               radius: 2.0,
               colors: [
-                ResponsiveHelper.purplePrimary.withOpacity(0.05 + _pulseAnimation.value * 0.03),
+                ResponsiveHelper.purplePrimary.withValues(alpha: 0.05 + _pulseAnimation.value * 0.03),
                 Colors.transparent,
               ],
             ),
@@ -336,7 +336,7 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: ResponsiveHelper.backgroundTertiary.withOpacity(0.6),
+              color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(10),
             ),
             padding: const EdgeInsets.all(2),
@@ -479,10 +479,10 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+                  color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: ResponsiveHelper.textTertiary.withOpacity(0.3),
+                    color: ResponsiveHelper.textTertiary.withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),
@@ -520,7 +520,7 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
               child: Container(
                 height: 120,
                 decoration: BoxDecoration(
-                  color: ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+                  color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Center(
@@ -556,10 +556,10 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
               margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: Colors.orange.withOpacity(0.3),
+                  color: Colors.orange.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -607,15 +607,15 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: ResponsiveHelper.backgroundSecondary.withOpacity(0.8),
+          color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -678,15 +678,15 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
       padding: const EdgeInsets.all(40),
       margin: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: ResponsiveHelper.backgroundSecondary.withOpacity(0.6),
+        color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 30,
             offset: const Offset(0, 15),
           ),
@@ -718,7 +718,7 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
                     child: Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: ResponsiveHelper.purplePrimary.withOpacity(0.2),
+                        color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Icon(
@@ -733,7 +733,7 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
             : Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: ResponsiveHelper.purplePrimary.withOpacity(0.2),
+                  color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Icon(
@@ -771,15 +771,15 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
         padding: const EdgeInsets.all(40),
         margin: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: ResponsiveHelper.backgroundSecondary.withOpacity(0.6),
+          color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: Colors.red.withOpacity(0.2),
+            color: Colors.red.withValues(alpha: 0.2),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 30,
               offset: const Offset(0, 15),
             ),
@@ -791,7 +791,7 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Icon(

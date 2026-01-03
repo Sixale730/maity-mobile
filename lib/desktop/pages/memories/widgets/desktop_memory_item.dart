@@ -115,7 +115,7 @@ class DesktopMemoryItem extends StatelessWidget {
           child: Container(
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.01),
+              color: Colors.black.withValues(alpha: 0.01),
             ),
             child: const Text(
               'Upgrade to unlimited',

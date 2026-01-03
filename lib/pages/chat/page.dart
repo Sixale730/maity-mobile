@@ -396,7 +396,7 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                                         if (provider.isFileUploading(provider.selectedFiles[idx].path))
                                           Container(
                                             decoration: BoxDecoration(
-                                              color: Colors.black.withOpacity(0.5),
+                                              color: Colors.black.withValues(alpha: 0.5),
                                               borderRadius: BorderRadius.circular(16),
                                             ),
                                             child: const Center(
@@ -1016,7 +1016,7 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
               // Main options container
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1C1C1E).withOpacity(0.95),
+                  color: const Color(0xFF1C1C1E).withValues(alpha: 0.95),
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: Column(

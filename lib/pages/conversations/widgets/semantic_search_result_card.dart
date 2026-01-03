@@ -21,21 +21,21 @@ class SemanticSearchResultCard extends StatelessWidget {
   Color _getTagColor() {
     switch (result.category.toLowerCase()) {
       case 'personal':
-        return Colors.blue.withOpacity(0.2);
+        return Colors.blue.withValues(alpha: 0.2);
       case 'work':
-        return Colors.green.withOpacity(0.2);
+        return Colors.green.withValues(alpha: 0.2);
       case 'education':
-        return Colors.orange.withOpacity(0.2);
+        return Colors.orange.withValues(alpha: 0.2);
       case 'health':
-        return Colors.red.withOpacity(0.2);
+        return Colors.red.withValues(alpha: 0.2);
       case 'finance':
-        return Colors.purple.withOpacity(0.2);
+        return Colors.purple.withValues(alpha: 0.2);
       case 'travel':
-        return Colors.teal.withOpacity(0.2);
+        return Colors.teal.withValues(alpha: 0.2);
       case 'entertainment':
-        return Colors.pink.withOpacity(0.2);
+        return Colors.pink.withValues(alpha: 0.2);
       default:
-        return Colors.grey.withOpacity(0.2);
+        return Colors.grey.withValues(alpha: 0.2);
     }
   }
 

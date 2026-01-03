@@ -98,15 +98,15 @@ class _MacWindowButtonState extends State<_MacWindowButton> {
           width: 12,
           height: 12,
           decoration: BoxDecoration(
-            color: _isHovered ? _getButtonColor() : const Color(0xFFFFFFFF).withOpacity(0.07),
+            color: _isHovered ? _getButtonColor() : const Color(0xFFFFFFFF).withValues(alpha: 0.07),
             borderRadius: BorderRadius.circular(6),
             border: Border.all(
-              color: _isHovered ? _getButtonColor().withOpacity(0.8) : const Color(0xFFD0D0D0),
+              color: _isHovered ? _getButtonColor().withValues(alpha: 0.8) : const Color(0xFFD0D0D0),
               width: 0.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 1,
                 offset: const Offset(0, 0.5),
               ),
@@ -117,8 +117,8 @@ class _MacWindowButtonState extends State<_MacWindowButton> {
                   _getButtonIcon(),
                   size: 8,
                   color: widget.type == MacWindowButtonType.close
-                      ? Colors.white.withOpacity(0.9)
-                      : Colors.black.withOpacity(0.7),
+                      ? Colors.white.withValues(alpha: 0.9)
+                      : Colors.black.withValues(alpha: 0.7),
                 )
               : null,
         ),
@@ -483,7 +483,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> with WidgetsBindingOb
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: const Offset(2, 0),
                   ),
@@ -577,10 +577,10 @@ class _DesktopHomePageState extends State<DesktopHomePage> with WidgetsBindingOb
                                     child: Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: ResponsiveHelper.purplePrimary.withOpacity(0.15),
+                                        color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: ResponsiveHelper.purplePrimary.withOpacity(0.3),
+                                          color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.3),
                                           width: 1,
                                         ),
                                       ),
@@ -648,7 +648,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> with WidgetsBindingOb
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: isSelected ? ResponsiveHelper.backgroundTertiary.withOpacity(0.8) : Colors.transparent,
+                  color: isSelected ? ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.8) : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(

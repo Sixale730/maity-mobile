@@ -131,7 +131,7 @@ class AppMetadataWidget extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: Colors.transparent,
                                 borderRadius: BorderRadius.circular(12.0),
-                                border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
+                                border: Border.all(color: Colors.grey.withValues(alpha: 0.3), width: 1),
                               ),
                               width: double.infinity,
                               child: Row(
@@ -192,11 +192,11 @@ class AppMetadataWidget extends StatelessWidget {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12.0),
-                          borderSide: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1),
+                          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3), width: 1),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12.0),
-                          borderSide: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1),
+                          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3), width: 1),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12.0),
@@ -299,7 +299,7 @@ class AppMetadataWidget extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.transparent,
                         borderRadius: BorderRadius.circular(12.0),
-                        border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
+                        border: Border.all(color: Colors.grey.withValues(alpha: 0.3), width: 1),
                       ),
                       width: double.infinity,
                       child: Row(
@@ -332,7 +332,7 @@ class AppMetadataWidget extends StatelessWidget {
                                 padding: const EdgeInsets.all(16.0),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(12.0),
-                                  border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
+                                  border: Border.all(color: Colors.grey.withValues(alpha: 0.3), width: 1),
                                 ),
                                 constraints: BoxConstraints(
                                   minHeight: MediaQuery.sizeOf(context).height * 0.1,
@@ -365,11 +365,11 @@ class AppMetadataWidget extends StatelessWidget {
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12.0),
-                                    borderSide: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1),
+                                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3), width: 1),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12.0),
-                                    borderSide: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1),
+                                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3), width: 1),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12.0),

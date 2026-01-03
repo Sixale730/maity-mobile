@@ -189,12 +189,12 @@ class _DesktopMemoryReviewSheetState extends State<DesktopMemoryReviewSheet> wit
               color: ResponsiveHelper.backgroundPrimary,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 32,
                   offset: const Offset(-8, 0),
                 ),
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 64,
                   offset: const Offset(-16, 0),
                 ),
@@ -218,10 +218,10 @@ class _DesktopMemoryReviewSheetState extends State<DesktopMemoryReviewSheet> wit
     return Container(
       padding: EdgeInsets.all(responsive.spacing(baseSpacing: 24)),
       decoration: BoxDecoration(
-        color: ResponsiveHelper.backgroundSecondary.withOpacity(0.6),
+        color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.6),
         border: Border(
           bottom: BorderSide(
-            color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+            color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -232,7 +232,7 @@ class _DesktopMemoryReviewSheetState extends State<DesktopMemoryReviewSheet> wit
           Container(
             padding: EdgeInsets.all(responsive.spacing(baseSpacing: 8)),
             decoration: BoxDecoration(
-              color: ResponsiveHelper.purplePrimary.withOpacity(0.15),
+              color: ResponsiveHelper.purplePrimary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
@@ -342,13 +342,13 @@ class _DesktopMemoryReviewSheetState extends State<DesktopMemoryReviewSheet> wit
           ),
           decoration: BoxDecoration(
             color: isSelected
-                ? ResponsiveHelper.purplePrimary.withOpacity(0.15)
-                : ResponsiveHelper.backgroundSecondary.withOpacity(0.6),
+                ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.15)
+                : ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isSelected
-                  ? ResponsiveHelper.purplePrimary.withOpacity(0.4)
-                  : ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+                  ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.4)
+                  : ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -393,7 +393,7 @@ class _DesktopMemoryReviewSheetState extends State<DesktopMemoryReviewSheet> wit
             Container(
               padding: EdgeInsets.all(responsive.spacing(baseSpacing: 16)),
               decoration: BoxDecoration(
-                color: ResponsiveHelper.backgroundTertiary.withOpacity(0.6),
+                color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(
@@ -433,10 +433,10 @@ class _DesktopMemoryReviewSheetState extends State<DesktopMemoryReviewSheet> wit
       child: Container(
         padding: EdgeInsets.all(responsive.spacing(baseSpacing: 16)),
         decoration: BoxDecoration(
-          color: ResponsiveHelper.backgroundSecondary.withOpacity(0.6),
+          color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+            color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -447,7 +447,7 @@ class _DesktopMemoryReviewSheetState extends State<DesktopMemoryReviewSheet> wit
             Container(
               padding: EdgeInsets.all(responsive.spacing(baseSpacing: 8)),
               decoration: BoxDecoration(
-                color: _getCategoryColor(memory.category).withOpacity(0.15),
+                color: _getCategoryColor(memory.category).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -511,10 +511,10 @@ class _DesktopMemoryReviewSheetState extends State<DesktopMemoryReviewSheet> wit
         child: Container(
           padding: EdgeInsets.all(responsive.spacing(baseSpacing: 8)),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: color.withOpacity(0.3),
+              color: color.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -532,10 +532,10 @@ class _DesktopMemoryReviewSheetState extends State<DesktopMemoryReviewSheet> wit
     return Container(
       padding: EdgeInsets.all(responsive.spacing(baseSpacing: 24)),
       decoration: BoxDecoration(
-        color: ResponsiveHelper.backgroundSecondary.withOpacity(0.6),
+        color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.6),
         border: Border(
           top: BorderSide(
-            color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+            color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -609,10 +609,10 @@ class _DesktopMemoryReviewSheetState extends State<DesktopMemoryReviewSheet> wit
         child: Container(
           padding: EdgeInsets.symmetric(vertical: responsive.spacing(baseSpacing: 12)),
           decoration: BoxDecoration(
-            color: isPrimary ? color.withOpacity(0.15) : ResponsiveHelper.backgroundTertiary.withOpacity(0.6),
+            color: isPrimary ? color.withValues(alpha: 0.15) : ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isPrimary ? color.withOpacity(0.3) : ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+              color: isPrimary ? color.withValues(alpha: 0.3) : ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
               width: 1,
             ),
           ),

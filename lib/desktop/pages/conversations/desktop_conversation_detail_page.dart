@@ -140,7 +140,7 @@ class _DesktopConversationDetailPageState extends State<DesktopConversationDetai
           end: Alignment.bottomCenter,
           colors: [
             ResponsiveHelper.backgroundPrimary,
-            ResponsiveHelper.backgroundSecondary.withOpacity(0.8),
+            ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.8),
           ],
         ),
       ),
@@ -152,7 +152,7 @@ class _DesktopConversationDetailPageState extends State<DesktopConversationDetai
           // Main content
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
+              color: Colors.white.withValues(alpha: 0.02),
             ),
             child: Column(
               children: [
@@ -189,7 +189,7 @@ class _DesktopConversationDetailPageState extends State<DesktopConversationDetai
             center: Alignment.topRight,
             radius: 2.0,
             colors: [
-              ResponsiveHelper.purplePrimary.withOpacity(0.05),
+              ResponsiveHelper.purplePrimary.withValues(alpha: 0.05),
               Colors.transparent,
             ],
           ),
@@ -206,7 +206,7 @@ class _DesktopConversationDetailPageState extends State<DesktopConversationDetai
               center: Alignment.topRight,
               radius: 2.0,
               colors: [
-                ResponsiveHelper.purplePrimary.withOpacity(0.05 + _pulseAnimation.value * 0.03),
+                ResponsiveHelper.purplePrimary.withValues(alpha: 0.05 + _pulseAnimation.value * 0.03),
                 Colors.transparent,
               ],
             ),
@@ -220,10 +220,10 @@ class _DesktopConversationDetailPageState extends State<DesktopConversationDetai
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
       decoration: BoxDecoration(
-        color: ResponsiveHelper.backgroundSecondary.withOpacity(0.8),
+        color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.8),
         border: Border(
           bottom: BorderSide(
-            color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+            color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -322,15 +322,15 @@ class _DesktopConversationDetailPageState extends State<DesktopConversationDetai
       padding: const EdgeInsets.all(20),
       child: Container(
         decoration: BoxDecoration(
-          color: ResponsiveHelper.backgroundSecondary.withOpacity(0.6),
+          color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+            color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -344,10 +344,10 @@ class _DesktopConversationDetailPageState extends State<DesktopConversationDetai
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: ResponsiveHelper.backgroundTertiary.withOpacity(0.4),
+                  color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.4),
                   border: Border(
                     bottom: BorderSide(
-                      color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+                      color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),
@@ -418,7 +418,7 @@ class _DesktopConversationDetailPageState extends State<DesktopConversationDetai
               filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: ResponsiveHelper.backgroundPrimary.withOpacity(0.2),
+                  color: ResponsiveHelper.backgroundPrimary.withValues(alpha: 0.2),
                 ),
               ),
             ),
@@ -439,12 +439,12 @@ class _DesktopConversationDetailPageState extends State<DesktopConversationDetai
                 color: ResponsiveHelper.backgroundPrimary,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
+                    color: Colors.black.withValues(alpha: 0.4),
                     blurRadius: 24,
                     offset: const Offset(-6, 0),
                   ),
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 40,
                     offset: const Offset(-12, 0),
                   ),

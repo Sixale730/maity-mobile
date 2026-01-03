@@ -44,8 +44,8 @@ class AppStyles {
   static const Color backgroundTertiary = Color(0xFF35343B);
 
   static const Color textPrimary = Colors.white;
-  static final Color textSecondary = Colors.white.withOpacity(0.8);
-  static final Color textTertiary = Colors.white.withOpacity(0.6);
+  static final Color textSecondary = Colors.white.withValues(alpha: 0.8);
+  static final Color textTertiary = Colors.white.withValues(alpha: 0.6);
 
   static const Color accent = Colors.blue;
   static final Color error = Colors.red.shade800;
@@ -71,7 +71,7 @@ class AppStyles {
     borderRadius: BorderRadius.circular(radiusLarge),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.1),
+        color: Colors.black.withValues(alpha: 0.1),
         blurRadius: 4,
         offset: const Offset(0, 2),
       ),
@@ -89,7 +89,7 @@ class AppStyles {
   );
 
   static final chipDecoration = BoxDecoration(
-    color: backgroundTertiary.withOpacity(0.6),
+    color: backgroundTertiary.withValues(alpha: 0.6),
     borderRadius: BorderRadius.circular(radiusCircular),
   );
 }

@@ -38,10 +38,10 @@ class OmiPanelHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: ResponsiveHelper.backgroundSecondary.withOpacity(0.6),
+        color: ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.6),
         border: Border(
           bottom: BorderSide(
-            color: ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+            color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -77,7 +77,7 @@ class OmiPanelHeader extends StatelessWidget {
               color: ResponsiveHelper.textTertiary,
               fontSize: 12,
               borderRadius: 12,
-              backgroundColor: ResponsiveHelper.backgroundTertiary.withOpacity(0.6),
+              backgroundColor: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.6),
             ),
           ],
 

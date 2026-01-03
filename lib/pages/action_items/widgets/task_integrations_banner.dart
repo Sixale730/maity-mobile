@@ -28,15 +28,15 @@ class TaskIntegrationsBanner extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Colors.deepPurple.withOpacity(0.3),
-              Colors.purple.withOpacity(0.3),
+              Colors.deepPurple.withValues(alpha: 0.3),
+              Colors.purple.withValues(alpha: 0.3),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Colors.deepPurpleAccent.withOpacity(0.2),
+            color: Colors.deepPurpleAccent.withValues(alpha: 0.2),
             width: 1,
           ),
         ),

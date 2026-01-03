@@ -176,7 +176,7 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
                                 width: 32,
                                 height: 32,
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[800]?.withOpacity(0.5),
+                                  color: Colors.grey[800]?.withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
@@ -666,15 +666,15 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                const Color(0xFF8B5CF6).withOpacity(0.1),
-                const Color(0xFFA855F7).withOpacity(0.05),
+                const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                const Color(0xFFA855F7).withValues(alpha: 0.05),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(32),
             border: Border.all(
-              color: const Color(0xFF8B5CF6).withOpacity(0.2),
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -684,7 +684,7 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
               Icon(
                 Icons.assignment_outlined,
                 size: 40,
-                color: const Color(0xFF8B5CF6).withOpacity(0.6),
+                color: const Color(0xFF8B5CF6).withValues(alpha: 0.6),
               ),
               Positioned(
                 right: 24,

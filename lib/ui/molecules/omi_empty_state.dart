@@ -45,7 +45,7 @@ class OmiEmptyState extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(iconPadding),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
+                color: color.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(

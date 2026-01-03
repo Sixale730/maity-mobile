@@ -62,7 +62,7 @@ class DesktopFilterChips extends StatelessWidget {
                 ),
                 width: 1,
                 height: 24,
-                color: ResponsiveHelper.backgroundTertiary.withOpacity(0.5),
+                color: ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.5),
               ),
 
               // Category Dropdown
@@ -138,13 +138,13 @@ class DesktopFilterChips extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: selectedCategory != null
-              ? ResponsiveHelper.purplePrimary.withOpacity(0.15)
-              : ResponsiveHelper.backgroundSecondary.withOpacity(0.6),
+              ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.15)
+              : ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selectedCategory != null
-                ? ResponsiveHelper.purplePrimary.withOpacity(0.4)
-                : ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+                ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.4)
+                : ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -209,13 +209,13 @@ class DesktopFilterChips extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: selectedRating != null
-              ? ResponsiveHelper.purplePrimary.withOpacity(0.15)
-              : ResponsiveHelper.backgroundSecondary.withOpacity(0.6),
+              ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.15)
+              : ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selectedRating != null
-                ? ResponsiveHelper.purplePrimary.withOpacity(0.4)
-                : ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+                ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.4)
+                : ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -279,13 +279,13 @@ class DesktopFilterChips extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: selectedCapability != null
-              ? ResponsiveHelper.purplePrimary.withOpacity(0.15)
-              : ResponsiveHelper.backgroundSecondary.withOpacity(0.6),
+              ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.15)
+              : ResponsiveHelper.backgroundSecondary.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selectedCapability != null
-                ? ResponsiveHelper.purplePrimary.withOpacity(0.4)
-                : ResponsiveHelper.backgroundTertiary.withOpacity(0.3),
+                ? ResponsiveHelper.purplePrimary.withValues(alpha: 0.4)
+                : ResponsiveHelper.backgroundTertiary.withValues(alpha: 0.3),
             width: 1,
           ),
         ),

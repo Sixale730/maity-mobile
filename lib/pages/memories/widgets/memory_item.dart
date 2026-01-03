@@ -165,7 +165,7 @@ class MemoryItem extends StatelessWidget {
         height: 36,
         width: 36,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
         ),
         child: const Center(

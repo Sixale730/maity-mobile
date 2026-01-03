@@ -341,7 +341,7 @@ class ResponsiveHelper {
   // Premium shadow definitions
   List<BoxShadow> get softShadow => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.1),
+          color: Colors.black.withValues(alpha: 0.1),
           blurRadius: spacing(baseSpacing: 12, minSpacing: 8, maxSpacing: 16),
           offset: Offset(0, spacing(baseSpacing: 4, minSpacing: 2, maxSpacing: 6)),
         ),
@@ -349,7 +349,7 @@ class ResponsiveHelper {
 
   List<BoxShadow> get mediumShadow => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.15),
+          color: Colors.black.withValues(alpha: 0.15),
           blurRadius: spacing(baseSpacing: 20, minSpacing: 15, maxSpacing: 25),
           offset: Offset(0, spacing(baseSpacing: 8, minSpacing: 6, maxSpacing: 10)),
         ),
@@ -357,7 +357,7 @@ class ResponsiveHelper {
 
   List<BoxShadow> get strongShadow => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.25),
+          color: Colors.black.withValues(alpha: 0.25),
           blurRadius: spacing(baseSpacing: 30, minSpacing: 20, maxSpacing: 40),
           offset: Offset(0, spacing(baseSpacing: 12, minSpacing: 8, maxSpacing: 16)),
         ),
@@ -365,7 +365,7 @@ class ResponsiveHelper {
 
   List<BoxShadow> get glowShadow => [
         BoxShadow(
-          color: purplePrimary.withOpacity(0.3),
+          color: purplePrimary.withValues(alpha: 0.3),
           blurRadius: spacing(baseSpacing: 20, minSpacing: 15, maxSpacing: 25),
           offset: Offset(0, spacing(baseSpacing: 8, minSpacing: 6, maxSpacing: 10)),
         ),

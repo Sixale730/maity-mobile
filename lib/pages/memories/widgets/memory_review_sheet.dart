@@ -64,7 +64,7 @@ class MemoriesReviewSheet extends StatelessWidget {
                     Expanded(
                       child: TextButton(
                         style: TextButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.1),
+                          backgroundColor: Colors.white.withValues(alpha: 0.1),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
