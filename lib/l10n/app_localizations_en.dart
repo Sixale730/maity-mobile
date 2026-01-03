@@ -241,4 +241,59 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get skip => 'Skip';
+
+  @override
+  String get speakTranscribeSummarize => 'Speak. Transcribe. Summarize.';
+
+  @override
+  String get signInWithApple => 'Sign in with Apple';
+
+  @override
+  String get signInWithGoogle => 'Sign in with Google';
+
+  @override
+  String get byContinuingYouAgree => 'By continuing, you agree to our ';
+
+  @override
+  String get privacyPolicy => 'Privacy Policy';
+
+  @override
+  String get termsOfUse => 'Terms of Use';
+
+  @override
+  String get maityYourAiCompanion => 'Maity – Your AI Companion';
+
+  @override
+  String get captureEveryMoment => 'Capture every moment. Get AI-powered\nsummaries. Never take notes again.';
+
+  @override
+  String get permissionsRequiredMessage =>
+      'This app needs Bluetooth and Location permissions to function properly. Please enable them in the settings.';
+
+  @override
+  String get openSettings => 'Open Settings';
+
+  @override
+  String get connectDevice => 'Connect Omi / OmiGlass';
+
+  @override
+  String get continueWithoutDevice => 'Continue Without Device';
+
+  @override
+  String get selectYourPrimaryLanguage => 'Select your primary language';
+
+  @override
+  String get languageDescription => 'Set your language for sharper transcriptions and a personalized experience';
+
+  @override
+  String get searchLanguageByNameOrCode => 'Search language by name or code';
+
+  @override
+  String get noLanguagesFound => 'No languages found';
+
+  @override
+  String get whatsYourPrimaryLanguage => 'What\'s your primary language?';
+
+  @override
+  String get selectYourLanguage => 'Select your language';
 }

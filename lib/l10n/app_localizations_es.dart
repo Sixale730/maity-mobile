@@ -241,4 +241,60 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get skip => 'Omitir';
+
+  @override
+  String get speakTranscribeSummarize => 'Habla. Transcribe. Resume.';
+
+  @override
+  String get signInWithApple => 'Iniciar sesión con Apple';
+
+  @override
+  String get signInWithGoogle => 'Iniciar sesión con Google';
+
+  @override
+  String get byContinuingYouAgree => 'Al continuar, aceptas nuestra ';
+
+  @override
+  String get privacyPolicy => 'Política de Privacidad';
+
+  @override
+  String get termsOfUse => 'Términos de Uso';
+
+  @override
+  String get maityYourAiCompanion => 'Maity – Tu Compañero de IA';
+
+  @override
+  String get captureEveryMoment => 'Captura cada momento. Obtén resúmenes\ncon IA. Nunca más tomes notas.';
+
+  @override
+  String get permissionsRequiredMessage =>
+      'Esta app necesita permisos de Bluetooth y Ubicación para funcionar correctamente. Por favor habilítalos en la configuración.';
+
+  @override
+  String get openSettings => 'Abrir Configuración';
+
+  @override
+  String get connectDevice => 'Conectar Omi / OmiGlass';
+
+  @override
+  String get continueWithoutDevice => 'Continuar sin Dispositivo';
+
+  @override
+  String get selectYourPrimaryLanguage => 'Selecciona tu idioma principal';
+
+  @override
+  String get languageDescription =>
+      'Configura tu idioma para transcripciones más precisas y una experiencia personalizada';
+
+  @override
+  String get searchLanguageByNameOrCode => 'Buscar idioma por nombre o código';
+
+  @override
+  String get noLanguagesFound => 'No se encontraron idiomas';
+
+  @override
+  String get whatsYourPrimaryLanguage => '¿Cuál es tu idioma principal?';
+
+  @override
+  String get selectYourLanguage => 'Selecciona tu idioma';
 }

@@ -86,5 +86,27 @@
   "welcomeToMaity": "Bienvenido a Maity",
   "yourAiCompanion": "Tu Compañero de IA",
   "getStarted": "Comenzar",
-  "skip": "Omitir"
+  "skip": "Omitir",
+
+  "speakTranscribeSummarize": "Habla. Transcribe. Resume.",
+  "signInWithApple": "Iniciar sesión con Apple",
+  "signInWithGoogle": "Iniciar sesión con Google",
+  "byContinuingYouAgree": "Al continuar, aceptas nuestra ",
+  "privacyPolicy": "Política de Privacidad",
+  "termsOfUse": "Términos de Uso",
+
+  "maityYourAiCompanion": "Maity – Tu Compañero de IA",
+  "captureEveryMoment": "Captura cada momento. Obtén resúmenes\ncon IA. Nunca más tomes notas.",
+
+  "permissionsRequiredMessage": "Esta app necesita permisos de Bluetooth y Ubicación para funcionar correctamente. Por favor habilítalos en la configuración.",
+  "openSettings": "Abrir Configuración",
+  "connectDevice": "Conectar Omi / OmiGlass",
+  "continueWithoutDevice": "Continuar sin Dispositivo",
+
+  "selectYourPrimaryLanguage": "Selecciona tu idioma principal",
+  "languageDescription": "Configura tu idioma para transcripciones más precisas y una experiencia personalizada",
+  "searchLanguageByNameOrCode": "Buscar idioma por nombre o código",
+  "noLanguagesFound": "No se encontraron idiomas",
+  "whatsYourPrimaryLanguage": "¿Cuál es tu idioma principal?",
+  "selectYourLanguage": "Selecciona tu idioma"
 }

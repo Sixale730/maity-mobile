@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 // Intercom disabled - causes build issues
 // import 'package:intercom_flutter/intercom_flutter.dart';
@@ -84,13 +85,13 @@ class _LanguageSelectorWidgetState extends State<LanguageSelectorWidget> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              const Flexible(
+              Flexible(
                 child: Text(
-                  'Select your primary language',
+                  AppLocalizations.of(context)!.selectYourPrimaryLanguage,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   softWrap: true,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -108,7 +109,7 @@ class _LanguageSelectorWidgetState extends State<LanguageSelectorWidget> {
                         Navigator.pop(context);
                       },
                 child: Text(
-                  'Done',
+                  AppLocalizations.of(context)!.done,
                   style: TextStyle(
                     color: currentSelectedLanguage == null ? null : Colors.white,
                   ),
@@ -117,9 +118,9 @@ class _LanguageSelectorWidgetState extends State<LanguageSelectorWidget> {
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Set your language for sharper transcriptions and a personalized experience',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context)!.languageDescription,
+            style: const TextStyle(
               fontSize: 14,
               color: Colors.grey,
             ),
@@ -131,7 +132,7 @@ class _LanguageSelectorWidgetState extends State<LanguageSelectorWidget> {
             autofocus: false,
             onSubmitted: (_) {}, // Prevent form submission on Enter
             decoration: InputDecoration(
-              hintText: 'Search language by name or code',
+              hintText: AppLocalizations.of(context)!.searchLanguageByNameOrCode,
               hintStyle: const TextStyle(color: Colors.grey),
               prefixIcon: const Icon(Icons.search, color: Colors.grey),
               filled: true,
@@ -153,10 +154,10 @@ class _LanguageSelectorWidgetState extends State<LanguageSelectorWidget> {
           const SizedBox(height: 16),
           Expanded(
             child: filteredLanguages.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
-                      'No languages found',
-                      style: TextStyle(color: Colors.grey),
+                      AppLocalizations.of(context)!.noLanguagesFound,
+                      style: const TextStyle(color: Colors.grey),
                     ),
                   )
                 : ListView.builder(
@@ -280,9 +281,9 @@ class _PrimaryLanguageWidgetState extends State<PrimaryLanguageWidget> {
                 const SizedBox(height: 16),
 
                 // Main title
-                const Text(
-                  'What\'s your primary language?',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context)!.whatsYourPrimaryLanguage,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -317,7 +318,7 @@ class _PrimaryLanguageWidgetState extends State<PrimaryLanguageWidget> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          selectedLanguageName ?? 'Select your language',
+                          selectedLanguageName ?? AppLocalizations.of(context)!.selectYourLanguage,
                           style: TextStyle(
                             color: selectedLanguageName != null ? Colors.white : Colors.grey[500],
                             fontSize: 18,
@@ -364,9 +365,9 @@ class _PrimaryLanguageWidgetState extends State<PrimaryLanguageWidget> {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'Continue',
-                      style: TextStyle(
+                    child: Text(
+                      AppLocalizations.of(context)!.continueText,
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                         fontFamily: 'Manrope',

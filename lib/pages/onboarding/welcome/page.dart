@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:omi/gen/assets.gen.dart';
 import 'package:omi/providers/onboarding_provider.dart';
 import 'package:omi/widgets/dialog.dart';
@@ -136,9 +137,9 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
             openAppSettings();
           },
           () {},
-          'Permissions Required',
-          'This app needs Bluetooth and Location permissions to function properly. Please enable them in the settings.',
-          okButtonText: 'Open Settings',
+          AppLocalizations.of(context)!.permissionsRequired,
+          AppLocalizations.of(context)!.permissionsRequiredMessage,
+          okButtonText: AppLocalizations.of(context)!.openSettings,
           singleButton: true,
         ),
         barrierDismissible: false,
@@ -222,9 +223,9 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Text(
-                                              'Connect Omi / OmiGlass',
-                                              style: TextStyle(
+                                            Text(
+                                              AppLocalizations.of(context)!.connectDevice,
+                                              style: const TextStyle(
                                                 color: Colors.black87,
                                                 fontSize: 18,
                                                 fontWeight: FontWeight.w600,
@@ -310,9 +311,9 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              const Text(
-                                                'Continue Without Device',
-                                                style: TextStyle(
+                                              Text(
+                                                AppLocalizations.of(context)!.continueWithoutDevice,
+                                                style: const TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 18,
                                                   fontWeight: FontWeight.w600,

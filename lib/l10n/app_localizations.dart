@@ -559,6 +559,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Skip'**
   String get skip;
+
+  /// No description provided for @speakTranscribeSummarize.
+  ///
+  /// In en, this message translates to:
+  /// **'Speak. Transcribe. Summarize.'**
+  String get speakTranscribeSummarize;
+
+  /// No description provided for @signInWithApple.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with Apple'**
+  String get signInWithApple;
+
+  /// No description provided for @signInWithGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with Google'**
+  String get signInWithGoogle;
+
+  /// No description provided for @byContinuingYouAgree.
+  ///
+  /// In en, this message translates to:
+  /// **'By continuing, you agree to our '**
+  String get byContinuingYouAgree;
+
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacyPolicy;
+
+  /// No description provided for @termsOfUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms of Use'**
+  String get termsOfUse;
+
+  /// No description provided for @maityYourAiCompanion.
+  ///
+  /// In en, this message translates to:
+  /// **'Maity – Your AI Companion'**
+  String get maityYourAiCompanion;
+
+  /// No description provided for @captureEveryMoment.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture every moment. Get AI-powered\nsummaries. Never take notes again.'**
+  String get captureEveryMoment;
+
+  /// No description provided for @permissionsRequiredMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This app needs Bluetooth and Location permissions to function properly. Please enable them in the settings.'**
+  String get permissionsRequiredMessage;
+
+  /// No description provided for @openSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get openSettings;
+
+  /// No description provided for @connectDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Omi / OmiGlass'**
+  String get connectDevice;
+
+  /// No description provided for @continueWithoutDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue Without Device'**
+  String get continueWithoutDevice;
+
+  /// No description provided for @selectYourPrimaryLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Select your primary language'**
+  String get selectYourPrimaryLanguage;
+
+  /// No description provided for @languageDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Set your language for sharper transcriptions and a personalized experience'**
+  String get languageDescription;
+
+  /// No description provided for @searchLanguageByNameOrCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Search language by name or code'**
+  String get searchLanguageByNameOrCode;
+
+  /// No description provided for @noLanguagesFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No languages found'**
+  String get noLanguagesFound;
+
+  /// No description provided for @whatsYourPrimaryLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s your primary language?'**
+  String get whatsYourPrimaryLanguage;
+
+  /// No description provided for @selectYourLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Select your language'**
+  String get selectYourLanguage;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
