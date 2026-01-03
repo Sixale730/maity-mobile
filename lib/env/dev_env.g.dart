@@ -37,4 +37,8 @@ final class _DevEnv {
   static final String? deepgramApiKey = null;
 
   static final String? maityBackendUrl = null;
+
+  static const String? supabaseUrl = null;
+
+  static final String? supabaseAnonKey = null;
 }

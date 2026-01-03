@@ -63,4 +63,13 @@ final class ProdEnv implements EnvFields {
   @override
   @EnviedField(varName: 'MAITY_BACKEND_URL', obfuscate: true)
   final String? maityBackendUrl = _ProdEnv.maityBackendUrl;
+
+  // Supabase
+  @override
+  @EnviedField(varName: 'SUPABASE_URL', obfuscate: false)
+  final String? supabaseUrl = _ProdEnv.supabaseUrl;
+
+  @override
+  @EnviedField(varName: 'SUPABASE_ANON_KEY', obfuscate: true)
+  final String? supabaseAnonKey = _ProdEnv.supabaseAnonKey;
 }
