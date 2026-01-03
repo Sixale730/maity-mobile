@@ -296,4 +296,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get selectYourLanguage => 'Select your language';
+
+  @override
+  String get whatsYourName => 'What\'s your name?';
+
+  @override
+  String get wantDifferentName => 'Want to go by something else?';
+
+  @override
+  String get enterYourName => 'Enter your name';
+
+  @override
+  String get grantPermissions => 'Grant permissions';
+
+  @override
+  String get backgroundActivity => 'Background activity';
+
+  @override
+  String get backgroundActivityDesc => 'Let the app run in the background for better stability';
+
+  @override
+  String get locationAccess => 'Location access';
+
+  @override
+  String get locationAccessDesc => 'Enable background location for the full experience';
+
+  @override
+  String get notificationsDesc => 'Enable notifications to stay informed';
 }

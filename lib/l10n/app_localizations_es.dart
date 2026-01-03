@@ -297,4 +297,31 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get selectYourLanguage => 'Selecciona tu idioma';
+
+  @override
+  String get whatsYourName => '¿Cómo te llamas?';
+
+  @override
+  String get wantDifferentName => '¿Quieres que te llamemos de otra forma?';
+
+  @override
+  String get enterYourName => 'Escribe tu nombre';
+
+  @override
+  String get grantPermissions => 'Dar permisos';
+
+  @override
+  String get backgroundActivity => 'Actividad en segundo plano';
+
+  @override
+  String get backgroundActivityDesc => 'Permite que la app funcione en segundo plano para mayor estabilidad';
+
+  @override
+  String get locationAccess => 'Acceso a ubicación';
+
+  @override
+  String get locationAccessDesc => 'Habilita la ubicación en segundo plano para la experiencia completa';
+
+  @override
+  String get notificationsDesc => 'Habilita las notificaciones para mantenerte informado';
 }

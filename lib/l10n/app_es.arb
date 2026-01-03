@@ -108,5 +108,16 @@
   "searchLanguageByNameOrCode": "Buscar idioma por nombre o código",
   "noLanguagesFound": "No se encontraron idiomas",
   "whatsYourPrimaryLanguage": "¿Cuál es tu idioma principal?",
-  "selectYourLanguage": "Selecciona tu idioma"
+  "selectYourLanguage": "Selecciona tu idioma",
+
+  "whatsYourName": "¿Cómo te llamas?",
+  "wantDifferentName": "¿Quieres que te llamemos de otra forma?",
+  "enterYourName": "Escribe tu nombre",
+
+  "grantPermissions": "Dar permisos",
+  "backgroundActivity": "Actividad en segundo plano",
+  "backgroundActivityDesc": "Permite que la app funcione en segundo plano para mayor estabilidad",
+  "locationAccess": "Acceso a ubicación",
+  "locationAccessDesc": "Habilita la ubicación en segundo plano para la experiencia completa",
+  "notificationsDesc": "Habilita las notificaciones para mantenerte informado"
 }

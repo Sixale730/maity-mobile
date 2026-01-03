@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/onboarding_provider.dart';
 import 'package:omi/widgets/dialog.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -45,9 +46,9 @@ class _PermissionsWidgetState extends State<PermissionsWidget> {
                   const SizedBox(height: 32),
 
                   // Main title
-                  const Text(
-                    'Grant permissions',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context)!.grantPermissions,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
@@ -66,8 +67,8 @@ class _PermissionsWidgetState extends State<PermissionsWidget> {
                       if (Platform.isAndroid)
                         _buildPermissionTile(
                           value: provider.hasBackgroundPermission,
-                          title: 'Background activity',
-                          subtitle: 'Let Omi run in the background for better stability',
+                          title: AppLocalizations.of(context)!.backgroundActivity,
+                          subtitle: AppLocalizations.of(context)!.backgroundActivityDesc,
                           onChanged: (s) async {
                             if (s != null) {
                               if (s) {
@@ -82,8 +83,8 @@ class _PermissionsWidgetState extends State<PermissionsWidget> {
                       // Location permission
                       _buildPermissionTile(
                         value: provider.hasLocationPermission,
-                        title: 'Location access',
-                        subtitle: 'Enable background location for the full experience',
+                        title: AppLocalizations.of(context)!.locationAccess,
+                        subtitle: AppLocalizations.of(context)!.locationAccessDesc,
                         onChanged: (s) async {
                           if (s != null) {
                             if (s) {
@@ -151,8 +152,8 @@ class _PermissionsWidgetState extends State<PermissionsWidget> {
                       // Notification permission
                       _buildPermissionTile(
                         value: provider.hasNotificationPermission,
-                        title: 'Notifications',
-                        subtitle: 'Enable notifications to stay informed',
+                        title: AppLocalizations.of(context)!.notifications,
+                        subtitle: AppLocalizations.of(context)!.notificationsDesc,
                         onChanged: (s) async {
                           if (s != null) {
                             if (s) {
@@ -231,9 +232,9 @@ class _PermissionsWidgetState extends State<PermissionsWidget> {
                               ),
                               elevation: 0,
                             ),
-                            child: const Text(
-                              'Continue',
-                              style: TextStyle(
+                            child: Text(
+                              AppLocalizations.of(context)!.continueText,
+                              style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
                                 fontFamily: 'Manrope',

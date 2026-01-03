@@ -667,6 +667,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select your language'**
   String get selectYourLanguage;
+
+  /// No description provided for @whatsYourName.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s your name?'**
+  String get whatsYourName;
+
+  /// No description provided for @wantDifferentName.
+  ///
+  /// In en, this message translates to:
+  /// **'Want to go by something else?'**
+  String get wantDifferentName;
+
+  /// No description provided for @enterYourName.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your name'**
+  String get enterYourName;
+
+  /// No description provided for @grantPermissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Grant permissions'**
+  String get grantPermissions;
+
+  /// No description provided for @backgroundActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Background activity'**
+  String get backgroundActivity;
+
+  /// No description provided for @backgroundActivityDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Let the app run in the background for better stability'**
+  String get backgroundActivityDesc;
+
+  /// No description provided for @locationAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Location access'**
+  String get locationAccess;
+
+  /// No description provided for @locationAccessDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable background location for the full experience'**
+  String get locationAccessDesc;
+
+  /// No description provided for @notificationsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable notifications to stay informed'**
+  String get notificationsDesc;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

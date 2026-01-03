@@ -223,7 +223,7 @@ class _OnboardingWrapperState extends State<OnboardingWrapper> with TickerProvid
       }),
       PermissionsWidget(
         goNext: () {
-          _goNext(); // Go to User Review page
+          _controller!.animateTo(kWelcomePage); // Skip User Review page
           MixpanelManager().onboardingStepCompleted('Permissions');
         },
       ),

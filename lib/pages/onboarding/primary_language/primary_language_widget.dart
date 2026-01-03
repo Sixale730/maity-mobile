@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:gradient_borders/gradient_borders.dart';
 // Intercom disabled - causes build issues
 // import 'package:intercom_flutter/intercom_flutter.dart';

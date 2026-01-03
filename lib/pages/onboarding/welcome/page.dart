@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:omi/backend/preferences.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/gen/assets.gen.dart';
+import 'package:omi/main.dart';
 import 'package:omi/providers/onboarding_provider.dart';
 import 'package:omi/widgets/dialog.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -155,6 +157,68 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
     if (widget.onSkip != null) {
       widget.onSkip!();
     }
+  }
+
+  void _showLanguageSelector() {
+    final currentLanguage = SharedPreferencesUtil().appLanguage;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 16),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[600],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              AppLocalizations.of(context)!.selectLanguage,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Text('🇪🇸', style: TextStyle(fontSize: 24)),
+              title: const Text('Español', style: TextStyle(color: Colors.white)),
+              trailing: currentLanguage == 'es'
+                  ? const Icon(Icons.check_circle, color: Colors.green)
+                  : null,
+              onTap: () {
+                SharedPreferencesUtil().appLanguage = 'es';
+                Navigator.pop(ctx);
+                MyApp.of(context).rebuildApp();
+              },
+            ),
+            ListTile(
+              leading: const Text('🇺🇸', style: TextStyle(fontSize: 24)),
+              title: const Text('English', style: TextStyle(color: Colors.white)),
+              trailing: currentLanguage == 'en'
+                  ? const Icon(Icons.check_circle, color: Colors.green)
+                  : null,
+              onTap: () {
+                SharedPreferencesUtil().appLanguage = 'en';
+                Navigator.pop(ctx);
+                MyApp.of(context).rebuildApp();
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -348,6 +412,42 @@ class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin
                       ),
                   ],
                 ),
+
+                // Language selector button (top right)
+                if (!_isExpandingTop)
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 16,
+                    right: 16,
+                    child: Opacity(
+                      opacity: _buttonFadeAnimation.value,
+                      child: Material(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(20),
+                        child: InkWell(
+                          onTap: _showLanguageSelector,
+                          borderRadius: BorderRadius.circular(20),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.language, color: Colors.white, size: 20),
+                                const SizedBox(width: 6),
+                                Text(
+                                  SharedPreferencesUtil().appLanguage == 'es' ? 'ES' : 'EN',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             );
           },

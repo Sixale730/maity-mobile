@@ -257,6 +257,11 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  /// Triggers a rebuild of the entire app (useful for locale changes)
+  void rebuildApp() {
+    setState(() {});
+  }
+
   @override
   void initState() {
     NotificationUtil.initializeNotificationsEventListeners();

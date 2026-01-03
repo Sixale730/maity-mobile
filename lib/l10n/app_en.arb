@@ -108,5 +108,16 @@
   "searchLanguageByNameOrCode": "Search language by name or code",
   "noLanguagesFound": "No languages found",
   "whatsYourPrimaryLanguage": "What's your primary language?",
-  "selectYourLanguage": "Select your language"
+  "selectYourLanguage": "Select your language",
+
+  "whatsYourName": "What's your name?",
+  "wantDifferentName": "Want to go by something else?",
+  "enterYourName": "Enter your name",
+
+  "grantPermissions": "Grant permissions",
+  "backgroundActivity": "Background activity",
+  "backgroundActivityDesc": "Let the app run in the background for better stability",
+  "locationAccess": "Location access",
+  "locationAccessDesc": "Enable background location for the full experience",
+  "notificationsDesc": "Enable notifications to stay informed"
 }
