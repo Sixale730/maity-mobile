@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/env/env.dart';
-import 'package:omi/services/auth_service.dart';
+import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/utils/logger.dart';
 import 'package:http/http.dart' as http;
 import 'package:omi/utils/platform/platform_manager.dart';
@@ -23,26 +23,22 @@ class ApiClient {
 }
 
 Future<String> getAuthHeader() async {
-  DateTime? expiry = DateTime.fromMillisecondsSinceEpoch(SharedPreferencesUtil().tokenExpirationTime);
-  bool hasAuthToken = SharedPreferencesUtil().authToken.isNotEmpty;
+  // Usar SupabaseAuthService para obtener el token (maneja auto-refresh internamente)
+  final token = await SupabaseAuthService.instance.getAccessToken();
 
-  bool isExpirationDateValid = !(expiry.isBefore(DateTime.now()) ||
-      expiry.isAtSameMomentAs(DateTime.fromMillisecondsSinceEpoch(0)) ||
-      (expiry.isBefore(DateTime.now().add(const Duration(minutes: 5))) && expiry.isAfter(DateTime.now())));
-
-  if (!hasAuthToken || !isExpirationDateValid) {
-    SharedPreferencesUtil().authToken = await AuthService.instance.getIdToken() ?? '';
-  }
-
-  // Re-check after attempting to get token (hasAuthToken was set BEFORE the assignment above)
-  if (SharedPreferencesUtil().authToken.isEmpty) {
-    if (AuthService.instance.isSignedIn()) {
-      // should only throw if the user is signed in but the token is not found
-      // if the user is not signed in, the token will always be empty
+  if (token == null || token.isEmpty) {
+    if (SupabaseAuthService.instance.isSignedIn) {
+      // Usuario autenticado pero sin token - error
       throw Exception('No auth token found');
     }
+    // Usuario no autenticado - retornar vacío
+    return '';
   }
-  return 'Bearer ${SharedPreferencesUtil().authToken}';
+
+  // Actualizar cache local
+  SharedPreferencesUtil().authToken = token;
+
+  return 'Bearer $token';
 }
 
 /// Builds common headers for API and WebSocket requests
@@ -113,7 +109,9 @@ Future<http.Response?> makeApiCall({
     http.Response? response = await _performRequest(url, builtHeaders, body, method);
     if (requireAuthCheck && response.statusCode == 401) {
       Logger.log('Token expired on 1st attempt');
-      SharedPreferencesUtil().authToken = await AuthService.instance.getIdToken() ?? '';
+      // Intentar renovar token con Supabase
+      final newToken = await SupabaseAuthService.instance.getAccessToken();
+      SharedPreferencesUtil().authToken = newToken ?? '';
       if (SharedPreferencesUtil().authToken.isNotEmpty) {
         final refreshedHeaders = await buildHeaders(
           requireAuthCheck: requireAuthCheck,

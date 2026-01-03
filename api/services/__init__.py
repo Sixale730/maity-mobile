@@ -12,6 +12,11 @@ from .firebase_client import (
     get_user_metrics,
     get_user_conversations,
 )
+from .supabase_auth import (
+    verify_supabase_token,
+    get_auth_user_id,
+    optional_auth_user_id,
+)
 
 __all__ = [
     "process_conversation",
@@ -23,4 +28,7 @@ __all__ = [
     "update_user_metrics",
     "get_user_metrics",
     "get_user_conversations",
+    "verify_supabase_token",
+    "get_auth_user_id",
+    "optional_auth_user_id",
 ]

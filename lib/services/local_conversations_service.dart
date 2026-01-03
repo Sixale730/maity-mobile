@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/conversation.dart';
@@ -8,6 +7,7 @@ import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/services/local_metrics_service.dart';
 import 'package:omi/services/omi_supabase_service.dart';
+import 'package:omi/services/supabase_auth_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Service for storing and retrieving conversations locally
@@ -41,11 +41,11 @@ class LocalConversationsService {
     // 1. PRIMERO: Intentar guardar en Supabase para obtener el ID
     // Esto asegura que el ID local y el de Supabase sean el mismo
     String? supabaseId;
-    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
-    if (firebaseUid != null) {
+    final userId = SupabaseAuthService.instance.maityUserId;
+    if (userId != null) {
       try {
         final response = await OmiSupabaseService.storeConversation(
-          firebaseUid: firebaseUid,
+          userId: userId,
           segments: segments,
           structured: finalStructured,
           startedAt: startedAt,

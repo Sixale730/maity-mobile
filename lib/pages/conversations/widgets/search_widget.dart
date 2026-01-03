@@ -137,9 +137,9 @@ class _SearchWidgetState extends State<SearchWidget> {
                 var provider = Provider.of<ConversationProvider>(context, listen: false);
                 _debouncer.run(() async {
                   if (provider.useSemanticSearch) {
-                    // Use semantic search with user UID
-                    final uid = SharedPreferencesUtil().uid;
-                    await provider.semanticSearchConversations(value, firebaseUid: uid);
+                    // Use semantic search with user ID (maity.users.id)
+                    final userId = SharedPreferencesUtil().uid;
+                    await provider.semanticSearchConversations(value, userId: userId);
                   } else {
                     await provider.searchConversations(value);
                   }

@@ -63,4 +63,13 @@ final class DevEnv implements EnvFields {
   @override
   @EnviedField(varName: 'MAITY_BACKEND_URL', obfuscate: true)
   final String? maityBackendUrl = _DevEnv.maityBackendUrl;
+
+  // Supabase
+  @override
+  @EnviedField(varName: 'SUPABASE_URL', obfuscate: false)
+  final String? supabaseUrl = _DevEnv.supabaseUrl;
+
+  @override
+  @EnviedField(varName: 'SUPABASE_ANON_KEY', obfuscate: true)
+  final String? supabaseAnonKey = _DevEnv.supabaseAnonKey;
 }

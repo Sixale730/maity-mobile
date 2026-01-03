@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends, Header
 
 from ..services.supabase_client import (
     insert_conversation,
@@ -14,6 +14,7 @@ from ..services.supabase_client import (
     get_conversation_with_segments,
 )
 from ..services.embeddings import generate_embedding, generate_embeddings_batch
+from ..services.supabase_auth import get_auth_user_id, optional_auth_user_id
 
 
 router = APIRouter(prefix="/v1/omi", tags=["omi"])
@@ -45,7 +46,7 @@ class StructuredInput(BaseModel):
 
 class StoreConversationRequest(BaseModel):
     """Request to store a processed conversation"""
-    firebase_uid: str
+    user_id: str  # UUID de maity.users
     started_at: datetime
     finished_at: datetime
     structured: StructuredInput
@@ -65,7 +66,7 @@ class StoreConversationResponse(BaseModel):
 class SearchRequest(BaseModel):
     """Request for semantic search"""
     query: str
-    firebase_uid: str
+    user_id: str  # UUID de maity.users
     limit: int = 10
     search_type: str = "conversations"  # or "segments"
     similarity_threshold: float = 0.7
@@ -83,7 +84,10 @@ class SearchResponse(BaseModel):
 
 
 @router.post("/conversations/store", response_model=StoreConversationResponse)
-async def store_conversation(request: StoreConversationRequest):
+async def store_conversation(
+    request: StoreConversationRequest,
+    auth_user_id: Optional[str] = Depends(optional_auth_user_id),
+):
     """
     Store a processed conversation with embeddings in Supabase.
 
@@ -92,6 +96,9 @@ async def store_conversation(request: StoreConversationRequest):
     1. Generates embeddings for semantic search
     2. Stores conversation in maity.omi_conversations
     3. Stores segments in maity.omi_transcript_segments
+
+    Note: JWT validation is optional during migration period.
+    The user_id in the request body is used for storage.
     """
     if not request.transcript_segments:
         raise HTTPException(status_code=400, detail="No transcript segments provided")
@@ -128,7 +135,7 @@ async def store_conversation(request: StoreConversationRequest):
     # Insert conversation
     try:
         result = await insert_conversation(
-            firebase_uid=request.firebase_uid,
+            user_id=request.user_id,
             title=request.structured.title,
             overview=request.structured.overview,
             emoji=request.structured.emoji,
@@ -163,7 +170,7 @@ async def store_conversation(request: StoreConversationRequest):
 
         await insert_segments(
             conversation_id=conversation_id,
-            firebase_uid=request.firebase_uid,
+            user_id=request.user_id,
             segments=segments_data,
             embeddings=segment_embeddings,
         )
@@ -180,7 +187,10 @@ async def store_conversation(request: StoreConversationRequest):
 
 
 @router.post("/conversations/search", response_model=SearchResponse)
-async def search_conversations(request: SearchRequest):
+async def search_conversations(
+    request: SearchRequest,
+    auth_user_id: Optional[str] = Depends(optional_auth_user_id),
+):
     """
     Semantic search for conversations or segments using vector similarity.
 
@@ -199,14 +209,14 @@ async def search_conversations(request: SearchRequest):
     try:
         if request.search_type == "segments":
             results = await search_segments_by_embedding(
-                firebase_uid=request.firebase_uid,
+                user_id=request.user_id,
                 query_embedding=query_embedding,
                 limit=request.limit,
                 similarity_threshold=request.similarity_threshold,
             )
         else:
             results = await search_conversations_by_embedding(
-                firebase_uid=request.firebase_uid,
+                user_id=request.user_id,
                 query_embedding=query_embedding,
                 limit=request.limit,
                 similarity_threshold=request.similarity_threshold,
@@ -226,10 +236,11 @@ async def search_conversations(request: SearchRequest):
 
 @router.get("/conversations")
 async def list_conversations(
-    firebase_uid: str = Query(..., description="Firebase user ID"),
+    user_id: str = Query(..., description="User ID (maity.users UUID)"),
     limit: int = Query(50, ge=1, le=100, description="Max conversations to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     include_discarded: bool = Query(False, description="Include discarded conversations"),
+    auth_user_id: Optional[str] = Depends(optional_auth_user_id),
 ):
     """
     List user's conversations from Supabase.
@@ -238,7 +249,7 @@ async def list_conversations(
     """
     try:
         conversations = await get_conversations(
-            firebase_uid=firebase_uid,
+            user_id=user_id,
             limit=limit,
             offset=offset,
             include_discarded=include_discarded,
@@ -259,14 +270,15 @@ async def list_conversations(
 @router.get("/conversations/{conversation_id}")
 async def get_single_conversation(
     conversation_id: str,
-    firebase_uid: str = Query(..., description="Firebase user ID"),
+    user_id: str = Query(..., description="User ID (maity.users UUID)"),
+    auth_user_id: Optional[str] = Depends(optional_auth_user_id),
 ):
     """
     Get a single conversation with all its transcript segments.
     """
     try:
         result = await get_conversation_with_segments(
-            firebase_uid=firebase_uid,
+            user_id=user_id,
             conversation_id=conversation_id,
         )
 

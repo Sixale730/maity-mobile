@@ -64,7 +64,7 @@ class MaityApiService {
         // Store in Supabase with vector embeddings for semantic search
         try {
           await OmiSupabaseService.storeConversation(
-            firebaseUid: userId,
+            userId: userId,
             segments: segments,
             structured: processed.structured,
             startedAt: startedAt,

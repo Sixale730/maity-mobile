@@ -31,59 +31,82 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
 
 ## Database Schema
 
+### maity.users
+Usuarios de la plataforma (compartido con web):
+- `id` (UUID) - Primary key
+- `auth_id` (UUID) - FK a auth.users (Supabase Auth)
+- `email`, `name` - Datos basicos del usuario
+- Trigger `handle_new_auth_user()` crea automaticamente en signup
+
 ### maity.omi_conversations
 Tabla principal para conversaciones del wearable con embedding vectorial:
 - `id` (UUID) - Primary key
-- `firebase_uid` (TEXT) - Usuario Firebase (temporal, se migrara a Supabase Auth)
-- `user_id` (UUID) - Referencia a maity.users (para futura migracion)
+- `user_id` (UUID) - Referencia a maity.users.id
+- `firebase_uid` (TEXT, nullable) - Legacy, ya no se usa
 - `title`, `overview`, `emoji`, `category` - Datos estructurados del AI
 - `action_items`, `events` (JSONB) - Items de accion y eventos
 - `transcript_text` (TEXT) - Transcripcion completa
 - `embedding` (vector(1536)) - Embedding para busqueda semantica
 - `words_count`, `duration_seconds` - Metricas
 - Indices HNSW para busqueda vectorial rapida
+- RLS policies basadas en `auth.uid() = auth_id`
 
 ### maity.omi_transcript_segments
 Segmentos individuales de transcripcion con embeddings granulares:
 - `id` (UUID), `conversation_id` (UUID FK)
+- `user_id` (UUID) - Referencia a maity.users.id
 - `text`, `speaker`, `speaker_id`, `is_user`
 - `start_time`, `end_time` - Timing del segmento
 - `embedding` (vector(1536)) - Para busqueda granular
 
 ### RPC Functions
-- `maity.search_omi_conversations()` - Busqueda semantica de conversaciones
-- `maity.search_omi_segments()` - Busqueda semantica de segmentos
-- `maity.get_omi_conversation_with_segments()` - Obtener conversacion con segmentos
+- `maity.search_omi_conversations(p_user_id, ...)` - Busqueda semantica de conversaciones
+- `maity.search_omi_segments(p_user_id, ...)` - Busqueda semantica de segmentos
+- `maity.get_omi_conversation_with_segments(p_user_id, ...)` - Obtener conversacion con segmentos
 
 ## Archivos Clave
-- lib/providers/auth_provider.dart - Autenticacion Firebase (pendiente migrar a Supabase)
+- lib/providers/auth_provider.dart - Autenticacion con Supabase Auth
+- lib/services/supabase_auth_service.dart - Servicio de auth Supabase (Google Sign-In nativo)
 - lib/providers/conversation_provider.dart - Estado de conversaciones + busqueda semantica
 - lib/services/maity_api_service.dart - API backend (procesa y almacena en Supabase)
 - lib/services/omi_supabase_service.dart - Servicio para operaciones Supabase
 - lib/backend/http/shared.dart - Cliente HTTP con autenticacion centralizada
 - lib/backend/schema/conversation.dart - Modelos de datos
 
-## Autenticacion
+## Autenticacion (Supabase Auth)
 
-### Flujo de Token
-1. Usuario inicia sesion con Firebase Auth
-2. `AuthService.getIdToken()` obtiene/renueva el token JWT
-3. Token se almacena en `SharedPreferencesUtil().authToken`
-4. `getAuthHeader()` en `shared.dart` devuelve `Bearer <token>`
+### Flujo de Autenticacion
+1. Usuario toca "Continuar con Google"
+2. `google_sign_in` obtiene idToken de Google
+3. `SupabaseAuthService.signInWithGoogleNative()` intercambia con Supabase
+4. Supabase valida → crea/actualiza `auth.users`
+5. Trigger `handle_new_auth_user()` crea registro en `maity.users`
+6. Flutter recibe session con accessToken
+7. `SupabaseAuthService.fetchMaityUserId()` obtiene UUID de `maity.users`
+
+### Tokens
+- `SupabaseAuthService.getAccessToken()` obtiene/renueva token JWT
+- Token se almacena en `SharedPreferencesUtil().authToken`
+- `getAuthHeader()` en `shared.dart` devuelve `Bearer <token>`
+- Auto-refresh 5 minutos antes de expirar
+
+### IDs de Usuario
+- `auth.users.id` - UUID de Supabase Auth (en token como `sub`)
+- `maity.users.id` - UUID de la tabla de usuarios (usado para queries)
+- `maity.users.auth_id` - FK a auth.users.id
 
 ### Dominios Autenticados
 La funcion `_isRequiredAuthCheck()` en `shared.dart` determina que URLs requieren el header Authorization:
 - `maity-mobile.vercel.app` (Backend Maity/Supabase - ACTIVO)
 - `maity-backend.vercel.app` (Legacy, ya no se usa)
 
-**Nota**: `API_BASE_URL` (api.omi.me) está deshabilitado porque no acepta tokens del proyecto Firebase `maityomi-fb601`.
+**Nota**: `API_BASE_URL` (api.omi.me) está deshabilitado porque usa Firebase Auth diferente.
 
 ### Retry de Token
 `makeApiCall()` implementa retry automatico en caso de 401:
 1. Detecta respuesta 401
-2. Llama `AuthService.getIdToken()` para renovar token
+2. Llama `SupabaseAuthService.getAccessToken()` para renovar token
 3. Reintenta la peticion con nuevo token
-4. Si falla de nuevo, fuerza sign-out del usuario
 
 ## Flujo de Datos
 
@@ -115,7 +138,7 @@ Los servicios STT (streaming y polling) generan IDs con formato: `{timestamp}_{s
 3. Vercel backend genera embeddings y guarda en Supabase
 
 ### Busqueda Semantica
-1. ConversationProvider.semanticSearchConversations(query, firebaseUid)
+1. ConversationProvider.semanticSearchConversations(query, userId: maityUserId)
 2. OmiSupabaseService.searchConversations() llama a Vercel
 3. Vercel genera embedding del query y busca por similitud coseno
 4. Fallback automatico a busqueda de texto si falla
@@ -154,12 +177,13 @@ Speech Profile ahora funciona con custom STT (Deepgram):
 ## Pendiente
 1. ~~Crear proyecto Supabase con pgvector~~ DONE
 2. ~~Crear backend en Vercel~~ DONE (endpoints OMI)
-3. Integrar supabase_flutter (para auth futuro)
-4. Migrar auth de Firebase a Supabase
+3. ~~Integrar supabase_flutter~~ DONE
+4. ~~Migrar auth de Firebase a Supabase~~ DONE (Google Sign-In)
 5. ~~Implementar guardado de conversaciones~~ DONE
 6. ~~Agregar busqueda semantica~~ DONE
 7. Dashboard de metricas
 8. UI para mostrar resultados de busqueda semantica
+9. Limpiar código legacy de Firebase Auth
 
 ## Vercel Backend Endpoints (OMI)
 | Endpoint | Metodo | Descripcion |
@@ -182,3 +206,4 @@ Variables de entorno requeridas (configurar en Vercel):
 - `OPENAI_API_KEY` - Para embeddings y procesamiento
 - `SUPABASE_URL` - URL del proyecto Supabase
 - `SUPABASE_SERVICE_KEY` - Service role key (NO anon key)
+- `SUPABASE_JWT_SECRET` - JWT secret para validar tokens (desde Supabase Dashboard > Settings > API)

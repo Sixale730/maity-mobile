@@ -64,6 +64,7 @@ import 'package:omi/models/stt_provider.dart';
 import 'package:opus_dart/opus_dart.dart';
 import 'package:opus_flutter/opus_flutter.dart' as opus_flutter;
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -148,6 +149,18 @@ Future _init() async {
     } else {
       await Firebase.initializeApp(options: dev.DefaultFirebaseOptions.currentPlatform);
     }
+  }
+
+  // Supabase
+  if (Env.supabaseUrl != null && Env.supabaseAnonKey != null) {
+    await Supabase.initialize(
+      url: Env.supabaseUrl!,
+      anonKey: Env.supabaseAnonKey!,
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.pkce,
+      ),
+    );
+    debugPrint('[Maity] Supabase inicializado');
   }
 
   await PlatformManager.initializeServices();

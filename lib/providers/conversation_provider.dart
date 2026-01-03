@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/http/api/conversations.dart';
 import 'package:omi/backend/preferences.dart';
@@ -8,6 +7,7 @@ import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/services/local_conversations_service.dart';
 import 'package:omi/services/omi_supabase_service.dart';
+import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/services/app_review_service.dart';
 
@@ -119,7 +119,8 @@ class ConversationProvider extends ChangeNotifier {
 
   /// Perform semantic search using vector similarity in Supabase
   /// Falls back to text-based search if semantic search fails
-  Future<void> semanticSearchConversations(String query, {String? firebaseUid}) async {
+  /// [userId] es el UUID de maity.users (no el firebase_uid)
+  Future<void> semanticSearchConversations(String query, {String? userId}) async {
     if (query.isEmpty) {
       semanticSearchResults = [];
       previousQuery = "";
@@ -127,8 +128,8 @@ class ConversationProvider extends ChangeNotifier {
       return;
     }
 
-    if (firebaseUid == null || firebaseUid.isEmpty) {
-      debugPrint('[ConversationProvider] No Firebase UID for semantic search, falling back to text search');
+    if (userId == null || userId.isEmpty) {
+      debugPrint('[ConversationProvider] No user ID for semantic search, falling back to text search');
       await searchConversations(query);
       return;
     }
@@ -139,7 +140,7 @@ class ConversationProvider extends ChangeNotifier {
 
     try {
       final results = await OmiSupabaseService.searchConversations(
-        firebaseUid: firebaseUid,
+        userId: userId,
         query: query,
         limit: 20,
         similarityThreshold: 0.5,
@@ -164,12 +165,13 @@ class ConversationProvider extends ChangeNotifier {
   }
 
   /// Search for specific transcript segments using vector similarity
-  Future<List<SegmentSearchResult>> searchTranscriptSegments(String query, {String? firebaseUid}) async {
-    if (query.isEmpty || firebaseUid == null) return [];
+  /// [userId] es el UUID de maity.users
+  Future<List<SegmentSearchResult>> searchTranscriptSegments(String query, {String? userId}) async {
+    if (query.isEmpty || userId == null) return [];
 
     try {
       return await OmiSupabaseService.searchSegments(
-        firebaseUid: firebaseUid,
+        userId: userId,
         query: query,
         limit: 30,
         similarityThreshold: 0.5,
@@ -181,14 +183,15 @@ class ConversationProvider extends ChangeNotifier {
   }
 
   /// Get conversations from Supabase (vector DB)
+  /// [userId] es el UUID de maity.users
   Future<List<OmiConversation>> getSupabaseConversations({
-    required String firebaseUid,
+    required String userId,
     int limit = 50,
     int offset = 0,
   }) async {
     try {
       return await OmiSupabaseService.getConversations(
-        firebaseUid: firebaseUid,
+        userId: userId,
         limit: limit,
         offset: offset,
         includeDiscarded: showDiscardedConversations,
@@ -469,11 +472,11 @@ class ConversationProvider extends ChangeNotifier {
 
   Future<List<ServerConversation>> _getConversationsFromServer() async {
     // Try to get from Supabase first (our own database)
-    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
-    if (firebaseUid != null) {
+    final userId = SupabaseAuthService.instance.maityUserId;
+    if (userId != null) {
       try {
         final supabaseConvos = await OmiSupabaseService.getConversations(
-          firebaseUid: firebaseUid,
+          userId: userId,
           limit: 50,
           includeDiscarded: showDiscardedConversations,
         );

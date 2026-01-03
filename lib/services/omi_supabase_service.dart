@@ -15,8 +15,9 @@ class OmiSupabaseService {
   static const Duration _timeout = Duration(seconds: 60);
 
   /// Store a processed conversation with embeddings in Supabase
+  /// [userId] es el UUID de maity.users (no el firebase_uid)
   static Future<StoredConversationResponse?> storeConversation({
-    required String firebaseUid,
+    required String userId,
     required List<TranscriptSegment> segments,
     required Structured structured,
     required DateTime startedAt,
@@ -31,7 +32,7 @@ class OmiSupabaseService {
     }
 
     try {
-      debugPrint('[OmiSupabaseService] Storing conversation for user $firebaseUid');
+      debugPrint('[OmiSupabaseService] Storing conversation for user $userId');
 
       final authHeader = await getAuthHeader();
       final response = await http
@@ -42,7 +43,7 @@ class OmiSupabaseService {
               'Authorization': authHeader,
             },
             body: jsonEncode({
-              'firebase_uid': firebaseUid,
+              'user_id': userId,
               'started_at': startedAt.toUtc().toIso8601String(),
               'finished_at': finishedAt.toUtc().toIso8601String(),
               'structured': {
@@ -86,8 +87,9 @@ class OmiSupabaseService {
   }
 
   /// Semantic search for conversations using vector similarity
+  /// [userId] es el UUID de maity.users
   static Future<List<SemanticSearchResult>> searchConversations({
-    required String firebaseUid,
+    required String userId,
     required String query,
     int limit = 10,
     double similarityThreshold = 0.7,
@@ -108,7 +110,7 @@ class OmiSupabaseService {
             },
             body: jsonEncode({
               'query': query,
-              'firebase_uid': firebaseUid,
+              'user_id': userId,
               'limit': limit,
               'search_type': 'conversations',
               'similarity_threshold': similarityThreshold,
@@ -131,8 +133,9 @@ class OmiSupabaseService {
   }
 
   /// Semantic search for specific transcript segments (granular search)
+  /// [userId] es el UUID de maity.users
   static Future<List<SegmentSearchResult>> searchSegments({
-    required String firebaseUid,
+    required String userId,
     required String query,
     int limit = 20,
     double similarityThreshold = 0.7,
@@ -150,7 +153,7 @@ class OmiSupabaseService {
             },
             body: jsonEncode({
               'query': query,
-              'firebase_uid': firebaseUid,
+              'user_id': userId,
               'limit': limit,
               'search_type': 'segments',
               'similarity_threshold': similarityThreshold,
@@ -170,8 +173,9 @@ class OmiSupabaseService {
   }
 
   /// List conversations from Supabase with pagination
+  /// [userId] es el UUID de maity.users
   static Future<List<OmiConversation>> getConversations({
-    required String firebaseUid,
+    required String userId,
     int limit = 50,
     int offset = 0,
     bool includeDiscarded = false,
@@ -179,7 +183,7 @@ class OmiSupabaseService {
     try {
       final uri = Uri.parse('$_baseUrl/v1/omi/conversations').replace(
         queryParameters: {
-          'firebase_uid': firebaseUid,
+          'user_id': userId,
           'limit': limit.toString(),
           'offset': offset.toString(),
           'include_discarded': includeDiscarded.toString(),
@@ -204,13 +208,14 @@ class OmiSupabaseService {
   }
 
   /// Get a single conversation with all its segments
+  /// [userId] es el UUID de maity.users
   static Future<OmiConversationDetail?> getConversation({
-    required String firebaseUid,
+    required String userId,
     required String conversationId,
   }) async {
     try {
       final uri = Uri.parse('$_baseUrl/v1/omi/conversations/$conversationId').replace(
-        queryParameters: {'firebase_uid': firebaseUid},
+        queryParameters: {'user_id': userId},
       );
 
       final authHeader = await getAuthHeader();

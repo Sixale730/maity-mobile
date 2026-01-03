@@ -24,7 +24,7 @@ def get_supabase() -> Client:
 
 
 async def insert_conversation(
-    firebase_uid: str,
+    user_id: str,
     title: str,
     overview: str,
     emoji: str,
@@ -40,14 +40,19 @@ async def insert_conversation(
     source: str = "omi",
     language: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Insert a conversation into maity.omi_conversations"""
+    """
+    Insert a conversation into maity.omi_conversations.
+
+    Args:
+        user_id: UUID de maity.users (no auth.users.id)
+    """
     supabase = get_supabase()
 
     conversation_id = str(uuid4())
 
     data = {
         "id": conversation_id,
-        "firebase_uid": firebase_uid,
+        "user_id": user_id,
         "title": title,
         "overview": overview,
         "emoji": emoji,
@@ -77,11 +82,16 @@ async def insert_conversation(
 
 async def insert_segments(
     conversation_id: str,
-    firebase_uid: str,
+    user_id: str,
     segments: List[Dict],
     embeddings: Optional[List[List[float]]] = None,
 ) -> int:
-    """Insert transcript segments into maity.omi_transcript_segments"""
+    """
+    Insert transcript segments into maity.omi_transcript_segments.
+
+    Args:
+        user_id: UUID de maity.users (no auth.users.id)
+    """
     supabase = get_supabase()
 
     rows = []
@@ -89,7 +99,7 @@ async def insert_segments(
         row = {
             "id": str(uuid4()),
             "conversation_id": conversation_id,
-            "firebase_uid": firebase_uid,
+            "user_id": user_id,
             "segment_index": i,
             "text": segment.get("text", ""),
             "speaker": segment.get("speaker"),
@@ -113,21 +123,26 @@ async def insert_segments(
 
 
 async def search_conversations_by_embedding(
-    firebase_uid: str,
+    user_id: str,
     query_embedding: List[float],
     limit: int = 10,
     similarity_threshold: float = 0.7,
     include_discarded: bool = False,
 ) -> List[Dict]:
-    """Search conversations using vector similarity (cosine distance)"""
+    """
+    Search conversations using vector similarity (cosine distance).
+
+    Args:
+        user_id: UUID de maity.users (no auth.users.id)
+    """
     supabase = get_supabase()
 
     # Use RPC function for vector search
-    # Function signature: search_omi_conversations(p_firebase_uid, p_query_embedding, p_limit, p_similarity_threshold, p_include_discarded)
+    # Function signature: search_omi_conversations(p_user_id, p_query_embedding, p_limit, p_similarity_threshold, p_include_discarded)
     result = supabase.rpc(
         "search_omi_conversations",
         {
-            "p_firebase_uid": firebase_uid,
+            "p_user_id": user_id,
             "p_query_embedding": query_embedding,
             "p_limit": limit,
             "p_similarity_threshold": similarity_threshold,
@@ -139,19 +154,24 @@ async def search_conversations_by_embedding(
 
 
 async def search_segments_by_embedding(
-    firebase_uid: str,
+    user_id: str,
     query_embedding: List[float],
     limit: int = 20,
     similarity_threshold: float = 0.7,
 ) -> List[Dict]:
-    """Search transcript segments using vector similarity"""
+    """
+    Search transcript segments using vector similarity.
+
+    Args:
+        user_id: UUID de maity.users (no auth.users.id)
+    """
     supabase = get_supabase()
 
-    # Function signature: search_omi_segments(p_firebase_uid, p_query_embedding, p_limit, p_similarity_threshold)
+    # Function signature: search_omi_segments(p_user_id, p_query_embedding, p_limit, p_similarity_threshold)
     result = supabase.rpc(
         "search_omi_segments",
         {
-            "p_firebase_uid": firebase_uid,
+            "p_user_id": user_id,
             "p_query_embedding": query_embedding,
             "p_limit": limit,
             "p_similarity_threshold": similarity_threshold,
@@ -162,19 +182,24 @@ async def search_segments_by_embedding(
 
 
 async def get_conversations(
-    firebase_uid: str,
+    user_id: str,
     limit: int = 50,
     offset: int = 0,
     include_discarded: bool = False,
 ) -> List[Dict]:
-    """Get user's conversations ordered by creation date"""
+    """
+    Get user's conversations ordered by creation date.
+
+    Args:
+        user_id: UUID de maity.users (no auth.users.id)
+    """
     supabase = get_supabase()
 
     query = (
         supabase.schema("maity")
         .table("omi_conversations")
         .select("*")
-        .eq("firebase_uid", firebase_uid)
+        .eq("user_id", user_id)
         .eq("deleted", False)
     )
 
@@ -192,10 +217,15 @@ async def get_conversations(
 
 
 async def get_conversation_with_segments(
-    firebase_uid: str,
+    user_id: str,
     conversation_id: str,
 ) -> Optional[Dict]:
-    """Get a single conversation with all its segments"""
+    """
+    Get a single conversation with all its segments.
+
+    Args:
+        user_id: UUID de maity.users (no auth.users.id)
+    """
     supabase = get_supabase()
 
     # Get conversation
@@ -204,7 +234,7 @@ async def get_conversation_with_segments(
         .table("omi_conversations")
         .select("*")
         .eq("id", conversation_id)
-        .eq("firebase_uid", firebase_uid)
+        .eq("user_id", user_id)
         .single()
         .execute()
     )

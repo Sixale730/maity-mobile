@@ -35,6 +35,11 @@ abstract class Env {
   static String? get deepgramApiKey => _instance.deepgramApiKey;
 
   static String? get maityBackendUrl => _instance.maityBackendUrl;
+
+  // Supabase
+  static String? get supabaseUrl => _instance.supabaseUrl;
+
+  static String? get supabaseAnonKey => _instance.supabaseAnonKey;
 }
 
 abstract class EnvFields {
@@ -65,4 +70,9 @@ abstract class EnvFields {
   String? get deepgramApiKey;
 
   String? get maityBackendUrl;
+
+  // Supabase
+  String? get supabaseUrl;
+
+  String? get supabaseAnonKey;
 }

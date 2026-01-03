@@ -1,23 +1,28 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:omi/backend/preferences.dart';
-import 'package:omi/env/env.dart';
 import 'package:omi/providers/base_provider.dart';
 import 'package:omi/services/notifications.dart';
-import 'package:omi/services/auth_service.dart';
+import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/utils/alerts/app_snackbar.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/utils/platform/platform_manager.dart';
-import 'package:omi/utils/platform/platform_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:omi/backend/http/api/apps.dart' as apps_api;
 
+/// Provider de autenticación usando Supabase Auth
+/// Reemplaza la versión anterior basada en Firebase Auth
 class AuthenticationProvider extends BaseProvider {
-  FirebaseAuth get _auth => FirebaseAuth.instance;
+  final SupabaseAuthService _authService = SupabaseAuthService.instance;
 
   User? user;
   String? authToken;
+  String? maityUserId; // UUID de maity.users
   bool _loading = false;
+
+  StreamSubscription<AuthState>? _authSubscription;
+
   @override
   bool get loading => _loading;
 
@@ -26,151 +31,172 @@ class AuthenticationProvider extends BaseProvider {
   }
 
   void _initializeAuthListeners() {
-    Future.microtask(() {
-      _auth.authStateChanges().distinct((p, n) => p?.uid == n?.uid).listen((User? user) {
-        this.user = user;
-        SharedPreferencesUtil().uid = user?.uid ?? '';
-        SharedPreferencesUtil().email = user?.email ?? '';
-        SharedPreferencesUtil().givenName = user?.displayName?.split(' ')[0] ?? '';
-      });
-      _auth.idTokenChanges().distinct((p, n) => p?.uid == n?.uid).listen((User? user) async {
-        if (user == null) {
-          debugPrint('User is currently signed out or the token has been revoked! ${user == null}');
-          SharedPreferencesUtil().authToken = '';
-          authToken = null;
-        } else {
-          debugPrint('User is signed in at ${DateTime.now()} with user ${user.uid}');
-          try {
-            if (SharedPreferencesUtil().authToken.isEmpty ||
-                DateTime.now().millisecondsSinceEpoch > SharedPreferencesUtil().tokenExpirationTime) {
-              authToken = await AuthService.instance.getIdToken();
+    Future.microtask(() async {
+      // Restaurar sesión existente
+      await _authService.restoreSession();
+
+      // Actualizar estado inicial
+      user = _authService.currentUser;
+      maityUserId = _authService.maityUserId;
+      if (_authService.currentSession != null) {
+        authToken = _authService.currentSession!.accessToken;
+      }
+
+      // Escuchar cambios de autenticación
+      _authSubscription = _authService.onAuthStateChange.listen((AuthState state) async {
+        debugPrint('[AuthProvider] Auth state changed: ${state.event}');
+
+        switch (state.event) {
+          case AuthChangeEvent.signedIn:
+          case AuthChangeEvent.tokenRefreshed:
+            user = state.session?.user;
+            authToken = state.session?.accessToken;
+            if (user != null) {
+              // Obtener maity.users.id
+              maityUserId = await _authService.fetchMaityUserId();
+              SharedPreferencesUtil().uid = maityUserId ?? '';
+              SharedPreferencesUtil().email = user?.email ?? '';
+
+              // Obtener nombre del metadata
+              final metadata = user?.userMetadata;
+              if (metadata != null) {
+                final fullName = metadata['full_name'] as String? ??
+                    metadata['name'] as String? ??
+                    '';
+                if (fullName.isNotEmpty) {
+                  final parts = fullName.split(' ');
+                  SharedPreferencesUtil().givenName = parts.isNotEmpty ? parts[0] : '';
+                  SharedPreferencesUtil().familyName =
+                      parts.length > 1 ? parts.sublist(1).join(' ') : '';
+                }
+              }
             }
-          } catch (e) {
+            break;
+
+          case AuthChangeEvent.signedOut:
+            user = null;
             authToken = null;
-            debugPrint('Failed to get token: $e');
-          }
+            maityUserId = null;
+            SharedPreferencesUtil().uid = '';
+            SharedPreferencesUtil().authToken = '';
+            break;
+
+          default:
+            break;
         }
+
         notifyListeners();
       });
     });
   }
 
-  bool isSignedIn() => _auth.currentUser != null && !_auth.currentUser!.isAnonymous;
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
+  /// Verifica si el usuario está autenticado
+  bool isSignedIn() => _authService.isSignedIn;
 
   void setLoading(bool value) {
     _loading = value;
     notifyListeners();
   }
 
+  // ============================================================
+  // Google Sign In
+  // ============================================================
+
   Future<void> onGoogleSignIn(Function() onSignIn) async {
-    final useWebAuth = Env.useWebAuth;
     if (!loading) {
       setLoadingState(true);
       try {
-        UserCredential? credential;
-        if (PlatformService.isMobile && !useWebAuth) {
-          credential = await AuthService.instance.signInWithGoogleMobile();
+        final response = await _authService.signInWithGoogleNative();
+
+        if (response.user != null && isSignedIn()) {
+          await _onSignInSuccess(onSignIn);
         } else {
-          credential = await AuthService.instance.authenticateWithProvider('google');
-        }
-        if (credential != null && isSignedIn()) {
-          _signIn(onSignIn);
-        } else {
-          AppSnackbar.showSnackbarError('Failed to sign in with Google, please try again.');
+          AppSnackbar.showSnackbarError('Error al iniciar sesión con Google, intenta de nuevo.');
         }
       } catch (e) {
-        debugPrint('OAuth Google sign in error: $e');
-        AppSnackbar.showSnackbarError('Authentication failed. Please try again.');
+        debugPrint('[AuthProvider] Google sign in error: $e');
+        if (e.toString().contains('cancelado')) {
+          // Usuario canceló, no mostrar error
+        } else {
+          AppSnackbar.showSnackbarError('Error de autenticación. Intenta de nuevo.');
+        }
       }
       setLoadingState(false);
     }
   }
 
-  Future<void> onAppleSignIn(Function() onSignIn) async {
-    final useWebAuth = Env.useWebAuth;
-    if (!loading) {
-      setLoadingState(true);
-      try {
-        UserCredential? credential;
-        if (PlatformService.isMobile && !useWebAuth) {
-          credential = await AuthService.instance.signInWithAppleMobile();
-        } else {
-          credential = await AuthService.instance.authenticateWithProvider('apple');
-        }
-        if (credential != null && isSignedIn()) {
-          _signIn(onSignIn);
-        } else {
-          AppSnackbar.showSnackbarError('Failed to sign in with Apple, please try again.');
-        }
-      } catch (e) {
-        debugPrint('OAuth Apple sign in error: $e');
-        AppSnackbar.showSnackbarError('Authentication failed. Please try again.');
-      }
-      setLoadingState(false);
-    }
-  }
+  // ============================================================
+  // Sign In Success Handler
+  // ============================================================
 
-  Future<void> onAnonymousSignIn(Function() onSignIn) async {
-    if (!loading) {
-      setLoadingState(true);
-      try {
-        UserCredential credential = await _auth.signInAnonymously();
-        if (credential.user != null) {
-          String? token = await _getIdToken();
-          if (token != null) {
-            SharedPreferencesUtil().uid = credential.user!.uid;
-            MixpanelManager().identify();
-            onSignIn();
-          } else {
-            AppSnackbar.showSnackbarError('Error al iniciar sesión, intenta de nuevo.');
-          }
-        } else {
-          AppSnackbar.showSnackbarError('Error al iniciar sesión, intenta de nuevo.');
-        }
-      } catch (e) {
-        debugPrint('Anonymous sign in error: $e');
-        AppSnackbar.showSnackbarError('Error de autenticación. Intenta de nuevo.');
-      }
-      setLoadingState(false);
-    }
-  }
-
-  Future<String?> _getIdToken() async {
+  Future<void> _onSignInSuccess(Function() onSignIn) async {
     try {
-      final token = await AuthService.instance.getIdToken();
+      // Obtener token
+      final token = await _authService.getAccessToken();
+      if (token == null) {
+        AppSnackbar.showSnackbarError('Error al obtener token, intenta de nuevo.');
+        return;
+      }
+
+      authToken = token;
+
+      // Obtener maity.users.id
+      maityUserId = await _authService.fetchMaityUserId();
+      if (maityUserId != null) {
+        SharedPreferencesUtil().uid = maityUserId!;
+      }
+
+      // Registrar token de notificaciones
       NotificationService.instance.saveNotificationToken();
 
-      debugPrint('Token: $token');
-      return token;
-    } catch (e, stackTrace) {
-      AppSnackbar.showSnackbarError('Failed to retrieve firebase token, please try again.');
-      PlatformManager.instance.crashReporter.reportCrash(e, stackTrace);
+      // Identificar en analytics
+      MixpanelManager().identify();
 
+      // Callback de éxito
+      onSignIn();
+    } catch (e, stackTrace) {
+      debugPrint('[AuthProvider] Sign in success handler error: $e');
+      PlatformManager.instance.crashReporter.reportCrash(e, stackTrace);
+      AppSnackbar.showSnackbarError('Error inesperado al iniciar sesión.');
+    }
+  }
+
+  // ============================================================
+  // Sign Out
+  // ============================================================
+
+  Future<void> signOut() async {
+    try {
+      await _authService.signOut();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[AuthProvider] Sign out error: $e');
+      AppSnackbar.showSnackbarError('Error al cerrar sesión.');
+    }
+  }
+
+  // ============================================================
+  // Token Management
+  // ============================================================
+
+  Future<String?> getIdToken() async {
+    try {
+      return await _authService.getAccessToken();
+    } catch (e) {
+      debugPrint('[AuthProvider] Get token error: $e');
       return null;
     }
   }
 
-  void _signIn(Function() onSignIn) async {
-    String? token = await _getIdToken();
-
-    if (token != null) {
-      User user;
-      try {
-        user = FirebaseAuth.instance.currentUser!;
-      } catch (e, stackTrace) {
-        AppSnackbar.showSnackbarError('Unexpected error signing in, Firebase error, please try again.');
-
-        PlatformManager.instance.crashReporter.reportCrash(e, stackTrace);
-        return;
-      }
-      String newUid = user.uid;
-      SharedPreferencesUtil().uid = newUid;
-      MixpanelManager().identify();
-      onSignIn();
-    } else {
-      AppSnackbar.showSnackbarError('Unexpected error signing in, please try again');
-    }
-  }
+  // ============================================================
+  // Legal Links
+  // ============================================================
 
   void openTermsOfService() {
     _launchUrl('https://www.omi.me/pages/terms-of-service');
@@ -184,74 +210,27 @@ class AuthenticationProvider extends BaseProvider {
     if (!await launchUrl(Uri.parse(url))) throw 'Could not launch $url';
   }
 
+  // ============================================================
+  // Métodos deprecados (para compatibilidad temporal)
+  // ============================================================
+
+  /// @deprecated Apple Sign In será agregado después
+  Future<void> onAppleSignIn(Function() onSignIn) async {
+    AppSnackbar.showSnackbarError('Apple Sign In próximamente disponible');
+  }
+
+  /// @deprecated Ya no soportamos usuarios anónimos
+  Future<void> onAnonymousSignIn(Function() onSignIn) async {
+    AppSnackbar.showSnackbarError('Por favor inicia sesión con Google');
+  }
+
+  /// @deprecated Ya no es necesario con Supabase Auth
   Future<void> linkWithGoogle() async {
-    setLoading(true);
-    try {
-      final result = await AuthService.instance.linkWithGoogle();
-      if (result == null) {
-        setLoading(false);
-        return;
-      }
-    } catch (e) {
-      if (e is FirebaseAuthException && e.code == 'credential-already-in-use') {
-        final oldUserId = FirebaseAuth.instance.currentUser?.uid;
-        if (oldUserId != null) {
-          final newUserId = FirebaseAuth.instance.currentUser?.uid;
-          if (newUserId != null) {
-            await migrateAppOwnerId(oldUserId);
-          }
-        }
-        return;
-      }
-      AppSnackbar.showSnackbarError('Failed to link with Google, please try again.');
-      rethrow;
-    } finally {
-      setLoading(false);
-    }
+    // No-op: Supabase maneja el linking automáticamente
   }
 
+  /// @deprecated Ya no es necesario con Supabase Auth
   Future<void> linkWithApple() async {
-    setLoading(true);
-    try {
-      final appleProvider = AppleAuthProvider();
-      try {
-        await FirebaseAuth.instance.currentUser?.linkWithProvider(appleProvider);
-      } catch (e) {
-        if (e is FirebaseAuthException && e.code == 'credential-already-in-use') {
-          // Get existing user credentials
-          final existingCred = e.credential;
-          final oldUserId = FirebaseAuth.instance.currentUser?.uid;
-
-          // Sign out current anonymous user
-          await FirebaseAuth.instance.signOut();
-
-          // Sign in with existing account
-          await FirebaseAuth.instance.signInWithCredential(existingCred!);
-          final newUserId = FirebaseAuth.instance.currentUser?.uid;
-          await AuthService.instance.getIdToken();
-
-          SharedPreferencesUtil().onboardingCompleted = false;
-          SharedPreferencesUtil().uid = newUserId ?? '';
-          SharedPreferencesUtil().email = FirebaseAuth.instance.currentUser?.email ?? '';
-          SharedPreferencesUtil().givenName = FirebaseAuth.instance.currentUser?.displayName?.split(' ')[0] ?? '';
-          if (oldUserId != null && newUserId != null) {
-            await migrateAppOwnerId(oldUserId);
-          }
-          return;
-        }
-        AppSnackbar.showSnackbarError('Failed to link with Apple, please try again.');
-        rethrow;
-      }
-    } catch (e) {
-      print('Error linking with Apple: $e');
-      AppSnackbar.showSnackbarError('Failed to link with Apple, please try again.');
-      rethrow;
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  Future<bool> migrateAppOwnerId(String oldId) async {
-    return await apps_api.migrateAppOwnerId(oldId);
+    // No-op: Supabase maneja el linking automáticamente
   }
 }
