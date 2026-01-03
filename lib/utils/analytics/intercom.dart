@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:omi/backend/preferences.dart';
-import 'package:omi/env/env.dart';
-import 'package:omi/utils/platform/platform_service.dart';
 // Intercom disabled - causes build issues
 // import 'package:intercom_flutter/intercom_flutter.dart';
 

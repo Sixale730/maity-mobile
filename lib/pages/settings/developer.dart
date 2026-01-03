@@ -155,7 +155,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
         Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: const Color(0xFF22C55E),
+          activeThumbColor: const Color(0xFF22C55E),
         ),
       ],
     );
@@ -212,7 +212,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
             Switch(
               value: isEnabled,
               onChanged: onToggle,
-              activeColor: const Color(0xFF22C55E),
+              activeThumbColor: const Color(0xFF22C55E),
             ),
           ],
         ),
@@ -364,12 +364,12 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
           color: Colors.white.withOpacity(0.1),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
+        child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const FaIcon(FontAwesomeIcons.plus, color: Colors.white, size: 10),
-            const SizedBox(width: 6),
-            const Text(
+            FaIcon(FontAwesomeIcons.plus, color: Colors.white, size: 10),
+            SizedBox(width: 6),
+            Text(
               'Create Key',
               style: TextStyle(
                 color: Colors.white,
@@ -551,7 +551,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                                 await DebugLogManager.setEnabled(v);
                                 setState(() {});
                               },
-                              activeColor: const Color(0xFF22C55E),
+                              activeThumbColor: const Color(0xFF22C55E),
                             ),
                           ],
                         ),
@@ -678,11 +678,11 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                                     color: Colors.red.withOpacity(0.15),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: Row(
+                                  child: const Row(
                                     children: [
-                                      const FaIcon(FontAwesomeIcons.trash, color: Colors.redAccent, size: 14),
-                                      const SizedBox(width: 6),
-                                      const Text(
+                                      FaIcon(FontAwesomeIcons.trash, color: Colors.redAccent, size: 14),
+                                      SizedBox(width: 6),
+                                      Text(
                                         'Clear',
                                         style: TextStyle(
                                           color: Colors.redAccent,
@@ -1061,9 +1061,9 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                   const SizedBox(height: 32),
 
                   // Experimental Section
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4, right: 4, bottom: 12),
-                    child: const Text(
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4, right: 4, bottom: 12),
+                    child: Text(
                       'Experimental',
                       style: TextStyle(
                         color: Colors.white,

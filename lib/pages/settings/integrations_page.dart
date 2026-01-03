@@ -347,7 +347,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
   }
 
   Widget _buildOverlappingLogo(String path, double size) {
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
       child: ClipRRect(
@@ -561,10 +561,10 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
             ),
             const SizedBox(width: 16),
             // App Name
-            Expanded(
+            const Expanded(
               child: Text(
                 'Create Your Own App',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontSize: 17,
                   fontWeight: FontWeight.w400,
@@ -624,7 +624,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
               Expanded(
                 child: ListView(
                   children: [
-                    ...IntegrationApp.values.map(_buildAppTile).toList(),
+                    ...IntegrationApp.values.map(_buildAppTile),
                     _buildCreateYourOwnAppTile(),
                   ],
                 ),

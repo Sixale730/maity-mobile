@@ -60,7 +60,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
   final FocusNode _searchFocusNode = FocusNode();
   int _currentSearchIndex = 0;
   int _totalSearchResults = 0;
-  List<int> _searchResultPositions = []; // Track positions of search results
+  final List<int> _searchResultPositions = []; // Track positions of search results
 
   // TODO: use later for onboarding transcript segment edits
   // late AnimationController _animationController;
@@ -523,12 +523,12 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                           itemBuilder: (context) => [
                             PullDownMenuItem(
                               title: 'Copy Transcript',
-                              iconWidget: FaIcon(FontAwesomeIcons.copy, size: 16),
+                              iconWidget: const FaIcon(FontAwesomeIcons.copy, size: 16),
                               onTap: () => _handleMenuSelection(context, 'copy_transcript', provider),
                             ),
                             PullDownMenuItem(
                               title: 'Copy Summary',
-                              iconWidget: FaIcon(FontAwesomeIcons.clone, size: 16),
+                              iconWidget: const FaIcon(FontAwesomeIcons.clone, size: 16),
                               onTap: () => _handleMenuSelection(context, 'copy_summary', provider),
                             ),
                             // PullDownMenuItem(
@@ -538,18 +538,18 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                             // ),
                             PullDownMenuItem(
                               title: 'Test Prompt',
-                              iconWidget: FaIcon(FontAwesomeIcons.commentDots, size: 16),
+                              iconWidget: const FaIcon(FontAwesomeIcons.commentDots, size: 16),
                               onTap: () => _handleMenuSelection(context, 'test_prompt', provider),
                             ),
                             if (!provider.conversation.discarded)
                               PullDownMenuItem(
                                 title: 'Reprocess Conversation',
-                                iconWidget: FaIcon(FontAwesomeIcons.arrowsRotate, size: 16),
+                                iconWidget: const FaIcon(FontAwesomeIcons.arrowsRotate, size: 16),
                                 onTap: () => _handleMenuSelection(context, 'reprocess', provider),
                               ),
                             PullDownMenuItem(
                               title: 'Delete Conversation',
-                              iconWidget: FaIcon(FontAwesomeIcons.trashCan, size: 16, color: Colors.red),
+                              iconWidget: const FaIcon(FontAwesomeIcons.trashCan, size: 16, color: Colors.red),
                               onTap: () => _handleMenuSelection(context, 'delete', provider),
                             ),
                           ],
@@ -632,7 +632,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                                   }
                                 },
                               ),
-                              ActionItemsTab(),
+                              const ActionItemsTab(),
                             ],
                           );
                         }),
@@ -811,7 +811,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                                 hintStyle: TextStyle(color: Colors.grey[400]),
                                 prefixIcon: const Icon(Icons.search, color: Colors.white70),
                                 suffixIcon: _searchQuery.isNotEmpty
-                                    ? Container(
+                                    ? SizedBox(
                                         width: _searchQuery.isNotEmpty ? 150 : 40,
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,

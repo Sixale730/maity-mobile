@@ -715,10 +715,10 @@ class _TaskIntegrationsPageState extends State<TaskIntegrationsPage> with Widget
                       size: 20,
                     ),
                     const SizedBox(width: 12),
-                    Expanded(
+                    const Expanded(
                       child: Text(
                         'Tasks can be exported to one app at a time.',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Color(0xFF8E8E93),
                           fontSize: 14,
                           fontWeight: FontWeight.w400,

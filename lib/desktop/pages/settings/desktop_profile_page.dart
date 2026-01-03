@@ -14,7 +14,6 @@ import 'package:omi/providers/home_provider.dart';
 import 'package:omi/ui/atoms/omi_checkbox.dart';
 import 'package:omi/ui/atoms/omi_icon_button.dart';
 import 'package:omi/ui/atoms/omi_info_card.dart';
-import 'package:omi/ui/atoms/omi_profile_avatar.dart';
 import 'package:omi/ui/atoms/omi_section.dart';
 import 'package:omi/ui/atoms/omi_settings_tile.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';

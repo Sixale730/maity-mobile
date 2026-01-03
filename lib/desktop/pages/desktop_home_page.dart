@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -39,7 +38,6 @@ import 'package:omi/utils/audio/foreground.dart';
 import 'package:omi/utils/other/temp.dart';
 import 'package:omi/utils/platform/platform_service.dart';
 import 'package:omi/utils/responsive/responsive_helper.dart';
-import 'package:omi/utils/enums.dart';
 import 'package:omi/widgets/upgrade_alert.dart';
 import 'package:provider/provider.dart';
 import 'package:upgrader/upgrader.dart';
@@ -48,7 +46,6 @@ import 'package:window_manager/window_manager.dart';
 // Intercom disabled - causes build issues
 // import 'package:intercom_flutter/intercom_flutter.dart';
 import '../../pages/conversations/sync_page.dart';
-import 'home/widgets/battery_info_widget.dart';
 
 enum MacWindowButtonType { close, minimize, maximize }
 

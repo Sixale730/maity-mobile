@@ -452,16 +452,16 @@ class _AppDetailPageState extends State<AppDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Permissions & Triggers',
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 18),
           ...permissionItems.asMap().entries.map((entry) {
             final permission = entry.value;
             final isLast = entry.key == permissionItems.length - 1;
             return _buildPermissionItem(permission, isLast);
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -545,9 +545,9 @@ class _AppDetailPageState extends State<AppDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Chat Features',
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -561,7 +561,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
   }
 
   Widget _buildChatToolChip(ChatTool tool) {
-    final color = Colors.grey;
+    const color = Colors.grey;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(

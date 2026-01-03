@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:omi/backend/http/shared.dart';
-import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/services/omi_supabase_service.dart';

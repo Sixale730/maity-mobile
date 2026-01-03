@@ -722,8 +722,8 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
             child: Stack(
               children: [
                 // Centered title
-                Center(
-                  child: const Text(
+                const Center(
+                  child: Text(
                     'Settings',
                     style: TextStyle(
                       color: Colors.white,

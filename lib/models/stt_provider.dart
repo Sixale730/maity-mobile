@@ -135,15 +135,15 @@ class SttProviderConfig {
   bool get isPolling => SttRequestType.isPolling(requestType);
 
   static final _configs = <SttProvider, SttProviderConfig>{
-    SttProvider.omi: SttProviderConfig(
+    SttProvider.omi: const SttProviderConfig(
       provider: SttProvider.omi,
       displayName: 'Maity',
       description: 'Maity\'s optimized transcription service',
       icon: FontAwesomeIcons.robot,
       requestType: SttRequestType.streaming,
-      responseSchema: const SttResponseSchema(),
+      responseSchema: SttResponseSchema(),
     ),
-    SttProvider.openai: SttProviderConfig(
+    SttProvider.openai: const SttProviderConfig(
       provider: SttProvider.openai,
       displayName: 'OpenAI Whisper',
       description: 'OpenAI Whisper API - High accuracy',
@@ -151,14 +151,14 @@ class SttProviderConfig {
       requiresApiKey: true,
       requestType: SttRequestType.multipartForm,
       supportedLanguages: SttLanguages.whisperSupported,
-      supportedModels: const ['whisper-1'],
+      supportedModels: ['whisper-1'],
       defaultLanguage: 'en',
       defaultModel: 'whisper-1',
       responseSchema: SttResponseSchema.openAI,
       apiKeyUrl: 'https://platform.openai.com/api-keys',
       docsUrl: 'https://platform.openai.com/docs/guides/speech-to-text',
     ),
-    SttProvider.deepgram: SttProviderConfig(
+    SttProvider.deepgram: const SttProviderConfig(
       provider: SttProvider.deepgram,
       displayName: 'Deepgram',
       description: 'Deepgram Nova - Fast & accurate (polling)',
@@ -166,14 +166,14 @@ class SttProviderConfig {
       requiresApiKey: true,
       requestType: SttRequestType.rawBinary,
       supportedLanguages: SttLanguages.deepgramSupported,
-      supportedModels: const ['nova-3', 'nova-2'],
+      supportedModels: ['nova-3', 'nova-2'],
       defaultLanguage: 'multi',
       defaultModel: 'nova-3',
       responseSchema: SttResponseSchema.deepgram,
       apiKeyUrl: 'https://console.deepgram.com/',
       docsUrl: 'https://developers.deepgram.com/docs/models-languages-overview',
     ),
-    SttProvider.deepgramLive: SttProviderConfig(
+    SttProvider.deepgramLive: const SttProviderConfig(
       provider: SttProvider.deepgramLive,
       displayName: 'Deepgram',
       description: 'Deepgram Nova - Real-time streaming',
@@ -181,14 +181,14 @@ class SttProviderConfig {
       requiresApiKey: true,
       requestType: SttRequestType.streaming,
       supportedLanguages: SttLanguages.deepgramSupported,
-      supportedModels: const ['nova-3', 'nova-2'],
+      supportedModels: ['nova-3', 'nova-2'],
       defaultLanguage: 'multi',
       defaultModel: 'nova-3',
       responseSchema: SttResponseSchema.deepgramLive,
       apiKeyUrl: 'https://console.deepgram.com/',
       docsUrl: 'https://developers.deepgram.com/docs/models-languages-overview',
     ),
-    SttProvider.falai: SttProviderConfig(
+    SttProvider.falai: const SttProviderConfig(
       provider: SttProvider.falai,
       displayName: 'Fal.AI Wizper',
       description: 'Fal.AI Wizper - Cost effective',
@@ -201,7 +201,7 @@ class SttProviderConfig {
       apiKeyUrl: 'https://fal.ai/dashboard/keys',
       docsUrl: 'https://fal.ai/models/fal-ai/wizper',
     ),
-    SttProvider.gemini: SttProviderConfig(
+    SttProvider.gemini: const SttProviderConfig(
       provider: SttProvider.gemini,
       displayName: 'Google Gemini',
       description: 'Google Gemini - Multimodal AI',
@@ -209,14 +209,14 @@ class SttProviderConfig {
       requiresApiKey: true,
       requestType: SttRequestType.jsonBase64,
       supportedLanguages: SttLanguages.geminiSupported,
-      supportedModels: const ['gemini-2.5-flash', 'gemini-2.5-pro'],
+      supportedModels: ['gemini-2.5-flash', 'gemini-2.5-pro'],
       defaultLanguage: 'en',
       defaultModel: 'gemini-2.0-flash',
       responseSchema: SttResponseSchema.gemini,
       apiKeyUrl: 'https://aistudio.google.com/apikey',
       docsUrl: 'https://ai.google.dev/gemini-api/docs/models/gemini',
     ),
-    SttProvider.geminiLive: SttProviderConfig(
+    SttProvider.geminiLive: const SttProviderConfig(
       provider: SttProvider.geminiLive,
       displayName: 'Google Gemini',
       description: 'Google Gemini - Real-time streaming',
@@ -224,14 +224,14 @@ class SttProviderConfig {
       requiresApiKey: true,
       requestType: SttRequestType.streaming,
       supportedLanguages: SttLanguages.geminiSupported,
-      supportedModels: const ['gemini-2.0-flash-live-001'],
+      supportedModels: ['gemini-2.0-flash-live-001'],
       defaultLanguage: 'en',
       defaultModel: 'gemini-2.0-flash-live-001',
       responseSchema: SttResponseSchema.geminiLive,
       apiKeyUrl: 'https://aistudio.google.com/apikey',
       docsUrl: 'https://ai.google.dev/gemini-api/docs/models/gemini',
     ),
-    SttProvider.localWhisper: SttProviderConfig(
+    SttProvider.localWhisper: const SttProviderConfig(
       provider: SttProvider.localWhisper,
       displayName: 'Local Whisper',
       description: 'Self-hosted Whisper server',
@@ -242,7 +242,7 @@ class SttProviderConfig {
       responseSchema: SttResponseSchema.openAI,
       docsUrl: 'https://github.com/openai/whisper',
     ),
-    SttProvider.custom: SttProviderConfig(
+    SttProvider.custom: const SttProviderConfig(
       provider: SttProvider.custom,
       displayName: 'Custom',
       description: 'Define your own STT endpoint (polling)',
@@ -252,7 +252,7 @@ class SttProviderConfig {
       defaultLanguage: 'en',
       responseSchema: SttResponseSchema.openAI,
     ),
-    SttProvider.customLive: SttProviderConfig(
+    SttProvider.customLive: const SttProviderConfig(
       provider: SttProvider.customLive,
       displayName: 'Custom',
       description: 'Define your own real-time STT endpoint',

@@ -5,7 +5,6 @@ import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/providers/device_provider.dart';
 import 'package:omi/providers/onboarding_provider.dart';
-import 'package:omi/gen/assets.gen.dart';
 import 'package:omi/pages/onboarding/apple_watch_permission_page.dart';
 import 'package:omi/widgets/apple_watch_setup_bottom_sheet.dart';
 import 'package:omi/widgets/confirmation_dialog.dart';

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' show min;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -9,7 +8,6 @@ import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/services/local_metrics_service.dart';
 import 'package:omi/services/omi_supabase_service.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:uuid/uuid.dart';
 
 /// Service for storing and retrieving conversations locally

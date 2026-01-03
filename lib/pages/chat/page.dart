@@ -480,8 +480,8 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                                     child: Container(
                                       height: 44,
                                       width: 44,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF3C3C43),
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF3C3C43),
                                         shape: BoxShape.circle,
                                       ),
                                       child: Center(

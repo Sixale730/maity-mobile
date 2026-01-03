@@ -209,7 +209,7 @@ class _AddAppPageState extends State<AddAppPage> {
                                                 height: 180,
                                                 margin: const EdgeInsets.only(right: 8),
                                                 decoration: BoxDecoration(
-                                                  color: Color(0xFF35343B),
+                                                  color: const Color(0xFF35343B),
                                                   borderRadius: BorderRadius.circular(8),
                                                 ),
                                                 child: provider.isUploadingThumbnail
@@ -293,7 +293,7 @@ class _AddAppPageState extends State<AddAppPage> {
                                                   onTap: () => provider.removeThumbnail(index),
                                                   child: Container(
                                                     padding: const EdgeInsets.all(4),
-                                                    decoration: BoxDecoration(
+                                                    decoration: const BoxDecoration(
                                                       color: Colors.white,
                                                       shape: BoxShape.circle,
                                                     ),
@@ -506,7 +506,7 @@ class _AddAppPageState extends State<AddAppPage> {
                                       onChanged: (value) {
                                         provider.setIsPrivate(value);
                                       },
-                                      activeColor: const Color(0xFF6366F1),
+                                      activeThumbColor: const Color(0xFF6366F1),
                                     ),
                                   ],
                                 ),
@@ -564,7 +564,7 @@ class _AddAppPageState extends State<AddAppPage> {
                                         onChanged: (value) {
                                           provider.setIsPaid(value);
                                         },
-                                        activeColor: const Color(0xFF22C55E),
+                                        activeThumbColor: const Color(0xFF22C55E),
                                       ),
                                     ],
                                   ),
@@ -704,9 +704,9 @@ class _AddAppPageState extends State<AddAppPage> {
                                               context: context,
                                               builder: (ctx) => Container(
                                                 padding: const EdgeInsets.all(20),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(0xFF1F1F25),
-                                                  borderRadius: const BorderRadius.vertical(
+                                                decoration: const BoxDecoration(
+                                                  color: Color(0xFF1F1F25),
+                                                  borderRadius: BorderRadius.vertical(
                                                     top: Radius.circular(20),
                                                   ),
                                                 ),

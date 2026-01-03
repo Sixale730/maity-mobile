@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:omi/pages/conversation_detail/page.dart';
 import 'package:omi/services/omi_supabase_service.dart';
 import 'package:omi/ui/atoms/similarity_badge.dart';
 import 'package:omi/utils/other/temp.dart';

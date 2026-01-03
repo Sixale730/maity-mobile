@@ -226,7 +226,7 @@ El emoji debe representar el tema o tono de la conversación.'''
       final title = parsed['title']?.toString() ?? 'Conversación';
       final emoji = parsed['emoji']?.toString() ?? '🎤';
       final overview = parsed['overview']?.toString() ?? transcript.substring(0, min(300, transcript.length));
-      String category = parsed['category']?.toString()?.toLowerCase() ?? 'other';
+      String category = parsed['category']?.toString().toLowerCase() ?? 'other';
 
       // Validate category
       if (!categories.contains(category)) {

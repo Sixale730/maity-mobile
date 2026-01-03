@@ -96,7 +96,7 @@ class TranscriptSegmentSocketService implements IPureSocketListener {
     }
 
     String url =
-        Env.apiBaseUrl!.replaceFirst('https://', 'wss://').replaceFirst('http://', 'ws://') + 'v4/listen$params';
+        '${Env.apiBaseUrl!.replaceFirst('https://', 'wss://').replaceFirst('http://', 'ws://')}v4/listen$params';
 
     _socket = PureSocket(url);
     _socket.setListener(this);

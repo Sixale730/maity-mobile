@@ -128,14 +128,14 @@ class _DesktopShortcutsPageState extends State<DesktopShortcutsPage> {
           ),
           if (isEditable && !isRecording)
             PopupMenuButton<String>(
-              icon: Icon(Icons.more_horiz, color: ResponsiveHelper.textTertiary, size: 20),
+              icon: const Icon(Icons.more_horiz, color: ResponsiveHelper.textTertiary, size: 20),
               color: ResponsiveHelper.backgroundSecondary,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               onSelected: (value) {
                 if (value == 'reset') onReset?.call();
               },
               itemBuilder: (context) => [
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'reset',
                   child: Text('Reset to default', style: TextStyle(color: ResponsiveHelper.textPrimary, fontSize: 13)),
                 ),
