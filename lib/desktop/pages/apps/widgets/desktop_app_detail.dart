@@ -1349,7 +1349,7 @@ class _DesktopAppDetailState extends State<DesktopAppDetail> with SingleTickerPr
     } else {
       prefs.disableApp(appId);
       var res = await disableAppServer(appId);
-      debugPrint(res);
+      debugPrint(res.toString());
       MixpanelManager().appDisabled(appId);
     }
     // context.read<AppProvider>().setApps();

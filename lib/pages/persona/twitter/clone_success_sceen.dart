@@ -1,7 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:omi/gen/assets.gen.dart';
+import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/pages/chat/clone_chat_page.dart';
 import 'package:omi/pages/persona/persona_provider.dart';
 import 'package:omi/utils/other/string_utils.dart';
@@ -26,15 +26,13 @@ class CloneSuccessScreen extends StatefulWidget {
 
 class _CloneSuccessScreenState extends State<CloneSuccessScreen> {
   void _handleNavigation() async {
-    final user = FirebaseAuth.instance.currentUser;
-
-    // If user is not anonymous (signed in with Google/Apple), they came from create/update flow
-    if (user != null && !user.isAnonymous) {
+    // Si el usuario está autenticado, vino del flujo de crear/actualizar
+    if (SupabaseAuthService.instance.isSignedIn) {
       Navigator.pop(context);
       Navigator.pop(context);
       Navigator.pop(context);
     } else {
-      // Anonymous user, just go to profile
+      // Usuario no autenticado, ir a perfil
       Provider.of<PersonaProvider>(context, listen: false).setRouting(widget.routing);
       routeToPage(context, const PersonaProfilePage(), replace: true);
     }
@@ -63,7 +61,7 @@ class _CloneSuccessScreenState extends State<CloneSuccessScreen> {
                     SvgPicture.asset(Assets.images.checkbox),
                     const SizedBox(height: 24),
                     Text(
-                      FirebaseAuth.instance.currentUser?.isAnonymous == false
+                      SupabaseAuthService.instance.isSignedIn
                           ? 'X Connected Successfully!'
                           : 'Your Omi clone is\nverified and live!',
                       textAlign: TextAlign.center,
@@ -179,7 +177,7 @@ class _CloneSuccessScreenState extends State<CloneSuccessScreen> {
                           )
                         : const SizedBox(),
                     const Spacer(flex: 2),
-                    if (FirebaseAuth.instance.currentUser?.isAnonymous == true)
+                    if (!SupabaseAuthService.instance.isSignedIn)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: ElevatedButton(
@@ -210,7 +208,7 @@ class _CloneSuccessScreenState extends State<CloneSuccessScreen> {
                         provider.onTwitterVerifiedCompleted();
                       },
                       child: Text(
-                        FirebaseAuth.instance.currentUser?.isAnonymous == false
+                        SupabaseAuthService.instance.isSignedIn
                             ? 'Continue creating your persona'
                             : 'Share public link',
                         style: TextStyle(

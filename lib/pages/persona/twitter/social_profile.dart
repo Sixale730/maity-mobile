@@ -1,6 +1,6 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/gen/assets.gen.dart';
 import 'package:omi/pages/onboarding/wrapper.dart';
 import 'package:omi/pages/persona/persona_provider.dart';
@@ -175,9 +175,9 @@ class _SocialHandleScreenState extends State<SocialHandleScreen> {
                             FocusScope.of(context).unfocus();
                             if (_formKey.currentState!.validate()) {
                               provider.setIsLoading(true);
-                              if (FirebaseAuth.instance.currentUser == null) {
-                                debugPrint('User is not signed in, signing in anonymously');
-                                await AuthService.instance.signInAnonymously();
+                              if (!SupabaseAuthService.instance.isSignedIn) {
+                                debugPrint('User is not signed in');
+                                // Supabase no tiene auth anónimo
                               }
                               var handle = _controller.text.trim();
                               SharedPreferencesUtil().hasOmiDevice = false;
@@ -214,7 +214,7 @@ class _SocialHandleScreenState extends State<SocialHandleScreen> {
                                 ),
                         ),
                         SizedBox(height: MediaQuery.of(context).textScaleFactor > 1.0 ? 18 : 32),
-                        FirebaseAuth.instance.currentUser == null || FirebaseAuth.instance.currentUser!.isAnonymous
+                        !SupabaseAuthService.instance.isSignedIn
                             ? TextButton(
                                 onPressed: () async {
                                   FocusScope.of(context).unfocus();

@@ -268,7 +268,7 @@ class ConversationDetailProvider extends ChangeNotifier with MessageNotifierMixi
       notifyListeners();
       return true;
     } catch (err, stacktrace) {
-      debugPrint(err);
+      debugPrint(err.toString());
       var conversationReporting = MixpanelManager().getConversationEventProperties(conversation);
       await PlatformManager.instance.crashReporter.reportCrash(err, stacktrace, userAttributes: {
         'conversation_transcript_length': conversationReporting['transcript_length'].toString(),
