@@ -1,8 +1,8 @@
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:omi/utils/platform/platform_service.dart';
 import 'package:omi/utils/debugging/crash_reporter.dart';
 
+/// Simple logger-based crash reporter (Firebase Crashlytics removed)
 class CrashlyticsManager implements CrashReporter {
   static final CrashlyticsManager _instance = CrashlyticsManager._internal();
   static CrashlyticsManager get instance => _instance;
@@ -14,72 +14,57 @@ class CrashlyticsManager implements CrashReporter {
   }
 
   static Future<void> init() async {
-    await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
+    // No-op: Firebase Crashlytics removed
+    debugPrint('[CrashlyticsManager] Initialized (logging only)');
   }
 
   @override
   void identifyUser(String email, String name, String userId) {
-    PlatformService.executeIfSupported(
-      true,
-      () async {
-        await FirebaseCrashlytics.instance.setUserIdentifier(userId);
-        if (email.isNotEmpty) {
-          await FirebaseCrashlytics.instance.setCustomKey('user_email', email);
-        }
-        if (name.isNotEmpty) {
-          await FirebaseCrashlytics.instance.setCustomKey('user_name', name);
-        }
-      },
-    );
+    debugPrint('[CrashlyticsManager] User identified: $userId');
   }
 
   @override
   void logInfo(String message) {
-    PlatformService.executeIfSupported(true, () => FirebaseCrashlytics.instance.log(message));
+    debugPrint('[INFO] $message');
   }
 
   @override
   void logError(String message) {
-    PlatformService.executeIfSupported(true, () => FirebaseCrashlytics.instance.log('ERROR: $message'));
+    debugPrint('[ERROR] $message');
   }
 
   @override
   void logWarn(String message) {
-    PlatformService.executeIfSupported(true, () => FirebaseCrashlytics.instance.log('WARN: $message'));
+    debugPrint('[WARN] $message');
   }
 
   @override
   void logDebug(String message) {
-    PlatformService.executeIfSupported(true, () => FirebaseCrashlytics.instance.log('DEBUG: $message'));
+    debugPrint('[DEBUG] $message');
   }
 
   @override
   void logVerbose(String message) {
-    PlatformService.executeIfSupported(true, () => FirebaseCrashlytics.instance.log('VERBOSE: $message'));
+    debugPrint('[VERBOSE] $message');
   }
 
   @override
   void setUserAttribute(String key, String value) {
-    PlatformService.executeIfSupported(true, () => FirebaseCrashlytics.instance.setCustomKey(key, value));
+    debugPrint('[CrashlyticsManager] User attribute: $key = $value');
   }
 
   @override
   void setEnabled(bool isEnabled) {
-    PlatformService.executeIfSupported(true, () async {
-      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(isEnabled);
-    });
+    debugPrint('[CrashlyticsManager] Enabled: $isEnabled');
   }
 
   @override
   Future<void> reportCrash(Object exception, StackTrace stackTrace, {Map<String, String>? userAttributes}) async {
-    await PlatformService.executeIfSupportedAsync(true, () async {
-      if (userAttributes != null) {
-        for (final entry in userAttributes.entries) {
-          await FirebaseCrashlytics.instance.setCustomKey(entry.key, entry.value);
-        }
-      }
-      await FirebaseCrashlytics.instance.recordError(exception, stackTrace);
-    });
+    debugPrint('[CRASH] Exception: $exception');
+    debugPrint('[CRASH] StackTrace: $stackTrace');
+    if (userAttributes != null) {
+      debugPrint('[CRASH] Attributes: $userAttributes');
+    }
   }
 
   @override

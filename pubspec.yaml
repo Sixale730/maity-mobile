@@ -39,13 +39,6 @@ dependencies:
   shimmer: ^3.0.0
   pull_down_button: ^0.10.2
 
-  # Firebase (mantener core para crashlytics/messaging)
-  firebase_core: 3.13.0
-  cloud_firestore: ^5.0.0
-  firebase_auth: 5.5.3  # TODO: eliminar después de migración completa
-  firebase_messaging: 15.2.5
-  firebase_crashlytics: 4.3.2
-
   # Auth - Supabase
   supabase_flutter: ^2.8.0
   google_sign_in: 6.2.2

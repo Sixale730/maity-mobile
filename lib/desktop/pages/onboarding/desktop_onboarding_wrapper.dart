@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:omi/desktop/pages/desktop_home_page.dart';
 import 'package:omi/desktop/pages/onboarding/screens/desktop_auth_screen.dart';
 import 'package:omi/desktop/pages/onboarding/screens/desktop_name_screen.dart';
@@ -145,9 +144,9 @@ class _DesktopOnboardingWrapperState extends State<DesktopOnboardingWrapper> wit
     }
     IntercomManager.instance.loginIdentifiedUser(SharedPreferencesUtil().uid);
     IntercomManager.instance.updateUser(
-      FirebaseAuth.instance.currentUser!.email,
-      FirebaseAuth.instance.currentUser!.displayName,
-      FirebaseAuth.instance.currentUser!.uid,
+      SharedPreferencesUtil().email,
+      SharedPreferencesUtil().fullName,
+      SharedPreferencesUtil().uid,
     );
     _nextStep();
   }

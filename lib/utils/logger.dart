@@ -1,35 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-// Intercom disabled - causes build issues
-// import 'package:intercom_flutter/intercom_flutter.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 
-class CrashlyticsTalkerObserver extends TalkerObserver {
-  CrashlyticsTalkerObserver();
+class SimpleTalkerObserver extends TalkerObserver {
+  SimpleTalkerObserver();
 
   @override
   void onError(err) {
-    FirebaseCrashlytics.instance.recordError(
-      err.error,
-      err.stackTrace,
-      reason: err.message,
-    );
+    debugPrint('[Logger Error] ${err.error}');
+    debugPrint('[Logger Stack] ${err.stackTrace}');
   }
 
   @override
   void onException(err) {
-    FirebaseCrashlytics.instance.recordError(
-      err.exception,
-      err.stackTrace,
-      reason: err.message,
-    );
+    debugPrint('[Logger Exception] ${err.exception}');
+    debugPrint('[Logger Stack] ${err.stackTrace}');
   }
 }
 
 class Logger {
-  final crashlyticsTalkerObserver = CrashlyticsTalkerObserver();
-  late final talker = TalkerFlutter.init(observer: crashlyticsTalkerObserver);
+  final simpleTalkerObserver = SimpleTalkerObserver();
+  late final talker = TalkerFlutter.init(observer: simpleTalkerObserver);
 
   Logger._();
 
@@ -91,9 +82,7 @@ class LoggerSnackbar extends StatelessWidget {
         trailing: IconButton(
           icon: const Icon(Icons.share, color: Colors.white),
           onPressed: () async {
-            // TODO: Have a custom form which can be prefilled with the error stack trace instead of opening the Gleap Homepage
             // Intercom disabled
-            // await Intercom.instance.displayMessenger();
           },
         ),
       ),

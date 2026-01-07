@@ -47,7 +47,7 @@ class SupabaseAuthService {
 
     // 1. Obtener credenciales de Google
     final googleSignIn = GoogleSignIn(
-      scopes: ['profile', 'email'],
+      scopes: ['email', 'profile', 'openid'],
       // Importante: usar el clientId web para obtener idToken válido para Supabase
       serverClientId: Env.googleClientId,
     );

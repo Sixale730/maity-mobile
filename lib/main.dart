@@ -1,11 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,12 +11,8 @@ import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/core/app_shell.dart';
-import 'package:omi/env/dev_env.dart';
 import 'package:omi/env/env.dart';
 import 'package:omi/env/prod_env.dart';
-import 'package:omi/firebase_options_dev.dart' as dev;
-import 'package:omi/firebase_options_prod.dart' as prod;
-import 'package:omi/flavors.dart';
 import 'package:omi/pages/apps/providers/add_app_provider.dart';
 import 'package:omi/pages/conversation_detail/conversation_detail_provider.dart';
 import 'package:omi/pages/settings/ai_app_generator_provider.dart';
@@ -50,11 +41,9 @@ import 'package:omi/providers/user_provider.dart';
 import 'package:omi/services/auth_service.dart';
 import 'package:omi/services/desktop_update_service.dart';
 import 'package:omi/services/notifications.dart';
-import 'package:omi/services/notifications/action_item_notification_handler.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/utils/analytics/growthbook.dart';
 import 'package:omi/utils/debug_log_manager.dart';
-import 'package:omi/utils/debugging/crashlytics_manager.dart';
 import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/logger.dart';
 import 'package:omi/utils/platform/platform_manager.dart';
@@ -67,38 +56,6 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 import 'package:window_manager/window_manager.dart';
-
-/// Background message handler for FCM data messages
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-
-  await AwesomeNotifications().initialize(
-    null,
-    [
-      NotificationChannel(
-        channelKey: 'channel',
-        channelName: 'Maity Notifications',
-        channelDescription: 'Notification channel for Maity',
-        defaultColor: const Color(0xFFFF0050),
-        ledColor: Colors.white,
-      )
-    ],
-  );
-
-  final data = message.data;
-  final messageType = data['type'];
-  const channelKey = 'channel';
-
-  // Handle action item messages
-  if (messageType == 'action_item_reminder') {
-    await ActionItemNotificationHandler.handleReminderMessage(data, channelKey);
-  } else if (messageType == 'action_item_update') {
-    await ActionItemNotificationHandler.handleUpdateMessage(data, channelKey);
-  } else if (messageType == 'action_item_delete') {
-    await ActionItemNotificationHandler.handleDeletionMessage(data);
-  }
-}
 
 /// Auto-configura Deepgram como proveedor de STT si no hay configuración previa
 Future<void> _autoConfigureDeepgram() async {
@@ -122,34 +79,13 @@ Future<void> _autoConfigureDeepgram() async {
 }
 
 Future _init() async {
-  // Env
-  if (PlatformService.isWindows) {
-    // Windows does not support flavors`
-    Env.init(ProdEnv());
-  } else {
-    if (F.env == Environment.prod) {
-      Env.init(ProdEnv());
-    } else {
-      Env.init(DevEnv());
-    }
-  }
+  // Env - Siempre usar ProdEnv ya que eliminamos flavors
+  Env.init(ProdEnv());
 
   FlutterForegroundTask.initCommunicationPort();
 
   // Service manager
   await ServiceManager.init();
-
-  // Firebase
-  if (PlatformService.isWindows) {
-    // Windows does not support flavors
-    await Firebase.initializeApp(options: prod.DefaultFirebaseOptions.currentPlatform);
-  } else {
-    if (F.env == Environment.prod) {
-      await Firebase.initializeApp(options: prod.DefaultFirebaseOptions.currentPlatform);
-    } else {
-      await Firebase.initializeApp(options: dev.DefaultFirebaseOptions.currentPlatform);
-    }
-  }
 
   // Supabase
   if (Env.supabaseUrl != null && Env.supabaseAnonKey != null) {
@@ -166,11 +102,6 @@ Future _init() async {
   await PlatformManager.initializeServices();
   await NotificationService.instance.initialize();
 
-  // Register FCM background message handler
-  if (PlatformManager().isFCMSupported) {
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  }
-
   await SharedPreferencesUtil.init();
 
   // Auto-configurar Deepgram como STT por defecto
@@ -185,23 +116,6 @@ Future _init() async {
     ble.FlutterBluePlus.setOptions(restoreState: true);
     ble.FlutterBluePlus.setLogLevel(ble.LogLevel.info, color: true);
   }
-
-  await CrashlyticsManager.init();
-  if (isAuth) {
-    PlatformManager.instance.crashReporter.identifyUser(
-      FirebaseAuth.instance.currentUser?.email ?? '',
-      SharedPreferencesUtil().fullName,
-      SharedPreferencesUtil().uid,
-    );
-  }
-  FlutterError.onError = (FlutterErrorDetails details) {
-    FirebaseCrashlytics.instance.recordFlutterFatalError(details);
-  };
-
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true;
-  };
 
   // Initialize desktop updater
   if (PlatformService.isDesktop) {
@@ -236,11 +150,10 @@ void main() {
       await _init();
       runApp(const MyApp());
     },
-    (error, stack) => FirebaseCrashlytics.instance.recordError(
-      error,
-      stack,
-      fatal: true,
-    ),
+    (error, stack) {
+      debugPrint('Uncaught error: $error');
+      debugPrint('Stack trace: $stack');
+    },
   );
 }
 
@@ -387,8 +300,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         builder: (context, child) {
           return WithForegroundTask(
             child: MaterialApp(
-              debugShowCheckedModeBanner: F.env == Environment.dev,
-              title: F.title,
+              debugShowCheckedModeBanner: false,
+              title: 'Maity',
               navigatorKey: MyApp.navigatorKey,
               localizationsDelegates: const [
                 AppLocalizations.delegate,

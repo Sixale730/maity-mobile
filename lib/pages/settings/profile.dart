@@ -1,8 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/pages/payments/payments_page.dart';
 import 'package:omi/pages/settings/change_name_widget.dart';
 import 'package:omi/pages/settings/conversation_timeout_dialog.dart';
@@ -217,17 +217,17 @@ class _ProfilePageState extends State<ProfilePage> {
           children: <Widget>[
             const SizedBox(height: 20),
 
-            // DEBUG: Firebase Login Status
+            // DEBUG: Supabase Login Status
             Container(
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: FirebaseAuth.instance.currentUser != null
+                color: SupabaseAuthService.instance.isSignedIn
                     ? Colors.green.withValues(alpha: 0.2)
                     : Colors.red.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: FirebaseAuth.instance.currentUser != null
+                  color: SupabaseAuthService.instance.isSignedIn
                       ? Colors.green
                       : Colors.red,
                 ),
@@ -235,10 +235,10 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Row(
                 children: [
                   Icon(
-                    FirebaseAuth.instance.currentUser != null
+                    SupabaseAuthService.instance.isSignedIn
                         ? Icons.check_circle
                         : Icons.error,
-                    color: FirebaseAuth.instance.currentUser != null
+                    color: SupabaseAuthService.instance.isSignedIn
                         ? Colors.green
                         : Colors.red,
                     size: 20,
@@ -249,18 +249,18 @@ class _ProfilePageState extends State<ProfilePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          FirebaseAuth.instance.currentUser != null
-                              ? '✅ Firebase Login OK'
-                              : '❌ No Firebase User',
+                          SupabaseAuthService.instance.isSignedIn
+                              ? '✅ Supabase Login OK'
+                              : '❌ No Supabase User',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
                         ),
-                        if (FirebaseAuth.instance.currentUser != null)
+                        if (SupabaseAuthService.instance.isSignedIn)
                           Text(
-                            'UID: ${FirebaseAuth.instance.currentUser!.uid}',
+                            'UID: ${SupabaseAuthService.instance.authId}',
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.7),
                               fontSize: 11,

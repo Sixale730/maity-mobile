@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -86,17 +85,8 @@ class _AuthComponentState extends State<AuthComponent> {
                               context,
                               authMethod: 'apple',
                               onContinue: () async {
-                                final user = FirebaseAuth.instance.currentUser;
-                                if (user != null && user.isAnonymous && SharedPreferencesUtil().hasPersonaCreated) {
-                                  await provider.linkWithApple();
-                                  if (mounted) {
-                                    SharedPreferencesUtil().hasOmiDevice = true;
-                                    SharedPreferencesUtil().verifiedPersonaId = null;
-                                    widget.onSignIn();
-                                  }
-                                } else {
-                                  provider.onAppleSignIn(widget.onSignIn);
-                                }
+                                // Supabase no tiene auth anónimo, siempre hacer sign in normal
+                                provider.onAppleSignIn(widget.onSignIn);
                               },
                             );
                           },
@@ -138,17 +128,8 @@ class _AuthComponentState extends State<AuthComponent> {
                             context,
                             authMethod: 'google',
                             onContinue: () async {
-                              final user = FirebaseAuth.instance.currentUser;
-                              if (user != null && user.isAnonymous && SharedPreferencesUtil().hasPersonaCreated) {
-                                await provider.linkWithGoogle();
-                                if (mounted) {
-                                  SharedPreferencesUtil().hasOmiDevice = true;
-                                  SharedPreferencesUtil().verifiedPersonaId = null;
-                                  widget.onSignIn();
-                                }
-                              } else {
-                                provider.onGoogleSignIn(widget.onSignIn);
-                              }
+                              // Supabase no tiene auth anónimo, siempre hacer sign in normal
+                              provider.onGoogleSignIn(widget.onSignIn);
                             },
                           );
                         },

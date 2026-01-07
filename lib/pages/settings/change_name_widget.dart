@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:omi/backend/preferences.dart';
@@ -16,13 +15,12 @@ class ChangeNameWidget extends StatefulWidget {
 
 class _ChangeNameWidgetState extends State<ChangeNameWidget> {
   late TextEditingController nameController;
-  User? user;
   bool isSaving = false;
 
   @override
   void initState() {
-    user = AuthService.instance.getFirebaseUser();
-    nameController = TextEditingController(text: user?.displayName ?? '');
+    // Usar SharedPreferencesUtil para obtener el nombre actual
+    nameController = TextEditingController(text: SharedPreferencesUtil().fullName);
     super.initState();
   }
 
