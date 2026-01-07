@@ -19,6 +19,7 @@ import 'package:omi/pages/conversations/conversations_page.dart';
 import 'package:omi/pages/memories/page.dart';
 import 'package:omi/pages/settings/data_privacy_page.dart';
 import 'package:omi/pages/settings/settings_drawer.dart';
+import 'package:omi/pages/settings/usage_page.dart';
 import 'package:omi/providers/app_provider.dart';
 import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/connectivity_provider.dart';
@@ -91,6 +92,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   final GlobalKey<State<ActionItemsPage>> _actionItemsPageKey = GlobalKey<State<ActionItemsPage>>();
   final GlobalKey<State<MemoriesPage>> _memoriesPageKey = GlobalKey<State<MemoriesPage>>();
   final GlobalKey<AppsPageState> _appsPageKey = GlobalKey<AppsPageState>();
+  final GlobalKey<State<UsagePage>> _usagePageKey = GlobalKey<State<UsagePage>>();
   late final List<Widget> _pages;
 
   void _initiateApps() {
@@ -123,6 +125,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         if (appsState != null) {
           appsState.scrollToTop();
         }
+        break;
+      case 4:
+        // UsagePage doesn't have a scroll controller
         break;
     }
   }
@@ -179,6 +184,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       ActionItemsPage(key: _actionItemsPageKey),
       MemoriesPage(key: _memoriesPageKey),
       AppsPage(key: _appsPageKey),
+      UsagePage(key: _usagePageKey),
     ];
     SharedPreferencesUtil().onboardingCompleted = true;
 
@@ -245,7 +251,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
           }
           break;
         case "chat":
-          print('inside chat alias $detailPageId');
+          debugPrint('inside chat alias $detailPageId');
           if (detailPageId != null && detailPageId.isNotEmpty) {
             var appId = detailPageId != "omi" ? detailPageId : ''; // omi ~ no select
             if (mounted) {
@@ -415,7 +421,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
               backgroundColor: Theme.of(context).colorScheme.primary,
               appBar: homeProvider.selectedIndex == 5 ? null : _buildAppBar(context),
               body: DefaultTabController(
-                length: 4,
+                length: 5,
                 initialIndex: homeProvider.selectedIndex,
                 child: GestureDetector(
                   onTap: () {
@@ -566,6 +572,31 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                                 child: Icon(
                                                   FontAwesomeIcons.puzzlePiece,
                                                   color: home.selectedIndex == 3 ? Colors.white : Colors.grey,
+                                                  size: 26,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        // Usage Insights tab
+                                        Expanded(
+                                          child: InkWell(
+                                            onTap: () {
+                                              HapticFeedback.mediumImpact();
+                                              MixpanelManager().bottomNavigationTabClicked('Usage');
+                                              primaryFocus?.unfocus();
+                                              if (home.selectedIndex == 4) {
+                                                _scrollToTop(4);
+                                                return;
+                                              }
+                                              home.setIndex(4);
+                                            },
+                                            child: SizedBox(
+                                              height: 90,
+                                              child: Center(
+                                                child: Icon(
+                                                  FontAwesomeIcons.chartLine,
+                                                  color: home.selectedIndex == 4 ? Colors.white : Colors.grey,
                                                   size: 26,
                                                 ),
                                               ),

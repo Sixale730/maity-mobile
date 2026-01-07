@@ -43,7 +43,6 @@ class CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final categoryName = category.toString().split('.').last;
     // Use shorter display names for categories
     String displayName;
     switch (category) {

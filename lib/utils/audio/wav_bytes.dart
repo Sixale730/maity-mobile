@@ -163,9 +163,9 @@ class WavBytesUtil {
   //
   //   if (await file.exists()) {
   //     final fileSize = await file.length();
-  //     print('SharedPreferences file size: ${formatBytes(fileSize)} bytes');
+  //     debugPrint('SharedPreferences file size: ${formatBytes(fileSize)} bytes');
   //   } else {
-  //     print('SharedPreferences file not found');
+  //     debugPrint('SharedPreferences file not found');
   //   }
   // }
 

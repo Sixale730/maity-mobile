@@ -17,7 +17,7 @@ class GrowthbookUtil {
 
   static Future<void> init() async {
     if (Env.growthbookApiKey == null) return;
-    print('GrowthbookUtil init');
+    debugPrint('GrowthbookUtil init');
     var attr = {
       'id': SharedPreferencesUtil().uid,
       'device': Platform.isAndroid ? 'android' : 'ios',

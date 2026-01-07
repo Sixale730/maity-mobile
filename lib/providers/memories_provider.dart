@@ -282,7 +282,7 @@ class MemoriesProvider extends ChangeNotifier {
             updatedCount++;
           }
         } catch (e) {
-          print('Failed to update visibility for memory ${memory.id}: $e');
+          debugPrint('Failed to update visibility for memory ${memory.id}: $e');
         }
       }
     }

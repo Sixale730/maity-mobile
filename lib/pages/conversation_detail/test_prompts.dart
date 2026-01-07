@@ -93,7 +93,7 @@ class _TestPromptsPageState extends State<TestPromptsPage> {
       controller.text,
       widget.conversation.id,
     );
-    print('response: $response');
+    debugPrint('response: $response');
     result = response.toString();
     setState(() {
       loading = false;

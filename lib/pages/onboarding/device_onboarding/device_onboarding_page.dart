@@ -92,7 +92,7 @@ class _DeviceOnboardingPageState extends State<DeviceOnboardingPage> with Single
       // Listen to video progress
       _videoController.addListener(_updateVideoProgress);
     } catch (e) {
-      print('Error initializing video: $e');
+      debugPrint('Error initializing video: $e');
     }
   }
 

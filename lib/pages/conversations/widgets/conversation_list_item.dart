@@ -64,7 +64,6 @@ class _ConversationListItemState extends State<ConversationListItem> {
       });
     }
 
-    Structured structured = widget.conversation.structured;
     return Consumer<ConversationProvider>(builder: (context, provider, child) {
       return GestureDetector(
         onTap: () async {

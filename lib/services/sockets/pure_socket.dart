@@ -120,7 +120,7 @@ class PureSocket implements IPureSocket {
       err = e;
     }
     if (err != null) {
-      print("Error: $err");
+      debugPrint("Error: $err");
       _status = PureSocketStatus.notConnected;
       return false;
     }
@@ -209,7 +209,7 @@ class PureSocket implements IPureSocket {
   @override
   void onError(Object err, StackTrace trace) {
     _status = PureSocketStatus.disconnected;
-    print("Error: $err");
+    debugPrint("Error: $err");
     debugPrintStack(stackTrace: trace);
 
     _listener?.onError(err, trace);

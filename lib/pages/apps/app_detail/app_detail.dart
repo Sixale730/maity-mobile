@@ -1765,7 +1765,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
     } else {
       prefs.disableApp(appId);
       var res = await disableAppServer(appId);
-      print(res);
+      debugPrint(res);
       MixpanelManager().appDisabled(appId);
 
       if (!mounted) return;

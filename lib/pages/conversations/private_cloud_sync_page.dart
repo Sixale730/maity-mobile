@@ -34,7 +34,7 @@ class _PrivateCloudSyncPageState extends State<PrivateCloudSyncPage> {
         );
       }
     } catch (e) {
-      print('Error toggling private cloud sync: $e');
+      debugPrint('Error toggling private cloud sync: $e');
       setState(() => _isSaving = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

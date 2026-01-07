@@ -705,7 +705,7 @@ Future<bool> deleteApiKeyServer(String appId, String keyId) async {
 }
 
 Future<Map> createPersonaApp(File file, Map<String, dynamic> personaData) async {
-  print(jsonEncode(personaData));
+  debugPrint(jsonEncode(personaData));
   try {
     var response = await makeMultipartApiCall(
       url: '${Env.apiBaseUrl}v1/personas',

@@ -45,7 +45,7 @@ class SharedPreferencesUtil {
     }
   }
 
-  bool get hasPersonaCreated => getBool('hasPersonaCreated') ?? false;
+  bool get hasPersonaCreated => getBool('hasPersonaCreated');
 
   set hasPersonaCreated(bool value) => saveBool('hasPersonaCreated', value);
 
@@ -68,7 +68,7 @@ class SharedPreferencesUtil {
   }
 
   BtDevice get btDevice {
-    final String device = getString('btDevice') ?? '';
+    final String device = getString('btDevice');
     if (device.isEmpty) return BtDevice(id: '', name: '', type: DeviceType.omi, rssi: 0);
     return BtDevice.fromJson(jsonDecode(device));
   }
@@ -213,7 +213,7 @@ class SharedPreferencesUtil {
 
   setGptCompletionCache(String key, String value) => saveString('gptCompletionCache:$key', value);
 
-  bool get optInAnalytics => getBool('optInAnalytics') ?? (PlatformService.isDesktop ? false : true);
+  bool get optInAnalytics => getBool('optInAnalytics', defaultValue: !PlatformService.isDesktop);
 
   set optInAnalytics(bool value) => saveBool('optInAnalytics', value);
 
@@ -398,7 +398,7 @@ class SharedPreferencesUtil {
   }
 
   ServerConversation? get modifiedConversationDetails {
-    final String conversation = getString('modifiedConversationDetails') ?? '';
+    final String conversation = getString('modifiedConversationDetails');
     if (conversation.isEmpty) return null;
     return ServerConversation.fromJson(jsonDecode(conversation));
   }

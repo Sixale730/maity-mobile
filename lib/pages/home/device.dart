@@ -62,7 +62,6 @@ class _ConnectedDeviceState extends State<ConnectedDevice> {
     VoidCallback? onTap,
     bool isRedBackground = false,
   }) {
-    final bool isDisabled = onTap == null && !hasArrow && value.isNotEmpty;
     final bool canCopy = value.isNotEmpty && !value.contains('Device must be connected');
 
     return GestureDetector(

@@ -973,7 +973,7 @@ class _GetShareOptionsState extends State<GetShareOptions> {
               }
               String content =
                   '''https://h.omi.me/conversations/${widget.conversation.id}'''.replaceAll('  ', '').trim();
-              print(content);
+              debugPrint(content);
               final RenderBox? box = _shareUrlKey.currentContext?.findRenderObject() as RenderBox?;
               if (box != null) {
                 final Offset position = box.localToGlobal(Offset.zero);

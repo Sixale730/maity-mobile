@@ -199,7 +199,7 @@ class ConversationDetailProvider extends ChangeNotifier with MessageNotifierMixi
 
     titleController!.text = conversation.structured.title;
     titleFocusNode!.addListener(() {
-      print('titleFocusNode focus changed');
+      debugPrint('titleFocusNode focus changed');
       if (!titleFocusNode!.hasFocus) {
         conversation.structured.title = titleController!.text;
         updateConversationTitle(conversation.id, titleController!.text);
@@ -268,7 +268,7 @@ class ConversationDetailProvider extends ChangeNotifier with MessageNotifierMixi
       notifyListeners();
       return true;
     } catch (err, stacktrace) {
-      print(err);
+      debugPrint(err);
       var conversationReporting = MixpanelManager().getConversationEventProperties(conversation);
       await PlatformManager.instance.crashReporter.reportCrash(err, stacktrace, userAttributes: {
         'conversation_transcript_length': conversationReporting['transcript_length'].toString(),

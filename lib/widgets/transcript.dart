@@ -128,14 +128,12 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
     if (widget.searchQuery.isEmpty) return;
 
     final searchQuery = widget.searchQuery.toLowerCase();
-    int globalMatchCount = 0;
 
     for (var segment in widget.segments) {
       final text = _getDecodedText(segment.text).toLowerCase();
       final matches = RegExp(RegExp.escape(searchQuery), caseSensitive: false).allMatches(text);
       for (final _ in matches) {
         _matchKeys.add(GlobalKey());
-        globalMatchCount++;
       }
     }
   }

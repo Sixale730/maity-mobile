@@ -37,7 +37,7 @@ class _CustomBackendURLFormState extends State<CustomBackendURLForm> {
       String backendURL = _urlController.text;
 
       // Print or save the backend URL as needed
-      print('Custom Backend URL: $backendURL');
+      debugPrint('Custom Backend URL: $backendURL');
 
       // Show a success message
       ScaffoldMessenger.of(context).showSnackBar(

@@ -48,7 +48,7 @@ class CustomAuthSignUpState extends State<CustomAuthSignUp> {
       };
 
       String jsonString = jsonEncode(formData);
-      print(jsonString);
+      debugPrint(jsonString);
 
       // You can show a success message or navigate to another page here
       ScaffoldMessenger.of(context).showSnackBar(

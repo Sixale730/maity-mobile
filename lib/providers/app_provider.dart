@@ -523,7 +523,7 @@ class AppProvider extends BaseProvider {
         AppSnackbar.showSnackbarSuccess('App deleted successfully 🗑️');
         notifyListeners();
       } else {
-        print("Warning: Tried to delete app $appId but it wasn't found in the 'apps' list.");
+        debugPrint("Warning: Tried to delete app $appId but it wasn't found in the 'apps' list.");
       }
     } else {
       AppSnackbar.showSnackbarError('Failed to delete app. Please try again later.');
@@ -760,7 +760,7 @@ class AppProvider extends BaseProvider {
         MixpanelManager().appDisabled(appId);
       }
     } catch (e) {
-      print('Error toggling app $appId: $e');
+      debugPrint('Error toggling app $appId: $e');
       success = false;
       errorMessage = 'An error occurred while updating the app status.';
     }

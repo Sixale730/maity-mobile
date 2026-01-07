@@ -33,10 +33,10 @@ class AppleRemindersService {
 
       return result == true;
     } on PlatformException catch (e) {
-      print('Error adding reminder: ${e.message}');
+      debugPrint('Error adding reminder: ${e.message}');
       return false;
     } catch (e) {
-      print('Unexpected error adding reminder: $e');
+      debugPrint('Unexpected error adding reminder: $e');
       return false;
     }
   }
@@ -49,7 +49,7 @@ class AppleRemindersService {
       final result = await _channel.invokeMethod('hasPermission');
       return result == true;
     } catch (e) {
-      print('Error checking reminders permission: $e');
+      debugPrint('Error checking reminders permission: $e');
       return false;
     }
   }
@@ -62,7 +62,7 @@ class AppleRemindersService {
       final result = await _channel.invokeMethod('requestPermission');
       return result == true;
     } catch (e) {
-      print('Error requesting reminders permission: $e');
+      debugPrint('Error requesting reminders permission: $e');
       return false;
     }
   }
@@ -81,7 +81,7 @@ class AppleRemindersService {
       }
       return [];
     } catch (e) {
-      print('Error fetching reminders: $e');
+      debugPrint('Error fetching reminders: $e');
       return [];
     }
   }
@@ -104,7 +104,7 @@ class AppleRemindersService {
 
       return result == true;
     } catch (e) {
-      print('Error completing reminder: $e');
+      debugPrint('Error completing reminder: $e');
       return false;
     }
   }

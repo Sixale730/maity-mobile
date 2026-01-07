@@ -51,7 +51,7 @@ class _DeviceSelectionPageState extends State<DeviceSelectionPage> with SingleTi
       // Listen to video progress
       _videoController.addListener(_updateVideoProgress);
     } catch (e) {
-      print('Error initializing video: $e');
+      debugPrint('Error initializing video: $e');
     }
   }
 

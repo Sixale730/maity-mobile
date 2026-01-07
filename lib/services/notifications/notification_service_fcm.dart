@@ -136,7 +136,7 @@ class _FCMNotificationService implements NotificationInterface {
       try {
         await IntercomManager.instance.sendTokenToIntercom(token);
       } catch (e) {
-        print(e);
+        debugPrint(e);
       }
     }
   }

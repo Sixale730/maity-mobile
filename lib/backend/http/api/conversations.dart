@@ -210,7 +210,7 @@ Future<bool> setConversationEventsState(
   List<int> eventsIdx,
   List<bool> values,
 ) async {
-  print(jsonEncode({
+  debugPrint(jsonEncode({
     'events_idx': eventsIdx,
     'values': values,
   }));
@@ -233,7 +233,7 @@ Future<bool> setConversationActionItemState(
   List<int> actionItemsIdx,
   List<bool> values,
 ) async {
-  print(jsonEncode({
+  debugPrint(jsonEncode({
     'items_idx': actionItemsIdx,
     'values': values,
     'conversation_id': conversationId,

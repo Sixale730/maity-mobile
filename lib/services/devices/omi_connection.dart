@@ -242,7 +242,7 @@ class OmiDeviceConnection extends DeviceConnection {
     try {
       // Capture photo once every 5s
       await transport.writeCharacteristic(omiServiceUuid, imageCaptureControlCharacteristicUuid, [0x05]);
-      print('cameraStartPhotoController');
+      debugPrint('cameraStartPhotoController');
     } catch (e) {
       debugPrint('OmiDeviceConnection: Error starting photo capture: $e');
     }
@@ -252,7 +252,7 @@ class OmiDeviceConnection extends DeviceConnection {
   Future performCameraStopPhotoController() async {
     try {
       await transport.writeCharacteristic(omiServiceUuid, imageCaptureControlCharacteristicUuid, [0x00]);
-      print('cameraStopPhotoController');
+      debugPrint('cameraStopPhotoController');
     } catch (e) {
       debugPrint('OmiDeviceConnection: Error stopping photo capture: $e');
     }
@@ -262,7 +262,7 @@ class OmiDeviceConnection extends DeviceConnection {
     try {
       // -1 tells the firmware to take a single photo
       await transport.writeCharacteristic(omiServiceUuid, imageCaptureControlCharacteristicUuid, [-1]);
-      print('cameraTakePhoto');
+      debugPrint('cameraTakePhoto');
     } catch (e) {
       debugPrint('OmiDeviceConnection: Error taking photo: $e');
     }
@@ -305,7 +305,7 @@ class OmiDeviceConnection extends DeviceConnection {
     if (!await hasPhotoStreamingCharacteristic()) {
       return null;
     }
-    print("OpenGlassDevice getImageListener called");
+    debugPrint("OpenGlassDevice getImageListener called");
 
     var buffer = BytesBuilder();
     var nextExpectedFrame = 0;
