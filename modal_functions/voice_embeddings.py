@@ -16,6 +16,7 @@ image = modal.Image.debian_slim(python_version="3.11").pip_install(
     "torchaudio>=2.0.0",
     "scipy>=1.11.0",
     "numpy>=1.24.0",
+    "fastapi",
 )
 
 
