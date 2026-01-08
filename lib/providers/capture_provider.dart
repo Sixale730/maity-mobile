@@ -25,6 +25,8 @@ import 'package:omi/services/sockets/transcription_service.dart';
 import 'package:omi/services/wals.dart';
 import 'package:omi/services/local_conversations_service.dart';
 import 'package:omi/services/conversation_processor.dart';
+import 'package:omi/services/supabase_auth_service.dart';
+import 'package:omi/services/voice_profile_service.dart';
 import 'package:omi/utils/alerts/app_snackbar.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
@@ -1461,6 +1463,12 @@ class CaptureProvider extends ChangeNotifier
     debugPrint('[Maity] Finalizing local conversation with ${segments.length} segments');
 
     try {
+      // Verify speakers using voice profile if available
+      final userId = SupabaseAuthService.instance.maityUserId;
+      if (userId != null) {
+        await _verifySpeakersWithVoiceProfile(userId);
+      }
+
       // Process conversation with OpenAI to get structured data (title, emoji, category, etc.)
       final structured = await ConversationProcessor.processLocally(segments);
 
@@ -1486,6 +1494,35 @@ class CaptureProvider extends ChangeNotifier
     } catch (e) {
       debugPrint('[Maity] Error saving local conversation: $e');
     }
+  }
+
+  /// Verifies speakers using voice embeddings and re-labels is_user in segments
+  /// NOTE: Full implementation requires storing audio during recording.
+  /// Currently only checks profile status - audio buffer to be added later.
+  Future<void> _verifySpeakersWithVoiceProfile(String userId) async {
+    // Check if user has voice profile
+    final status = await VoiceProfileService.getProfileStatus(userId);
+    if (!status.hasProfile) {
+      debugPrint('[Maity] No voice profile found, using default speaker assignment');
+      return;
+    }
+
+    debugPrint('[Maity] Voice profile found, created: ${status.createdAt}');
+
+    // Get unique speaker IDs from segments
+    final speakerIds = segments.map((s) => s.speakerId).toSet();
+    debugPrint('[Maity] Found ${speakerIds.length} unique speakers: $speakerIds');
+
+    // TODO: Full speaker verification requires audio buffer
+    // To implement:
+    // 1. Add WavBytesUtil _audioBuffer to CaptureProvider
+    // 2. Store audio in streamAudioToWs() callback
+    // 3. Extract audio for each speaker by timestamps
+    // 4. Call VoiceProfileService.verifySpeakers()
+    // 5. Re-label segments based on results
+    //
+    // For now, keep default Deepgram speaker assignment (speaker_0 = user)
+    debugPrint('[Maity] Speaker verification pending - audio buffer not yet implemented');
   }
 
   /// Resets the silence timer - called when new segments arrive

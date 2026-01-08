@@ -12,6 +12,7 @@ from .routers import (
     metrics_router,
     action_items_router,
     omi_router,
+    voice_profiles_router,
 )
 
 # Create FastAPI app
@@ -37,6 +38,7 @@ app.include_router(conversations_router)
 app.include_router(metrics_router)
 app.include_router(action_items_router)
 app.include_router(omi_router)
+app.include_router(voice_profiles_router)
 
 
 @app.get("/")

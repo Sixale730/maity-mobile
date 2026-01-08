@@ -14,6 +14,8 @@ import 'package:omi/providers/device_provider.dart';
 import 'package:omi/services/devices.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
+import 'package:omi/services/supabase_auth_service.dart';
+import 'package:omi/services/voice_profile_service.dart';
 import 'package:omi/utils/audio/wav_bytes.dart';
 
 class SpeechProfileProvider extends ChangeNotifier
@@ -173,9 +175,28 @@ class SpeechProfileProvider extends ChangeNotifier
 
       updateLoadingText('Memorizing your voice...');
       var data = await audioStorage.createWavFile(filename: 'speaker_profile.wav');
+
+      // Enroll voice embedding for speaker verification
+      final userId = SupabaseAuthService.instance.maityUserId;
+      if (userId != null) {
+        updateLoadingText('Creating voice profile...');
+        final enrollSuccess = await VoiceProfileService.enrollVoiceProfile(
+          userId: userId,
+          audioFile: data.item1,
+        );
+        if (enrollSuccess) {
+          debugPrint('[SpeechProfile] Voice embedding enrolled successfully');
+        } else {
+          debugPrint('[SpeechProfile] Voice embedding enrollment failed (continuing with legacy)');
+        }
+      }
+
+      // Legacy: upload to omi backend (if enabled)
       try {
         await uploadProfile(data.item1);
-      } catch (e) {}
+      } catch (e) {
+        debugPrint('[SpeechProfile] Legacy upload failed: $e');
+      }
 
       updateLoadingText('Personalizing your experience...');
       SharedPreferencesUtil().hasSpeakerProfile = true;
