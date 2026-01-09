@@ -231,8 +231,8 @@ Sistema para identificar al usuario por huella de voz usando embeddings ECAPA-TD
 ENROLLMENT:
 Flutter (Speech Profile UI) → Vercel (/v1/voice/enroll) → Modal.com (ECAPA-TDNN) → Supabase (voice_profiles)
 
-VERIFICACIÓN (pendiente buffer de audio):
-Conversación finaliza → Extraer audio por speaker → Modal → Comparar con perfil → Re-etiquetar is_user
+VERIFICACIÓN AUTOMÁTICA:
+Conversación finaliza → CaptureProvider extrae audio por speaker → Vercel → Modal → Comparar con perfil → Re-etiquetar is_user
 ```
 
 ### Flujo de Enrollment
@@ -247,12 +247,17 @@ Conversación finaliza → Extraer audio por speaker → Modal → Comparar con 
 Archivo: `modal_functions/voice_embeddings.py`
 - Modelo: speechbrain/spkrec-ecapa-voxceleb (ECAPA-TDNN)
 - GPU: T4 (económica)
-- Endpoints HTTP:
-  - `/extract_embedding_http` - Extrae embedding de audio
-  - `/verify_speakers_http` - Verifica múltiples speakers
-  - `/health` - Health check
+- Endpoints HTTP desplegados:
+  - `https://divertido--maity-voice-embeddings-extract-embedding-http.modal.run`
+  - `https://divertido--maity-voice-embeddings-verify-speakers-http.modal.run`
+  - `https://divertido--maity-voice-embeddings-health.modal.run`
 
-Deploy: `modal deploy voice_embeddings.py`
+Deploy: `cd modal_functions && python -m modal deploy voice_embeddings.py`
+
+Variable de entorno Vercel:
+```
+MODAL_VOICE_ENDPOINT_URL=https://divertido--maity-voice-embeddings
+```
 
 ### Endpoints Voice Profiles
 | Endpoint | Método | Descripción |
@@ -267,24 +272,28 @@ Deploy: `modal deploy voice_embeddings.py`
 - `api/routers/voice_profiles.py` - Endpoints Vercel
 - `lib/services/voice_profile_service.dart` - Cliente Flutter
 - `lib/providers/speech_profile_provider.dart` - Integra enrollment
-- `lib/providers/capture_provider.dart` - Preparado para verificación
+- `lib/providers/capture_provider.dart` - Audio buffer + verificación automática
+- `lib/utils/audio/wav_bytes.dart` - Extracción de audio por timestamps
 
 ### Estado Actual
 - [x] Enrollment de perfil de voz (funcional)
 - [x] Backend Vercel con endpoints
-- [x] Modal.com con ECAPA-TDNN
+- [x] Modal.com con ECAPA-TDNN desplegado
 - [x] Tabla voice_profiles en Supabase
-- [ ] Buffer de audio en CaptureProvider
-- [ ] Verificación batch al finalizar conversación
+- [x] Buffer de audio en CaptureProvider
+- [x] Verificación automática al finalizar conversación
 
-### Pendiente para Verificación Completa
-Para re-etiquetar `is_user` basado en huella de voz:
-1. Agregar `WavBytesUtil _audioBuffer` a CaptureProvider
-2. Almacenar audio en `streamAudioToWs()` callback
-3. En `_verifySpeakersWithVoiceProfile()`:
-   - Extraer audio por timestamps de segmento
-   - Llamar `VoiceProfileService.verifySpeakers()`
-   - Re-etiquetar segmentos
+### Flujo de Verificación Automática
+Cuando una conversación finaliza con custom STT:
+
+1. `_finalizeLocalConversation()` se ejecuta
+2. Llama `_verifySpeakersWithVoiceProfile(userId)`
+3. Verifica si usuario tiene perfil de voz (`VoiceProfileService.getProfileStatus()`)
+4. Si hay múltiples speakers, extrae audio del segmento más largo de cada uno
+5. Usa `_audioBuffer.extractAudioRangeAsBase64()` para extraer audio por timestamps
+6. Llama `VoiceProfileService.verifySpeakers()` con los audios
+7. Backend Vercel → Modal.com compara contra embedding del usuario
+8. Re-etiqueta `is_user` en segmentos basado en similitud coseno (threshold: 0.75)
 
 ### Umbral de Similitud
 - 0.65-0.70: Muy permisivo (más falsos positivos)

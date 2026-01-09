@@ -20,7 +20,7 @@ image = modal.Image.debian_slim(python_version="3.11").pip_install(
 )
 
 
-@app.cls(gpu="T4", image=image, container_idle_timeout=300)
+@app.cls(gpu="T4", image=image, scaledown_window=300)
 class VoiceEmbeddingService:
     """Service class for voice embedding extraction using ECAPA-TDNN."""
 
@@ -134,7 +134,7 @@ class VoiceEmbeddingService:
 # HTTP Endpoints for Vercel backend to call
 
 @app.function(image=image, gpu="T4", timeout=120)
-@modal.web_endpoint(method="POST")
+@modal.fastapi_endpoint(method="POST")
 def extract_embedding_http(data: dict) -> dict:
     """
     HTTP endpoint to extract voice embedding from audio.
@@ -179,7 +179,7 @@ def extract_embedding_http(data: dict) -> dict:
 
 
 @app.function(image=image, gpu="T4", timeout=180)
-@modal.web_endpoint(method="POST")
+@modal.fastapi_endpoint(method="POST")
 def verify_speakers_http(data: dict) -> dict:
     """
     HTTP endpoint to verify multiple speakers against a user's voice profile.
@@ -258,7 +258,7 @@ def verify_speakers_http(data: dict) -> dict:
 
 
 @app.function(image=image, gpu="T4", timeout=60)
-@modal.web_endpoint(method="GET")
+@modal.fastapi_endpoint(method="GET")
 def health() -> dict:
     """Health check endpoint."""
     import torch

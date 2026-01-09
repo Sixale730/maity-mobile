@@ -14,11 +14,25 @@ from ..services.supabase_auth import optional_auth_user_id
 router = APIRouter(prefix="/v1/voice", tags=["voice-profiles"])
 
 # Modal.com endpoint URL (set in Vercel env vars)
+# Format: https://workspace--app-name (e.g., https://divertido--maity-voice-embeddings)
 MODAL_VOICE_URL = os.getenv("MODAL_VOICE_ENDPOINT_URL")
 
 # Timeouts for Modal requests
 ENROLL_TIMEOUT = 120.0  # 2 minutes for enrollment
 VERIFY_TIMEOUT = 180.0  # 3 minutes for multi-speaker verification
+
+
+def _get_modal_endpoint(function_name: str) -> str:
+    """Build Modal endpoint URL from function name.
+
+    Modal URLs format: https://workspace--app-name-function-name.modal.run
+    Function names use dashes instead of underscores.
+    """
+    if not MODAL_VOICE_URL:
+        return ""
+    # Convert function_name underscores to dashes for Modal URL format
+    function_slug = function_name.replace("_", "-")
+    return f"{MODAL_VOICE_URL}-{function_slug}.modal.run"
 
 
 # ============ Request/Response Models ============
@@ -69,14 +83,15 @@ class DeleteResponse(BaseModel):
 
 async def _call_modal_extract(audio_bytes: bytes, sample_rate: int = 16000) -> Optional[list]:
     """Call Modal.com to extract voice embedding."""
-    if not MODAL_VOICE_URL:
+    endpoint = _get_modal_endpoint("extract_embedding_http")
+    if not endpoint:
         print("[VoiceProfiles] MODAL_VOICE_ENDPOINT_URL not configured")
         return None
 
     try:
         async with httpx.AsyncClient(timeout=ENROLL_TIMEOUT) as client:
             response = await client.post(
-                f"{MODAL_VOICE_URL}/extract_embedding_http",
+                endpoint,
                 json={
                     "audio_base64": base64.b64encode(audio_bytes).decode(),
                     "sample_rate": sample_rate,
@@ -105,14 +120,15 @@ async def _call_modal_verify(
     threshold: float = 0.75,
 ) -> Optional[Dict]:
     """Call Modal.com to verify speakers against user profile."""
-    if not MODAL_VOICE_URL:
+    endpoint = _get_modal_endpoint("verify_speakers_http")
+    if not endpoint:
         print("[VoiceProfiles] MODAL_VOICE_ENDPOINT_URL not configured")
         return None
 
     try:
         async with httpx.AsyncClient(timeout=VERIFY_TIMEOUT) as client:
             response = await client.post(
-                f"{MODAL_VOICE_URL}/verify_speakers_http",
+                endpoint,
                 json={
                     "user_embedding": user_embedding,
                     "speaker_segments": speaker_segments,

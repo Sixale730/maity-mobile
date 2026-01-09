@@ -34,6 +34,7 @@ import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/image/image_utils.dart';
 import 'package:omi/utils/logger.dart';
 import 'package:omi/utils/platform/platform_service.dart';
+import 'package:omi/utils/audio/wav_bytes.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class CaptureProvider extends ChangeNotifier
@@ -101,6 +102,9 @@ class CaptureProvider extends ChangeNotifier
 
   double get bleReceiveRateKbps => _bleReceiveRateKbps;
   double get wsSendRateKbps => _wsSendRateKbps;
+
+  // Audio buffer for speaker verification (stores audio during recording)
+  WavBytesUtil? _audioBuffer;
 
   CaptureProvider() {
     _connectionStateListener = ConnectivityService().onConnectionChange.listen((bool isConnected) {
@@ -270,6 +274,9 @@ class CaptureProvider extends ChangeNotifier
     suggestionsBySegmentId = {};
     _conversation = null;
     taggingSegmentIds = [];
+    // Clear audio buffer used for speaker verification
+    _audioBuffer?.clearAudioBytes();
+    _audioBuffer = null;
     notifyListeners();
   }
 
@@ -500,6 +507,9 @@ class CaptureProvider extends ChangeNotifier
       // Track bytes received from BLE
       _blesBytesReceived += snapshot.length;
 
+      // Store audio for speaker verification (used when conversation ends)
+      _audioBuffer?.storeFramePacket(snapshot);
+
       // Command button triggered
       bool voiceCommandSupported = _recordingDevice != null
           ? (_recordingDevice?.type == DeviceType.omi || _recordingDevice?.type == DeviceType.openglass)
@@ -646,6 +656,11 @@ class CaptureProvider extends ChangeNotifier
     final pd = await device.getDeviceInfo(connection);
     final deviceModel = pd.modelNumber.isNotEmpty ? pd.modelNumber : "Maity";
     _wal.getSyncs().phone.setDeviceInfo(deviceId, deviceModel);
+
+    // Initialize audio buffer for speaker verification
+    // framesPerSecond depends on codec: opus typically sends ~50 frames/sec
+    _audioBuffer = WavBytesUtil(codec: codec, framesPerSecond: 50);
+    debugPrint('[Maity] Audio buffer initialized for speaker verification');
 
     await streamButton(deviceId);
     await streamAudioToWs(deviceId, codec);
@@ -1496,9 +1511,9 @@ class CaptureProvider extends ChangeNotifier
     }
   }
 
-  /// Verifies speakers using voice embeddings and re-labels is_user in segments
-  /// NOTE: Full implementation requires storing audio during recording.
-  /// Currently only checks profile status - audio buffer to be added later.
+  /// Verifies speakers using voice embeddings and re-labels is_user in segments.
+  /// Uses the audio buffer stored during recording to extract audio for each speaker,
+  /// then calls the voice profile service to verify against the user's voice profile.
   Future<void> _verifySpeakersWithVoiceProfile(String userId) async {
     // Check if user has voice profile
     final status = await VoiceProfileService.getProfileStatus(userId);
@@ -1509,20 +1524,89 @@ class CaptureProvider extends ChangeNotifier
 
     debugPrint('[Maity] Voice profile found, created: ${status.createdAt}');
 
+    // Check if we have audio buffer
+    if (_audioBuffer == null || !_audioBuffer!.hasFrames()) {
+      debugPrint('[Maity] No audio buffer available for speaker verification');
+      return;
+    }
+
+    debugPrint('[Maity] Audio buffer has ${_audioBuffer!.durationSeconds.toStringAsFixed(1)}s of audio');
+
     // Get unique speaker IDs from segments
     final speakerIds = segments.map((s) => s.speakerId).toSet();
     debugPrint('[Maity] Found ${speakerIds.length} unique speakers: $speakerIds');
 
-    // TODO: Full speaker verification requires audio buffer
-    // To implement:
-    // 1. Add WavBytesUtil _audioBuffer to CaptureProvider
-    // 2. Store audio in streamAudioToWs() callback
-    // 3. Extract audio for each speaker by timestamps
-    // 4. Call VoiceProfileService.verifySpeakers()
-    // 5. Re-label segments based on results
-    //
-    // For now, keep default Deepgram speaker assignment (speaker_0 = user)
-    debugPrint('[Maity] Speaker verification pending - audio buffer not yet implemented');
+    // If only one speaker, skip verification (likely just the user)
+    if (speakerIds.length <= 1) {
+      debugPrint('[Maity] Only one speaker detected, skipping verification');
+      return;
+    }
+
+    // Group segments by speaker
+    final speakerSegments = <int, List<TranscriptSegment>>{};
+    for (var seg in segments) {
+      speakerSegments.putIfAbsent(seg.speakerId, () => []).add(seg);
+    }
+
+    // Extract audio for each speaker (use the longest segment for best accuracy)
+    final speakerAudioSegments = <int, Uint8List>{};
+    for (var entry in speakerSegments.entries) {
+      // Find the longest segment for this speaker (better voice sample)
+      final sortedSegments = List<TranscriptSegment>.from(entry.value)
+        ..sort((a, b) => (b.end - b.start).compareTo(a.end - a.start));
+
+      final longest = sortedSegments.first;
+      final duration = longest.end - longest.start;
+
+      // Skip if segment is too short (need at least 1 second for reliable verification)
+      if (duration < 1.0) {
+        debugPrint('[Maity] Speaker ${entry.key} segment too short (${duration.toStringAsFixed(1)}s), skipping');
+        continue;
+      }
+
+      // Extract audio for this segment
+      final audioBytes = _audioBuffer!.extractAudioRange(longest.start, longest.end);
+      if (audioBytes != null) {
+        speakerAudioSegments[entry.key] = audioBytes;
+        debugPrint('[Maity] Extracted ${duration.toStringAsFixed(1)}s audio for speaker ${entry.key} (${audioBytes.length} bytes)');
+      } else {
+        debugPrint('[Maity] Failed to extract audio for speaker ${entry.key}');
+      }
+    }
+
+    if (speakerAudioSegments.isEmpty) {
+      debugPrint('[Maity] No valid speaker audio extracted, keeping default assignment');
+      return;
+    }
+
+    // Call voice profile service to verify speakers
+    try {
+      debugPrint('[Maity] Calling voice profile verification for ${speakerAudioSegments.length} speakers');
+      final results = await VoiceProfileService.verifySpeakers(
+        userId: userId,
+        speakerAudioSegments: speakerAudioSegments,
+        threshold: 0.75,
+      );
+
+      debugPrint('[Maity] Verification results: $results');
+
+      // Re-label segments based on verification results
+      int updatedCount = 0;
+      for (var seg in segments) {
+        // Results are keyed by speaker ID as string (e.g., "0", "1")
+        final result = results[seg.speakerId.toString()];
+        if (result != null) {
+          final wasUser = seg.isUser;
+          seg.isUser = result.isUser;
+          if (wasUser != seg.isUser) updatedCount++;
+        }
+      }
+
+      debugPrint('[Maity] Updated is_user for $updatedCount segments based on voice verification');
+    } catch (e) {
+      debugPrint('[Maity] Speaker verification failed: $e');
+      // Keep default assignment on error
+    }
   }
 
   /// Resets the silence timer - called when new segments arrive

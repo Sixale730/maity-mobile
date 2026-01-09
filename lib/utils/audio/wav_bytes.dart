@@ -153,6 +153,57 @@ class WavBytesUtil {
 
   bool hasFrames() => frames.isNotEmpty;
 
+  /// Extract audio from a time range and return as WAV bytes.
+  /// Used for speaker verification - extracts audio for a specific segment.
+  ///
+  /// [startSeconds] - Start time in seconds
+  /// [endSeconds] - End time in seconds
+  /// Returns WAV audio bytes (16kHz, 16-bit, mono), or null if range is invalid
+  Uint8List? extractAudioRange(double startSeconds, double endSeconds) {
+    // Calculate frame indices
+    int startFrame = (startSeconds * framesPerSecond).floor();
+    int endFrame = (endSeconds * framesPerSecond).ceil();
+
+    // Validate range
+    if (startFrame < 0) startFrame = 0;
+    if (endFrame > frames.length) endFrame = frames.length;
+    if (startFrame >= frames.length || endFrame <= startFrame) {
+      debugPrint('[WavBytes] Invalid range: $startSeconds-$endSeconds (frames: ${frames.length})');
+      return null;
+    }
+
+    // Extract frames for the range
+    List<List<int>> rangeFrames = frames.sublist(startFrame, endFrame);
+    if (rangeFrames.isEmpty) return null;
+
+    try {
+      // Decode opus frames to PCM samples
+      List<int> decodedSamples = [];
+      for (var frame in rangeFrames) {
+        if (codec.isOpusSupported()) {
+          decodedSamples.addAll(opusDecoder.decode(input: Uint8List.fromList(frame)));
+        } else if (codec == BleAudioCodec.pcm8 || codec == BleAudioCodec.pcm16) {
+          // For PCM, frames are already raw samples
+          for (int j = 0; j < frame.length; j += 2) {
+            int sample = (frame[j + 1] << 8) | frame[j];
+            decodedSamples.add(sample);
+          }
+        }
+      }
+
+      if (decodedSamples.isEmpty) return null;
+
+      // Convert to WAV bytes (16kHz, 16-bit, mono)
+      return getUInt8ListBytes(decodedSamples, 16000);
+    } catch (e) {
+      debugPrint('[WavBytes] Error extracting audio range: $e');
+      return null;
+    }
+  }
+
+  /// Get the total duration of recorded audio in seconds
+  double get durationSeconds => frames.length / framesPerSecond;
+
   /*
   * DOUBLE CHECKING STORE FILES
   * */
