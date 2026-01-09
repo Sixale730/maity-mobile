@@ -237,11 +237,27 @@ Conversación finaliza → CaptureProvider extrae audio por speaker → Vercel �
 
 ### Flujo de Enrollment
 1. Usuario va a Speech Profile y graba 30+ segundos
-2. `SpeechProfileProvider.finalize()` crea archivo WAV
-3. Llama `VoiceProfileService.enrollVoiceProfile(userId, audioFile)`
-4. Backend Vercel envía audio a Modal.com
-5. Modal extrae embedding ECAPA-TDNN (192 dims)
-6. Se guarda en `maity.voice_profiles`
+2. `SpeechProfileProvider.finalize()` valida:
+   - `maityUserId` no es null (error: `AUTH_REQUIRED`)
+   - Duración entre 10-155 segundos
+   - Mínimo 25 palabras detectadas
+3. Crea archivo WAV con `audioStorage.createWavFile()`
+4. `VoiceProfileService.enrollVoiceProfile()` valida:
+   - Archivo existe y tiene >1000 bytes
+   - Token de autenticación válido
+5. Envía audio a Vercel → Modal.com (ECAPA-TDNN)
+6. Verifica post-enrollment con `getProfileStatus()` (error: `ENROLLMENT_VERIFICATION_FAILED`)
+7. Si todo OK, marca `profileCompleted = true`
+
+### Códigos de Error de Enrollment
+| Código | Descripción | Mensaje al Usuario |
+|--------|-------------|-------------------|
+| `AUTH_REQUIRED` | `maityUserId` es null | "You need to be signed in to create your voice profile" |
+| `ENROLLMENT_FAILED` | Falló envío al backend | "Could not save your voice profile. Please check your internet connection" |
+| `ENROLLMENT_VERIFICATION_FAILED` | Perfil no encontrado post-save | "Your voice profile was not saved correctly. Please try again" |
+| `TOO_SHORT` | Menos de 25 palabras | "There is not enough speech detected" |
+| `NO_SPEECH` | Duración inválida | "We could not detect any speech" |
+| `MULTIPLE_SPEAKERS` | Más de un speaker detectado | "It seems like there are multiple speakers" |
 
 ### Modal.com (Servicio ML)
 Archivo: `modal_functions/voice_embeddings.py`

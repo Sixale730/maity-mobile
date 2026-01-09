@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -25,10 +26,32 @@ class VoiceProfileService {
     required File audioFile,
   }) async {
     try {
-      debugPrint('[VoiceProfile] Enrolling voice for user $userId');
+      debugPrint('[VoiceProfile] ========== ENROLLMENT START ==========');
+      debugPrint('[VoiceProfile] User ID: $userId');
       debugPrint('[VoiceProfile] Audio file: ${audioFile.path}');
 
+      // Validar que el archivo existe y tiene contenido
+      if (!await audioFile.exists()) {
+        debugPrint('[VoiceProfile] ERROR: Audio file does not exist');
+        return false;
+      }
+
+      final fileSize = await audioFile.length();
+      debugPrint('[VoiceProfile] Audio file size: $fileSize bytes');
+
+      if (fileSize < 1000) {
+        debugPrint('[VoiceProfile] ERROR: Audio file too small ($fileSize bytes) - likely corrupted');
+        return false;
+      }
+
       final authHeader = await getAuthHeader();
+      debugPrint('[VoiceProfile] Auth header present: ${authHeader.isNotEmpty && authHeader != 'Bearer '}');
+
+      // Validar que hay un token válido
+      if (authHeader.isEmpty || authHeader == 'Bearer ' || authHeader == 'Bearer null') {
+        debugPrint('[VoiceProfile] ERROR: Invalid or missing auth token');
+        return false;
+      }
 
       final request = http.MultipartRequest(
         'POST',
@@ -45,19 +68,35 @@ class VoiceProfileService {
         ),
       );
 
+      debugPrint('[VoiceProfile] Sending request to $_baseUrl/v1/voice/enroll');
       final streamedResponse = await request.send().timeout(_enrollTimeout);
       final response = await http.Response.fromStream(streamedResponse);
+
+      debugPrint('[VoiceProfile] Response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         debugPrint('[VoiceProfile] Enrollment success: ${data['message']}');
+        debugPrint('[VoiceProfile] ========== ENROLLMENT COMPLETE ==========');
         return data['success'] == true;
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        debugPrint('[VoiceProfile] ERROR: Authentication failed (${response.statusCode})');
+        debugPrint('[VoiceProfile] Response: ${response.body}');
+        return false;
       } else {
-        debugPrint('[VoiceProfile] Enrollment failed: ${response.statusCode} - ${response.body}');
+        debugPrint('[VoiceProfile] ERROR: Enrollment failed with status ${response.statusCode}');
+        debugPrint('[VoiceProfile] Response body: ${response.body}');
         return false;
       }
-    } catch (e) {
-      debugPrint('[VoiceProfile] Enrollment error: $e');
+    } on TimeoutException catch (e) {
+      debugPrint('[VoiceProfile] ERROR: Request timeout after ${_enrollTimeout.inSeconds}s - $e');
+      return false;
+    } on SocketException catch (e) {
+      debugPrint('[VoiceProfile] ERROR: Network error - $e');
+      return false;
+    } catch (e, stackTrace) {
+      debugPrint('[VoiceProfile] ERROR: Unexpected error - $e');
+      debugPrint('[VoiceProfile] Stack trace: $stackTrace');
       return false;
     }
   }

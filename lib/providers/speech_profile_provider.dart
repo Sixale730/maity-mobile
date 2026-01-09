@@ -152,6 +152,14 @@ class SpeechProfileProvider extends ChangeNotifier
     try {
       if (uploadingProfile || profileCompleted) return;
 
+      // Validar que el usuario esté autenticado ANTES de procesar
+      final userId = SupabaseAuthService.instance.maityUserId;
+      if (userId == null) {
+        debugPrint('[SpeechProfile] ERROR: maityUserId is null - user not authenticated');
+        notifyError('AUTH_REQUIRED');
+        return;
+      }
+
       int duration = segments.isEmpty ? 0 : segments.last.end.toInt();
       if (duration < 10 || duration > 155) {
         if (percentageCompleted < 80) {
@@ -177,19 +185,30 @@ class SpeechProfileProvider extends ChangeNotifier
       var data = await audioStorage.createWavFile(filename: 'speaker_profile.wav');
 
       // Enroll voice embedding for speaker verification
-      final userId = SupabaseAuthService.instance.maityUserId;
-      if (userId != null) {
-        updateLoadingText('Creating voice profile...');
-        final enrollSuccess = await VoiceProfileService.enrollVoiceProfile(
-          userId: userId,
-          audioFile: data.item1,
-        );
-        if (enrollSuccess) {
-          debugPrint('[SpeechProfile] Voice embedding enrolled successfully');
-        } else {
-          debugPrint('[SpeechProfile] Voice embedding enrollment failed (continuing with legacy)');
-        }
+      updateLoadingText('Creating voice profile...');
+      final enrollSuccess = await VoiceProfileService.enrollVoiceProfile(
+        userId: userId,
+        audioFile: data.item1,
+      );
+
+      if (!enrollSuccess) {
+        debugPrint('[SpeechProfile] Voice embedding enrollment failed');
+        uploadingProfile = false;
+        notifyError('ENROLLMENT_FAILED');
+        return;
       }
+      debugPrint('[SpeechProfile] Voice embedding enrolled successfully');
+
+      // Verificar que el perfil se guardó correctamente en Supabase
+      updateLoadingText('Verifying voice profile...');
+      final profileStatus = await VoiceProfileService.getProfileStatus(userId);
+      if (!profileStatus.hasProfile) {
+        debugPrint('[SpeechProfile] Voice profile verification failed - profile not found in database');
+        uploadingProfile = false;
+        notifyError('ENROLLMENT_VERIFICATION_FAILED');
+        return;
+      }
+      debugPrint('[SpeechProfile] Voice profile verified successfully');
 
       // Legacy: upload to omi backend (if enabled)
       try {
