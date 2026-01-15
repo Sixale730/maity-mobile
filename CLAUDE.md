@@ -307,6 +307,8 @@ Conversación finaliza → CaptureProvider extrae audio por speaker → Vercel �
 | `NO_SPEECH` | Duración inválida | "We could not detect any speech" |
 | `MULTIPLE_SPEAKERS` | Más de un speaker detectado | "It seems like there are multiple speakers" |
 
+**Nota**: Todos los errores se manejan tanto en la página de onboarding (`speech_profile_widget.dart`) como en la página de settings (`speech_profile/page.dart`).
+
 ### Modal.com (Servicio ML)
 Archivo: `modal_functions/voice_embeddings.py`
 - Modelo: speechbrain/spkrec-ecapa-voxceleb (ECAPA-TDNN)

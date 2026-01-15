@@ -178,6 +178,56 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                 ),
                 barrierDismissible: false,
               );
+            } else if (error == "AUTH_REQUIRED") {
+              showDialog(
+                context: context,
+                builder: (c) => getDialog(
+                  context,
+                  () {
+                    Navigator.pop(context);
+                  },
+                  () {},
+                  'Authentication Required',
+                  'You need to be signed in to create your voice profile. Please sign in and try again.',
+                  okButtonText: 'Ok',
+                  singleButton: true,
+                ),
+                barrierDismissible: false,
+              );
+            } else if (error == "ENROLLMENT_FAILED") {
+              showDialog(
+                context: context,
+                builder: (c) => getDialog(
+                  context,
+                  () {
+                    provider.resetSegments();
+                    Navigator.pop(context);
+                  },
+                  () {},
+                  'Voice Profile Error',
+                  'Could not save your voice profile. Please check your internet connection and try again.',
+                  okButtonText: 'Try Again',
+                  singleButton: true,
+                ),
+                barrierDismissible: false,
+              );
+            } else if (error == "ENROLLMENT_VERIFICATION_FAILED") {
+              showDialog(
+                context: context,
+                builder: (c) => getDialog(
+                  context,
+                  () {
+                    provider.resetSegments();
+                    Navigator.pop(context);
+                  },
+                  () {},
+                  'Verification Error',
+                  'Your voice profile was not saved correctly. Please try again.',
+                  okButtonText: 'Try Again',
+                  singleButton: true,
+                ),
+                barrierDismissible: false,
+              );
             }
           },
           child: Scaffold(
