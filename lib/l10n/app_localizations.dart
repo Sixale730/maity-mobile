@@ -721,6 +721,276 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enable notifications to stay informed'**
   String get notificationsDesc;
+
+  /// No description provided for @insights.
+  ///
+  /// In en, this message translates to:
+  /// **'Insights'**
+  String get insights;
+
+  /// No description provided for @thisYear.
+  ///
+  /// In en, this message translates to:
+  /// **'This Year'**
+  String get thisYear;
+
+  /// No description provided for @allTime.
+  ///
+  /// In en, this message translates to:
+  /// **'All Time'**
+  String get allTime;
+
+  /// No description provided for @unlimitedPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited Plan'**
+  String get unlimitedPlan;
+
+  /// No description provided for @basicPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Basic Plan'**
+  String get basicPlan;
+
+  /// No description provided for @managePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Plan'**
+  String get managePlan;
+
+  /// No description provided for @upgrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade'**
+  String get upgrade;
+
+  /// No description provided for @upgradeToUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to Unlimited'**
+  String get upgradeToUnlimited;
+
+  /// No description provided for @planWillCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your plan will cancel on {date}.'**
+  String planWillCancel(String date);
+
+  /// No description provided for @planRenews.
+  ///
+  /// In en, this message translates to:
+  /// **'Your plan renews on {date}.'**
+  String planRenews(String date);
+
+  /// No description provided for @planIncludesMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Your plan includes {minutes} free minutes per month. Upgrade to go unlimited.'**
+  String planIncludesMinutes(int minutes);
+
+  /// No description provided for @minsUsedOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {limit} mins used'**
+  String minsUsedOf(String used, int limit);
+
+  /// No description provided for @notAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'N/A'**
+  String get notAvailable;
+
+  /// No description provided for @noActivityYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No Activity Yet'**
+  String get noActivityYet;
+
+  /// No description provided for @startConversationPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a conversation with Maity\nto see your usage insights here.'**
+  String get startConversationPrompt;
+
+  /// No description provided for @listening.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening'**
+  String get listening;
+
+  /// No description provided for @listeningDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Total time Maity has actively listened.'**
+  String get listeningDesc;
+
+  /// No description provided for @understanding.
+  ///
+  /// In en, this message translates to:
+  /// **'Understanding'**
+  String get understanding;
+
+  /// No description provided for @understandingDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Words understood from your conversations.'**
+  String get understandingDesc;
+
+  /// No description provided for @providing.
+  ///
+  /// In en, this message translates to:
+  /// **'Providing'**
+  String get providing;
+
+  /// No description provided for @providingDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Action items, and notes automatically captured.'**
+  String get providingDesc;
+
+  /// No description provided for @remembering.
+  ///
+  /// In en, this message translates to:
+  /// **'Remembering'**
+  String get remembering;
+
+  /// No description provided for @rememberingDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Facts and details remembered for you.'**
+  String get rememberingDesc;
+
+  /// No description provided for @listeningMins.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening (mins)'**
+  String get listeningMins;
+
+  /// No description provided for @understandingWords.
+  ///
+  /// In en, this message translates to:
+  /// **'Understanding (words)'**
+  String get understandingWords;
+
+  /// No description provided for @insightsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Insights'**
+  String get insightsLabel;
+
+  /// No description provided for @memoriesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Memories'**
+  String get memoriesLabel;
+
+  /// No description provided for @minUsedThisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {limit} min used this month'**
+  String minUsedThisMonth(String used, int limit);
+
+  /// No description provided for @wordsUsedThisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {limit} words used this month'**
+  String wordsUsedThisMonth(String used, String limit);
+
+  /// No description provided for @insightsGainedThisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {limit} insights gained this month'**
+  String insightsGainedThisMonth(String used, String limit);
+
+  /// No description provided for @memoriesCreatedThisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {limit} memories created this month'**
+  String memoriesCreatedThisMonth(String used, String limit);
+
+  /// No description provided for @shareBaseText.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing my Maity stats!'**
+  String get shareBaseText;
+
+  /// No description provided for @todayMaityHas.
+  ///
+  /// In en, this message translates to:
+  /// **'Today, Maity has:'**
+  String get todayMaityHas;
+
+  /// No description provided for @thisMonthMaityHas.
+  ///
+  /// In en, this message translates to:
+  /// **'This month, Maity has:'**
+  String get thisMonthMaityHas;
+
+  /// No description provided for @thisYearMaityHas.
+  ///
+  /// In en, this message translates to:
+  /// **'This year, Maity has:'**
+  String get thisYearMaityHas;
+
+  /// No description provided for @soFarMaityHas.
+  ///
+  /// In en, this message translates to:
+  /// **'So far, Maity has:'**
+  String get soFarMaityHas;
+
+  /// No description provided for @maityHas.
+  ///
+  /// In en, this message translates to:
+  /// **'Maity has:'**
+  String get maityHas;
+
+  /// No description provided for @listenedMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'🎧 Listened for {minutes} minutes'**
+  String listenedMinutes(String minutes);
+
+  /// No description provided for @understoodWords.
+  ///
+  /// In en, this message translates to:
+  /// **'🧠 Understood {words} words'**
+  String understoodWords(String words);
+
+  /// No description provided for @providedInsights.
+  ///
+  /// In en, this message translates to:
+  /// **'✨ Provided {count} insights'**
+  String providedInsights(String count);
+
+  /// No description provided for @rememberedMemories.
+  ///
+  /// In en, this message translates to:
+  /// **'📚 Remembered {count} memories'**
+  String rememberedMemories(String count);
+
+  /// No description provided for @nMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} minutes'**
+  String nMinutes(String count);
+
+  /// No description provided for @nWords.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} words'**
+  String nWords(String count);
+
+  /// No description provided for @nInsights.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} insights'**
+  String nInsights(String count);
+
+  /// No description provided for @nMemories.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} memories'**
+  String nMemories(String count);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

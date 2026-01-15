@@ -138,6 +138,11 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
     _bleBatteryLevelListener = await _getBleBatteryLevelListener(
       connectedDevice!.id,
       onBatteryLevelChange: (int value) {
+        // Filter out small fluctuations (noise from ADC readings)
+        // Only update if change is >= 3% or if this is the first reading
+        if ((batteryLevel - value).abs() < 3 && batteryLevel != -1) {
+          return; // Ignore small fluctuations
+        }
         batteryLevel = value;
         if (batteryLevel < 20 && !_hasLowBatteryAlerted) {
           _hasLowBatteryAlerted = true;

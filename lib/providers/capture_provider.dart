@@ -83,6 +83,7 @@ class CaptureProvider extends ChangeNotifier
   Timer? _recordingTimer;
   int _recordingDuration = 0; // in seconds
   DateTime? _recordingStartTime; // Track when recording started for local conversations
+  bool _conversationFinalized = false; // Prevents duplicate saves when stopping recording
 
   int _getRecordingDuration() => _recordingDuration;
 
@@ -277,6 +278,8 @@ class CaptureProvider extends ChangeNotifier
     // Clear audio buffer used for speaker verification
     _audioBuffer?.clearAudioBytes();
     _audioBuffer = null;
+    // Reset finalized flag for next conversation
+    _conversationFinalized = false;
     notifyListeners();
   }
 
@@ -1474,6 +1477,13 @@ class CaptureProvider extends ChangeNotifier
       debugPrint('[Maity] No segments to save');
       return;
     }
+
+    // Prevent duplicate saves when stopStreamRecording() and forceProcessingCurrentConversation() both call this
+    if (_conversationFinalized) {
+      debugPrint('[Maity] Conversation already finalized, skipping duplicate save');
+      return;
+    }
+    _conversationFinalized = true;
 
     debugPrint('[Maity] Finalizing local conversation with ${segments.length} segments');
 

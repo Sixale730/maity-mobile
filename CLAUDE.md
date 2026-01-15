@@ -80,11 +80,59 @@ Perfiles de voz para identificación del usuario (Speaker Verification):
 - lib/providers/auth_provider.dart - Autenticacion con Supabase Auth
 - lib/services/supabase_auth_service.dart - Servicio de auth Supabase (Google Sign-In nativo)
 - lib/providers/conversation_provider.dart - Estado de conversaciones + busqueda semantica
+- lib/providers/capture_provider.dart - Manejo de grabación, transcripción y guardado de conversaciones
 - lib/services/maity_api_service.dart - API backend (procesa y almacena en Supabase)
 - lib/services/omi_supabase_service.dart - Servicio para operaciones Supabase
 - lib/services/voice_profile_service.dart - Servicio para enrollment y verificación de voz
 - lib/backend/http/shared.dart - Cliente HTTP con autenticacion centralizada
 - lib/backend/schema/conversation.dart - Modelos de datos
+- lib/pages/home/page.dart - Página principal con navegación inferior
+
+## Navegación de la App
+La app tiene 2 tabs en la barra de navegación inferior:
+
+| Índice | Página | Icono | Descripción |
+|--------|--------|-------|-------------|
+| 0 | ConversationsPage | House | Lista de conversaciones grabadas |
+| 1 | UsagePage | ChartLine | Estadísticas de uso (Insights) |
+
+**Nota**: Los tabs de ActionItems, Memories y Apps fueron ocultados temporalmente.
+
+### Protección contra Guardados Duplicados
+`CaptureProvider` tiene un flag `_conversationFinalized` que previene guardados duplicados cuando:
+- `stopStreamRecording()` y `forceProcessingCurrentConversation()` se llaman en secuencia
+- El flag se resetea en `_resetStateVariables()` para la siguiente conversación
+
+## Internacionalización (i18n)
+La app soporta múltiples idiomas usando Flutter's built-in localization:
+
+### Archivos de Localización
+- `lib/l10n/app_en.arb` - Diccionario inglés
+- `lib/l10n/app_es.arb` - Diccionario español
+- `lib/l10n/app_localizations.dart` - Clase generada
+
+### Idiomas Soportados
+- Inglés (`en`)
+- Español (`es`)
+
+### Uso en Código
+```dart
+import 'package:omi/l10n/app_localizations.dart';
+
+// En un widget:
+final l10n = AppLocalizations.of(context)!;
+Text(l10n.insights) // "Insights" o "Estadísticas"
+```
+
+### Agregar Nuevas Traducciones
+1. Agregar clave a `app_en.arb` con valor en inglés
+2. Agregar misma clave a `app_es.arb` con traducción
+3. Ejecutar `flutter gen-l10n` para regenerar
+
+### Páginas Localizadas
+- UsagePage (Insights) - Completamente localizada
+- Onboarding pages - Completamente localizadas
+- Settings drawer - Completamente localizado
 
 ## Autenticacion (Supabase Auth)
 

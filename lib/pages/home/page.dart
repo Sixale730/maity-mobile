@@ -11,9 +11,7 @@ import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/app.dart';
 import 'package:omi/backend/schema/geolocation.dart';
 import 'package:omi/main.dart';
-import 'package:omi/pages/action_items/action_items_page.dart';
 import 'package:omi/pages/apps/app_detail/app_detail.dart';
-import 'package:omi/pages/apps/page.dart';
 import 'package:omi/pages/chat/page.dart';
 import 'package:omi/pages/conversations/conversations_page.dart';
 import 'package:omi/pages/memories/page.dart';
@@ -89,9 +87,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   bool scriptsInProgress = false;
 
   final GlobalKey<State<ConversationsPage>> _conversationsPageKey = GlobalKey<State<ConversationsPage>>();
-  final GlobalKey<State<ActionItemsPage>> _actionItemsPageKey = GlobalKey<State<ActionItemsPage>>();
-  final GlobalKey<State<MemoriesPage>> _memoriesPageKey = GlobalKey<State<MemoriesPage>>();
-  final GlobalKey<AppsPageState> _appsPageKey = GlobalKey<AppsPageState>();
   final GlobalKey<State<UsagePage>> _usagePageKey = GlobalKey<State<UsagePage>>();
   late final List<Widget> _pages;
 
@@ -109,24 +104,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         }
         break;
       case 1:
-        final actionItemsState = _actionItemsPageKey.currentState;
-        if (actionItemsState != null) {
-          (actionItemsState as dynamic).scrollToTop();
-        }
-        break;
-      case 2:
-        final memoriesState = _memoriesPageKey.currentState;
-        if (memoriesState != null) {
-          (memoriesState as dynamic).scrollToTop();
-        }
-        break;
-      case 3:
-        final appsState = _appsPageKey.currentState;
-        if (appsState != null) {
-          appsState.scrollToTop();
-        }
-        break;
-      case 4:
         // UsagePage doesn't have a scroll controller
         break;
     }
@@ -181,9 +158,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   void initState() {
     _pages = [
       ConversationsPage(key: _conversationsPageKey),
-      ActionItemsPage(key: _actionItemsPageKey),
-      MemoriesPage(key: _memoriesPageKey),
-      AppsPage(key: _appsPageKey),
       UsagePage(key: _usagePageKey),
     ];
     SharedPreferencesUtil().onboardingCompleted = true;
@@ -419,9 +393,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
           builder: (context, homeProvider, _) {
             return Scaffold(
               backgroundColor: Theme.of(context).colorScheme.primary,
-              appBar: homeProvider.selectedIndex == 5 ? null : _buildAppBar(context),
+              appBar: homeProvider.selectedIndex == 2 ? null : _buildAppBar(context),
               body: DefaultTabController(
-                length: 5,
+                length: 2,
                 initialIndex: homeProvider.selectedIndex,
                 child: GestureDetector(
                   onTap: () {
@@ -444,9 +418,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                       Consumer2<HomeProvider, DeviceProvider>(
                         builder: (context, home, deviceProvider, child) {
                           if (home.isChatFieldFocused ||
-                              home.isConvoSearchFieldFocused ||
-                              home.isAppsSearchFieldFocused ||
-                              home.isMemoriesSearchFieldFocused) {
+                              home.isConvoSearchFieldFocused) {
                             return const SizedBox.shrink();
                           } else {
                             // Check if OMI device is connected
@@ -501,12 +473,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                             ),
                                           ),
                                         ),
-                                        // Action Items tab
+                                        // Center space for record button - only when no OMI device is connected
+                                        if (!isOmiDeviceConnected) const SizedBox(width: 80),
+                                        // Usage Insights tab
                                         Expanded(
                                           child: InkWell(
                                             onTap: () {
                                               HapticFeedback.mediumImpact();
-                                              MixpanelManager().bottomNavigationTabClicked('Action Items');
+                                              MixpanelManager().bottomNavigationTabClicked('Insights');
                                               primaryFocus?.unfocus();
                                               if (home.selectedIndex == 1) {
                                                 _scrollToTop(1);
@@ -518,85 +492,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                               height: 90,
                                               child: Center(
                                                 child: Icon(
-                                                  FontAwesomeIcons.listCheck,
-                                                  color: home.selectedIndex == 1 ? Colors.white : Colors.grey,
-                                                  size: 26,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        // Center space for record button - only when no OMI device is connected
-                                        if (!isOmiDeviceConnected) const SizedBox(width: 80),
-                                        // Memories tab
-                                        Expanded(
-                                          child: InkWell(
-                                            onTap: () {
-                                              HapticFeedback.mediumImpact();
-                                              MixpanelManager().bottomNavigationTabClicked('Memories');
-                                              primaryFocus?.unfocus();
-                                              if (home.selectedIndex == 2) {
-                                                _scrollToTop(2);
-                                                return;
-                                              }
-                                              home.setIndex(2);
-                                            },
-                                            child: SizedBox(
-                                              height: 90,
-                                              child: Center(
-                                                child: Icon(
-                                                  FontAwesomeIcons.brain,
-                                                  color: home.selectedIndex == 2 ? Colors.white : Colors.grey,
-                                                  size: 26,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        // Apps tab
-                                        Expanded(
-                                          child: InkWell(
-                                            onTap: () {
-                                              HapticFeedback.mediumImpact();
-                                              MixpanelManager().bottomNavigationTabClicked('Apps');
-                                              primaryFocus?.unfocus();
-                                              if (home.selectedIndex == 3) {
-                                                _scrollToTop(3);
-                                                return;
-                                              }
-                                              home.setIndex(3);
-                                            },
-                                            child: SizedBox(
-                                              height: 90,
-                                              child: Center(
-                                                child: Icon(
-                                                  FontAwesomeIcons.puzzlePiece,
-                                                  color: home.selectedIndex == 3 ? Colors.white : Colors.grey,
-                                                  size: 26,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        // Usage Insights tab
-                                        Expanded(
-                                          child: InkWell(
-                                            onTap: () {
-                                              HapticFeedback.mediumImpact();
-                                              MixpanelManager().bottomNavigationTabClicked('Usage');
-                                              primaryFocus?.unfocus();
-                                              if (home.selectedIndex == 4) {
-                                                _scrollToTop(4);
-                                                return;
-                                              }
-                                              home.setIndex(4);
-                                            },
-                                            child: SizedBox(
-                                              height: 90,
-                                              child: Center(
-                                                child: Icon(
                                                   FontAwesomeIcons.chartLine,
-                                                  color: home.selectedIndex == 4 ? Colors.white : Colors.grey,
+                                                  color: home.selectedIndex == 1 ? Colors.white : Colors.grey,
                                                   size: 26,
                                                 ),
                                               ),

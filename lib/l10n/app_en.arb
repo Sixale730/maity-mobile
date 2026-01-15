@@ -119,5 +119,143 @@
   "backgroundActivityDesc": "Let the app run in the background for better stability",
   "locationAccess": "Location access",
   "locationAccessDesc": "Enable background location for the full experience",
-  "notificationsDesc": "Enable notifications to stay informed"
+  "notificationsDesc": "Enable notifications to stay informed",
+
+  "insights": "Insights",
+  "thisYear": "This Year",
+  "allTime": "All Time",
+
+  "unlimitedPlan": "Unlimited Plan",
+  "basicPlan": "Basic Plan",
+  "managePlan": "Manage Plan",
+  "upgrade": "Upgrade",
+  "upgradeToUnlimited": "Upgrade to Unlimited",
+  "planWillCancel": "Your plan will cancel on {date}.",
+  "@planWillCancel": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "planRenews": "Your plan renews on {date}.",
+  "@planRenews": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "planIncludesMinutes": "Your plan includes {minutes} free minutes per month. Upgrade to go unlimited.",
+  "@planIncludesMinutes": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "minsUsedOf": "{used} of {limit} mins used",
+  "@minsUsedOf": {
+    "placeholders": {
+      "used": {"type": "String"},
+      "limit": {"type": "int"}
+    }
+  },
+  "notAvailable": "N/A",
+
+  "noActivityYet": "No Activity Yet",
+  "startConversationPrompt": "Start a conversation with Maity\nto see your usage insights here.",
+
+  "listening": "Listening",
+  "listeningDesc": "Total time Maity has actively listened.",
+  "understanding": "Understanding",
+  "understandingDesc": "Words understood from your conversations.",
+  "providing": "Providing",
+  "providingDesc": "Action items, and notes automatically captured.",
+  "remembering": "Remembering",
+  "rememberingDesc": "Facts and details remembered for you.",
+
+  "listeningMins": "Listening (mins)",
+  "understandingWords": "Understanding (words)",
+  "insightsLabel": "Insights",
+  "memoriesLabel": "Memories",
+
+  "minUsedThisMonth": "{used} of {limit} min used this month",
+  "@minUsedThisMonth": {
+    "placeholders": {
+      "used": {"type": "String"},
+      "limit": {"type": "int"}
+    }
+  },
+  "wordsUsedThisMonth": "{used} of {limit} words used this month",
+  "@wordsUsedThisMonth": {
+    "placeholders": {
+      "used": {"type": "String"},
+      "limit": {"type": "String"}
+    }
+  },
+  "insightsGainedThisMonth": "{used} of {limit} insights gained this month",
+  "@insightsGainedThisMonth": {
+    "placeholders": {
+      "used": {"type": "String"},
+      "limit": {"type": "String"}
+    }
+  },
+  "memoriesCreatedThisMonth": "{used} of {limit} memories created this month",
+  "@memoriesCreatedThisMonth": {
+    "placeholders": {
+      "used": {"type": "String"},
+      "limit": {"type": "String"}
+    }
+  },
+
+  "shareBaseText": "Sharing my Maity stats!",
+  "todayMaityHas": "Today, Maity has:",
+  "thisMonthMaityHas": "This month, Maity has:",
+  "thisYearMaityHas": "This year, Maity has:",
+  "soFarMaityHas": "So far, Maity has:",
+  "maityHas": "Maity has:",
+  "listenedMinutes": "🎧 Listened for {minutes} minutes",
+  "@listenedMinutes": {
+    "placeholders": {
+      "minutes": {"type": "String"}
+    }
+  },
+  "understoodWords": "🧠 Understood {words} words",
+  "@understoodWords": {
+    "placeholders": {
+      "words": {"type": "String"}
+    }
+  },
+  "providedInsights": "✨ Provided {count} insights",
+  "@providedInsights": {
+    "placeholders": {
+      "count": {"type": "String"}
+    }
+  },
+  "rememberedMemories": "📚 Remembered {count} memories",
+  "@rememberedMemories": {
+    "placeholders": {
+      "count": {"type": "String"}
+    }
+  },
+
+  "nMinutes": "{count} minutes",
+  "@nMinutes": {
+    "placeholders": {
+      "count": {"type": "String"}
+    }
+  },
+  "nWords": "{count} words",
+  "@nWords": {
+    "placeholders": {
+      "count": {"type": "String"}
+    }
+  },
+  "nInsights": "{count} insights",
+  "@nInsights": {
+    "placeholders": {
+      "count": {"type": "String"}
+    }
+  },
+  "nMemories": "{count} memories",
+  "@nMemories": {
+    "placeholders": {
+      "count": {"type": "String"}
+    }
+  }
 }

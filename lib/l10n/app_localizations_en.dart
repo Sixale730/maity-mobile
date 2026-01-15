@@ -323,4 +323,171 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notificationsDesc => 'Enable notifications to stay informed';
+
+  @override
+  String get insights => 'Insights';
+
+  @override
+  String get thisYear => 'This Year';
+
+  @override
+  String get allTime => 'All Time';
+
+  @override
+  String get unlimitedPlan => 'Unlimited Plan';
+
+  @override
+  String get basicPlan => 'Basic Plan';
+
+  @override
+  String get managePlan => 'Manage Plan';
+
+  @override
+  String get upgrade => 'Upgrade';
+
+  @override
+  String get upgradeToUnlimited => 'Upgrade to Unlimited';
+
+  @override
+  String planWillCancel(String date) {
+    return 'Your plan will cancel on $date.';
+  }
+
+  @override
+  String planRenews(String date) {
+    return 'Your plan renews on $date.';
+  }
+
+  @override
+  String planIncludesMinutes(int minutes) {
+    return 'Your plan includes $minutes free minutes per month. Upgrade to go unlimited.';
+  }
+
+  @override
+  String minsUsedOf(String used, int limit) {
+    return '$used of $limit mins used';
+  }
+
+  @override
+  String get notAvailable => 'N/A';
+
+  @override
+  String get noActivityYet => 'No Activity Yet';
+
+  @override
+  String get startConversationPrompt => 'Start a conversation with Maity\nto see your usage insights here.';
+
+  @override
+  String get listening => 'Listening';
+
+  @override
+  String get listeningDesc => 'Total time Maity has actively listened.';
+
+  @override
+  String get understanding => 'Understanding';
+
+  @override
+  String get understandingDesc => 'Words understood from your conversations.';
+
+  @override
+  String get providing => 'Providing';
+
+  @override
+  String get providingDesc => 'Action items, and notes automatically captured.';
+
+  @override
+  String get remembering => 'Remembering';
+
+  @override
+  String get rememberingDesc => 'Facts and details remembered for you.';
+
+  @override
+  String get listeningMins => 'Listening (mins)';
+
+  @override
+  String get understandingWords => 'Understanding (words)';
+
+  @override
+  String get insightsLabel => 'Insights';
+
+  @override
+  String get memoriesLabel => 'Memories';
+
+  @override
+  String minUsedThisMonth(String used, int limit) {
+    return '$used of $limit min used this month';
+  }
+
+  @override
+  String wordsUsedThisMonth(String used, String limit) {
+    return '$used of $limit words used this month';
+  }
+
+  @override
+  String insightsGainedThisMonth(String used, String limit) {
+    return '$used of $limit insights gained this month';
+  }
+
+  @override
+  String memoriesCreatedThisMonth(String used, String limit) {
+    return '$used of $limit memories created this month';
+  }
+
+  @override
+  String get shareBaseText => 'Sharing my Maity stats!';
+
+  @override
+  String get todayMaityHas => 'Today, Maity has:';
+
+  @override
+  String get thisMonthMaityHas => 'This month, Maity has:';
+
+  @override
+  String get thisYearMaityHas => 'This year, Maity has:';
+
+  @override
+  String get soFarMaityHas => 'So far, Maity has:';
+
+  @override
+  String get maityHas => 'Maity has:';
+
+  @override
+  String listenedMinutes(String minutes) {
+    return '🎧 Listened for $minutes minutes';
+  }
+
+  @override
+  String understoodWords(String words) {
+    return '🧠 Understood $words words';
+  }
+
+  @override
+  String providedInsights(String count) {
+    return '✨ Provided $count insights';
+  }
+
+  @override
+  String rememberedMemories(String count) {
+    return '📚 Remembered $count memories';
+  }
+
+  @override
+  String nMinutes(String count) {
+    return '$count minutes';
+  }
+
+  @override
+  String nWords(String count) {
+    return '$count words';
+  }
+
+  @override
+  String nInsights(String count) {
+    return '$count insights';
+  }
+
+  @override
+  String nMemories(String count) {
+    return '$count memories';
+  }
 }

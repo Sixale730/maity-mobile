@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:omi/models/subscription.dart';
 import 'package:omi/models/user_usage.dart';
@@ -106,67 +107,68 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
     await file.writeAsBytes(pngBytes);
 
     final provider = context.read<UsageProvider>();
+    final l10n = AppLocalizations.of(context)!;
     final period = _getPeriodForIndex(_tabController.index);
     UsageStats? stats;
-    String periodTitle = 'Today';
+    String periodKey = 'today';
     switch (period) {
       case 'today':
         stats = provider.todayUsage;
-        periodTitle = 'Today';
+        periodKey = 'today';
         break;
       case 'monthly':
         stats = provider.monthlyUsage;
-        periodTitle = 'This Month';
+        periodKey = 'monthly';
         break;
       case 'yearly':
         stats = provider.yearlyUsage;
-        periodTitle = 'This Year';
+        periodKey = 'yearly';
         break;
       case 'all_time':
         stats = provider.allTimeUsage;
-        periodTitle = 'All Time';
+        periodKey = 'all_time';
         break;
     }
 
     final numberFormatter = NumberFormat.decimalPattern('en_US');
 
     String shareText;
-    const baseText = 'Sharing my Omi stats! (omi.me - your always-on AI assistant)';
+    final baseText = l10n.shareBaseText;
 
     if (stats != null) {
       final transcriptionMinutes = (stats.transcriptionSeconds / 60).round();
       final List<String> funStats = [];
 
       if (transcriptionMinutes > 0) {
-        funStats.add('🎧 Listened for ${numberFormatter.format(transcriptionMinutes)} minutes');
+        funStats.add(l10n.listenedMinutes(numberFormatter.format(transcriptionMinutes)));
       }
       if (stats.wordsTranscribed > 0) {
-        funStats.add('🧠 Understood ${numberFormatter.format(stats.wordsTranscribed)} words');
+        funStats.add(l10n.understoodWords(numberFormatter.format(stats.wordsTranscribed)));
       }
       if (stats.insightsGained > 0) {
-        funStats.add('✨ Provided ${numberFormatter.format(stats.insightsGained)} insights');
+        funStats.add(l10n.providedInsights(numberFormatter.format(stats.insightsGained)));
       }
       if (stats.memoriesCreated > 0) {
-        funStats.add('📚 Remembered ${numberFormatter.format(stats.memoriesCreated)} memories');
+        funStats.add(l10n.rememberedMemories(numberFormatter.format(stats.memoriesCreated)));
       }
 
       if (funStats.isNotEmpty) {
         String periodText;
-        switch (periodTitle) {
-          case 'Today':
-            periodText = 'Today, Maity has:';
+        switch (periodKey) {
+          case 'today':
+            periodText = l10n.todayMaityHas;
             break;
-          case 'This Month':
-            periodText = 'This month, Maity has:';
+          case 'monthly':
+            periodText = l10n.thisMonthMaityHas;
             break;
-          case 'This Year':
-            periodText = 'This year, Maity has:';
+          case 'yearly':
+            periodText = l10n.thisYearMaityHas;
             break;
-          case 'All Time':
-            periodText = 'So far, Maity has:';
+          case 'all_time':
+            periodText = l10n.soFarMaityHas;
             break;
           default:
-            periodText = 'Maity has:';
+            periodText = l10n.maityHas;
         }
         shareText = '$baseText\n\n$periodText\n${funStats.join('\n')}';
       } else {
@@ -278,19 +280,10 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: const Text('Your Omi Insights'),
+        title: Text(AppLocalizations.of(context)!.insights),
         centerTitle: true,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          IconButton(
-            icon: const FaIcon(FontAwesomeIcons.solidShareFromSquare),
-            onPressed: _shareUsage,
-          ),
-        ],
+        automaticallyImplyLeading: false,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.deepPurple,
@@ -298,11 +291,11 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
           indicatorWeight: 3,
           labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           unselectedLabelStyle: const TextStyle(fontSize: 16),
-          tabs: const [
-            Tab(text: 'Today'),
-            Tab(text: 'This Month'),
-            Tab(text: 'This Year'),
-            Tab(text: 'All Time'),
+          tabs: [
+            Tab(text: AppLocalizations.of(context)!.today),
+            Tab(text: AppLocalizations.of(context)!.thisMonth),
+            Tab(text: AppLocalizations.of(context)!.thisYear),
+            Tab(text: AppLocalizations.of(context)!.allTime),
           ],
         ),
       ),
@@ -417,10 +410,11 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
     Widget collapsedBody;
     Widget expandedBody;
 
+    final l10n = AppLocalizations.of(context)!;
     if (isUnlimited) {
       final sub = provider.subscription!.subscription;
       final isCancelled = sub.cancelAtPeriodEnd;
-      String renewalDate = 'N/A';
+      String renewalDate = l10n.notAvailable;
       if (sub.currentPeriodEnd != null) {
         final date = DateTime.fromMillisecondsSinceEpoch(sub.currentPeriodEnd! * 1000);
         renewalDate = DateFormat.yMMMd().format(date);
@@ -428,7 +422,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
       collapsedBody = Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('Unlimited Plan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(l10n.unlimitedPlan, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           FaIcon(_isSubscriptionExpanded! ? FontAwesomeIcons.chevronUp : FontAwesomeIcons.chevronDown,
               size: 16, color: Colors.grey),
         ],
@@ -440,7 +434,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Unlimited Plan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(l10n.unlimitedPlan, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ElevatedButton(
                 onPressed: _isCancelling || _isUpgrading ? null : _showPlansSheet,
                 style: ElevatedButton.styleFrom(
@@ -460,13 +454,13 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
-                        : const Text('Manage Plan', style: TextStyle(color: Colors.white)),
+                        : Text(l10n.managePlan, style: const TextStyle(color: Colors.white)),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            isCancelled ? 'Your plan will cancel on $renewalDate.' : 'Your plan renews on $renewalDate.',
+            isCancelled ? l10n.planWillCancel(renewalDate) : l10n.planRenews(renewalDate),
             style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
           ),
           if (sub.features.isNotEmpty) ...[
@@ -492,12 +486,12 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
               Expanded(
                 child: Row(
                   children: [
-                    const Text('Basic Plan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(l10n.basicPlan, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     if (minutesLimit > 0) ...[
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          '${NumberFormat.decimalPattern('en_US').format(minutesUsed)} of $minutesLimit mins used',
+                          l10n.minsUsedOf(NumberFormat.decimalPattern('en_US').format(minutesUsed), minutesLimit),
                           style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -520,7 +514,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('Upgrade', style: TextStyle(color: Colors.white)),
+                        : Text(l10n.upgrade, style: const TextStyle(color: Colors.white)),
                   ),
                   const SizedBox(width: 12),
                   FaIcon(_isSubscriptionExpanded! ? FontAwesomeIcons.chevronUp : FontAwesomeIcons.chevronDown,
@@ -548,7 +542,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Basic Plan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(l10n.basicPlan, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ElevatedButton(
                 onPressed: _isUpgrading ? null : _showPlansSheet,
                 style: ElevatedButton.styleFrom(
@@ -559,14 +553,14 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
                 child: _isUpgrading
                     ? const SizedBox(
                         height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Upgrade to Unlimited', style: TextStyle(color: Colors.white)),
+                    : Text(l10n.upgradeToUnlimited, style: const TextStyle(color: Colors.white)),
               ),
             ],
           ),
           if (minutesLimit > 0) ...[
             const SizedBox(height: 12),
             Text(
-              'Your plan includes $minutesLimit free minutes per month. Upgrade to go unlimited.',
+              l10n.planIncludesMinutes(minutesLimit),
               style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
             ),
             const SizedBox(height: 12),
@@ -634,17 +628,18 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
   }
 
   Widget _buildEmptyState() {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
-            'No Activity Yet',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          Text(
+            l10n.noActivityYet,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
-            'Start a conversation with Omi\nto see your usage insights here.',
+            l10n.startConversationPrompt,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16, color: Colors.grey.shade400),
           ),
@@ -691,9 +686,10 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
         ),
       );
     }
+    final l10n = AppLocalizations.of(context)!;
     final numberFormatter = NumberFormat.decimalPattern('en_US');
     final transcriptionMinutes = (stats.transcriptionSeconds / 60).round();
-    final transcriptionValue = '${numberFormatter.format(transcriptionMinutes)} minutes';
+    final transcriptionValue = l10n.nMinutes(numberFormatter.format(transcriptionMinutes));
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -712,40 +708,44 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
               _buildUsageCard(
                 context,
                 icon: FontAwesomeIcons.microphone,
-                title: 'Listening',
+                title: l10n.listening,
                 value: transcriptionValue,
-                subtitle: 'Total time Maity has actively listened.',
+                subtitle: l10n.listeningDesc,
                 color: Colors.blue.shade300,
+                metricType: 'listening',
                 subscription: provider.subscription,
               ),
               const SizedBox(height: 16),
               _buildUsageCard(
                 context,
                 icon: FontAwesomeIcons.comments,
-                title: 'Understanding',
-                value: '${numberFormatter.format(stats.wordsTranscribed)} words',
-                subtitle: 'Words understood from your conversations.',
+                title: l10n.understanding,
+                value: l10n.nWords(numberFormatter.format(stats.wordsTranscribed)),
+                subtitle: l10n.understandingDesc,
                 color: Colors.green.shade300,
+                metricType: 'understanding',
                 subscription: provider.subscription,
               ),
               const SizedBox(height: 16),
               _buildUsageCard(
                 context,
                 icon: FontAwesomeIcons.wandMagicSparkles,
-                title: 'Providing',
-                value: '${numberFormatter.format(stats.insightsGained)} insights',
-                subtitle: 'Action items, and notes automatically captured.',
+                title: l10n.providing,
+                value: l10n.nInsights(numberFormatter.format(stats.insightsGained)),
+                subtitle: l10n.providingDesc,
                 color: Colors.orange.shade300,
+                metricType: 'providing',
                 subscription: provider.subscription,
               ),
               const SizedBox(height: 16),
               _buildUsageCard(
                 context,
                 icon: FontAwesomeIcons.brain,
-                title: 'Remembering',
-                value: '${numberFormatter.format(stats.memoriesCreated)} memories',
-                subtitle: 'Facts and details remembered for you.',
+                title: l10n.remembering,
+                value: l10n.nMemories(numberFormatter.format(stats.memoriesCreated)),
+                subtitle: l10n.rememberingDesc,
                 color: Colors.purple.shade300,
+                metricType: 'remembering',
                 subscription: provider.subscription,
               ),
             ],
@@ -910,10 +910,11 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
         touchTooltipData: LineTouchTooltipData(
           getTooltipColor: (touchedSpot) => Colors.grey.shade800,
           getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+            final l10n = AppLocalizations.of(context)!;
+            final metricNames = [l10n.listeningMins, l10n.understandingWords, l10n.insightsLabel, l10n.memoriesLabel];
             return touchedBarSpots
                 .map((barSpot) {
                   final flSpot = barSpot;
-                  final metricNames = ['Listening (mins)', 'Understanding (words)', 'Insights', 'Memories'];
                   final originalIndex = metricColors.indexOf(flSpot.bar.color!);
                   if (originalIndex == -1) return null;
 
@@ -1036,11 +1037,12 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
   }
 
   Widget _buildLegend() {
+    final l10n = AppLocalizations.of(context)!;
     final legendItems = [
-      {'color': Colors.blue.shade300, 'text': 'Listening (mins)'},
-      {'color': Colors.green.shade300, 'text': 'Understanding (words)'},
-      {'color': Colors.orange.shade300, 'text': 'Insights'},
-      {'color': Colors.purple.shade300, 'text': 'Memories'},
+      {'color': Colors.blue.shade300, 'text': l10n.listeningMins},
+      {'color': Colors.green.shade300, 'text': l10n.understandingWords},
+      {'color': Colors.orange.shade300, 'text': l10n.insightsLabel},
+      {'color': Colors.purple.shade300, 'text': l10n.memoriesLabel},
     ];
 
     return Wrap(
@@ -1085,7 +1087,9 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
       required String value,
       required String subtitle,
       required Color color,
+      required String metricType,
       UserSubscriptionResponse? subscription}) {
+    final l10n = AppLocalizations.of(context)!;
     final numberFormatter = NumberFormat.decimalPattern('en_US');
     return Container(
       decoration: BoxDecoration(
@@ -1133,7 +1137,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
               subtitle,
               style: TextStyle(fontSize: 14, color: Colors.grey.shade400, height: 1.4),
             ),
-            if (title == 'Listening' &&
+            if (metricType == 'listening' &&
                 subscription != null &&
                 subscription.subscription.plan == PlanType.basic &&
                 subscription.transcriptionSecondsLimit > 0) ...[
@@ -1147,7 +1151,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${numberFormatter.format(minutesUsed)} of $minutesLimit min used this month',
+                      l10n.minUsedThisMonth(numberFormatter.format(minutesUsed), minutesLimit),
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
                     ),
                     const SizedBox(height: 8),
@@ -1162,7 +1166,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
                 );
               })
             ],
-            if (title == 'Understanding' &&
+            if (metricType == 'understanding' &&
                 subscription != null &&
                 subscription.subscription.plan == PlanType.basic &&
                 subscription.wordsTranscribedLimit > 0) ...[
@@ -1175,7 +1179,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${numberFormatter.format(used)} of ${numberFormatter.format(limit)} words used this month',
+                      l10n.wordsUsedThisMonth(numberFormatter.format(used), numberFormatter.format(limit)),
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
                     ),
                     const SizedBox(height: 8),
@@ -1190,7 +1194,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
                 );
               })
             ],
-            if (title == 'Providing' &&
+            if (metricType == 'providing' &&
                 subscription != null &&
                 subscription.subscription.plan == PlanType.basic &&
                 subscription.insightsGainedLimit > 0) ...[
@@ -1203,7 +1207,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${numberFormatter.format(used)} of ${numberFormatter.format(limit)} insights gained this month',
+                      l10n.insightsGainedThisMonth(numberFormatter.format(used), numberFormatter.format(limit)),
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
                     ),
                     const SizedBox(height: 8),
@@ -1218,7 +1222,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
                 );
               })
             ],
-            if (title == 'Remembering' &&
+            if (metricType == 'remembering' &&
                 subscription != null &&
                 subscription.subscription.plan == PlanType.basic &&
                 subscription.memoriesCreatedLimit > 0) ...[
@@ -1231,7 +1235,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${numberFormatter.format(used)} of ${numberFormatter.format(limit)} memories created this month',
+                      l10n.memoriesCreatedThisMonth(numberFormatter.format(used), numberFormatter.format(limit)),
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
                     ),
                     const SizedBox(height: 8),
