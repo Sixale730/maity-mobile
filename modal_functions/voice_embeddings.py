@@ -14,13 +14,13 @@ image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("libsndfile1", "ffmpeg")  # Requerido por soundfile y audio processing
     .pip_install(
+        "numpy==1.26.4",  # EXACT - must install first, compatible with torch 2.1.0
         "torch==2.1.0",
         "torchaudio==2.1.0",
-        "speechbrain==0.5.16",  # Versión estable probada
-        "soundfile>=0.12.0",  # Requerido por speechbrain para audio I/O
-        "scipy>=1.11.0,<1.14.0",  # Pin to versions compatible with NumPy 1.x
-        "numpy>=1.24.0,<2.0.0",  # Pin to 1.x - torch 2.1.0 requires NumPy 1.x
-        "huggingface_hub",  # Requerido para descargar modelos
+        "speechbrain==0.5.16",
+        "soundfile==0.12.1",
+        "scipy==1.13.1",  # EXACT - compatible with numpy 1.x
+        "huggingface_hub==0.23.0",  # EXACT - avoid pulling newer numpy
         "fastapi",
     )
 )
