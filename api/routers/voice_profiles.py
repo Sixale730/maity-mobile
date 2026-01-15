@@ -174,61 +174,64 @@ async def enroll_voice_profile(
     1. Sends audio to Modal.com for ECAPA-TDNN embedding extraction
     2. Stores the 192-dim embedding in Supabase voice_profiles table
     """
-    if not MODAL_VOICE_URL:
-        raise HTTPException(
-            status_code=503,
-            detail="Voice service not configured. Set MODAL_VOICE_ENDPOINT_URL."
-        )
-
-    # Read and validate audio
-    audio_bytes = await audio.read()
-
-    # Minimum ~2 seconds at 16kHz, 16-bit mono
-    min_bytes = 16000 * 2 * 2
-    if len(audio_bytes) < min_bytes:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Audio too short. Need at least 2 seconds ({min_bytes} bytes), got {len(audio_bytes)}."
-        )
-
-    # Calculate approximate duration
-    duration_seconds = len(audio_bytes) / (16000 * 2)  # 16kHz, 16-bit
-
-    print(f"[VoiceProfiles] Enrolling user {user_id}, audio duration: {duration_seconds:.1f}s")
-
-    # Extract embedding from Modal
-    embedding = await _call_modal_extract(audio_bytes, sample_rate=16000)
-
-    if not embedding:
-        raise HTTPException(
-            status_code=503,
-            detail="Failed to extract voice embedding. Voice service may be unavailable."
-        )
-
-    if len(embedding) != 192:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Invalid embedding dimensions: expected 192, got {len(embedding)}"
-        )
-
-    # Get auth_id from user
-    supabase = get_supabase()
+    import traceback
 
     try:
-        user_result = (
-            supabase.schema("maity")
-            .table("users")
-            .select("auth_id")
-            .eq("id", user_id)
-            .single()
-            .execute()
-        )
-        auth_id = user_result.data.get("auth_id") if user_result.data else None
-    except Exception:
-        auth_id = None
+        if not MODAL_VOICE_URL:
+            raise HTTPException(
+                status_code=503,
+                detail="Voice service not configured. Set MODAL_VOICE_ENDPOINT_URL."
+            )
 
-    # Upsert voice profile
-    try:
+        # Read and validate audio
+        audio_bytes = await audio.read()
+
+        # Minimum ~2 seconds at 16kHz, 16-bit mono
+        min_bytes = 16000 * 2 * 2
+        if len(audio_bytes) < min_bytes:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Audio too short. Need at least 2 seconds ({min_bytes} bytes), got {len(audio_bytes)}."
+            )
+
+        # Calculate approximate duration
+        duration_seconds = len(audio_bytes) / (16000 * 2)  # 16kHz, 16-bit
+
+        print(f"[VoiceProfiles] Enrolling user {user_id}, audio duration: {duration_seconds:.1f}s")
+
+        # Extract embedding from Modal
+        embedding = await _call_modal_extract(audio_bytes, sample_rate=16000)
+
+        if not embedding:
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to extract voice embedding. Voice service may be unavailable."
+            )
+
+        if len(embedding) != 192:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Invalid embedding dimensions: expected 192, got {len(embedding)}"
+            )
+
+        # Get auth_id from user
+        supabase = get_supabase()
+
+        try:
+            user_result = (
+                supabase.schema("maity")
+                .table("users")
+                .select("auth_id")
+                .eq("id", user_id)
+                .single()
+                .execute()
+            )
+            auth_id = user_result.data.get("auth_id") if user_result.data else None
+        except Exception:
+            auth_id = None
+
+        # Upsert voice profile
+        print(f"[VoiceProfiles] Saving profile to Supabase for user {user_id}")
         supabase.schema("maity").table("voice_profiles").upsert(
             {
                 "user_id": user_id,
@@ -238,19 +241,23 @@ async def enroll_voice_profile(
                 "samples_count": 1,
                 "is_active": True,
             },
-            on_conflict="user_id"
+            on_conflict="user_id",
         ).execute()
+
+        print(f"[VoiceProfiles] Profile created for user {user_id}")
+
+        return EnrollmentResponse(
+            success=True,
+            message="Voice profile created successfully",
+            embedding_dimensions=192,
+        )
+
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
-        print(f"[VoiceProfiles] Supabase error: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to save profile: {str(e)}")
-
-    print(f"[VoiceProfiles] Profile created for user {user_id}")
-
-    return EnrollmentResponse(
-        success=True,
-        message="Voice profile created successfully",
-        embedding_dimensions=192,
-    )
+        print(f"[VoiceProfiles] Unexpected error: {type(e).__name__}: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Enrollment failed: {str(e)}")
 
 
 @router.post("/verify-speakers", response_model=VerifySpeakersResponse)

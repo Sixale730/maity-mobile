@@ -15,39 +15,9 @@ Future<List<Map<String, dynamic>>> retrieveAppsGrouped({
   int limit = 10,
   bool includeReviews = false,
 }) async {
-  final url = '${Env.apiBaseUrl}v2/apps?offset=$offset&limit=$limit&include_reviews=$includeReviews';
-  final response = await makeApiCall(
-    url: url,
-    headers: {},
-    body: '',
-    method: 'GET',
-  );
-  try {
-    if (response == null || response.statusCode != 200 || response.body.isEmpty) return [];
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-
-    // Parse grouped response from backend
-    final groups = (data['groups'] as List?) ?? [];
-    final List<Map<String, dynamic>> parsed = [];
-    for (final g in groups) {
-      final capability = g['capability'] as Map<String, dynamic>?;
-      final category = g['category'] as Map<String, dynamic>?;
-      final pagination = g['pagination'] as Map<String, dynamic>? ?? {};
-      final items = (g['data'] as List?) ?? [];
-      final apps = App.fromJsonList(items).where((p) => !p.deleted).toList();
-      parsed.add({
-        'capability': capability,
-        'category': category,
-        'data': apps,
-        'pagination': pagination,
-      });
-    }
-    return parsed;
-  } catch (e, stackTrace) {
-    debugPrint(e.toString());
-    PlatformManager.instance.crashReporter.reportCrash(e, stackTrace);
-    return [];
-  }
+  // Disabled: api.omi.me is no longer used
+  debugPrint('[API Disabled] retrieveAppsGrouped skipped');
+  return [];
 }
 
 Future<({List<App> apps, Map<String, dynamic> pagination, Map<String, dynamic>? category})> retrieveAppsByCategory({
@@ -56,28 +26,9 @@ Future<({List<App> apps, Map<String, dynamic> pagination, Map<String, dynamic>? 
   int limit = 20,
   bool includeReviews = false,
 }) async {
-  final url = '${Env.apiBaseUrl}v2/apps?category=$category&offset=$offset&limit=$limit&include_reviews=$includeReviews';
-  final response = await makeApiCall(
-    url: url,
-    headers: {},
-    body: '',
-    method: 'GET',
-  );
-  try {
-    if (response == null || response.statusCode != 200 || response.body.isEmpty) {
-      return (apps: <App>[], pagination: {'total': 0, 'count': 0, 'offset': offset, 'limit': limit}, category: null);
-    }
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final items = (data['data'] as List?) ?? [];
-    final apps = App.fromJsonList(items).where((p) => !p.deleted).toList();
-    final pagination = (data['pagination'] as Map<String, dynamic>? ?? {});
-    final cat = (data['category'] as Map<String, dynamic>?);
-    return (apps: apps, pagination: pagination, category: cat);
-  } catch (e, stackTrace) {
-    debugPrint(e.toString());
-    PlatformManager.instance.crashReporter.reportCrash(e, stackTrace);
-    return (apps: <App>[], pagination: {'total': 0, 'count': 0, 'offset': offset, 'limit': limit}, category: null);
-  }
+  // Disabled: api.omi.me is no longer used
+  debugPrint('[API Disabled] retrieveAppsByCategory skipped');
+  return (apps: <App>[], pagination: {'total': 0, 'count': 0, 'offset': offset, 'limit': limit}, category: null);
 }
 
 Future<({List<App> apps, Map<String, dynamic> pagination, Map<String, dynamic>? capability})> retrieveAppsByCapability({
@@ -86,29 +37,9 @@ Future<({List<App> apps, Map<String, dynamic> pagination, Map<String, dynamic>? 
   int limit = 20,
   bool includeReviews = false,
 }) async {
-  final url =
-      '${Env.apiBaseUrl}v2/apps?capability=$capability&offset=$offset&limit=$limit&include_reviews=$includeReviews';
-  final response = await makeApiCall(
-    url: url,
-    headers: {},
-    body: '',
-    method: 'GET',
-  );
-  try {
-    if (response == null || response.statusCode != 200 || response.body.isEmpty) {
-      return (apps: <App>[], pagination: {'total': 0, 'count': 0, 'offset': offset, 'limit': limit}, capability: null);
-    }
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final items = (data['data'] as List?) ?? [];
-    final apps = App.fromJsonList(items).where((p) => !p.deleted).toList();
-    final pagination = (data['pagination'] as Map<String, dynamic>? ?? {});
-    final cap = (data['capability'] as Map<String, dynamic>?);
-    return (apps: apps, pagination: pagination, capability: cap);
-  } catch (e, stackTrace) {
-    debugPrint(e.toString());
-    PlatformManager.instance.crashReporter.reportCrash(e, stackTrace);
-    return (apps: <App>[], pagination: {'total': 0, 'count': 0, 'offset': offset, 'limit': limit}, capability: null);
-  }
+  // Disabled: api.omi.me is no longer used
+  debugPrint('[API Disabled] retrieveAppsByCapability skipped');
+  return (apps: <App>[], pagination: {'total': 0, 'count': 0, 'offset': offset, 'limit': limit}, capability: null);
 }
 
 Future<({List<Map<String, dynamic>> groups, Map<String, dynamic>? capability, int totalApps})>
@@ -116,40 +47,9 @@ Future<({List<Map<String, dynamic>> groups, Map<String, dynamic>? capability, in
   required String capability,
   bool includeReviews = true,
 }) async {
-  final url = '${Env.apiBaseUrl}v2/apps/capability/$capability/grouped?include_reviews=$includeReviews';
-  final response = await makeApiCall(
-    url: url,
-    headers: {},
-    body: '',
-    method: 'GET',
-  );
-  try {
-    if (response == null || response.statusCode != 200 || response.body.isEmpty) {
-      return (groups: <Map<String, dynamic>>[], capability: null, totalApps: 0);
-    }
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final groups = (data['groups'] as List?) ?? [];
-    final List<Map<String, dynamic>> parsed = [];
-    for (final g in groups) {
-      final category = g['category'] as Map<String, dynamic>?;
-      final items = (g['data'] as List?) ?? [];
-      final apps = App.fromJsonList(items).where((p) => !p.deleted).toList();
-      final count = g['count'] as int? ?? apps.length;
-      parsed.add({
-        'category': category,
-        'data': apps,
-        'count': count,
-      });
-    }
-    final cap = (data['capability'] as Map<String, dynamic>?);
-    final meta = (data['meta'] as Map<String, dynamic>?) ?? {};
-    final totalApps = meta['totalApps'] as int? ?? 0;
-    return (groups: parsed, capability: cap, totalApps: totalApps);
-  } catch (e, stackTrace) {
-    debugPrint(e.toString());
-    PlatformManager.instance.crashReporter.reportCrash(e, stackTrace);
-    return (groups: <Map<String, dynamic>>[], capability: null, totalApps: 0);
-  }
+  // Disabled: api.omi.me is no longer used
+  debugPrint('[API Disabled] retrieveCapabilityAppsGroupedByCategory skipped');
+  return (groups: <Map<String, dynamic>>[], capability: null, totalApps: 0);
 }
 
 Future<({List<App> apps, Map<String, dynamic> pagination, Map<String, dynamic>? filters})> retrieveAppsSearch({

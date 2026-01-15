@@ -76,17 +76,8 @@ Future<Map<String, dynamic>?> getAppSubscription(String appId) async {
 }
 
 Future<Map<String, dynamic>?> getAvailablePlans() async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/payments/available-plans',
-    headers: {},
-    method: 'GET',
-    body: '',
-  );
-  if (response != null && response.statusCode == 200) {
-    var jsonResponse = jsonDecode(response.body);
-    debugPrint('getAvailablePlans response: ${response.body}');
-    return jsonResponse;
-  }
+  // Disabled: api.omi.me is no longer used
+  debugPrint('[API Disabled] getAvailablePlans skipped');
   return null;
 }
 

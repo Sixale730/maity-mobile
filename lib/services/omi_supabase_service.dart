@@ -190,19 +190,31 @@ class OmiSupabaseService {
         },
       );
 
+      debugPrint('[OmiSupabaseService] GET $uri');
+
       final authHeader = await getAuthHeader();
+      debugPrint('[OmiSupabaseService] Auth header present: ${authHeader.isNotEmpty}');
+
       final response = await http.get(
         uri,
         headers: {'Authorization': authHeader},
       ).timeout(_timeout);
 
+      debugPrint('[OmiSupabaseService] Response status: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        return (data['conversations'] as List).map((c) => OmiConversation.fromJson(c)).toList();
+        debugPrint('[OmiSupabaseService] Response keys: ${data.keys.toList()}');
+        final conversations = data['conversations'] as List?;
+        debugPrint('[OmiSupabaseService] Conversations count: ${conversations?.length ?? 0}');
+        return (conversations ?? []).map((c) => OmiConversation.fromJson(c)).toList();
+      } else {
+        debugPrint('[OmiSupabaseService] Error response: ${response.body}');
       }
       return [];
-    } catch (e) {
+    } catch (e, stack) {
       debugPrint('[OmiSupabaseService] Get conversations error: $e');
+      debugPrint('[OmiSupabaseService] Stack: $stack');
       return [];
     }
   }

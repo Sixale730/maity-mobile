@@ -34,7 +34,7 @@ class VoiceEmbeddingService:
     @modal.enter()
     def load_model(self):
         """Load ECAPA-TDNN model on container start."""
-        from speechbrain.inference.speaker import EncoderClassifier
+        from speechbrain.pretrained import EncoderClassifier
         import torch
 
         print("[VoiceEmbedding] Loading ECAPA-TDNN model...")

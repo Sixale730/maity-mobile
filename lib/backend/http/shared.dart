@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:omi/backend/preferences.dart';
-import 'package:omi/env/env.dart';
 import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/utils/logger.dart';
 import 'package:http/http.dart' as http;
@@ -64,18 +63,13 @@ Future<Map<String, String>> buildHeaders({
 }
 
 bool _isRequiredAuthCheck(String url) {
-  // Dominios que requieren autenticación con Firebase token
+  // Dominios que requieren autenticación con Supabase token
   const authDomains = [
     'maity-backend.vercel.app',
     'maity-mobile.vercel.app',
   ];
 
-  // Verificar dominio principal de la API (si está configurado)
-  if (Env.apiBaseUrl != null && Env.apiBaseUrl!.isNotEmpty && url.contains(Env.apiBaseUrl!)) {
-    return true;
-  }
-
-  // Verificar dominios adicionales que requieren auth
+  // Verificar dominios que requieren auth
   return authDomains.any((domain) => url.contains(domain));
 }
 

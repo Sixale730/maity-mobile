@@ -321,17 +321,8 @@ Future<bool> setPreferredSummarizationAppServer(String appId) async {
 }
 
 Future<UserUsageResponse?> getUserUsage({required String period}) async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/users/me/usage?period=$period',
-    headers: {},
-    method: 'GET',
-    body: '',
-  );
-  if (response == null) return null;
-  debugPrint('getUserUsage response: ${response.body}');
-  if (response.statusCode == 200) {
-    return UserUsageResponse.fromJson(jsonDecode(response.body));
-  }
+  // Disabled: api.omi.me is no longer used
+  debugPrint('[API Disabled] getUserUsage skipped');
   return null;
 }
 
