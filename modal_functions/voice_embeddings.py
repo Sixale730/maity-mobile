@@ -18,7 +18,7 @@ image = (
         "torchaudio==2.1.0",
         "speechbrain==0.5.16",  # Versión estable probada
         "soundfile>=0.12.0",  # Requerido por speechbrain para audio I/O
-        "scipy>=1.11.0",
+        "scipy>=1.11.0,<1.14.0",  # Pin to versions compatible with NumPy 1.x
         "numpy>=1.24.0,<2.0.0",  # Pin to 1.x - torch 2.1.0 requires NumPy 1.x
         "huggingface_hub",  # Requerido para descargar modelos
         "fastapi",
