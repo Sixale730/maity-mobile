@@ -21,6 +21,7 @@ image = (
         "soundfile==0.12.1",
         "scipy==1.13.1",  # EXACT - compatible with numpy 1.x
         "huggingface_hub==0.23.0",  # EXACT - avoid pulling newer numpy
+        "requests>=2.28.0",  # Required by speechbrain/huggingface_hub
         "fastapi",
     )
 )
