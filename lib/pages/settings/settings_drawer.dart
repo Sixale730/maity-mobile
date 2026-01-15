@@ -389,7 +389,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
           _buildSectionContainer(
             children: [
               _buildSettingsItem(
-                title: 'Profile',
+                title: AppLocalizations.of(context)?.profile ?? 'Profile',
                 icon: const FaIcon(FontAwesomeIcons.solidUser, color: Color(0xFF8E8E93), size: 20),
                 onTap: () {
                   Navigator.pop(context);
@@ -398,7 +398,9 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               ),
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
-                title: showSubscription ? 'Plan & Usage' : 'Usage Insights',
+                title: showSubscription
+                    ? (AppLocalizations.of(context)?.planAndUsage ?? 'Plan & Usage')
+                    : (AppLocalizations.of(context)?.usageInsights ?? 'Usage Insights'),
                 icon: const FaIcon(FontAwesomeIcons.chartLine, color: Color(0xFF8E8E93), size: 20),
                 onTap: () {
                   Navigator.pop(context);
@@ -411,7 +413,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               ),
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
-                title: 'Storage',
+                title: AppLocalizations.of(context)?.storage ?? 'Storage',
                 icon: const FaIcon(FontAwesomeIcons.database, color: Color(0xFF8E8E93), size: 20),
                 onTap: () {
                   Navigator.pop(context);
@@ -424,7 +426,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               ),
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
-                title: 'Device Settings',
+                title: AppLocalizations.of(context)?.deviceSettings ?? 'Device Settings',
                 icon: const FaIcon(FontAwesomeIcons.bluetooth, color: Color(0xFF8E8E93), size: 20),
                 onTap: () {
                   Navigator.pop(context);
@@ -437,7 +439,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               ),
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
-                title: 'Chat Tools',
+                title: AppLocalizations.of(context)?.chatTools ?? 'Chat Tools',
                 icon: const FaIcon(FontAwesomeIcons.networkWired, color: Color(0xFF8E8E93), size: 20),
                 showBetaTag: true,
                 onTap: () {
@@ -458,7 +460,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
             children: [
               if (PlatformService.isIOS)
                 _buildSettingsItem(
-                  title: 'Share Omi for iPhone',
+                  title: AppLocalizations.of(context)?.shareOmiIphone ?? 'Share Omi for iPhone',
                   icon: const FaIcon(FontAwesomeIcons.solidShareFromSquare, color: Colors.white, size: 20),
                   onTap: () async {
                     Navigator.pop(context);
@@ -467,7 +469,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 ),
               if (PlatformService.isAndroid)
                 _buildSettingsItem(
-                  title: 'Share Omi for Android',
+                  title: AppLocalizations.of(context)?.shareOmiAndroid ?? 'Share Omi for Android',
                   icon: const FaIcon(FontAwesomeIcons.googlePlay, color: Color(0xFF8E8E93), size: 20),
                   onTap: () async {
                     Navigator.pop(context);
@@ -476,7 +478,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 ),
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
-                title: 'Get Omi for Mac',
+                title: AppLocalizations.of(context)?.getOmiMac ?? 'Get Omi for Mac',
                 icon: const FaIcon(FontAwesomeIcons.desktop, color: Color(0xFF8E8E93), size: 20),
                 onTap: () async {
                   Navigator.pop(context);
@@ -486,7 +488,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               ),
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
-                title: 'Referral Program',
+                title: AppLocalizations.of(context)?.referralProgram ?? 'Referral Program',
                 icon: const FaIcon(FontAwesomeIcons.gift, color: Color(0xFF8E8E93), size: 20),
                 showNewTag: true,
                 onTap: () {
@@ -507,7 +509,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
             _buildSectionContainer(
               children: [
                 _buildSettingsItem(
-                  title: 'Feedback / Bug',
+                  title: AppLocalizations.of(context)?.feedbackBug ?? 'Feedback / Bug',
                   icon: const FaIcon(FontAwesomeIcons.solidEnvelope, color: Color(0xFF8E8E93), size: 20),
                   onTap: () async {
                     Navigator.pop(context);
@@ -519,7 +521,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 ),
                 const Divider(height: 1, color: Color(0xFF3C3C43)),
                 _buildSettingsItem(
-                  title: 'Help Center',
+                  title: AppLocalizations.of(context)?.helpCenter ?? 'Help Center',
                   icon: const FaIcon(FontAwesomeIcons.book, color: Color(0xFF8E8E93), size: 20),
                   onTap: () async {
                     Navigator.pop(context);
@@ -569,7 +571,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               ),
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
-                title: 'About Omi',
+                title: AppLocalizations.of(context)?.aboutOmi ?? 'About Omi',
                 icon: const FaIcon(FontAwesomeIcons.infoCircle, color: Color(0xFF8E8E93), size: 20),
                 onTap: () {
                   Navigator.pop(context);
@@ -584,12 +586,14 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
           _buildSectionContainer(
             children: [
               _buildSettingsItem(
-                title: 'Sign Out',
+                title: AppLocalizations.of(context)?.signOut ?? 'Sign Out',
                 icon: const FaIcon(FontAwesomeIcons.signOutAlt, color: Color(0xFF8E8E93), size: 20),
                 onTap: () async {
                   // Capture the provider reference before any navigation
                   final personaProvider = Provider.of<PersonaProvider>(context, listen: false);
                   final navigator = Navigator.of(context);
+                  final signOutQuestion = AppLocalizations.of(context)?.signOutQuestion ?? 'Sign Out?';
+                  final signOutConfirmation = AppLocalizations.of(context)?.signOutConfirmation ?? 'Are you sure you want to sign out?';
 
                   navigator.pop(); // Close the settings drawer
 
@@ -604,12 +608,13 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                           await SharedPreferencesUtil().clear();
                           await AuthService.instance.signOut();
                           personaProvider.setRouting(PersonaProfileRouting.no_device);
-                          if (context.mounted) {
-                            routeToPage(context, const AppShell(), replace: true);
-                          }
+                          MyApp.navigatorKey.currentState?.pushAndRemoveUntil(
+                            MaterialPageRoute(builder: (_) => const AppShell()),
+                            (route) => false,
+                          );
                         },
-                        "Sign Out?",
-                        "Are you sure you want to sign out?",
+                        signOutQuestion,
+                        signOutConfirmation,
                       );
                     },
                   );
@@ -634,7 +639,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
         _buildSectionContainer(
           children: [
             _buildSettingsItem(
-              title: 'Need Help? Chat with us',
+              title: AppLocalizations.of(context)?.needHelpChat ?? 'Need Help? Chat with us',
               icon: const FaIcon(FontAwesomeIcons.solidComments, color: Color(0xFF8E8E93), size: 20),
               onTap: () async {
                 Navigator.pop(context);
@@ -650,12 +655,14 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
         _buildSectionContainer(
           children: [
             _buildSettingsItem(
-              title: 'Sign Out',
+              title: AppLocalizations.of(context)?.signOut ?? 'Sign Out',
               icon: const FaIcon(FontAwesomeIcons.signOutAlt, color: Color(0xFF8E8E93), size: 20),
               onTap: () async {
                 // Capture the provider reference before any navigation
                 final personaProvider = Provider.of<PersonaProvider>(context, listen: false);
                 final navigator = Navigator.of(context);
+                final signOutQuestion = AppLocalizations.of(context)?.signOutQuestion ?? 'Sign Out?';
+                final signOutConfirmation = AppLocalizations.of(context)?.signOutConfirmation ?? 'Are you sure you want to sign out?';
 
                 navigator.pop(); // Close the settings drawer
 
@@ -671,12 +678,13 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                         SharedPreferencesUtil().verifiedPersonaId = null;
                         personaProvider.setRouting(PersonaProfileRouting.no_device);
                         await AuthService.instance.signOut();
-                        if (context.mounted) {
-                          routeToPage(context, const AppShell(), replace: true);
-                        }
+                        MyApp.navigatorKey.currentState?.pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => const AppShell()),
+                          (route) => false,
+                        );
                       },
-                      "Sign Out?",
-                      "Are you sure you want to sign out?",
+                      signOutQuestion,
+                      signOutConfirmation,
                     );
                   },
                 );
@@ -722,10 +730,10 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
             child: Stack(
               children: [
                 // Centered title
-                const Center(
+                Center(
                   child: Text(
-                    'Settings',
-                    style: TextStyle(
+                    AppLocalizations.of(context)?.settings ?? 'Settings',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -737,9 +745,9 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                   right: 0,
                   child: GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Text(
-                      'Done',
-                      style: TextStyle(
+                    child: Text(
+                      AppLocalizations.of(context)?.done ?? 'Done',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 17,
                         fontWeight: FontWeight.w400,

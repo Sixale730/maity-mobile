@@ -10,13 +10,18 @@ from typing import List, Optional
 app = modal.App("maity-voice-embeddings")
 
 # Image with ML dependencies
-image = modal.Image.debian_slim(python_version="3.11").pip_install(
-    "speechbrain>=1.0.0",
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
-    "scipy>=1.11.0",
-    "numpy>=1.24.0",
-    "fastapi",
+image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install("libsndfile1")  # Requerido por soundfile
+    .pip_install(
+        "speechbrain>=1.0.0",
+        "torch>=2.0.0",
+        "torchaudio>=2.0.0",
+        "soundfile>=0.12.0",  # Requerido por speechbrain para audio I/O
+        "scipy>=1.11.0",
+        "numpy>=1.24.0",
+        "fastapi",
+    )
 )
 
 
