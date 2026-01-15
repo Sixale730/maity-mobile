@@ -472,7 +472,21 @@ class ConversationProvider extends ChangeNotifier {
 
   Future<List<ServerConversation>> _getConversationsFromServer() async {
     // Try to get from Supabase first (our own database)
-    final userId = SupabaseAuthService.instance.maityUserId;
+    // Wait for maityUserId to be available (max 3 seconds) - handles race condition after app reinstall
+    String? userId = SupabaseAuthService.instance.maityUserId;
+
+    if (userId == null) {
+      debugPrint('maityUserId is null, waiting for auth to initialize...');
+      for (int i = 0; i < 6; i++) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        userId = SupabaseAuthService.instance.maityUserId;
+        if (userId != null) {
+          debugPrint('maityUserId available after ${(i + 1) * 500}ms');
+          break;
+        }
+      }
+    }
+
     if (userId != null) {
       try {
         final supabaseConvos = await OmiSupabaseService.getConversations(

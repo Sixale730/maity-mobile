@@ -12,14 +12,15 @@ app = modal.App("maity-voice-embeddings")
 # Image with ML dependencies
 image = (
     modal.Image.debian_slim(python_version="3.11")
-    .apt_install("libsndfile1")  # Requerido por soundfile
+    .apt_install("libsndfile1", "ffmpeg")  # Requerido por soundfile y audio processing
     .pip_install(
-        "speechbrain>=1.0.0",
-        "torch>=2.0.0",
-        "torchaudio>=2.0.0",
+        "torch==2.1.0",
+        "torchaudio==2.1.0",
+        "speechbrain==0.5.16",  # Versión estable probada
         "soundfile>=0.12.0",  # Requerido por speechbrain para audio I/O
         "scipy>=1.11.0",
         "numpy>=1.24.0",
+        "huggingface_hub",  # Requerido para descargar modelos
         "fastapi",
     )
 )
