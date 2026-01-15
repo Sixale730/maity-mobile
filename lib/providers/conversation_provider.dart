@@ -472,39 +472,49 @@ class ConversationProvider extends ChangeNotifier {
 
   Future<List<ServerConversation>> _getConversationsFromServer() async {
     // Try to get from Supabase first (our own database)
-    // Wait for maityUserId to be available (max 3 seconds) - handles race condition after app reinstall
+    // Wait for maityUserId to be available (max 5 seconds) - handles race condition after app reinstall
     String? userId = SupabaseAuthService.instance.maityUserId;
 
     if (userId == null) {
-      debugPrint('maityUserId is null, waiting for auth to initialize...');
-      for (int i = 0; i < 6; i++) {
+      debugPrint('[ConversationProvider] maityUserId is null, waiting for auth to initialize...');
+      // Aumentar a 10 intentos (5 segundos) para dar tiempo a _fetchMaityUserId()
+      for (int i = 0; i < 10; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
         userId = SupabaseAuthService.instance.maityUserId;
         if (userId != null) {
-          debugPrint('maityUserId available after ${(i + 1) * 500}ms');
+          debugPrint('[ConversationProvider] maityUserId available after ${(i + 1) * 500}ms: $userId');
           break;
         }
       }
+
+      if (userId == null) {
+        debugPrint('[ConversationProvider] maityUserId still null after 5s, using fallback');
+      }
+    } else {
+      debugPrint('[ConversationProvider] maityUserId already available: $userId');
     }
 
     if (userId != null) {
       try {
+        debugPrint('[ConversationProvider] Fetching conversations from Supabase for user: $userId');
         final supabaseConvos = await OmiSupabaseService.getConversations(
           userId: userId,
           limit: 50,
           includeDiscarded: showDiscardedConversations,
         );
+        debugPrint('[ConversationProvider] Received ${supabaseConvos.length} conversations from Supabase');
         if (supabaseConvos.isNotEmpty) {
-          debugPrint('Loaded ${supabaseConvos.length} conversations from Supabase');
+          debugPrint('[ConversationProvider] Loaded ${supabaseConvos.length} conversations from Supabase');
           // Convert OmiConversation to ServerConversation
           return supabaseConvos.map((c) => c.toServerConversation()).toList();
         }
       } catch (e) {
-        debugPrint('Error loading from Supabase: $e');
+        debugPrint('[ConversationProvider] Error loading from Supabase: $e');
       }
     }
 
     // Fallback to api.omi.me (will likely fail with 401)
+    debugPrint('[ConversationProvider] Falling back to api.omi.me');
     return await getConversations(includeDiscarded: showDiscardedConversations);
   }
 
