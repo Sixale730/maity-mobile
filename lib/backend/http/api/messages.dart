@@ -69,7 +69,13 @@ ServerMessageChunk? parseMessageChunk(String line, String messageId) {
   return null;
 }
 
-Stream<ServerMessageChunk> sendMessageStreamServer(String text, {String? appId, List<String>? filesId, String? userId}) async* {
+Stream<ServerMessageChunk> sendMessageStreamServer(
+  String text, {
+  String? appId,
+  List<String>? filesId,
+  String? userId,
+  List<Map<String, String>>? messageHistory,
+}) async* {
   debugPrint('[Chat] maityBackendUrl = ${Env.maityBackendUrl}');
   var url = '${Env.maityBackendUrl}v2/messages?app_id=$appId';
   if (appId == null || appId.isEmpty || appId == 'null' || appId == 'no_selected') {
@@ -85,7 +91,11 @@ Stream<ServerMessageChunk> sendMessageStreamServer(String text, {String? appId, 
 
   await for (var line in makeStreamingApiCall(
     url: url,
-    body: jsonEncode({'text': text, 'file_ids': filesId}),
+    body: jsonEncode({
+      'text': text,
+      'file_ids': filesId,
+      'messages': messageHistory,
+    }),
   )) {
     var messageChunk = parseMessageChunk(line, messageId);
     if (messageChunk != null) {

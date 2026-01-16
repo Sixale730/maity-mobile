@@ -493,6 +493,18 @@ class MessageProvider extends ChangeNotifier {
     );
     _isNextMessageFromVoice = false;
 
+    // Build message history from previous messages (last 20 messages)
+    // Messages are stored newest first, so we take from start and reverse
+    List<Map<String, String>> messageHistory = messages
+        .take(20)
+        .map((m) => {
+              'role': m.sender == MessageSender.human ? 'user' : 'assistant',
+              'content': m.text,
+            })
+        .toList()
+        .reversed
+        .toList();
+
     var message = ServerMessage.empty(appId: currentAppId);
     messages.insert(0, message);
     notifyListeners();
@@ -514,7 +526,13 @@ class MessageProvider extends ChangeNotifier {
     try {
       // Get maityUserId for conversation access via function calling
       final maityUserId = SupabaseAuthService.instance.maityUserId;
-      await for (var chunk in sendMessageStreamServer(text, appId: currentAppId, filesId: fileIds, userId: maityUserId)) {
+      await for (var chunk in sendMessageStreamServer(
+        text,
+        appId: currentAppId,
+        filesId: fileIds,
+        userId: maityUserId,
+        messageHistory: messageHistory,
+      )) {
         if (chunk.type == MessageChunkType.think) {
           flushBuffer();
           message.thinkings.add(chunk.text);

@@ -24,6 +24,7 @@ client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 class MessageRequest(BaseModel):
     text: str
     file_ids: Optional[List[str]] = None
+    messages: Optional[List[dict]] = None  # Message history for context
 
 
 # System prompt for Maity
@@ -272,10 +273,19 @@ async def send_message(
                 current_date=datetime.now().strftime("%Y-%m-%d")
             )
 
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": request.text}
-            ]
+            # Build messages array with system prompt
+            messages = [{"role": "system", "content": system_prompt}]
+
+            # Add message history if provided (for conversational context)
+            if request.messages:
+                for msg in request.messages:
+                    role = msg.get("role", "user")
+                    content = msg.get("content", "")
+                    if role in ("user", "assistant") and content:
+                        messages.append({"role": role, "content": content})
+
+            # Add current user message
+            messages.append({"role": "user", "content": request.text})
 
             # If no user_id, skip function calling and just respond
             if not user_id:
