@@ -381,5 +381,22 @@
   "firmwareVersion": "Firmware Version",
   "deviceIdLabel": "Device ID",
   "serialNumber": "Serial Number",
-  "unknown": "Unknown"
+  "unknown": "Unknown",
+
+  "generalStats": "General",
+  "communicationFeedback": "Communication",
+  "yourStrengths": "Your Strengths",
+  "areasToImprove": "Areas to Improve",
+  "observations": "Observations",
+  "clarity": "Clarity",
+  "structure": "Structure",
+  "callsToAction": "Calls to Action",
+  "objectionHandling": "Objection Handling",
+  "basedOnConversations": "Based on {count} conversations",
+  "@basedOnConversations": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "noFeedbackYet": "No feedback yet. Start recording conversations to get insights about your communication style."
 }

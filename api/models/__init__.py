@@ -16,6 +16,13 @@ from .metrics import (
     UserMetricsResponse,
     UpdateMetricsRequest,
 )
+from .communication import (
+    CommunicationObservations,
+    CommunicationFeedback,
+    AggregatedFeedback,
+    CommunicationFeedbackRequest,
+    CommunicationFeedbackResponse,
+)
 
 __all__ = [
     "CategoryEnum",
@@ -31,4 +38,9 @@ __all__ = [
     "UserStats",
     "UserMetricsResponse",
     "UpdateMetricsRequest",
+    "CommunicationObservations",
+    "CommunicationFeedback",
+    "AggregatedFeedback",
+    "CommunicationFeedbackRequest",
+    "CommunicationFeedbackResponse",
 ]

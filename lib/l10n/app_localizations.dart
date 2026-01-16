@@ -1573,6 +1573,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unknown'**
   String get unknown;
+
+  /// No description provided for @generalStats.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get generalStats;
+
+  /// No description provided for @communicationFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Communication'**
+  String get communicationFeedback;
+
+  /// No description provided for @yourStrengths.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Strengths'**
+  String get yourStrengths;
+
+  /// No description provided for @areasToImprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Areas to Improve'**
+  String get areasToImprove;
+
+  /// No description provided for @observations.
+  ///
+  /// In en, this message translates to:
+  /// **'Observations'**
+  String get observations;
+
+  /// No description provided for @clarity.
+  ///
+  /// In en, this message translates to:
+  /// **'Clarity'**
+  String get clarity;
+
+  /// No description provided for @structure.
+  ///
+  /// In en, this message translates to:
+  /// **'Structure'**
+  String get structure;
+
+  /// No description provided for @callsToAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Calls to Action'**
+  String get callsToAction;
+
+  /// No description provided for @objectionHandling.
+  ///
+  /// In en, this message translates to:
+  /// **'Objection Handling'**
+  String get objectionHandling;
+
+  /// No description provided for @basedOnConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on {count} conversations'**
+  String basedOnConversations(int count);
+
+  /// No description provided for @noFeedbackYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No feedback yet. Start recording conversations to get insights about your communication style.'**
+  String get noFeedbackYet;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

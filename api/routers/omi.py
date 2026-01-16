@@ -12,9 +12,12 @@ from ..services.supabase_client import (
     search_segments_by_embedding,
     get_conversations,
     get_conversation_with_segments,
+    update_conversation_feedback,
 )
 from ..services.embeddings import generate_embedding, generate_embeddings_batch
 from ..services.supabase_auth import get_auth_user_id, optional_auth_user_id
+from ..services.communication_analyzer import analyze_communication
+from ..models.conversation import TranscriptSegment
 
 
 router = APIRouter(prefix="/v1/omi", tags=["omi"])
@@ -174,6 +177,47 @@ async def store_conversation(
             segments=segments_data,
             embeddings=segment_embeddings,
         )
+
+        # Analyze communication in background (non-blocking)
+        # Convert SegmentInput to TranscriptSegment for analyzer
+        try:
+            transcript_segments = [
+                TranscriptSegment(
+                    text=s.text,
+                    speaker=s.speaker,
+                    speaker_id=s.speaker_id,
+                    is_user=s.is_user,
+                    start=s.start,
+                    end=s.end,
+                )
+                for s in request.transcript_segments
+            ]
+
+            communication_feedback = await analyze_communication(transcript_segments)
+
+            if communication_feedback:
+                feedback_dict = {
+                    "strengths": communication_feedback.strengths,
+                    "areas_to_improve": communication_feedback.areas_to_improve,
+                    "observations": {
+                        "clarity": communication_feedback.observations.clarity,
+                        "structure": communication_feedback.observations.structure,
+                        "calls_to_action": communication_feedback.observations.calls_to_action,
+                        "objections": communication_feedback.observations.objections,
+                    },
+                    "summary": communication_feedback.summary,
+                }
+
+                await update_conversation_feedback(
+                    conversation_id=conversation_id,
+                    user_id=request.user_id,
+                    communication_feedback=feedback_dict,
+                )
+                print(f"[OMI Router] Communication feedback generated for {conversation_id}")
+
+        except Exception as e:
+            # Don't fail the request if communication analysis fails
+            print(f"[OMI Router] Communication analysis failed (non-blocking): {e}")
 
         return StoreConversationResponse(
             id=conversation_id,

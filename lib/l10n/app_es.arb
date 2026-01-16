@@ -285,5 +285,17 @@
   "firmwareVersion": "Versión de Firmware",
   "deviceIdLabel": "ID del Dispositivo",
   "serialNumber": "Número de Serie",
-  "unknown": "Desconocido"
+  "unknown": "Desconocido",
+
+  "generalStats": "General",
+  "communicationFeedback": "Comunicación",
+  "yourStrengths": "Tus Fortalezas",
+  "areasToImprove": "Áreas de Mejora",
+  "observations": "Observaciones",
+  "clarity": "Claridad",
+  "structure": "Estructura",
+  "callsToAction": "Llamados a Acción",
+  "objectionHandling": "Manejo de Objeciones",
+  "basedOnConversations": "Basado en {count} conversaciones",
+  "noFeedbackYet": "Aún no hay feedback. Empieza a grabar conversaciones para obtener insights sobre tu estilo de comunicación."
 }

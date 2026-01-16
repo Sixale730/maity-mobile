@@ -11,7 +11,9 @@ import 'package:omi/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:omi/models/subscription.dart';
 import 'package:omi/models/user_usage.dart';
+import 'package:omi/pages/settings/widgets/communication_feedback_view.dart';
 import 'package:omi/pages/settings/widgets/plans_sheet.dart';
+import 'package:omi/providers/communication_provider.dart';
 import 'package:omi/providers/usage_provider.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -40,6 +42,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
   late AnimationController _arrowController;
   late Animation<double> _arrowAnimation;
   String selectedPlan = 'yearly'; // 'yearly' or 'monthly'
+  bool _showCommunication = false; // Toggle between general stats and communication feedback
 
   Future<void> _loadAvailablePlans() async {
     final provider = context.read<UsageProvider>();
@@ -205,25 +208,37 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
     }
     String period = _getPeriodForIndex(_tabController.index);
 
-    final provider = context.read<UsageProvider>();
-    bool shouldFetch = false;
+    final usageProvider = context.read<UsageProvider>();
+    bool shouldFetchUsage = false;
     switch (period) {
       case 'today':
-        if (provider.todayUsage == null) shouldFetch = true;
+        if (usageProvider.todayUsage == null) shouldFetchUsage = true;
         break;
       case 'monthly':
-        if (provider.monthlyUsage == null) shouldFetch = true;
+        if (usageProvider.monthlyUsage == null) shouldFetchUsage = true;
         break;
       case 'yearly':
-        if (provider.yearlyUsage == null) shouldFetch = true;
+        if (usageProvider.yearlyUsage == null) shouldFetchUsage = true;
         break;
       case 'all_time':
-        if (provider.allTimeUsage == null) shouldFetch = true;
+        if (usageProvider.allTimeUsage == null) shouldFetchUsage = true;
         break;
     }
 
-    if (shouldFetch) {
-      provider.fetchUsageStats(period: period);
+    if (shouldFetchUsage) {
+      usageProvider.fetchUsageStats(period: period);
+    }
+
+    // Also fetch communication feedback if in communication mode
+    if (_showCommunication) {
+      _fetchCommunicationFeedback(period);
+    }
+  }
+
+  void _fetchCommunicationFeedback(String period) {
+    final commProvider = context.read<CommunicationProvider>();
+    if (!commProvider.hasFeedbackForPeriod(period)) {
+      commProvider.fetchFeedback(period: period);
     }
   }
 
@@ -330,20 +345,23 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
           return Column(
             children: [
               _buildSubscriptionInfo(context, provider),
+              _buildViewToggle(),
               Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildUsageListView(
-                        provider.todayUsage, provider.todayHistory, 'today', _screenshotKeys[0], provider),
-                    _buildUsageListView(
-                        provider.monthlyUsage, provider.monthlyHistory, 'monthly', _screenshotKeys[1], provider),
-                    _buildUsageListView(
-                        provider.yearlyUsage, provider.yearlyHistory, 'yearly', _screenshotKeys[2], provider),
-                    _buildUsageListView(
-                        provider.allTimeUsage, provider.allTimeHistory, 'all_time', _screenshotKeys[3], provider),
-                  ],
-                ),
+                child: _showCommunication
+                    ? _buildCommunicationTabView()
+                    : TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildUsageListView(
+                              provider.todayUsage, provider.todayHistory, 'today', _screenshotKeys[0], provider),
+                          _buildUsageListView(
+                              provider.monthlyUsage, provider.monthlyHistory, 'monthly', _screenshotKeys[1], provider),
+                          _buildUsageListView(
+                              provider.yearlyUsage, provider.yearlyHistory, 'yearly', _screenshotKeys[2], provider),
+                          _buildUsageListView(
+                              provider.allTimeUsage, provider.allTimeHistory, 'all_time', _screenshotKeys[3], provider),
+                        ],
+                      ),
               ),
             ],
           );
@@ -622,6 +640,119 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
                 arrowController: _arrowController,
                 arrowAnimation: _arrowAnimation);
           },
+        );
+      },
+    );
+  }
+
+  Widget _buildViewToggle() {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1F1F25),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                if (_showCommunication) {
+                  setState(() {
+                    _showCommunication = false;
+                  });
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: !_showCommunication ? Colors.deepPurple : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  l10n.generalStats,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: !_showCommunication ? Colors.white : Colors.grey.shade400,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                if (!_showCommunication) {
+                  setState(() {
+                    _showCommunication = true;
+                  });
+                  // Fetch feedback for current period
+                  final period = _getPeriodForIndex(_tabController.index);
+                  _fetchCommunicationFeedback(period);
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _showCommunication ? Colors.deepPurple : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  l10n.communicationFeedback,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _showCommunication ? Colors.white : Colors.grey.shade400,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommunicationTabView() {
+    return Consumer<CommunicationProvider>(
+      builder: (context, commProvider, child) {
+        return TabBarView(
+          controller: _tabController,
+          children: [
+            CommunicationFeedbackView(
+              feedback: commProvider.todayFeedback,
+              isLoading: commProvider.isLoading,
+              error: commProvider.error,
+              period: 'today',
+              onRefresh: () => commProvider.fetchFeedback(period: 'today'),
+            ),
+            CommunicationFeedbackView(
+              feedback: commProvider.monthlyFeedback,
+              isLoading: commProvider.isLoading,
+              error: commProvider.error,
+              period: 'monthly',
+              onRefresh: () => commProvider.fetchFeedback(period: 'monthly'),
+            ),
+            CommunicationFeedbackView(
+              feedback: commProvider.yearlyFeedback,
+              isLoading: commProvider.isLoading,
+              error: commProvider.error,
+              period: 'yearly',
+              onRefresh: () => commProvider.fetchFeedback(period: 'yearly'),
+            ),
+            CommunicationFeedbackView(
+              feedback: commProvider.allTimeFeedback,
+              isLoading: commProvider.isLoading,
+              error: commProvider.error,
+              period: 'all_time',
+              onRefresh: () => commProvider.fetchFeedback(period: 'all_time'),
+            ),
+          ],
         );
       },
     );

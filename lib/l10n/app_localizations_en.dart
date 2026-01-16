@@ -790,4 +790,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unknown => 'Unknown';
+
+  @override
+  String get generalStats => 'General';
+
+  @override
+  String get communicationFeedback => 'Communication';
+
+  @override
+  String get yourStrengths => 'Your Strengths';
+
+  @override
+  String get areasToImprove => 'Areas to Improve';
+
+  @override
+  String get observations => 'Observations';
+
+  @override
+  String get clarity => 'Clarity';
+
+  @override
+  String get structure => 'Structure';
+
+  @override
+  String get callsToAction => 'Calls to Action';
+
+  @override
+  String get objectionHandling => 'Objection Handling';
+
+  @override
+  String basedOnConversations(int count) {
+    return 'Based on $count conversations';
+  }
+
+  @override
+  String get noFeedbackYet =>
+      'No feedback yet. Start recording conversations to get insights about your communication style.';
 }

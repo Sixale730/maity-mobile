@@ -216,6 +216,36 @@ async def get_conversations(
     return result.data if result.data else []
 
 
+async def update_conversation_feedback(
+    conversation_id: str,
+    user_id: str,
+    communication_feedback: Dict,
+) -> bool:
+    """
+    Update a conversation with communication feedback.
+
+    Args:
+        conversation_id: UUID of the conversation
+        user_id: UUID de maity.users (for authorization)
+        communication_feedback: Dict with strengths, areas_to_improve, observations, summary
+    """
+    supabase = get_supabase()
+
+    try:
+        result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .update({"communication_feedback": communication_feedback})
+            .eq("id", conversation_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return True
+    except Exception as e:
+        print(f"[Supabase Client] Failed to update communication feedback: {e}")
+        return False
+
+
 async def get_conversation_with_segments(
     user_id: str,
     conversation_id: str,
