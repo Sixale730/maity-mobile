@@ -487,6 +487,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get listening => 'Escuchando';
 
   @override
+  String get thinking => 'Pensando';
+
+  @override
+  String get muted => 'Silenciado';
+
+  @override
+  String get paused => 'Pausado';
+
+  @override
   String get listeningDesc => 'Tiempo total que Maity ha escuchado activamente.';
 
   @override
@@ -851,4 +860,100 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get searchResults => 'Resultados de búsqueda';
+
+  @override
+  String get categoryPersonal => 'Personal';
+
+  @override
+  String get categoryEducation => 'Educación';
+
+  @override
+  String get categoryHealth => 'Salud';
+
+  @override
+  String get categoryFinance => 'Finanzas';
+
+  @override
+  String get categoryLegal => 'Legal';
+
+  @override
+  String get categoryPhilosophy => 'Filosofía';
+
+  @override
+  String get categorySpiritual => 'Espiritual';
+
+  @override
+  String get categoryScience => 'Ciencia';
+
+  @override
+  String get categoryEntrepreneurship => 'Emprendimiento';
+
+  @override
+  String get categoryParenting => 'Crianza';
+
+  @override
+  String get categoryRomantic => 'Romántico';
+
+  @override
+  String get categoryTravel => 'Viaje';
+
+  @override
+  String get categoryInspiration => 'Inspiración';
+
+  @override
+  String get categoryTechnology => 'Tecnología';
+
+  @override
+  String get categoryBusiness => 'Negocios';
+
+  @override
+  String get categorySocial => 'Social';
+
+  @override
+  String get categoryWork => 'Trabajo';
+
+  @override
+  String get categorySports => 'Deportes';
+
+  @override
+  String get categoryPolitics => 'Política';
+
+  @override
+  String get categoryLiterature => 'Literatura';
+
+  @override
+  String get categoryHistory => 'Historia';
+
+  @override
+  String get categoryArchitecture => 'Arquitectura';
+
+  @override
+  String get categoryMusic => 'Música';
+
+  @override
+  String get categoryWeather => 'Clima';
+
+  @override
+  String get categoryNews => 'Noticias';
+
+  @override
+  String get categoryEntertainment => 'Entretenimiento';
+
+  @override
+  String get categoryPsychology => 'Psicología';
+
+  @override
+  String get categoryDesign => 'Diseño';
+
+  @override
+  String get categoryFamily => 'Familia';
+
+  @override
+  String get categoryEconomics => 'Economía';
+
+  @override
+  String get categoryEnvironment => 'Medio Ambiente';
+
+  @override
+  String get categoryOther => 'Otro';
 }

@@ -165,7 +165,7 @@ class _SyncedConversationListItemState extends State<SyncedConversationListItem>
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   child: Text(
-                    conversation.getTag(),
+                    conversation.getTag(context),
                     style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: conversation.getTagTextColor()),
                     maxLines: 1,
                   ),

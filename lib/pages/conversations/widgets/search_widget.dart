@@ -6,6 +6,7 @@ import 'package:omi/backend/preferences.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/conversation_provider.dart';
 import 'package:omi/providers/home_provider.dart';
+import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/utils/other/debouncer.dart';
 import 'package:provider/provider.dart';
@@ -139,7 +140,8 @@ class _SearchWidgetState extends State<SearchWidget> {
                 _debouncer.run(() async {
                   if (provider.useSemanticSearch) {
                     // Use semantic search with user ID (maity.users.id)
-                    final userId = SharedPreferencesUtil().uid;
+                    // Prefer live value from SupabaseAuthService, fallback to cached
+                    final userId = SupabaseAuthService.instance.maityUserId ?? SharedPreferencesUtil().uid;
                     await provider.semanticSearchConversations(value, userId: userId);
                   } else {
                     await provider.searchConversations(value);

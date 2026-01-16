@@ -7,7 +7,87 @@ import 'package:omi/backend/schema/geolocation.dart';
 import 'package:omi/backend/schema/message.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+/// Translates a category to the current locale
+String getLocalizedCategory(BuildContext context, String category) {
+  final l10n = AppLocalizations.of(context);
+  debugPrint('[getLocalizedCategory] l10n=$l10n, locale=${l10n?.localeName}, category=$category');
+  if (l10n == null) {
+    debugPrint('[getLocalizedCategory] WARNING: AppLocalizations.of(context) returned null!');
+    return category.substring(0, 1).toUpperCase() + category.substring(1);
+  }
+
+  switch (category.toLowerCase()) {
+    case 'personal':
+      return l10n.categoryPersonal;
+    case 'education':
+      return l10n.categoryEducation;
+    case 'health':
+      return l10n.categoryHealth;
+    case 'finance':
+      return l10n.categoryFinance;
+    case 'legal':
+      return l10n.categoryLegal;
+    case 'philosophy':
+      return l10n.categoryPhilosophy;
+    case 'spiritual':
+      return l10n.categorySpiritual;
+    case 'science':
+      return l10n.categoryScience;
+    case 'entrepreneurship':
+      return l10n.categoryEntrepreneurship;
+    case 'parenting':
+      return l10n.categoryParenting;
+    case 'romantic':
+      return l10n.categoryRomantic;
+    case 'travel':
+      return l10n.categoryTravel;
+    case 'inspiration':
+      return l10n.categoryInspiration;
+    case 'technology':
+      return l10n.categoryTechnology;
+    case 'business':
+      return l10n.categoryBusiness;
+    case 'social':
+      return l10n.categorySocial;
+    case 'work':
+      return l10n.categoryWork;
+    case 'sports':
+      return l10n.categorySports;
+    case 'politics':
+      return l10n.categoryPolitics;
+    case 'literature':
+      return l10n.categoryLiterature;
+    case 'history':
+      return l10n.categoryHistory;
+    case 'architecture':
+      return l10n.categoryArchitecture;
+    case 'music':
+      return l10n.categoryMusic;
+    case 'weather':
+      return l10n.categoryWeather;
+    case 'news':
+      return l10n.categoryNews;
+    case 'entertainment':
+      return l10n.categoryEntertainment;
+    case 'psychology':
+      return l10n.categoryPsychology;
+    case 'design':
+      return l10n.categoryDesign;
+    case 'family':
+      return l10n.categoryFamily;
+    case 'economics':
+      return l10n.categoryEconomics;
+    case 'environment':
+      return l10n.categoryEnvironment;
+    case 'other':
+      return l10n.categoryOther;
+    default:
+      return category.substring(0, 1).toUpperCase() + category.substring(1);
+  }
+}
 
 class CreateConversationResponse {
   final List<ServerMessage> messages;
@@ -243,12 +323,12 @@ class ServerConversation {
     return transcriptSegments.indexWhere((element) => element.speakerId == speakerId);
   }
 
-  String getTag() {
+  String getTag(BuildContext context) {
     if (source == ConversationSource.screenpipe) return 'Screenpipe';
     if (source == ConversationSource.openglass) return 'MaityGlass';
     if (source == ConversationSource.sdcard) return 'SD Card';
     if (discarded) return 'Discarded';
-    return structured.category.substring(0, 1).toUpperCase() + structured.category.substring(1);
+    return getLocalizedCategory(context, structured.category);
   }
 
   Color getTagTextColor() {

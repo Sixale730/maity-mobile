@@ -7,6 +7,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/chat/widgets/files_handler_widget.dart';
 import 'package:omi/backend/http/api/conversations.dart';
 import 'package:omi/backend/preferences.dart';
@@ -463,7 +464,7 @@ class _NormalMessageWidgetState extends State<NormalMessageWidget> {
     // Show "thinking" text if we have thinking text, or if dots timer expired and no thinking text yet
     bool shouldShowThinking =
         thinkingText != null || (!_showDots && widget.showTypingIndicator && widget.messageText.isEmpty);
-    String displayThinkingText = thinkingText ?? 'Thinking';
+    String displayThinkingText = thinkingText ?? AppLocalizations.of(context)?.thinking ?? 'Thinking';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -639,7 +640,7 @@ class _MemoriesMessageWidgetState extends State<MemoriesMessageWidget> {
     // Show "thinking" text if we have thinking text, or if dots timer expired and no thinking text yet
     bool shouldShowThinking =
         thinkingText != null || (!_showDots && widget.showTypingIndicator && widget.messageText == '...');
-    String displayThinkingText = thinkingText ?? 'Thinking';
+    String displayThinkingText = thinkingText ?? AppLocalizations.of(context)?.thinking ?? 'Thinking';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

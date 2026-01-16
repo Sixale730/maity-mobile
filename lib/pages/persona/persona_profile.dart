@@ -552,7 +552,20 @@ class _PersonaProfilePageState extends State<PersonaProfilePage> {
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
+                // Preserve device/onboarding preferences before clearing
+                final onboardingCompleted = SharedPreferencesUtil().onboardingCompleted;
+                final hasSetPrimaryLanguage = SharedPreferencesUtil().hasSetPrimaryLanguage;
+                final userPrimaryLanguage = SharedPreferencesUtil().userPrimaryLanguage;
+                final appLanguage = SharedPreferencesUtil().appLanguage;
+
                 await SharedPreferencesUtil().clear();
+
+                // Restore device/onboarding preferences
+                SharedPreferencesUtil().onboardingCompleted = onboardingCompleted;
+                SharedPreferencesUtil().hasSetPrimaryLanguage = hasSetPrimaryLanguage;
+                SharedPreferencesUtil().userPrimaryLanguage = userPrimaryLanguage;
+                SharedPreferencesUtil().appLanguage = appLanguage;
+
                 Provider.of<PersonaProvider>(context, listen: false).setRouting(PersonaProfileRouting.no_device);
                 await AuthService.instance.signOut();
                 Navigator.of(context).pop();

@@ -1258,7 +1258,20 @@ class _DesktopHomePageState extends State<DesktopHomePage> with WidgetsBindingOb
           ),
           TextButton(
             onPressed: () async {
+              // Preserve device/onboarding preferences before clearing
+              final onboardingCompleted = SharedPreferencesUtil().onboardingCompleted;
+              final hasSetPrimaryLanguage = SharedPreferencesUtil().hasSetPrimaryLanguage;
+              final userPrimaryLanguage = SharedPreferencesUtil().userPrimaryLanguage;
+              final appLanguage = SharedPreferencesUtil().appLanguage;
+
               await SharedPreferencesUtil().clear();
+
+              // Restore device/onboarding preferences
+              SharedPreferencesUtil().onboardingCompleted = onboardingCompleted;
+              SharedPreferencesUtil().hasSetPrimaryLanguage = hasSetPrimaryLanguage;
+              SharedPreferencesUtil().userPrimaryLanguage = userPrimaryLanguage;
+              SharedPreferencesUtil().appLanguage = appLanguage;
+
               Navigator.of(context).pop();
               await AuthService.instance.signOut();
               if (mounted) {

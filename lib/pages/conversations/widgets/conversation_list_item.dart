@@ -297,7 +297,7 @@ class _ConversationListItemState extends State<ConversationListItem> {
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       child: Text(
-                        widget.conversation.getTag(),
+                        widget.conversation.getTag(context),
                         style: Theme.of(context)
                             .textTheme
                             .bodyMedium!

@@ -485,6 +485,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get listening => 'Listening';
 
   @override
+  String get thinking => 'Thinking';
+
+  @override
+  String get muted => 'Muted';
+
+  @override
+  String get paused => 'Paused';
+
+  @override
   String get listeningDesc => 'Total time Maity has actively listened.';
 
   @override
@@ -848,4 +857,100 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchResults => 'Search results';
+
+  @override
+  String get categoryPersonal => 'Personal';
+
+  @override
+  String get categoryEducation => 'Education';
+
+  @override
+  String get categoryHealth => 'Health';
+
+  @override
+  String get categoryFinance => 'Finance';
+
+  @override
+  String get categoryLegal => 'Legal';
+
+  @override
+  String get categoryPhilosophy => 'Philosophy';
+
+  @override
+  String get categorySpiritual => 'Spiritual';
+
+  @override
+  String get categoryScience => 'Science';
+
+  @override
+  String get categoryEntrepreneurship => 'Entrepreneurship';
+
+  @override
+  String get categoryParenting => 'Parenting';
+
+  @override
+  String get categoryRomantic => 'Romantic';
+
+  @override
+  String get categoryTravel => 'Travel';
+
+  @override
+  String get categoryInspiration => 'Inspiration';
+
+  @override
+  String get categoryTechnology => 'Technology';
+
+  @override
+  String get categoryBusiness => 'Business';
+
+  @override
+  String get categorySocial => 'Social';
+
+  @override
+  String get categoryWork => 'Work';
+
+  @override
+  String get categorySports => 'Sports';
+
+  @override
+  String get categoryPolitics => 'Politics';
+
+  @override
+  String get categoryLiterature => 'Literature';
+
+  @override
+  String get categoryHistory => 'History';
+
+  @override
+  String get categoryArchitecture => 'Architecture';
+
+  @override
+  String get categoryMusic => 'Music';
+
+  @override
+  String get categoryWeather => 'Weather';
+
+  @override
+  String get categoryNews => 'News';
+
+  @override
+  String get categoryEntertainment => 'Entertainment';
+
+  @override
+  String get categoryPsychology => 'Psychology';
+
+  @override
+  String get categoryDesign => 'Design';
+
+  @override
+  String get categoryFamily => 'Family';
+
+  @override
+  String get categoryEconomics => 'Economics';
+
+  @override
+  String get categoryEnvironment => 'Environment';
+
+  @override
+  String get categoryOther => 'Other';
 }

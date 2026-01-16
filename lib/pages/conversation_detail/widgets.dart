@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gradient_borders/box_borders/gradient_box_border.dart';
 import 'package:omi/backend/http/api/conversations.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/backend/http/webhooks.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/app.dart';
@@ -94,16 +95,16 @@ class GetSummaryWidgets extends StatelessWidget {
     return secondsToHumanReadable(durationSeconds);
   }
 
-  String _getDateFormat(DateTime date) {
+  String _getDateFormat(BuildContext context, DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
     final dateOnly = DateTime(date.year, date.month, date.day);
 
     if (dateOnly == today) {
-      return 'Today';
+      return AppLocalizations.of(context)?.today ?? 'Today';
     } else if (dateOnly == yesterday) {
-      return 'Yesterday';
+      return AppLocalizations.of(context)?.yesterday ?? 'Yesterday';
     } else if (date.year == now.year) {
       return dateTimeFormat('MMM d', date);
     } else {
@@ -111,14 +112,14 @@ class GetSummaryWidgets extends StatelessWidget {
     }
   }
 
-  Widget _buildInfoChips(ServerConversation conversation) {
+  Widget _buildInfoChips(BuildContext context, ServerConversation conversation) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
         // Date chip
         _buildChip(
-          label: _getDateFormat(conversation.startedAt ?? conversation.createdAt),
+          label: _getDateFormat(context, conversation.startedAt ?? conversation.createdAt),
           icon: Icons.calendar_today,
         ),
         // Time chip
@@ -191,7 +192,7 @@ class GetSummaryWidgets extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleLarge!.copyWith(fontSize: 32, color: Colors.white),
                   ),
             const SizedBox(height: 16),
-            _buildInfoChips(conversation),
+            _buildInfoChips(context, conversation),
             const SizedBox(height: 16),
             conversation.discarded ? const SizedBox.shrink() : const SizedBox(height: 8),
           ],

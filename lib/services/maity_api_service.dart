@@ -229,9 +229,9 @@ class ProcessedConversationResponse {
   factory ProcessedConversationResponse.fromJson(Map<String, dynamic> json) {
     return ProcessedConversationResponse(
       id: json['id'] ?? '',
-      createdAt: DateTime.parse(json['created_at']),
-      startedAt: DateTime.parse(json['started_at']),
-      finishedAt: DateTime.parse(json['finished_at']),
+      createdAt: DateTime.parse(json['created_at']).toLocal(),
+      startedAt: DateTime.parse(json['started_at']).toLocal(),
+      finishedAt: DateTime.parse(json['finished_at']).toLocal(),
       structured: Structured.fromJson(json['structured']),
       metrics: ConversationMetrics.fromJson(json['metrics']),
     );
@@ -452,9 +452,9 @@ class ActionItemResponse {
       id: json['id'] ?? '',
       description: json['description'] ?? '',
       completed: json['completed'] ?? false,
-      dueAt: json['due_at'] != null ? DateTime.parse(json['due_at']) : null,
+      dueAt: json['due_at'] != null ? DateTime.parse(json['due_at']).toLocal() : null,
       conversationId: json['conversation_id'],
-      createdAt: DateTime.parse(json['created_at']),
+      createdAt: DateTime.parse(json['created_at']).toLocal(),
     );
   }
 }

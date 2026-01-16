@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/message_event.dart';
 import 'package:omi/pages/conversations/widgets/capture.dart';
@@ -233,7 +234,7 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
       var lastEvent = captureProvider.transcriptionServiceStatuses.lastOrNull;
       if (lastEvent is MessageServiceStatusEvent) {
         if (lastEvent.status == "ready") {
-          stateText = "Listening";
+          stateText = AppLocalizations.of(context)?.listening ?? "Listening";
           statusIndicator = const RecordingStatusIndicator();
         } else {
           bool transcriptionDiagnosticEnabled = SharedPreferencesUtil().transcriptionDiagnosticEnabled;
@@ -321,7 +322,11 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        isPaused ? (isDeviceRecording ? 'Muted' : 'Paused') : 'Listening',
+                        isPaused
+                            ? (isDeviceRecording
+                                ? (AppLocalizations.of(context)?.muted ?? 'Muted')
+                                : (AppLocalizations.of(context)?.paused ?? 'Paused'))
+                            : (AppLocalizations.of(context)?.listening ?? 'Listening'),
                         style: const TextStyle(
                           color: Color(0xFFC9CBCF),
                           fontSize: 14,

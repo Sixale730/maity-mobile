@@ -605,7 +605,20 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                         () => Navigator.of(ctx).pop(),
                         () async {
                           Navigator.of(ctx).pop();
+                          // Preserve device/onboarding preferences before clearing
+                          final onboardingCompleted = SharedPreferencesUtil().onboardingCompleted;
+                          final hasSetPrimaryLanguage = SharedPreferencesUtil().hasSetPrimaryLanguage;
+                          final userPrimaryLanguage = SharedPreferencesUtil().userPrimaryLanguage;
+                          final appLanguage = SharedPreferencesUtil().appLanguage;
+
                           await SharedPreferencesUtil().clear();
+
+                          // Restore device/onboarding preferences
+                          SharedPreferencesUtil().onboardingCompleted = onboardingCompleted;
+                          SharedPreferencesUtil().hasSetPrimaryLanguage = hasSetPrimaryLanguage;
+                          SharedPreferencesUtil().userPrimaryLanguage = userPrimaryLanguage;
+                          SharedPreferencesUtil().appLanguage = appLanguage;
+
                           await AuthService.instance.signOut();
                           personaProvider.setRouting(PersonaProfileRouting.no_device);
                           MyApp.navigatorKey.currentState?.pushAndRemoveUntil(

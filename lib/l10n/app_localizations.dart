@@ -1016,6 +1016,24 @@ abstract class AppLocalizations {
   /// **'Listening'**
   String get listening;
 
+  /// No description provided for @thinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking'**
+  String get thinking;
+
+  /// No description provided for @muted.
+  ///
+  /// In en, this message translates to:
+  /// **'Muted'**
+  String get muted;
+
+  /// No description provided for @paused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get paused;
+
   /// No description provided for @listeningDesc.
   ///
   /// In en, this message translates to:
@@ -1681,6 +1699,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search results'**
   String get searchResults;
+
+  /// No description provided for @categoryPersonal.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal'**
+  String get categoryPersonal;
+
+  /// No description provided for @categoryEducation.
+  ///
+  /// In en, this message translates to:
+  /// **'Education'**
+  String get categoryEducation;
+
+  /// No description provided for @categoryHealth.
+  ///
+  /// In en, this message translates to:
+  /// **'Health'**
+  String get categoryHealth;
+
+  /// No description provided for @categoryFinance.
+  ///
+  /// In en, this message translates to:
+  /// **'Finance'**
+  String get categoryFinance;
+
+  /// No description provided for @categoryLegal.
+  ///
+  /// In en, this message translates to:
+  /// **'Legal'**
+  String get categoryLegal;
+
+  /// No description provided for @categoryPhilosophy.
+  ///
+  /// In en, this message translates to:
+  /// **'Philosophy'**
+  String get categoryPhilosophy;
+
+  /// No description provided for @categorySpiritual.
+  ///
+  /// In en, this message translates to:
+  /// **'Spiritual'**
+  String get categorySpiritual;
+
+  /// No description provided for @categoryScience.
+  ///
+  /// In en, this message translates to:
+  /// **'Science'**
+  String get categoryScience;
+
+  /// No description provided for @categoryEntrepreneurship.
+  ///
+  /// In en, this message translates to:
+  /// **'Entrepreneurship'**
+  String get categoryEntrepreneurship;
+
+  /// No description provided for @categoryParenting.
+  ///
+  /// In en, this message translates to:
+  /// **'Parenting'**
+  String get categoryParenting;
+
+  /// No description provided for @categoryRomantic.
+  ///
+  /// In en, this message translates to:
+  /// **'Romantic'**
+  String get categoryRomantic;
+
+  /// No description provided for @categoryTravel.
+  ///
+  /// In en, this message translates to:
+  /// **'Travel'**
+  String get categoryTravel;
+
+  /// No description provided for @categoryInspiration.
+  ///
+  /// In en, this message translates to:
+  /// **'Inspiration'**
+  String get categoryInspiration;
+
+  /// No description provided for @categoryTechnology.
+  ///
+  /// In en, this message translates to:
+  /// **'Technology'**
+  String get categoryTechnology;
+
+  /// No description provided for @categoryBusiness.
+  ///
+  /// In en, this message translates to:
+  /// **'Business'**
+  String get categoryBusiness;
+
+  /// No description provided for @categorySocial.
+  ///
+  /// In en, this message translates to:
+  /// **'Social'**
+  String get categorySocial;
+
+  /// No description provided for @categoryWork.
+  ///
+  /// In en, this message translates to:
+  /// **'Work'**
+  String get categoryWork;
+
+  /// No description provided for @categorySports.
+  ///
+  /// In en, this message translates to:
+  /// **'Sports'**
+  String get categorySports;
+
+  /// No description provided for @categoryPolitics.
+  ///
+  /// In en, this message translates to:
+  /// **'Politics'**
+  String get categoryPolitics;
+
+  /// No description provided for @categoryLiterature.
+  ///
+  /// In en, this message translates to:
+  /// **'Literature'**
+  String get categoryLiterature;
+
+  /// No description provided for @categoryHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get categoryHistory;
+
+  /// No description provided for @categoryArchitecture.
+  ///
+  /// In en, this message translates to:
+  /// **'Architecture'**
+  String get categoryArchitecture;
+
+  /// No description provided for @categoryMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'Music'**
+  String get categoryMusic;
+
+  /// No description provided for @categoryWeather.
+  ///
+  /// In en, this message translates to:
+  /// **'Weather'**
+  String get categoryWeather;
+
+  /// No description provided for @categoryNews.
+  ///
+  /// In en, this message translates to:
+  /// **'News'**
+  String get categoryNews;
+
+  /// No description provided for @categoryEntertainment.
+  ///
+  /// In en, this message translates to:
+  /// **'Entertainment'**
+  String get categoryEntertainment;
+
+  /// No description provided for @categoryPsychology.
+  ///
+  /// In en, this message translates to:
+  /// **'Psychology'**
+  String get categoryPsychology;
+
+  /// No description provided for @categoryDesign.
+  ///
+  /// In en, this message translates to:
+  /// **'Design'**
+  String get categoryDesign;
+
+  /// No description provided for @categoryFamily.
+  ///
+  /// In en, this message translates to:
+  /// **'Family'**
+  String get categoryFamily;
+
+  /// No description provided for @categoryEconomics.
+  ///
+  /// In en, this message translates to:
+  /// **'Economics'**
+  String get categoryEconomics;
+
+  /// No description provided for @categoryEnvironment.
+  ///
+  /// In en, this message translates to:
+  /// **'Environment'**
+  String get categoryEnvironment;
+
+  /// No description provided for @categoryOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get categoryOther;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

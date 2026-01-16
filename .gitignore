@@ -27,6 +27,7 @@ key.properties
 *.pyc
 *.swp
 .DS_Store
+nul
 .atom/
 .build/
 .buildlog/

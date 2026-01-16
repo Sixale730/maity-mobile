@@ -84,7 +84,7 @@ class AuthService {
         // Actualizar UID si está disponible
         final user = _supabaseAuth.currentUser;
         if (user != null) {
-          SharedPreferencesUtil().uid = _supabaseAuth.authId ?? '';
+          SharedPreferencesUtil().uid = _supabaseAuth.maityUserId ?? '';
           if (SharedPreferencesUtil().email.isEmpty) {
             SharedPreferencesUtil().email = user.email ?? '';
           }
@@ -100,7 +100,7 @@ class AuthService {
   /// Actualiza las preferencias del usuario desde Supabase User
   Future<void> _updateUserPreferencesFromSupabase(User user) async {
     try {
-      SharedPreferencesUtil().uid = _supabaseAuth.authId ?? user.id;
+      SharedPreferencesUtil().uid = _supabaseAuth.maityUserId ?? '';
       SharedPreferencesUtil().email = user.email ?? '';
 
       // Obtener nombre de los metadatos

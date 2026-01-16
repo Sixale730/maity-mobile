@@ -290,7 +290,7 @@ class StoredConversationResponse {
   factory StoredConversationResponse.fromJson(Map<String, dynamic> json) {
     return StoredConversationResponse(
       id: json['id'],
-      createdAt: DateTime.parse(json['created_at']),
+      createdAt: DateTime.parse(json['created_at']).toLocal(),
       embeddingGenerated: json['embedding_generated'] ?? false,
     );
   }
@@ -331,9 +331,9 @@ class SemanticSearchResult {
       overview: json['overview'] ?? '',
       emoji: json['emoji'] ?? '',
       category: json['category'] ?? 'other',
-      createdAt: DateTime.parse(json['created_at']),
-      startedAt: json['started_at'] != null ? DateTime.parse(json['started_at']) : null,
-      finishedAt: json['finished_at'] != null ? DateTime.parse(json['finished_at']) : null,
+      createdAt: DateTime.parse(json['created_at']).toLocal(),
+      startedAt: json['started_at'] != null ? DateTime.parse(json['started_at']).toLocal() : null,
+      finishedAt: json['finished_at'] != null ? DateTime.parse(json['finished_at']).toLocal() : null,
       wordsCount: json['words_count'] ?? 0,
       durationSeconds: json['duration_seconds'] ?? 0,
       similarity: (json['similarity'] as num).toDouble(),
@@ -417,9 +417,9 @@ class OmiConversation {
       overview: json['overview'] ?? '',
       emoji: json['emoji'] ?? '',
       category: json['category'] ?? 'other',
-      createdAt: DateTime.parse(json['created_at']),
-      startedAt: json['started_at'] != null ? DateTime.parse(json['started_at']) : null,
-      finishedAt: json['finished_at'] != null ? DateTime.parse(json['finished_at']) : null,
+      createdAt: DateTime.parse(json['created_at']).toLocal(),
+      startedAt: json['started_at'] != null ? DateTime.parse(json['started_at']).toLocal() : null,
+      finishedAt: json['finished_at'] != null ? DateTime.parse(json['finished_at']).toLocal() : null,
       wordsCount: json['words_count'] ?? 0,
       durationSeconds: json['duration_seconds'] ?? 0,
       status: json['status'] ?? 'completed',
