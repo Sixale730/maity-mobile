@@ -28,7 +28,20 @@ class SupabaseAuthService {
 
   /// maity.users.id (UUID) - cacheado después del login
   String? _maityUserId;
-  String? get maityUserId => _maityUserId;
+  String? get maityUserId {
+    if (_maityUserId != null && _maityUserId!.isNotEmpty) {
+      return _maityUserId;
+    }
+    // Fallback a SharedPreferences si el cache está vacío
+    // Esto resuelve el timing issue cuando el chat se abre antes de que
+    // restoreSession() complete async
+    final stored = SharedPreferencesUtil().uid;
+    if (stored.isNotEmpty) {
+      _maityUserId = stored;
+      return _maityUserId;
+    }
+    return null;
+  }
 
   /// Verifica si el usuario está autenticado
   bool get isSignedIn => currentUser != null;
