@@ -43,25 +43,39 @@ ServerMessageChunk? parseMessageChunk(String line, String messageId) {
   }
 
   if (line.startsWith('done: ')) {
-    var text = decodeBase64(line.substring(6));
-    return ServerMessageChunk(messageId, text, MessageChunkType.done,
-        message: ServerMessage.fromJson(json.decode(text)));
+    try {
+      var text = decodeBase64(line.substring(6));
+      return ServerMessageChunk(messageId, text, MessageChunkType.done,
+          message: ServerMessage.fromJson(json.decode(text)));
+    } catch (e) {
+      debugPrint('[Chat] Error parsing done message: $e');
+      debugPrint('[Chat] Raw data: ${line.substring(6)}');
+      return null;
+    }
   }
 
   if (line.startsWith('message: ')) {
-    var text = decodeBase64(line.substring(9));
-    return ServerMessageChunk(messageId, text, MessageChunkType.message,
-        message: ServerMessage.fromJson(json.decode(text)));
+    try {
+      var text = decodeBase64(line.substring(9));
+      return ServerMessageChunk(messageId, text, MessageChunkType.message,
+          message: ServerMessage.fromJson(json.decode(text)));
+    } catch (e) {
+      debugPrint('[Chat] Error parsing message: $e');
+      debugPrint('[Chat] Raw data: ${line.substring(9)}');
+      return null;
+    }
   }
 
   return null;
 }
 
 Stream<ServerMessageChunk> sendMessageStreamServer(String text, {String? appId, List<String>? filesId, String? userId}) async* {
+  debugPrint('[Chat] maityBackendUrl = ${Env.maityBackendUrl}');
   var url = '${Env.maityBackendUrl}v2/messages?app_id=$appId';
   if (appId == null || appId.isEmpty || appId == 'null' || appId == 'no_selected') {
     url = '${Env.maityBackendUrl}v2/messages';
   }
+  debugPrint('[Chat] Sending to URL: $url');
   // Add user_id for function calling access to conversations
   if (userId != null && userId.isNotEmpty) {
     url += url.contains('?') ? '&user_id=$userId' : '?user_id=$userId';

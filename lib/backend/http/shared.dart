@@ -241,7 +241,9 @@ Stream<String> makeStreamingApiCall({
     var streamedResponse = await ApiClient._client.send(request);
 
     if (streamedResponse.statusCode != 200) {
+      final errorBody = await streamedResponse.stream.bytesToString();
       Logger.error('Streaming request failed: ${streamedResponse.statusCode}');
+      debugPrint('[Chat] Error response body: $errorBody');
       return;
     }
 

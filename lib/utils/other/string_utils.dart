@@ -46,7 +46,7 @@ String convertToHHMMSS(int seconds) {
 }
 
 String padBase64(String rawBase64) {
-  return (rawBase64.length % 4 > 0) ? rawBase64 += List.filled(4 - (rawBase64.length % 4), "_").join("") : rawBase64;
+  return (rawBase64.length % 4 > 0) ? rawBase64 += List.filled(4 - (rawBase64.length % 4), "=").join("") : rawBase64;
 }
 
 String decodeBase64(String data) {
