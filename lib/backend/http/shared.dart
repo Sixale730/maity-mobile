@@ -258,7 +258,7 @@ Stream<String> makeStreamingApiCall({
         // Merge packages if needed
         if (buffers.isNotEmpty) {
           buffers.add(line);
-          line = buffers.join();
+          line = buffers.join('\n\n');
           buffers.clear();
         }
 
@@ -268,7 +268,7 @@ Stream<String> makeStreamingApiCall({
 
     // Flush remaining buffers
     if (buffers.isNotEmpty) {
-      yield buffers.join();
+      yield buffers.join('\n\n');
     }
   } catch (e, stackTrace) {
     Logger.error('Streaming request error: $e');
@@ -315,7 +315,7 @@ Stream<String> makeMultipartStreamingApiCall({
         // Merge packages if needed
         if (buffers.isNotEmpty) {
           buffers.add(line);
-          line = buffers.join();
+          line = buffers.join('\n\n');
           buffers.clear();
         }
 
@@ -325,7 +325,7 @@ Stream<String> makeMultipartStreamingApiCall({
 
     // Flush remaining buffers
     if (buffers.isNotEmpty) {
-      yield buffers.join();
+      yield buffers.join('\n\n');
     }
   } catch (e, stackTrace) {
     Logger.error('Multipart streaming request error: $e');
