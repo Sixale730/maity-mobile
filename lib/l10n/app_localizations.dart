@@ -1639,6 +1639,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No feedback yet. Start recording conversations to get insights about your communication style.'**
   String get noFeedbackYet;
+
+  /// No description provided for @deleteConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Conversation?'**
+  String get deleteConversation;
+
+  /// No description provided for @deleteConversationConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this conversation? This action cannot be undone.'**
+  String get deleteConversationConfirm;
+
+  /// No description provided for @unableToDeleteConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to Delete Conversation'**
+  String get unableToDeleteConversation;
+
+  /// No description provided for @checkInternetAndTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Please check your internet connection and try again.'**
+  String get checkInternetAndTryAgain;
+
+  /// No description provided for @newBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'New 🚀'**
+  String get newBadge;
+
+  /// No description provided for @searchingConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching your conversations'**
+  String get searchingConversations;
+
+  /// No description provided for @searchResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Search results'**
+  String get searchResults;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

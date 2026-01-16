@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omi/l10n/app_localizations.dart';
 
 class EmptyConversationsWidget extends StatefulWidget {
   const EmptyConversationsWidget({super.key});
@@ -10,11 +11,12 @@ class EmptyConversationsWidget extends StatefulWidget {
 class _EmptyConversationsWidgetState extends State<EmptyConversationsWidget> {
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(top: 120.0),
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.only(top: 120.0),
       child: Text(
-        'No conversations yet.',
-        style: TextStyle(color: Colors.grey, fontSize: 16),
+        l10n.noConversations,
+        style: const TextStyle(color: Colors.grey, fontSize: 16),
       ),
     );
   }

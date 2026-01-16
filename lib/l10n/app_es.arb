@@ -297,5 +297,13 @@
   "callsToAction": "Llamados a Acción",
   "objectionHandling": "Manejo de Objeciones",
   "basedOnConversations": "Basado en {count} conversaciones",
-  "noFeedbackYet": "Aún no hay feedback. Empieza a grabar conversaciones para obtener insights sobre tu estilo de comunicación."
+  "noFeedbackYet": "Aún no hay feedback. Empieza a grabar conversaciones para obtener insights sobre tu estilo de comunicación.",
+
+  "deleteConversation": "¿Eliminar conversación?",
+  "deleteConversationConfirm": "¿Estás seguro de que quieres eliminar esta conversación? Esta acción no se puede deshacer.",
+  "unableToDeleteConversation": "No se puede eliminar la conversación",
+  "checkInternetAndTryAgain": "Por favor verifica tu conexión a internet e intenta de nuevo.",
+  "newBadge": "Nuevo 🚀",
+  "searchingConversations": "Buscando en tus conversaciones",
+  "searchResults": "Resultados de búsqueda"
 }

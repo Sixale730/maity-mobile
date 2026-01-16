@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/utils/other/temp.dart';
 
 class DateListItem extends StatelessWidget {
@@ -9,6 +10,7 @@ class DateListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     var now = DateTime.now();
     var yesterday = now.subtract(const Duration(days: 1));
     var isToday = date.month == now.month && date.day == now.day && date.year == now.year;
@@ -22,9 +24,9 @@ class DateListItem extends StatelessWidget {
         children: [
           Text(
             isToday
-                ? 'Today'
+                ? l10n.today
                 : isYesterday
-                    ? 'Yesterday'
+                    ? l10n.yesterday
                     : dateTimeFormat('MMM dd', date),
             style: const TextStyle(color: Colors.white, fontSize: 16),
           ),

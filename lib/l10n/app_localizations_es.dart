@@ -829,4 +829,26 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get noFeedbackYet =>
       'Aún no hay feedback. Empieza a grabar conversaciones para obtener insights sobre tu estilo de comunicación.';
+
+  @override
+  String get deleteConversation => '¿Eliminar conversación?';
+
+  @override
+  String get deleteConversationConfirm =>
+      '¿Estás seguro de que quieres eliminar esta conversación? Esta acción no se puede deshacer.';
+
+  @override
+  String get unableToDeleteConversation => 'No se puede eliminar la conversación';
+
+  @override
+  String get checkInternetAndTryAgain => 'Por favor verifica tu conexión a internet e intenta de nuevo.';
+
+  @override
+  String get newBadge => 'Nuevo 🚀';
+
+  @override
+  String get searchingConversations => 'Buscando en tus conversaciones';
+
+  @override
+  String get searchResults => 'Resultados de búsqueda';
 }

@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/pages/conversation_detail/conversation_detail_provider.dart';
@@ -131,6 +132,7 @@ class _ConversationListItemState extends State<ConversationListItem> {
                   child: const Icon(Icons.delete, color: Colors.white),
                 ),
                 confirmDismiss: (direction) async {
+                  final l10n = AppLocalizations.of(context)!;
                   HapticFeedback.mediumImpact();
                   bool showDeleteConfirmation = SharedPreferencesUtil().showConversationDeleteConfirmation;
                   if (!showDeleteConfirmation) return Future.value(true);
@@ -142,16 +144,16 @@ class _ConversationListItemState extends State<ConversationListItem> {
                         context,
                         () => Navigator.of(context).pop(false),
                         () => Navigator.of(context).pop(true),
-                        'Delete Conversation?',
-                        'Are you sure you want to delete this conversation? This action cannot be undone.',
-                        okButtonText: 'Confirm',
+                        l10n.deleteConversation,
+                        l10n.deleteConversationConfirm,
+                        okButtonText: l10n.confirm,
                       ),
                     );
                   } else {
                     return showDialog(
                       builder: (c) => getDialog(context, () => Navigator.pop(context), () => Navigator.pop(context),
-                          'Unable to Delete Conversation', 'Please check your internet connection and try again.',
-                          singleButton: true, okButtonText: 'OK'),
+                          l10n.unableToDeleteConversation, l10n.checkInternetAndTryAgain,
+                          singleButton: true, okButtonText: l10n.ok),
                       context: context,
                     );
                   }
@@ -242,6 +244,7 @@ class _ConversationListItemState extends State<ConversationListItem> {
   }
 
   Widget _buildLockedOverlay() {
+    final l10n = AppLocalizations.of(context)!;
     return Positioned.fill(
       child: ClipRRect(
         child: BackdropFilter(
@@ -252,9 +255,9 @@ class _ConversationListItemState extends State<ConversationListItem> {
               color: Colors.black.withValues(alpha: 0.01),
               borderRadius: const BorderRadius.all(Radius.circular(8)),
             ),
-            child: const Text(
-              'Upgrade to unlimited',
-              style: TextStyle(
+            child: Text(
+              l10n.upgradeToUnlimited,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -314,7 +317,7 @@ class _ConversationListItemState extends State<ConversationListItem> {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: isNew
-                ? const ConversationNewStatusIndicator(text: "New 🚀")
+                ? ConversationNewStatusIndicator(text: AppLocalizations.of(context)!.newBadge)
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
