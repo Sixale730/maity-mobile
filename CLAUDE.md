@@ -452,3 +452,64 @@ Cuando una conversación finaliza con custom STT:
 - 0.65-0.70: Muy permisivo (más falsos positivos)
 - 0.75-0.80: Balanceado (recomendado)
 - 0.85-0.90: Estricto (más falsos negativos)
+
+## Feedback de Comunicación
+
+Sistema de análisis de comunicación que proporciona feedback cualitativo y cuantitativo sobre el estilo de comunicación del usuario.
+
+### Arquitectura
+```
+Conversación → Vercel (/v1/communication/analyze) → OpenAI GPT-4o-mini → CommunicationFeedback
+```
+
+### Modelo de Datos
+
+**CommunicationFeedback** - Feedback completo de comunicación:
+- `strengths`: Lista de fortalezas (máx 5)
+- `areas_to_improve`: Lista de áreas de mejora (máx 5)
+- `observations`: Observaciones por categoría (claridad, estructura, llamados a acción, objeciones)
+- `summary`: Resumen del estilo de comunicación
+- `counters`: Métricas cuantitativas (opcional)
+
+**CommunicationCounters** - Métricas cuantitativas:
+- `pero_count`: Número de veces que el usuario dice "pero"
+- `objection_words`: Frecuencia de palabras de objeción `{"pero": N, "sin embargo": N, "aunque": N}`
+- `objections_received`: Lista de objeciones que el otro hace al usuario (máx 5)
+- `objections_made`: Lista de objeciones que el usuario hace (máx 5)
+- `filler_words`: Frecuencia de muletillas `{"este": N, "o sea": N, "bueno": N, "entonces": N}`
+
+### Muletillas Detectadas
+- "este" / "este..."
+- "o sea"
+- "como que"
+- "bueno"
+- "entonces"
+- "básicamente"
+- "literalmente"
+- "tipo" / "tipo que"
+- "digamos"
+- "la verdad"
+
+### Archivos del Sistema
+- `api/models/communication.py` - Modelos Pydantic (CommunicationFeedback, CommunicationCounters)
+- `api/services/communication_analyzer.py` - Servicio de análisis con OpenAI
+- `lib/models/communication_feedback.dart` - Modelos Dart
+- `lib/pages/conversation_detail/widgets.dart` - UI CommunicationFeedbackCard
+
+### UI en Detalle de Conversación
+El widget `CommunicationFeedbackCard` muestra:
+1. **Resumen** - Estilo de comunicación en una oración
+2. **Fortalezas** - Lista con checkmarks verdes
+3. **Áreas de Mejora** - Lista con lightbulbs amarillos
+4. **Observaciones** - Claridad, estructura, llamados a acción, objeciones
+5. **Métricas** - Chips con contadores:
+   - Contador de "pero" (naranja)
+   - Total de muletillas (morado)
+   - Total de objeciones (rojo)
+6. **Detalles de muletillas** - Frecuencia por palabra
+7. **Objeciones recibidas/hechas** - Listas separadas
+
+### Configuración OpenAI
+- Modelo: `gpt-4o-mini`
+- max_tokens: 800
+- temperature: 0.7

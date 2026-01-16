@@ -1276,6 +1276,10 @@ class CommunicationFeedbackCard extends StatelessWidget {
               if (feedback.observations.hasContent)
                 _buildObservationsSection(feedback.observations),
 
+              // Counters section
+              if (feedback.counters != null && feedback.counters!.hasContent)
+                _buildCountersSection(feedback.counters!),
+
               const SizedBox(height: 8),
             ],
           ),
@@ -1447,6 +1451,255 @@ class CommunicationFeedbackCard extends StatelessWidget {
               )),
         ],
       ),
+    );
+  }
+
+  Widget _buildCountersSection(CommunicationCounters counters) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section header
+          const Row(
+            children: [
+              FaIcon(FontAwesomeIcons.chartBar, size: 12, color: Colors.teal),
+              SizedBox(width: 8),
+              Text(
+                'Métricas de Comunicación',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Quick stats chips
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (counters.peroCount > 0)
+                _buildCounterChip(
+                  label: '"Pero"',
+                  count: counters.peroCount,
+                  color: Colors.orange,
+                ),
+              if (counters.totalFillerWords > 0)
+                _buildCounterChip(
+                  label: 'Muletillas',
+                  count: counters.totalFillerWords,
+                  color: Colors.purple,
+                ),
+              if (counters.totalObjectionWords > 0)
+                _buildCounterChip(
+                  label: 'Objeciones',
+                  count: counters.totalObjectionWords,
+                  color: Colors.red,
+                ),
+            ],
+          ),
+
+          // Filler words detail
+          if (counters.fillerWords.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildWordFrequencySection(
+              title: 'Muletillas detectadas',
+              words: counters.fillerWords,
+              color: Colors.purple,
+            ),
+          ],
+
+          // Objection words detail
+          if (counters.objectionWords.isNotEmpty &&
+              counters.objectionWords.length > 1) ...[
+            const SizedBox(height: 12),
+            _buildWordFrequencySection(
+              title: 'Palabras de objeción',
+              words: counters.objectionWords,
+              color: Colors.orange,
+            ),
+          ],
+
+          // Objections received
+          if (counters.objectionsReceived.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildObjectionsList(
+              title: 'Objeciones recibidas',
+              items: counters.objectionsReceived,
+              icon: FontAwesomeIcons.arrowLeft,
+              color: Colors.red,
+            ),
+          ],
+
+          // Objections made
+          if (counters.objectionsMade.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildObjectionsList(
+              title: 'Objeciones hechas',
+              items: counters.objectionsMade,
+              icon: FontAwesomeIcons.arrowRight,
+              color: Colors.orange,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCounterChip({
+    required String label,
+    required int count,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            count.toString(),
+            style: TextStyle(
+              color: color,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey[300],
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWordFrequencySection({
+    required String title,
+    required Map<String, int> words,
+    required Color color,
+  }) {
+    // Sort by frequency
+    final sortedWords = words.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: Colors.grey[500],
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: sortedWords.map((entry) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey[800],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '"${entry.key}"',
+                    style: TextStyle(
+                      color: Colors.grey[300],
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      entry.value.toString(),
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildObjectionsList({
+    required String title,
+    required List<String> items,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            FaIcon(icon, size: 10, color: color),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ...items.map((item) => Padding(
+              padding: const EdgeInsets.only(bottom: 4, left: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '•  ',
+                    style: TextStyle(color: color, fontSize: 12),
+                  ),
+                  Expanded(
+                    child: Text(
+                      '"$item"',
+                      style: TextStyle(
+                        color: Colors.grey[300],
+                        fontSize: 13,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+      ],
     );
   }
 }

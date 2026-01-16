@@ -37,18 +37,76 @@ class CommunicationObservations {
       objections.isNotEmpty;
 }
 
+/// Quantitative metrics about communication patterns
+class CommunicationCounters {
+  final int peroCount;
+  final Map<String, int> objectionWords;
+  final List<String> objectionsReceived;
+  final List<String> objectionsMade;
+  final Map<String, int> fillerWords;
+
+  CommunicationCounters({
+    this.peroCount = 0,
+    this.objectionWords = const {},
+    this.objectionsReceived = const [],
+    this.objectionsMade = const [],
+    this.fillerWords = const {},
+  });
+
+  factory CommunicationCounters.fromJson(Map<String, dynamic> json) {
+    return CommunicationCounters(
+      peroCount: json['pero_count'] ?? 0,
+      objectionWords: (json['objection_words'] as Map<String, dynamic>?)
+              ?.map((key, value) => MapEntry(key, value as int)) ??
+          {},
+      objectionsReceived:
+          (json['objections_received'] as List<dynamic>?)?.cast<String>() ?? [],
+      objectionsMade:
+          (json['objections_made'] as List<dynamic>?)?.cast<String>() ?? [],
+      fillerWords: (json['filler_words'] as Map<String, dynamic>?)
+              ?.map((key, value) => MapEntry(key, value as int)) ??
+          {},
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'pero_count': peroCount,
+        'objection_words': objectionWords,
+        'objections_received': objectionsReceived,
+        'objections_made': objectionsMade,
+        'filler_words': fillerWords,
+      };
+
+  bool get hasContent =>
+      peroCount > 0 ||
+      objectionWords.isNotEmpty ||
+      objectionsReceived.isNotEmpty ||
+      objectionsMade.isNotEmpty ||
+      fillerWords.isNotEmpty;
+
+  /// Get total count of all filler words
+  int get totalFillerWords =>
+      fillerWords.values.fold(0, (sum, count) => sum + count);
+
+  /// Get total count of all objection words
+  int get totalObjectionWords =>
+      objectionWords.values.fold(0, (sum, count) => sum + count);
+}
+
 /// Qualitative feedback about user's communication style
 class CommunicationFeedback {
   final List<String> strengths;
   final List<String> areasToImprove;
   final CommunicationObservations observations;
   final String summary;
+  final CommunicationCounters? counters;
 
   CommunicationFeedback({
     this.strengths = const [],
     this.areasToImprove = const [],
     CommunicationObservations? observations,
     this.summary = '',
+    this.counters,
   }) : observations = observations ?? CommunicationObservations();
 
   factory CommunicationFeedback.fromJson(Map<String, dynamic> json) {
@@ -60,6 +118,9 @@ class CommunicationFeedback {
           ? CommunicationObservations.fromJson(json['observations'])
           : CommunicationObservations(),
       summary: json['summary'] ?? '',
+      counters: json['counters'] != null
+          ? CommunicationCounters.fromJson(json['counters'])
+          : null,
     );
   }
 
@@ -68,12 +129,14 @@ class CommunicationFeedback {
         'areas_to_improve': areasToImprove,
         'observations': observations.toJson(),
         'summary': summary,
+        'counters': counters?.toJson(),
       };
 
   bool get hasContent =>
       strengths.isNotEmpty ||
       areasToImprove.isNotEmpty ||
-      observations.hasContent;
+      observations.hasContent ||
+      (counters?.hasContent ?? false);
 }
 
 /// Aggregated communication feedback across multiple conversations
