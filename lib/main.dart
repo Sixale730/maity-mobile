@@ -70,7 +70,7 @@ Future<void> _autoConfigureDeepgram() async {
       final config = CustomSttConfig(
         provider: SttProvider.deepgramLive,
         apiKey: deepgramKey,
-        language: 'multi', // Auto-detect idioma
+        language: 'es-419', // Español Latinoamericano
         model: 'nova-3',
       );
       await prefs.saveCustomSttConfig(config);
