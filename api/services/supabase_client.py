@@ -126,7 +126,7 @@ async def search_conversations_by_embedding(
     user_id: str,
     query_embedding: List[float],
     limit: int = 10,
-    similarity_threshold: float = 0.7,
+    similarity_threshold: float = 0.3,
     include_discarded: bool = False,
 ) -> List[Dict]:
     """
@@ -157,7 +157,7 @@ async def search_segments_by_embedding(
     user_id: str,
     query_embedding: List[float],
     limit: int = 20,
-    similarity_threshold: float = 0.7,
+    similarity_threshold: float = 0.3,
 ) -> List[Dict]:
     """
     Search transcript segments using vector similarity.

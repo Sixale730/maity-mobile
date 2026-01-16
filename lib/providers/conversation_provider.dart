@@ -143,7 +143,7 @@ class ConversationProvider extends ChangeNotifier {
         userId: userId,
         query: query,
         limit: 20,
-        similarityThreshold: 0.5,
+        similarityThreshold: 0.3,
         includeDiscarded: showDiscardedConversations,
       );
 
@@ -174,7 +174,7 @@ class ConversationProvider extends ChangeNotifier {
         userId: userId,
         query: query,
         limit: 30,
-        similarityThreshold: 0.5,
+        similarityThreshold: 0.3,
       );
     } catch (e) {
       debugPrint('[ConversationProvider] Segment search error: $e');

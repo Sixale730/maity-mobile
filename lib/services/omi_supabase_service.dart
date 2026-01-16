@@ -92,7 +92,7 @@ class OmiSupabaseService {
     required String userId,
     required String query,
     int limit = 10,
-    double similarityThreshold = 0.7,
+    double similarityThreshold = 0.3,
     bool includeDiscarded = false,
   }) async {
     if (query.isEmpty) return [];
@@ -138,7 +138,7 @@ class OmiSupabaseService {
     required String userId,
     required String query,
     int limit = 20,
-    double similarityThreshold = 0.7,
+    double similarityThreshold = 0.3,
   }) async {
     if (query.isEmpty) return [];
 

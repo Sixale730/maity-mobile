@@ -73,7 +73,7 @@ class SearchRequest(BaseModel):
     user_id: str  # UUID de maity.users
     limit: int = 10
     search_type: str = "conversations"  # or "segments"
-    similarity_threshold: float = 0.7
+    similarity_threshold: float = 0.3
     include_discarded: bool = False
 
 
