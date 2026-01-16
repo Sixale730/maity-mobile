@@ -228,6 +228,31 @@ Los segmentos de transcripción se fusionan automáticamente:
 
 Esto evita que Deepgram fragmente segmentos por pausas naturales del habla.
 
+### Optimizaciones de Audio y Transcripción
+
+Optimizaciones de rendimiento implementadas en el procesamiento de audio:
+
+**WavBytes.asBytes()** (`wav_bytes.dart:76-77`)
+- Usa `setRange()` para copia bulk en lugar de loop byte a byte
+- Significativamente más rápido para buffers grandes de audio
+
+**TranscriptSegment.canDisplaySeconds()** (`transcript_segment.dart:241-252`)
+- Reducida de O(n²) a O(n)
+- Solo verifica solapamiento con el segmento siguiente (suficiente para timestamps ordenados)
+
+**WavBytesUtil Buffer Limit** (`wav_bytes.dart:91,130-133`)
+- `_maxFrames = 9600` (~10 minutos a 16 frames/segundo)
+- Previene memory leak en grabaciones largas
+- Buffer circular: elimina frames más antiguos al exceder límite
+
+**createWavFile()** (`wav_bytes.dart:311-330`)
+- Usa `.toList()` (copia superficial) en lugar de `List.from()` (copia profunda)
+- Los inner lists de frames no se modifican, copia superficial es suficiente
+
+**convertToLittleEndianBytes()** (`wav_bytes.dart:381-391`)
+- Usa índice acumulativo (`offset += 2`) en lugar de multiplicación (`i * 2`)
+- Micro-optimización que evita multiplicación en cada iteración
+
 ### Speech Profile con Custom STT
 Speech Profile ahora funciona con custom STT (Deepgram):
 

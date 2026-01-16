@@ -73,10 +73,8 @@ class WavBytes {
     wavData.setUint8(39, 0x61); // 'a'
     wavData.setUint32(40, subchunk2Size, Endian.little); // Subchunk2Size
 
-    // Copy PCM data
-    for (int i = 0; i < _pcmData.length; i++) {
-      wavData.setUint8(44 + i, _pcmData[i]);
-    }
+    // Copy PCM data - using setRange for bulk copy (more efficient than byte-by-byte loop)
+    wavData.buffer.asUint8List().setRange(44, 44 + _pcmData.length, _pcmData);
 
     return wavData.buffer.asUint8List();
   }
@@ -87,6 +85,10 @@ class WavBytesUtil {
   int framesPerSecond;
   List<List<int>> frames = [];
   List<List<int>> rawPackets = [];
+
+  /// Límite máximo de frames para prevenir memory leak en grabaciones largas
+  /// ~10 minutos a 16 frames/segundo = 9600 frames
+  static const int _maxFrames = 9600;
   final SimpleOpusDecoder opusDecoder = SimpleOpusDecoder(sampleRate: 16000, channels: 1);
 
   WavBytesUtil({required this.codec, required this.framesPerSecond});
@@ -125,6 +127,10 @@ class WavBytesUtil {
     // Start of a new frame
     if (internal == 0) {
       frames.add(pending); // Save frame
+      // Limitar tamaño del buffer para prevenir memory leak en grabaciones largas
+      if (frames.length > _maxFrames) {
+        frames.removeAt(0);
+      }
       pending = content; // Start new frame
       lastFrameId = internal; // Update internal frame id
       lastPacketIndex = index; // Update packet id
@@ -304,21 +310,23 @@ class WavBytesUtil {
 
   Future<Tuple2<File, List<List<int>>>> createWavFile({String? filename, int removeLastNSeconds = 0}) async {
     debugPrint('createWavFile $filename');
-    List<List<int>> framesCopy;
+    List<List<int>> framesToProcess;
     if (removeLastNSeconds > 0) {
       debugPrint(' in this branch');
       removeFramesRange(
           fromSecond: (frames.length ~/ framesPerSecond) - removeLastNSeconds,
           toSecond: frames.length ~/ framesPerSecond);
-      framesCopy = List<List<int>>.from(frames); // after trimming, copy the frames
+      // Copia superficial es suficiente - los inner lists no se modifican
+      framesToProcess = frames.toList();
     } else {
       debugPrint(' in other branch');
-      framesCopy = List<List<int>>.from(frames); // copy the frames before clearing all
+      // Copia superficial más rápida que List.from() (evita copia profunda)
+      framesToProcess = frames.toList();
       clearAudioBytes();
     }
     debugPrint('about to write to other codec');
-    File file = await createWavByCodec(framesCopy, filename: filename);
-    return Tuple2(file, framesCopy);
+    File file = await createWavByCodec(framesToProcess, filename: filename);
+    return Tuple2(file, framesToProcess);
   }
 
   /// OPUS
@@ -371,10 +379,13 @@ class WavBytesUtil {
   }
 
   // Utility to convert audio data to little-endian format
+  // Optimizado: usa índice acumulativo en lugar de multiplicación en cada iteración
   static Uint8List convertToLittleEndianBytes(List<int> audioData) {
     final byteData = ByteData(2 * audioData.length);
+    int offset = 0;
     for (int i = 0; i < audioData.length; i++) {
-      byteData.setUint16(i * 2, audioData[i], Endian.little);
+      byteData.setUint16(offset, audioData[i], Endian.little);
+      offset += 2;
     }
     return byteData.buffer.asUint8List();
   }

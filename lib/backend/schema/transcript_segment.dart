@@ -238,12 +238,14 @@ class TranscriptSegment {
     return transcript.trim();
   }
 
+  /// Verifica si los timestamps de los segmentos están ordenados correctamente
+  /// Optimizado de O(n²) a O(n) - solo verifica solapamiento con el segmento siguiente
   static bool canDisplaySeconds(List<TranscriptSegment> segments) {
-    for (var i = 0; i < segments.length; i++) {
-      for (var j = i + 1; j < segments.length; j++) {
-        if (segments[i].start > segments[j].end || segments[i].end > segments[j].start) {
-          return false;
-        }
+    if (segments.length < 2) return true;
+    for (var i = 0; i < segments.length - 1; i++) {
+      // Verificar que el segmento actual termine antes de que el siguiente comience
+      if (segments[i].end > segments[i + 1].start) {
+        return false;
       }
     }
     return true;
