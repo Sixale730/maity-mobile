@@ -57,6 +57,13 @@ class AuthenticationProvider extends BaseProvider {
               SharedPreferencesUtil().uid = maityUserId ?? '';
               SharedPreferencesUtil().email = user?.email ?? '';
 
+              // Si el usuario ya existe en maity.users, significa que completó onboarding antes
+              // Esto funciona como fallback si SharedPreferences pierde el flag
+              if (maityUserId != null && !SharedPreferencesUtil().onboardingCompleted) {
+                debugPrint('[AuthProvider] Usuario existente detectado, marcando onboarding como completado');
+                SharedPreferencesUtil().onboardingCompleted = true;
+              }
+
               // Obtener nombre del metadata
               final metadata = user?.userMetadata;
               if (metadata != null) {
@@ -150,6 +157,12 @@ class AuthenticationProvider extends BaseProvider {
       maityUserId = await _authService.fetchMaityUserId();
       if (maityUserId != null) {
         SharedPreferencesUtil().uid = maityUserId!;
+
+        // Si el usuario ya existe en maity.users, significa que completó onboarding antes
+        if (!SharedPreferencesUtil().onboardingCompleted) {
+          debugPrint('[AuthProvider] Usuario existente detectado en sign-in, marcando onboarding como completado');
+          SharedPreferencesUtil().onboardingCompleted = true;
+        }
       }
 
       // Registrar token de notificaciones

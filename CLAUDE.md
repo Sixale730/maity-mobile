@@ -169,6 +169,15 @@ La funcion `_isRequiredAuthCheck()` en `shared.dart` determina que URLs requiere
 2. Llama `SupabaseAuthService.getAccessToken()` para renovar token
 3. Reintenta la peticion con nuevo token
 
+### Auto-detección de Onboarding Completado
+Al iniciar sesión, `AuthProvider` verifica si el usuario ya existe en `maity.users`:
+- Si `maityUserId != null` → usuario existe → ya completó onboarding antes
+- Automáticamente marca `SharedPreferencesUtil().onboardingCompleted = true`
+- Funciona como fallback si SharedPreferences pierde el flag (reinstalación, error, etc.)
+- La BD (`maity.users`) sirve como fuente de verdad para el estado de onboarding
+
+**Ubicación**: `lib/providers/auth_provider.dart:60-65` y `:161-165`
+
 ## Flujo de Datos
 
 ### Guardar Conversacion (LocalConversationsService)
