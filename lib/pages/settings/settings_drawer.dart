@@ -10,10 +10,6 @@ import 'package:omi/pages/settings/about.dart';
 import 'package:omi/pages/settings/data_privacy_page.dart';
 import 'package:omi/pages/settings/developer.dart';
 import 'package:omi/pages/settings/profile.dart';
-import 'package:omi/pages/settings/integrations_page.dart';
-import 'package:omi/pages/settings/usage_page.dart';
-import 'package:omi/pages/referral/referral_page.dart';
-import 'package:omi/providers/usage_provider.dart';
 import 'package:omi/utils/other/temp.dart';
 import 'package:omi/utils/platform/platform_service.dart';
 import 'package:omi/widgets/dialog.dart';
@@ -381,10 +377,8 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
   }
 
   Widget _buildOmiModeContent(BuildContext context) {
-    return Consumer<UsageProvider>(builder: (context, usageProvider, child) {
-      final bool showSubscription = usageProvider.subscription?.showSubscriptionUi ?? false;
-      return Column(
-        children: [
+    return Column(
+      children: [
           // Profile & Notifications Section
           _buildSectionContainer(
             children: [
@@ -394,21 +388,6 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 onTap: () {
                   Navigator.pop(context);
                   routeToPage(context, const ProfilePage());
-                },
-              ),
-              const Divider(height: 1, color: Color(0xFF3C3C43)),
-              _buildSettingsItem(
-                title: showSubscription
-                    ? (AppLocalizations.of(context)?.planAndUsage ?? 'Plan & Usage')
-                    : (AppLocalizations.of(context)?.usageInsights ?? 'Usage Insights'),
-                icon: const FaIcon(FontAwesomeIcons.chartLine, color: Color(0xFF8E8E93), size: 20),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const UsagePage(),
-                    ),
-                  );
                 },
               ),
               const Divider(height: 1, color: Color(0xFF3C3C43)),
@@ -437,67 +416,19 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                   );
                 },
               ),
-              const Divider(height: 1, color: Color(0xFF3C3C43)),
-              _buildSettingsItem(
-                title: AppLocalizations.of(context)?.chatTools ?? 'Chat Tools',
-                icon: const FaIcon(FontAwesomeIcons.networkWired, color: Color(0xFF8E8E93), size: 20),
-                showBetaTag: true,
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const IntegrationsPage(),
-                    ),
-                  );
-                },
-              ),
             ],
           ),
           const SizedBox(height: 32),
 
-          // Share & Get Section
+          // Share Section
           _buildSectionContainer(
             children: [
-              if (PlatformService.isIOS)
-                _buildSettingsItem(
-                  title: AppLocalizations.of(context)?.shareOmiIphone ?? 'Share Omi for iPhone',
-                  icon: const FaIcon(FontAwesomeIcons.solidShareFromSquare, color: Colors.white, size: 20),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await Share.share('https://apps.apple.com/us/app/omi-ai-scale-yourself/id6502156163');
-                  },
-                ),
-              if (PlatformService.isAndroid)
-                _buildSettingsItem(
-                  title: AppLocalizations.of(context)?.shareOmiAndroid ?? 'Share Omi for Android',
-                  icon: const FaIcon(FontAwesomeIcons.googlePlay, color: Color(0xFF8E8E93), size: 20),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await Share.share('https://play.google.com/store/apps/details?id=com.friend.ios');
-                  },
-                ),
-              const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
-                title: AppLocalizations.of(context)?.getOmiMac ?? 'Get Omi for Mac',
-                icon: const FaIcon(FontAwesomeIcons.desktop, color: Color(0xFF8E8E93), size: 20),
+                title: AppLocalizations.of(context)?.shareMaity ?? 'Share Maity',
+                icon: const FaIcon(FontAwesomeIcons.solidShareFromSquare, color: Color(0xFF8E8E93), size: 20),
                 onTap: () async {
                   Navigator.pop(context);
-                  final Uri url = Uri.parse('https://apps.apple.com/us/app/omi-ai-scale-yourself/id6502156163');
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                },
-              ),
-              const Divider(height: 1, color: Color(0xFF3C3C43)),
-              _buildSettingsItem(
-                title: AppLocalizations.of(context)?.referralProgram ?? 'Referral Program',
-                icon: const FaIcon(FontAwesomeIcons.gift, color: Color(0xFF8E8E93), size: 20),
-                showNewTag: true,
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const ReferralPage(),
-                    ),
-                  );
+                  await Share.share('https://maity.com.mx');
                 },
               ),
             ],
@@ -571,7 +502,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               ),
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
-                title: AppLocalizations.of(context)?.aboutOmi ?? 'About Omi',
+                title: AppLocalizations.of(context)?.aboutMaity ?? 'About Maity',
                 icon: const FaIcon(FontAwesomeIcons.infoCircle, color: Color(0xFF8E8E93), size: 20),
                 onTap: () {
                   Navigator.pop(context);
@@ -642,7 +573,6 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
           const SizedBox(height: 24),
         ],
       );
-    });
   }
 
   Widget _buildNoDeviceModeContent(BuildContext context) {
@@ -742,15 +672,28 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Stack(
               children: [
-                // Centered title
+                // Centered title and email
                 Center(
-                  child: Text(
-                    AppLocalizations.of(context)?.settings ?? 'Settings',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Column(
+                    children: [
+                      Text(
+                        AppLocalizations.of(context)?.settings ?? 'Settings',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        SharedPreferencesUtil().email ?? '',
+                        style: const TextStyle(
+                          color: Color(0xFF8E8E93),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 // Done button positioned to the right

@@ -98,6 +98,42 @@ La app tiene 2 tabs en la barra de navegación inferior:
 
 **Nota**: Los tabs de ActionItems, Memories y Apps fueron ocultados temporalmente.
 
+## Settings Drawer (Maity personalizado)
+El drawer de configuración ha sido personalizado para Maity:
+
+### Header
+- Título "Settings" / "Ajustes"
+- Email del usuario logueado (de SharedPreferencesUtil().email)
+
+### Secciones
+
+**Perfil y Dispositivo:**
+- Profile - Configuración de perfil
+- Storage - Sincronización de datos
+- Device Settings - Configuración Bluetooth
+
+**Compartir:**
+- Share Maity → maity.com.mx
+
+**Soporte (solo si Intercom habilitado):**
+- Feedback / Bug
+- Help Center
+
+**Privacidad y Configuración:**
+- Data & Privacy
+- Language - Selector de idioma (es/en)
+- Developer Settings
+- About Maity
+
+**Sesión:**
+- Sign Out
+
+**Removidos:**
+- Chat Tools (herramientas de integración)
+- Plan & Usage / Usage Insights (ya está en tab principal)
+- Get Omi for Mac
+- Referral Program
+
 ### Protección contra Guardados Duplicados
 `CaptureProvider` tiene un flag `_conversationFinalized` que previene guardados duplicados cuando:
 - `stopStreamRecording()` y `forceProcessingCurrentConversation()` se llaman en secuencia

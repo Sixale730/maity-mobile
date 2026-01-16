@@ -45,6 +45,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get referralProgram => 'Programa de Referidos';
 
   @override
+  String get shareMaity => 'Compartir Maity';
+
+  @override
+  String get aboutMaity => 'Acerca de Maity';
+
+  @override
   String get feedbackBug => 'Comentarios / Errores';
 
   @override

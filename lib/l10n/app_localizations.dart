@@ -164,6 +164,18 @@ abstract class AppLocalizations {
   /// **'Referral Program'**
   String get referralProgram;
 
+  /// No description provided for @shareMaity.
+  ///
+  /// In en, this message translates to:
+  /// **'Share Maity'**
+  String get shareMaity;
+
+  /// No description provided for @aboutMaity.
+  ///
+  /// In en, this message translates to:
+  /// **'About Maity'**
+  String get aboutMaity;
+
   /// No description provided for @feedbackBug.
   ///
   /// In en, this message translates to:

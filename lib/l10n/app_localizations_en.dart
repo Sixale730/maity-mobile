@@ -45,6 +45,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get referralProgram => 'Referral Program';
 
   @override
+  String get shareMaity => 'Share Maity';
+
+  @override
+  String get aboutMaity => 'About Maity';
+
+  @override
   String get feedbackBug => 'Feedback / Bug';
 
   @override
