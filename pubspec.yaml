@@ -206,9 +206,9 @@ flutter_gen:
 
 flutter_native_splash:
   color: "#000000"
-  image: assets/images/maity_icon.png
+  image: assets/images/maity_splash.png
   android_12:
-    image: assets/images/maity_icon.png
+    image: assets/images/maity_splash.png
     color: "#000000"
 
   android: true

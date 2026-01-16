@@ -98,6 +98,23 @@ La app tiene 2 tabs en la barra de navegación inferior:
 
 **Nota**: Los tabs de ActionItems, Memories y Apps fueron ocultados temporalmente.
 
+## Assets y Splash Screen
+
+### Imágenes de Logo
+- `assets/images/maity_icon.png` - Logo original (1340×1345 px) usado para app icon
+- `assets/images/maity_splash.png` - Logo para splash screen (1152×1152 px, logo ~600px centrado)
+
+### Splash Screen (Android 12+)
+Android 12+ aplica una máscara circular de 768px sobre el splash icon. Para evitar que los 6 círculos decorativos del logo se corten:
+
+- `maity_splash.png` tiene el logo redimensionado a ~600px y centrado en canvas de 1152×1152
+- Configurado en `pubspec.yaml` sección `flutter_native_splash`
+- Regenerar con: `dart run flutter_native_splash:create`
+
+Archivos generados automáticamente en `android/app/src/main/res/drawable-*/`:
+- `splash.png` - Splash para Android <12
+- `android12splash.png` - Splash para Android 12+
+
 ## Settings Drawer (Maity personalizado)
 El drawer de configuración ha sido personalizado para Maity:
 
