@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/conversation_provider.dart';
 import 'package:omi/providers/home_provider.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
@@ -65,9 +66,9 @@ class _SearchWidgetState extends State<SearchWidget> {
                       CupertinoButton(
                         padding: EdgeInsets.zero,
                         onPressed: () => Navigator.of(context).pop(),
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(
+                        child: Text(
+                          AppLocalizations.of(context)?.cancel ?? 'Cancel',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                           ),
@@ -84,9 +85,9 @@ class _SearchWidgetState extends State<SearchWidget> {
                             MixpanelManager().calendarFilterApplied(selectedDate);
                           }
                         },
-                        child: const Text(
-                          'Done',
-                          style: TextStyle(
+                        child: Text(
+                          AppLocalizations.of(context)?.done ?? 'Done',
+                          style: const TextStyle(
                             color: Colors.deepPurple,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -154,7 +155,7 @@ class _SearchWidgetState extends State<SearchWidget> {
                 setShowClearButton();
               },
               decoration: InputDecoration(
-                hintText: 'Search Conversations',
+                hintText: AppLocalizations.of(context)?.searchConversations ?? 'Search Conversations',
                 hintStyle: const TextStyle(color: Colors.white60, fontSize: 14),
                 filled: true,
                 fillColor: const Color(0xFF1F1F25),
@@ -215,8 +216,8 @@ class _SearchWidgetState extends State<SearchWidget> {
                     size: 20,
                   ),
                   tooltip: convoProvider.useSemanticSearch
-                      ? 'Semantic search (AI)'
-                      : 'Text search',
+                      ? AppLocalizations.of(context)?.semanticSearchAI ?? 'Semantic search (AI)'
+                      : AppLocalizations.of(context)?.textSearch ?? 'Text search',
                 ),
               );
             },
@@ -249,8 +250,8 @@ class _SearchWidgetState extends State<SearchWidget> {
                     size: 18,
                   ),
                   tooltip: convoProvider.selectedDate != null
-                      ? 'Filtered by ${DateFormat('MMM d, yyyy').format(convoProvider.selectedDate!)} - Tap to clear'
-                      : 'Filter by date',
+                      ? AppLocalizations.of(context)?.filteredByDate(DateFormat('MMM d, yyyy').format(convoProvider.selectedDate!)) ?? 'Filtered by ${DateFormat('MMM d, yyyy').format(convoProvider.selectedDate!)} - Tap to clear'
+                      : AppLocalizations.of(context)?.filterByDate ?? 'Filter by date',
                 ),
               );
             },

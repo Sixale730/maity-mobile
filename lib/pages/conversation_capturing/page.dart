@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/message_event.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/capture/widgets/widgets.dart';
 import 'package:omi/pages/conversation_detail/page.dart';
 import 'package:omi/pages/conversation_detail/widgets/name_speaker_sheet.dart';
@@ -98,37 +99,38 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
       }
       showDialog(
         context: context,
-        builder: (context) {
+        builder: (dialogContext) {
           return StatefulBuilder(
-            builder: (context, setState) {
+            builder: (dialogContext, setState) {
               final timeoutDuration = SharedPreferencesUtil().conversationSilenceDuration;
               String timeoutText;
               if (timeoutDuration == -1) {
-                timeoutText = "Conversation will only end manually.";
+                timeoutText = AppLocalizations.of(context)?.conversationEndsManually ?? "Conversation will only end manually.";
               } else {
                 final minutes = timeoutDuration ~/ 60;
+                final suffix = minutes == 1 ? '' : 's';
                 timeoutText =
-                    "Conversation is summarized after $minutes minute${minutes == 1 ? '' : 's'} of no speech.";
+                    AppLocalizations.of(context)?.conversationSummarizedAfter(minutes, suffix) ?? "Conversation is summarized after $minutes minute$suffix of no speech.";
               }
 
               return ConfirmationDialog(
-                title: "Finished Conversation?",
+                title: AppLocalizations.of(context)?.finishedConversation ?? "Finished Conversation?",
                 description:
-                    "Are you sure you want to stop recording and summarize the conversation now?\n\nHints: $timeoutText",
+                    "${AppLocalizations.of(context)?.stopRecordingConfirm ?? 'Are you sure you want to stop recording and summarize the conversation now?'}\n\n${AppLocalizations.of(context)?.hints ?? 'Hints'}: $timeoutText",
                 checkboxValue: !showSummarizeConfirmation,
-                checkboxText: "Don't ask me again",
+                checkboxText: AppLocalizations.of(context)?.dontAskAgain ?? "Don't ask me again",
                 onCheckboxChanged: (value) {
                   setState(() {
                     showSummarizeConfirmation = !value;
                   });
                 },
                 onCancel: () {
-                  Navigator.of(context).pop();
+                  Navigator.of(dialogContext).pop();
                 },
                 onConfirm: () async {
                   SharedPreferencesUtil().showSummarizeConfirmation = showSummarizeConfirmation;
                   await stopRecordingAndProcess();
-                  Navigator.of(context).pop();
+                  Navigator.of(dialogContext).pop();
                   Navigator.of(context).pop();
                 },
               );
@@ -166,7 +168,7 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
                   const SizedBox(width: 4),
                   Text(provider.photos.isNotEmpty ? "📸" : "🎙️"),
                   const SizedBox(width: 4),
-                  const Expanded(child: Text("Listening")),
+                  Expanded(child: Text(AppLocalizations.of(context)?.listening ?? "Listening")),
                 ],
               ),
             ),
@@ -181,10 +183,10 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
                       children: [
                         // Transcripts, photos
                         provider.segments.isEmpty && provider.photos.isEmpty
-                            ? const Center(
+                            ? Center(
                                 child: Padding(
-                                  padding: EdgeInsets.only(top: 50.0),
-                                  child: Text("Waiting for transcript or photos..."),
+                                  padding: const EdgeInsets.only(top: 50.0),
+                                  child: Text(AppLocalizations.of(context)?.waitingForTranscript ?? "Waiting for transcript or photos..."),
                                 ),
                               )
                             : getTranscriptWidget(
@@ -237,8 +239,8 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
                                 const EdgeInsets.symmetric(horizontal: 32.0).copyWith(bottom: 50.0), // Adjust padding
                             child: Text(
                               provider.segments.isEmpty && provider.photos.isEmpty
-                                  ? "No summary yet"
-                                  : _getTimeoutDisplayText(),
+                                  ? AppLocalizations.of(context)?.noSummaryYet ?? "No summary yet"
+                                  : _getTimeoutDisplayText(context),
                               textAlign: TextAlign.center,
                               style: TextStyle(fontSize: provider.segments.isEmpty ? 16 : 22),
                             ),
@@ -284,13 +286,14 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
     );
   }
 
-  String _getTimeoutDisplayText() {
+  String _getTimeoutDisplayText(BuildContext context) {
     final timeoutDuration = SharedPreferencesUtil().conversationSilenceDuration;
     if (timeoutDuration == -1) {
-      return "Conversation will only end manually 🤫";
+      return "${AppLocalizations.of(context)?.conversationEndsManually ?? 'Conversation will only end manually.'} 🤫";
     } else {
       final minutes = timeoutDuration ~/ 60;
-      return "Conversation is summarized after $minutes minute${minutes == 1 ? '' : 's'} of no speech 🤫";
+      final suffix = minutes == 1 ? '' : 's';
+      return "${AppLocalizations.of(context)?.conversationSummarizedAfter(minutes, suffix) ?? 'Conversation is summarized after $minutes minute$suffix of no speech.'} 🤫";
     }
   }
 }

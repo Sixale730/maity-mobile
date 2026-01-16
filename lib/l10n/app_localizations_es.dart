@@ -219,6 +219,111 @@ class AppLocalizationsEs extends AppLocalizations {
   String get people => 'Personas';
 
   @override
+  String get speechProfile => 'Perfil de Voz';
+
+  @override
+  String get voiceProfileTrained => 'Entrenado';
+
+  @override
+  String get identifyingOthers => 'Identificar a Otros';
+
+  @override
+  String get conversationTimeout => 'Tiempo de Conversación';
+
+  @override
+  String get importData => 'Importar Datos';
+
+  @override
+  String get maityNeedsToLearnVoice => 'Maity necesita aprender tu voz para poder reconocerte.';
+
+  @override
+  String get howToTakeGoodSample => '¿Cómo tomar una buena muestra?';
+
+  @override
+  String get howToTakeGoodSampleDesc =>
+      '1. Asegúrate de estar en un lugar tranquilo.\n2. Habla clara y naturalmente.\n3. Asegúrate de que tu dispositivo esté en su posición natural, en tu cuello.\n\nUna vez creado, siempre puedes mejorarlo o hacerlo de nuevo.';
+
+  @override
+  String get introduceYourself => 'Preséntate';
+
+  @override
+  String get doItAgain => 'Hacerlo de nuevo';
+
+  @override
+  String get listenToMySpeechProfile => 'Escuchar mi perfil de voz';
+
+  @override
+  String get recognizingOthers => 'Reconocer a otros';
+
+  @override
+  String get allDone => '¡Listo!';
+
+  @override
+  String get skipForNow => 'Omitir por ahora';
+
+  @override
+  String get multipleSpeakersDetected => 'Múltiples hablantes detectados';
+
+  @override
+  String get multipleSpeakersDesc =>
+      'Parece que hay múltiples hablantes en la grabación. Asegúrate de estar en un lugar tranquilo e intenta de nuevo.';
+
+  @override
+  String get tryAgain => 'Intentar de nuevo';
+
+  @override
+  String get invalidRecordingDetected => 'Grabación inválida detectada';
+
+  @override
+  String get notEnoughSpeech => 'No se detectó suficiente habla. Por favor habla más e intenta de nuevo.';
+
+  @override
+  String get invalidRecordingDesc => 'Asegúrate de hablar por al menos 5 segundos y no más de 90.';
+
+  @override
+  String get authenticationRequired => 'Autenticación Requerida';
+
+  @override
+  String get authRequiredDesc =>
+      'Necesitas iniciar sesión para crear tu perfil de voz. Por favor inicia sesión e intenta de nuevo.';
+
+  @override
+  String get voiceProfileError => 'Error de Perfil de Voz';
+
+  @override
+  String get voiceProfileErrorDesc =>
+      'No se pudo guardar tu perfil de voz. Por favor verifica tu conexión a internet e intenta de nuevo.';
+
+  @override
+  String get verificationError => 'Error de Verificación';
+
+  @override
+  String get verificationErrorDesc => 'Tu perfil de voz no se guardó correctamente. Por favor intenta de nuevo.';
+
+  @override
+  String get deviceDisconnected => 'Dispositivo Desconectado';
+
+  @override
+  String get deviceDisconnectedDesc => 'Asegúrate de que tu dispositivo esté encendido y cerca, e intenta de nuevo.';
+
+  @override
+  String get deviceUpdateRequired => 'Actualización de Dispositivo Requerida';
+
+  @override
+  String get deviceUpdateRequiredDesc =>
+      'Tu dispositivo tiene una versión de firmware antigua (1.0.2). Por favor revisa nuestra guía para actualizarlo.';
+
+  @override
+  String get viewGuide => 'Ver Guía';
+
+  @override
+  String get connectionError => 'Error de Conexión';
+
+  @override
+  String get connectionErrorDesc =>
+      'No se pudo iniciar la grabación del perfil de voz. Por favor verifica tu conexión a internet e intenta de nuevo.';
+
+  @override
   String get notifications => 'Notificaciones';
 
   @override
@@ -491,4 +596,201 @@ class AppLocalizationsEs extends AppLocalizations {
   String nMemories(String count) {
     return '$count recuerdos';
   }
+
+  @override
+  String get deletingMessages => 'Eliminando tus mensajes de la memoria de Maity...';
+
+  @override
+  String get noMessagesYet => '¡Aún no hay mensajes!\n¿Por qué no inicias una conversación?';
+
+  @override
+  String get checkInternetConnection => 'Por favor verifica tu conexión a internet e intenta de nuevo';
+
+  @override
+  String get messageCopied => 'Mensaje copiado al portapapeles.';
+
+  @override
+  String get thankYouFeedback => '¡Gracias por tu opinión!';
+
+  @override
+  String get cannotReportOwnMessage => 'No puedes reportar tus propios mensajes.';
+
+  @override
+  String get messageReported => 'Mensaje reportado exitosamente.';
+
+  @override
+  String get reportMessage => 'Reportar Mensaje';
+
+  @override
+  String get reportMessageConfirm => '¿Estás seguro de que quieres reportar este mensaje?';
+
+  @override
+  String get clearChat => 'Limpiar Chat';
+
+  @override
+  String get clearChatQuestion => '¿Limpiar Chat?';
+
+  @override
+  String get clearChatConfirm => '¿Estás seguro de que quieres limpiar el chat? Esta acción no se puede deshacer.';
+
+  @override
+  String get enableApps => 'Habilitar Apps';
+
+  @override
+  String get selected => 'Seleccionado';
+
+  @override
+  String get syncingMessages => 'Sincronizando mensajes con el servidor...';
+
+  @override
+  String get askAnything => 'Pregunta lo que sea';
+
+  @override
+  String get maxFilesLimit => 'Solo puedes subir 4 archivos a la vez';
+
+  @override
+  String get takePhoto => 'Tomar Foto';
+
+  @override
+  String get photoLibrary => 'Biblioteca de Fotos';
+
+  @override
+  String get chooseFile => 'Elegir Archivo';
+
+  @override
+  String get dismiss => 'Cerrar';
+
+  @override
+  String get waitingForTranscript => 'Esperando transcripción o fotos...';
+
+  @override
+  String get noSummaryYet => 'Aún no hay resumen';
+
+  @override
+  String get finishedConversation => '¿Conversación terminada?';
+
+  @override
+  String get stopRecordingConfirm =>
+      '¿Estás seguro de que quieres detener la grabación y resumir la conversación ahora?';
+
+  @override
+  String get hints => 'Consejos';
+
+  @override
+  String get dontAskAgain => 'No preguntar de nuevo';
+
+  @override
+  String conversationSummarizedAfter(int minutes, String suffix) {
+    return 'La conversación se resume después de $minutes minuto$suffix sin hablar.';
+  }
+
+  @override
+  String get conversationEndsManually => 'La conversación solo terminará manualmente.';
+
+  @override
+  String get searchConversations => 'Buscar Conversaciones';
+
+  @override
+  String get semanticSearchAI => 'Búsqueda semántica (IA)';
+
+  @override
+  String get textSearch => 'Búsqueda de texto';
+
+  @override
+  String get filterByDate => 'Filtrar por fecha';
+
+  @override
+  String filteredByDate(String date) {
+    return 'Filtrado por $date - Toca para limpiar';
+  }
+
+  @override
+  String get noInternetConnection => 'Sin conexión a internet. Por favor verifica tu conexión.';
+
+  @override
+  String get internetRestored => 'Conexión a internet restaurada.';
+
+  @override
+  String get searching => 'Buscando';
+
+  @override
+  String get setYourName => 'Configura tu Nombre';
+
+  @override
+  String get changeYourName => 'Cambiar tu Nombre';
+
+  @override
+  String get primaryLanguage => 'Idioma Principal';
+
+  @override
+  String get persona => 'Persona';
+
+  @override
+  String get helpImproveApp => 'Ayuda a mejorar Maity compartiendo datos de análisis anónimos';
+
+  @override
+  String get userId => 'ID de Usuario';
+
+  @override
+  String get userIdCopied => 'ID de usuario copiado al portapapeles';
+
+  @override
+  String get deleteAccount => 'Eliminar Cuenta';
+
+  @override
+  String get deleteAccountDesc => 'Eliminar tu cuenta y todos los datos';
+
+  @override
+  String get copiedToClipboard => 'Copiado al portapapeles';
+
+  @override
+  String get offline => 'Sin conexión';
+
+  @override
+  String get batteryLevel => 'Nivel de Batería';
+
+  @override
+  String get productUpdate => 'Actualización del Producto';
+
+  @override
+  String get deviceMustBeConnected => 'El dispositivo debe estar conectado';
+
+  @override
+  String get sdCardSync => 'Sincronizar Tarjeta SD';
+
+  @override
+  String get importAudioFiles => 'Importar archivos de audio de la tarjeta SD';
+
+  @override
+  String get chargingIssues => '¿Problemas cargando el dispositivo?';
+
+  @override
+  String get tapToSeeGuide => 'Toca para ver la guía';
+
+  @override
+  String get unpair => 'Desvincular';
+
+  @override
+  String get disconnect => 'Desconectar';
+
+  @override
+  String get productName => 'Nombre del Producto';
+
+  @override
+  String get modelNumber => 'Número de Modelo';
+
+  @override
+  String get manufacturerName => 'Nombre del Fabricante';
+
+  @override
+  String get firmwareVersion => 'Versión de Firmware';
+
+  @override
+  String get deviceIdLabel => 'ID del Dispositivo';
+
+  @override
+  String get serialNumber => 'Número de Serie';
+
+  @override
+  String get unknown => 'Desconocido';
 }

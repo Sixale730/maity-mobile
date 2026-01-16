@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/device_provider.dart';
 import 'package:omi/services/services.dart';
@@ -61,8 +62,9 @@ class _ConnectedDeviceState extends State<ConnectedDevice> {
     bool isLast = false,
     VoidCallback? onTap,
     bool isRedBackground = false,
+    bool isDisabled = false,
   }) {
-    final bool canCopy = value.isNotEmpty && !value.contains('Device must be connected');
+    final bool canCopy = value.isNotEmpty && !isDisabled;
 
     return GestureDetector(
       onTap: onTap ?? (canCopy ? () => _copyToClipboard(value) : null),
@@ -90,7 +92,7 @@ class _ConnectedDeviceState extends State<ConnectedDevice> {
                     style: TextStyle(
                       color: isRedBackground
                           ? Colors.red.shade300
-                          : (onTap == null && !hasArrow && value.contains('Device must be connected'))
+                          : isDisabled
                               ? Colors.grey.shade500
                               : Colors.white,
                       fontSize: 16,
@@ -104,7 +106,7 @@ class _ConnectedDeviceState extends State<ConnectedDevice> {
                       style: TextStyle(
                         color: isRedBackground
                             ? Colors.red.shade200
-                            : (onTap == null && !hasArrow && value.contains('Device must be connected'))
+                            : isDisabled
                                 ? Colors.grey.shade500
                                 : Colors.white54,
                         fontSize: 14,
@@ -132,7 +134,7 @@ class _ConnectedDeviceState extends State<ConnectedDevice> {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Copied to clipboard: $text'),
+        content: Text('${AppLocalizations.of(context)?.copiedToClipboard ?? "Copied to clipboard"}: $text'),
         duration: const Duration(seconds: 2),
         backgroundColor: Colors.green,
       ),
@@ -158,7 +160,7 @@ class _ConnectedDeviceState extends State<ConnectedDevice> {
                   Column(
                     children: [
                       Text(
-                        provider.pairedDevice?.name ?? 'Unknown Device',
+                        provider.pairedDevice?.name ?? (AppLocalizations.of(context)?.unknownDevice ?? 'Unknown Device'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 32,
@@ -188,7 +190,9 @@ class _ConnectedDeviceState extends State<ConnectedDevice> {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              provider.connectedDevice != null ? 'Connected' : 'Offline',
+                              provider.connectedDevice != null
+                                  ? (AppLocalizations.of(context)?.connected ?? 'Connected')
+                                  : (AppLocalizations.of(context)?.offline ?? 'Offline'),
                               style: TextStyle(
                                 color: provider.connectedDevice != null ? Colors.green : Colors.grey,
                                 fontSize: 14,
@@ -237,9 +241,9 @@ class _ConnectedDeviceState extends State<ConnectedDevice> {
                                   size: 20,
                                 ),
                                 const SizedBox(width: 12),
-                                const Text(
-                                  'Battery Level',
-                                  style: TextStyle(
+                                Text(
+                                  AppLocalizations.of(context)?.batteryLevel ?? 'Battery Level',
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
@@ -267,10 +271,13 @@ class _ConnectedDeviceState extends State<ConnectedDevice> {
                           child: Column(
                             children: [
                               _buildSectionRow(
-                                'Product Update',
-                                provider.connectedDevice == null ? 'Device must be connected' : '',
+                                AppLocalizations.of(context)?.productUpdate ?? 'Product Update',
+                                provider.connectedDevice == null
+                                    ? (AppLocalizations.of(context)?.deviceMustBeConnected ?? 'Device must be connected')
+                                    : '',
                                 hasArrow: provider.connectedDevice != null,
                                 isFirst: true,
+                                isDisabled: provider.connectedDevice == null,
                                 onTap: provider.connectedDevice != null
                                     ? () {
                                         Navigator.of(context).push(
@@ -283,8 +290,8 @@ class _ConnectedDeviceState extends State<ConnectedDevice> {
                               ),
                               if (provider.isDeviceStorageSupport)
                                 _buildSectionRow(
-                                  'SD Card Sync',
-                                  'Import audio files from SD Card',
+                                  AppLocalizations.of(context)?.sdCardSync ?? 'SD Card Sync',
+                                  AppLocalizations.of(context)?.importAudioFiles ?? 'Import audio files from SD Card',
                                   hasArrow: true,
                                   onTap: () {
                                     Navigator.of(context).push(
@@ -295,8 +302,8 @@ class _ConnectedDeviceState extends State<ConnectedDevice> {
                                   },
                                 ),
                               _buildSectionRow(
-                                'Issues charging the device?',
-                                'Tap to see the guide',
+                                AppLocalizations.of(context)?.chargingIssues ?? 'Issues charging the device?',
+                                AppLocalizations.of(context)?.tapToSeeGuide ?? 'Tap to see the guide',
                                 hasArrow: true,
                                 onTap: () async {
                                   await IntercomManager.instance
@@ -304,7 +311,9 @@ class _ConnectedDeviceState extends State<ConnectedDevice> {
                                 },
                               ),
                               _buildSectionRow(
-                                provider.connectedDevice == null ? 'Unpair' : 'Disconnect',
+                                provider.connectedDevice == null
+                                    ? (AppLocalizations.of(context)?.unpair ?? 'Unpair')
+                                    : (AppLocalizations.of(context)?.disconnect ?? 'Disconnect'),
                                 '',
                                 hasArrow: true,
                                 isLast: true,
@@ -339,35 +348,35 @@ class _ConnectedDeviceState extends State<ConnectedDevice> {
                           child: Column(
                             children: [
                               _buildSectionRow(
-                                'Product Name',
-                                provider.pairedDevice?.name ?? 'Unknown Device',
+                                AppLocalizations.of(context)?.productName ?? 'Product Name',
+                                provider.pairedDevice?.name ?? (AppLocalizations.of(context)?.unknownDevice ?? 'Unknown Device'),
                                 hasArrow: false,
                                 isFirst: true,
                               ),
                               _buildSectionRow(
-                                'Model Number',
-                                provider.pairedDevice?.modelNumber ?? 'Unknown',
+                                AppLocalizations.of(context)?.modelNumber ?? 'Model Number',
+                                provider.pairedDevice?.modelNumber ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown'),
                                 hasArrow: false,
                               ),
                               _buildSectionRow(
-                                'Manufacturer Name',
-                                provider.pairedDevice?.manufacturerName ?? 'Unknown',
+                                AppLocalizations.of(context)?.manufacturerName ?? 'Manufacturer Name',
+                                provider.pairedDevice?.manufacturerName ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown'),
                                 hasArrow: false,
                               ),
                               _buildSectionRow(
-                                'Firmware Version',
-                                provider.pairedDevice?.firmwareRevision ?? 'Unknown',
+                                AppLocalizations.of(context)?.firmwareVersion ?? 'Firmware Version',
+                                provider.pairedDevice?.firmwareRevision ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown'),
                                 hasArrow: false,
                               ),
                               _buildSectionRow(
-                                'Device ID',
-                                provider.pairedDevice?.id ?? 'Unknown',
+                                AppLocalizations.of(context)?.deviceIdLabel ?? 'Device ID',
+                                provider.pairedDevice?.id ?? (AppLocalizations.of(context)?.unknown ?? 'Unknown'),
                                 hasArrow: false,
                               ),
                               _buildSectionRow(
-                                'Serial Number',
+                                AppLocalizations.of(context)?.serialNumber ?? 'Serial Number',
                                 provider.pairedDevice?.id.replaceAll(':', '').replaceAll('-', '').toUpperCase() ??
-                                    'Unknown',
+                                    (AppLocalizations.of(context)?.unknown ?? 'Unknown'),
                                 hasArrow: false,
                               ),
                             ],

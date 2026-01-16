@@ -10,6 +10,7 @@ import 'package:omi/backend/http/api/users.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/app.dart';
 import 'package:omi/backend/schema/geolocation.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/main.dart';
 import 'package:omi/pages/apps/app_detail/app_detail.dart';
 import 'package:omi/pages/chat/page.dart';
@@ -322,9 +323,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                 if (mounted && !connectivityProvider.isConnected) {
                   ScaffoldMessenger.of(ctx).showMaterialBanner(
                     MaterialBanner(
-                      content: const Text(
-                        'No internet connection. Please check your connection.',
-                        style: TextStyle(color: Colors.white70),
+                      content: Text(
+                        AppLocalizations.of(ctx)?.noInternetConnection ?? 'No internet connection. Please check your connection.',
+                        style: const TextStyle(color: Colors.white70),
                       ),
                       backgroundColor: const Color(0xFF424242), // Dark gray instead of red
                       leading: const Icon(Icons.wifi_off, color: Colors.white70),
@@ -333,7 +334,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                           onPressed: () {
                             ScaffoldMessenger.of(ctx).hideCurrentMaterialBanner();
                           },
-                          child: const Text('Dismiss', style: TextStyle(color: Colors.white70)),
+                          child: Text(AppLocalizations.of(ctx)?.dismiss ?? 'Dismiss', style: const TextStyle(color: Colors.white70)),
                         ),
                       ],
                     ),
@@ -346,9 +347,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                   ScaffoldMessenger.of(ctx).hideCurrentMaterialBanner();
                   ScaffoldMessenger.of(ctx).showMaterialBanner(
                     MaterialBanner(
-                      content: const Text(
-                        'Internet connection is restored.',
-                        style: TextStyle(color: Colors.white),
+                      content: Text(
+                        AppLocalizations.of(ctx)?.internetRestored ?? 'Internet connection is restored.',
+                        style: const TextStyle(color: Colors.white),
                       ),
                       backgroundColor: const Color(0xFF2E7D32), // Dark green instead of bright green
                       leading: const Icon(Icons.wifi, color: Colors.white),
@@ -359,7 +360,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                               ScaffoldMessenger.of(ctx).hideCurrentMaterialBanner();
                             }
                           },
-                          child: const Text('Dismiss', style: TextStyle(color: Colors.white)),
+                          child: Text(AppLocalizations.of(ctx)?.dismiss ?? 'Dismiss', style: const TextStyle(color: Colors.white)),
                         ),
                       ],
                       onVisible: () => Future.delayed(const Duration(seconds: 3), () {
@@ -678,18 +679,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                         width: 0.5,
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           FontAwesomeIcons.solidComment,
                           size: 14,
                           color: Colors.white70,
                         ),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 6),
                         Text(
-                          'Chat',
-                          style: TextStyle(
+                          AppLocalizations.of(context)?.chat ?? 'Chat',
+                          style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 14,
                             fontWeight: FontWeight.w500,

@@ -219,6 +219,110 @@ class AppLocalizationsEn extends AppLocalizations {
   String get people => 'People';
 
   @override
+  String get speechProfile => 'Speech Profile';
+
+  @override
+  String get voiceProfileTrained => 'Trained';
+
+  @override
+  String get identifyingOthers => 'Identifying Others';
+
+  @override
+  String get conversationTimeout => 'Conversation Timeout';
+
+  @override
+  String get importData => 'Import Data';
+
+  @override
+  String get maityNeedsToLearnVoice => 'Maity needs to learn your voice to be able to recognise you.';
+
+  @override
+  String get howToTakeGoodSample => 'How to take a good sample?';
+
+  @override
+  String get howToTakeGoodSampleDesc =>
+      '1. Make sure you are in a quiet place.\n2. Speak clearly and naturally.\n3. Make sure your device is in it\'s natural position, on your neck.\n\nOnce it\'s created, you can always improve it or do it again.';
+
+  @override
+  String get introduceYourself => 'Introduce\nyourself';
+
+  @override
+  String get doItAgain => 'Do it again';
+
+  @override
+  String get listenToMySpeechProfile => 'Listen to my speech profile';
+
+  @override
+  String get recognizingOthers => 'Recognizing others';
+
+  @override
+  String get allDone => 'All done!';
+
+  @override
+  String get skipForNow => 'Skip for now';
+
+  @override
+  String get multipleSpeakersDetected => 'Multiple speakers detected';
+
+  @override
+  String get multipleSpeakersDesc =>
+      'It seems like there are multiple speakers in the recording. Please make sure you are in a quiet location and try again.';
+
+  @override
+  String get tryAgain => 'Try Again';
+
+  @override
+  String get invalidRecordingDetected => 'Invalid recording detected';
+
+  @override
+  String get notEnoughSpeech => 'There is not enough speech detected. Please speak more and try again.';
+
+  @override
+  String get invalidRecordingDesc => 'Please make sure you speak for at least 5 seconds and not more than 90.';
+
+  @override
+  String get authenticationRequired => 'Authentication Required';
+
+  @override
+  String get authRequiredDesc => 'You need to be signed in to create your voice profile. Please sign in and try again.';
+
+  @override
+  String get voiceProfileError => 'Voice Profile Error';
+
+  @override
+  String get voiceProfileErrorDesc =>
+      'Could not save your voice profile. Please check your internet connection and try again.';
+
+  @override
+  String get verificationError => 'Verification Error';
+
+  @override
+  String get verificationErrorDesc => 'Your voice profile was not saved correctly. Please try again.';
+
+  @override
+  String get deviceDisconnected => 'Device Disconnected';
+
+  @override
+  String get deviceDisconnectedDesc => 'Please make sure your device is turned on and nearby, and try again.';
+
+  @override
+  String get deviceUpdateRequired => 'Device Update Required';
+
+  @override
+  String get deviceUpdateRequiredDesc =>
+      'Your current device has an old firmware version (1.0.2). Please check our guide on how to update it.';
+
+  @override
+  String get viewGuide => 'View Guide';
+
+  @override
+  String get connectionError => 'Connection Error';
+
+  @override
+  String get connectionErrorDesc =>
+      'Failed to start speech profile recording. Please check your internet connection and try again.';
+
+  @override
   String get notifications => 'Notifications';
 
   @override
@@ -490,4 +594,200 @@ class AppLocalizationsEn extends AppLocalizations {
   String nMemories(String count) {
     return '$count memories';
   }
+
+  @override
+  String get deletingMessages => 'Deleting your messages from Maity\'s memory...';
+
+  @override
+  String get noMessagesYet => 'No messages yet!\nWhy don\'t you start a conversation?';
+
+  @override
+  String get checkInternetConnection => 'Please check your internet connection and try again';
+
+  @override
+  String get messageCopied => 'Message copied to clipboard.';
+
+  @override
+  String get thankYouFeedback => 'Thank you for your feedback!';
+
+  @override
+  String get cannotReportOwnMessage => 'You cannot report your own messages.';
+
+  @override
+  String get messageReported => 'Message reported successfully.';
+
+  @override
+  String get reportMessage => 'Report Message';
+
+  @override
+  String get reportMessageConfirm => 'Are you sure you want to report this message?';
+
+  @override
+  String get clearChat => 'Clear Chat';
+
+  @override
+  String get clearChatQuestion => 'Clear Chat?';
+
+  @override
+  String get clearChatConfirm => 'Are you sure you want to clear the chat? This action cannot be undone.';
+
+  @override
+  String get enableApps => 'Enable Apps';
+
+  @override
+  String get selected => 'Selected';
+
+  @override
+  String get syncingMessages => 'Syncing messages with server...';
+
+  @override
+  String get askAnything => 'Ask anything';
+
+  @override
+  String get maxFilesLimit => 'You can only upload 4 files at a time';
+
+  @override
+  String get takePhoto => 'Take Photo';
+
+  @override
+  String get photoLibrary => 'Photo Library';
+
+  @override
+  String get chooseFile => 'Choose File';
+
+  @override
+  String get dismiss => 'Dismiss';
+
+  @override
+  String get waitingForTranscript => 'Waiting for transcript or photos...';
+
+  @override
+  String get noSummaryYet => 'No summary yet';
+
+  @override
+  String get finishedConversation => 'Finished Conversation?';
+
+  @override
+  String get stopRecordingConfirm => 'Are you sure you want to stop recording and summarize the conversation now?';
+
+  @override
+  String get hints => 'Hints';
+
+  @override
+  String get dontAskAgain => 'Don\'t ask me again';
+
+  @override
+  String conversationSummarizedAfter(int minutes, String suffix) {
+    return 'Conversation is summarized after $minutes minute$suffix of no speech.';
+  }
+
+  @override
+  String get conversationEndsManually => 'Conversation will only end manually.';
+
+  @override
+  String get searchConversations => 'Search Conversations';
+
+  @override
+  String get semanticSearchAI => 'Semantic search (AI)';
+
+  @override
+  String get textSearch => 'Text search';
+
+  @override
+  String get filterByDate => 'Filter by date';
+
+  @override
+  String filteredByDate(String date) {
+    return 'Filtered by $date - Tap to clear';
+  }
+
+  @override
+  String get noInternetConnection => 'No internet connection. Please check your connection.';
+
+  @override
+  String get internetRestored => 'Internet connection is restored.';
+
+  @override
+  String get searching => 'Searching';
+
+  @override
+  String get setYourName => 'Set Your Name';
+
+  @override
+  String get changeYourName => 'Change Your Name';
+
+  @override
+  String get primaryLanguage => 'Primary Language';
+
+  @override
+  String get persona => 'Persona';
+
+  @override
+  String get helpImproveApp => 'Help improve Maity by sharing anonymized analytics data';
+
+  @override
+  String get userId => 'User ID';
+
+  @override
+  String get userIdCopied => 'User ID copied to clipboard';
+
+  @override
+  String get deleteAccount => 'Delete Account';
+
+  @override
+  String get deleteAccountDesc => 'Delete your account and all data';
+
+  @override
+  String get copiedToClipboard => 'Copied to clipboard';
+
+  @override
+  String get offline => 'Offline';
+
+  @override
+  String get batteryLevel => 'Battery Level';
+
+  @override
+  String get productUpdate => 'Product Update';
+
+  @override
+  String get deviceMustBeConnected => 'Device must be connected';
+
+  @override
+  String get sdCardSync => 'SD Card Sync';
+
+  @override
+  String get importAudioFiles => 'Import audio files from SD Card';
+
+  @override
+  String get chargingIssues => 'Issues charging the device?';
+
+  @override
+  String get tapToSeeGuide => 'Tap to see the guide';
+
+  @override
+  String get unpair => 'Unpair';
+
+  @override
+  String get disconnect => 'Disconnect';
+
+  @override
+  String get productName => 'Product Name';
+
+  @override
+  String get modelNumber => 'Model Number';
+
+  @override
+  String get manufacturerName => 'Manufacturer Name';
+
+  @override
+  String get firmwareVersion => 'Firmware Version';
+
+  @override
+  String get deviceIdLabel => 'Device ID';
+
+  @override
+  String get serialNumber => 'Serial Number';
+
+  @override
+  String get unknown => 'Unknown';
 }

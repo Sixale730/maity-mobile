@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_provider_utilities/flutter_provider_utilities.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/home/page.dart';
 import 'package:omi/pages/settings/language_selection_dialog.dart';
 import 'package:omi/pages/settings/people.dart';
@@ -126,6 +127,7 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
             }
           },
           showError: (error) {
+            final l10n = AppLocalizations.of(context);
             if (error == 'MULTIPLE_SPEAKERS') {
               showDialog(
                 context: context,
@@ -136,9 +138,9 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                     Navigator.pop(context);
                   },
                   () {},
-                  'Multiple speakers detected',
-                  'It seems like there are multiple speakers in the recording. Please make sure you are in a quiet location and try again.',
-                  okButtonText: 'Try Again',
+                  l10n?.multipleSpeakersDetected ?? 'Multiple speakers detected',
+                  l10n?.multipleSpeakersDesc ?? 'It seems like there are multiple speakers in the recording. Please make sure you are in a quiet location and try again.',
+                  okButtonText: l10n?.tryAgain ?? 'Try Again',
                   singleButton: true,
                 ),
                 barrierDismissible: false,
@@ -153,9 +155,9 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                     Navigator.pop(context);
                   },
                   () {},
-                  'Invalid recording detected',
-                  'There is not enough speech detected. Please speak more and try again.',
-                  okButtonText: 'Ok',
+                  l10n?.invalidRecordingDetected ?? 'Invalid recording detected',
+                  l10n?.notEnoughSpeech ?? 'There is not enough speech detected. Please speak more and try again.',
+                  okButtonText: l10n?.ok ?? 'Ok',
                   singleButton: true,
                 ),
                 barrierDismissible: false,
@@ -170,10 +172,9 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                     Navigator.pop(context);
                   },
                   () {},
-                  // TODO: improve this
-                  'Invalid recording detected',
-                  'Please make sure you speak for at least 5 seconds and not more than 90.',
-                  okButtonText: 'Ok',
+                  l10n?.invalidRecordingDetected ?? 'Invalid recording detected',
+                  l10n?.invalidRecordingDesc ?? 'Please make sure you speak for at least 5 seconds and not more than 90.',
+                  okButtonText: l10n?.ok ?? 'Ok',
                   singleButton: true,
                 ),
                 barrierDismissible: false,
@@ -187,9 +188,9 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                     Navigator.pop(context);
                   },
                   () {},
-                  'Authentication Required',
-                  'You need to be signed in to create your voice profile. Please sign in and try again.',
-                  okButtonText: 'Ok',
+                  l10n?.authenticationRequired ?? 'Authentication Required',
+                  l10n?.authRequiredDesc ?? 'You need to be signed in to create your voice profile. Please sign in and try again.',
+                  okButtonText: l10n?.ok ?? 'Ok',
                   singleButton: true,
                 ),
                 barrierDismissible: false,
@@ -204,9 +205,9 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                     Navigator.pop(context);
                   },
                   () {},
-                  'Voice Profile Error',
-                  'Could not save your voice profile. Please check your internet connection and try again.',
-                  okButtonText: 'Try Again',
+                  l10n?.voiceProfileError ?? 'Voice Profile Error',
+                  l10n?.voiceProfileErrorDesc ?? 'Could not save your voice profile. Please check your internet connection and try again.',
+                  okButtonText: l10n?.tryAgain ?? 'Try Again',
                   singleButton: true,
                 ),
                 barrierDismissible: false,
@@ -221,9 +222,9 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                     Navigator.pop(context);
                   },
                   () {},
-                  'Verification Error',
-                  'Your voice profile was not saved correctly. Please try again.',
-                  okButtonText: 'Try Again',
+                  l10n?.verificationError ?? 'Verification Error',
+                  l10n?.verificationErrorDesc ?? 'Your voice profile was not saved correctly. Please try again.',
+                  okButtonText: l10n?.tryAgain ?? 'Try Again',
                   singleButton: true,
                 ),
                 barrierDismissible: false,
@@ -243,14 +244,15 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                 !widget.onbording
                     ? IconButton(
                         onPressed: () {
+                          final l10n = AppLocalizations.of(context);
                           showDialog(
                             context: context,
                             builder: (c) => getDialog(
                               context,
                               () => Navigator.pop(context),
                               () => Navigator.pop(context),
-                              'How to take a good sample?',
-                              '1. Make sure you are in a quiet place.\n2. Speak clearly and naturally.\n3. Make sure your device is in it\'s natural position, on your neck.\n\nOnce it\'s created, you can always improve it or do it again.',
+                              l10n?.howToTakeGoodSample ?? 'How to take a good sample?',
+                              l10n?.howToTakeGoodSampleDesc ?? '1. Make sure you are in a quiet place.\n2. Speak clearly and naturally.\n3. Make sure your device is in it\'s natural position, on your neck.\n\nOnce it\'s created, you can always improve it or do it again.',
                               singleButton: true,
                             ),
                           );
@@ -263,9 +265,9 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                         onPressed: () {
                           routeToPage(context, const HomePageWrapper(), replace: true);
                         },
-                        child: const Text(
-                          'Skip',
-                          style: TextStyle(color: Colors.white, decoration: TextDecoration.underline),
+                        child: Text(
+                          AppLocalizations.of(context)?.skip ?? 'Skip',
+                          style: const TextStyle(color: Colors.white, decoration: TextDecoration.underline),
                         ),
                       ),
               ],
@@ -296,31 +298,29 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(40, 40, 40, 48),
                     child: !provider.startedRecording
-                        ? const Column(
+                        ? Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              SizedBox(height: 10),
+                              const SizedBox(height: 10),
                               Text(
-                                'Maity needs to learn your voice to be able to recognise you.',
+                                AppLocalizations.of(context)?.maityNeedsToLearnVoice ?? 'Maity needs to learn your voice to be able to recognise you.',
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
                                   height: 1.4,
                                   fontWeight: FontWeight.w400,
                                 ),
                               ),
-                              SizedBox(height: 20),
-                              //Text("Note: This only works in English",
-                              //    style: TextStyle(color: Colors.white, fontSize: 16)),
+                              const SizedBox(height: 20),
                             ],
                           )
                         : provider.text.isEmpty
                             ? (provider.percentageCompleted > 0
                                 ? const SizedBox()
-                                : const Text(
-                                    "Introduce\nyourself",
-                                    style: TextStyle(color: Colors.white, fontSize: 24, height: 1.4),
+                                : Text(
+                                    AppLocalizations.of(context)?.introduceYourself ?? "Introduce\nyourself",
+                                    style: const TextStyle(color: Colors.white, fontSize: 24, height: 1.4),
                                     textAlign: TextAlign.center,
                                   ))
                             : Padding(
@@ -390,7 +390,8 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                         try {
                                           codec = await _getAudioCodec(provider.device!.id);
                                         } catch (e) {
-                                          showDialog(
+                                          final l10n = AppLocalizations.of(context);
+                                        showDialog(
                                             context: context,
                                             barrierDismissible: false,
                                             builder: (c) => getDialog(
@@ -400,8 +401,8 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                                 Navigator.of(context).pop();
                                               },
                                               () => {},
-                                              'Device Disconnected',
-                                              'Please make sure your device is turned on and nearby, and try again.',
+                                              l10n?.deviceDisconnected ?? 'Device Disconnected',
+                                              l10n?.deviceDisconnectedDesc ?? 'Please make sure your device is turned on and nearby, and try again.',
                                               singleButton: true,
                                             ),
                                           );
@@ -409,6 +410,7 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                         }
 
                                         if (!codec.isOpusSupported()) {
+                                          final l10n = AppLocalizations.of(context);
                                           showDialog(
                                             context: context,
                                             builder: (c) => getDialog(
@@ -417,9 +419,9 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                               () async {
                                                 await IntercomManager.instance.displayFirmwareUpdateArticle();
                                               },
-                                              'Device Update Required',
-                                              'Your current device has an old firmware version (1.0.2). Please check our guide on how to update it.',
-                                              okButtonText: 'View Guide',
+                                              l10n?.deviceUpdateRequired ?? 'Device Update Required',
+                                              l10n?.deviceUpdateRequiredDesc ?? 'Your current device has an old firmware version (1.0.2). Please check our guide on how to update it.',
+                                              okButtonText: l10n?.viewGuide ?? 'View Guide',
                                             ),
                                             barrierDismissible: false,
                                           );
@@ -432,6 +434,7 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                         } catch (e) {
                                           debugPrint('Speech profile initialise error: $e');
                                           if (context.mounted) {
+                                            final l10n = AppLocalizations.of(context);
                                             showDialog(
                                               context: context,
                                               barrierDismissible: false,
@@ -441,8 +444,8 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                                   Navigator.of(context).pop();
                                                 },
                                                 () => {},
-                                                'Connection Error',
-                                                'Failed to start speech profile recording. Please check your internet connection and try again.\n\nError: ${e.toString().replaceAll('Exception:', '').trim()}',
+                                                l10n?.connectionError ?? 'Connection Error',
+                                                '${l10n?.connectionErrorDesc ?? 'Failed to start speech profile recording. Please check your internet connection and try again.'}\n\nError: ${e.toString().replaceAll('Exception:', '').trim()}',
                                                 singleButton: true,
                                               ),
                                             );
@@ -461,7 +464,9 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                                       child: Text(
-                                        SharedPreferencesUtil().hasSpeakerProfile ? 'Do it again' : 'Get Started',
+                                        SharedPreferencesUtil().hasSpeakerProfile
+                                            ? (AppLocalizations.of(context)?.doItAgain ?? 'Do it again')
+                                            : (AppLocalizations.of(context)?.getStarted ?? 'Get Started'),
                                         style: const TextStyle(color: Colors.black),
                                       ),
                                     ),
@@ -471,18 +476,18 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                       onPressed: () {
                                         routeToPage(context, const UserSpeechSamples());
                                       },
-                                      child: const Text(
-                                        'Listen to my speech profile ➡️',
-                                        style: TextStyle(color: Colors.white, fontSize: 16),
+                                      child: Text(
+                                        '${AppLocalizations.of(context)?.listenToMySpeechProfile ?? 'Listen to my speech profile'} ➡️',
+                                        style: const TextStyle(color: Colors.white, fontSize: 16),
                                       ))
                                   : const SizedBox(),
                               TextButton(
                                   onPressed: () {
                                     routeToPage(context, const UserPeoplePage());
                                   },
-                                  child: const Text(
-                                    'Recognizing others 👀',
-                                    style: TextStyle(color: Colors.white, fontSize: 16),
+                                  child: Text(
+                                    '${AppLocalizations.of(context)?.recognizingOthers ?? 'Recognizing others'} 👀',
+                                    style: const TextStyle(color: Colors.white, fontSize: 16),
                                   )),
                             ],
                           )
@@ -505,9 +510,9 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                   onPressed: () {
                                     Navigator.pop(context);
                                   },
-                                  child: const Text(
-                                    "All done!",
-                                    style: TextStyle(color: Colors.white, fontSize: 16),
+                                  child: Text(
+                                    AppLocalizations.of(context)?.allDone ?? "All done!",
+                                    style: const TextStyle(color: Colors.white, fontSize: 16),
                                   ),
                                 ),
                               )

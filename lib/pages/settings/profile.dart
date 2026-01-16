@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/services/supabase_auth_service.dart';
-import 'package:omi/pages/payments/payments_page.dart';
 import 'package:omi/pages/settings/change_name_widget.dart';
 import 'package:omi/pages/settings/conversation_timeout_dialog.dart';
 import 'package:omi/pages/settings/language_selection_dialog.dart';
@@ -51,6 +51,8 @@ class _ProfilePageState extends State<ProfilePage> {
     required VoidCallback onTap,
     bool showSubtitle = true,
     bool showBetaTag = false,
+    bool showTrainedTag = false,
+    String? trainedLabel,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -99,6 +101,36 @@ class _ProfilePageState extends State<ProfilePage> {
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.5,
                               ),
+                            ),
+                          ),
+                        ],
+                        if (showTrainedTag) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.green,
+                                  size: 12,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  trainedLabel ?? 'Trained',
+                                  style: const TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -198,9 +230,9 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
       appBar: AppBar(
-        title: const Text(
-          'Profile',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context)?.profile ?? 'Profile',
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -277,7 +309,9 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildSectionContainer(
               children: [
                 _buildProfileItem(
-                  title: SharedPreferencesUtil().givenName.isEmpty ? 'Set Your Name' : 'Change Your Name',
+                  title: SharedPreferencesUtil().givenName.isEmpty
+                      ? (AppLocalizations.of(context)?.setYourName ?? 'Set Your Name')
+                      : (AppLocalizations.of(context)?.changeYourName ?? 'Change Your Name'),
                   icon: const FaIcon(FontAwesomeIcons.solidUser, color: Color(0xFF8E8E93), size: 20),
                   onTap: () async {
                     MixpanelManager().pageOpened('Profile Change Name');
@@ -301,7 +335,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         : 'Not set';
 
                     return _buildProfileItem(
-                      title: 'Primary Language',
+                      title: AppLocalizations.of(context)?.primaryLanguage ?? 'Primary Language',
                       icon: const FaIcon(FontAwesomeIcons.globe, color: Color(0xFF8E8E93), size: 20),
                       onTap: () async {
                         MixpanelManager().pageOpened('Profile Change Language');
@@ -314,7 +348,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const Divider(height: 1, color: Color(0xFF3C3C43)),
                 _buildProfileItem(
-                  title: 'Persona',
+                  title: AppLocalizations.of(context)?.persona ?? 'Persona',
                   icon: const FaIcon(FontAwesomeIcons.solidCircleUser, color: Color(0xFF8E8E93), size: 20),
                   showBetaTag: true,
                   onTap: () {
@@ -337,8 +371,10 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildSectionContainer(
               children: [
                 _buildProfileItem(
-                  title: 'Speech Profile',
+                  title: AppLocalizations.of(context)?.speechProfile ?? 'Speech Profile',
                   icon: const FaIcon(FontAwesomeIcons.microphone, color: Color(0xFF8E8E93), size: 20),
+                  showTrainedTag: SharedPreferencesUtil().hasSpeakerProfile,
+                  trainedLabel: AppLocalizations.of(context)?.voiceProfileTrained ?? 'Trained',
                   onTap: () {
                     routeToPage(context, const SpeechProfilePage());
                     MixpanelManager().pageOpened('Profile Speech Profile');
@@ -346,7 +382,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const Divider(height: 1, color: Color(0xFF3C3C43)),
                 _buildProfileItem(
-                  title: 'Identifying Others',
+                  title: AppLocalizations.of(context)?.identifyingOthers ?? 'Identifying Others',
                   icon: const FaIcon(FontAwesomeIcons.users, color: Color(0xFF8E8E93), size: 20),
                   onTap: () {
                     routeToPage(context, const UserPeoplePage());
@@ -354,7 +390,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const Divider(height: 1, color: Color(0xFF3C3C43)),
                 _buildProfileItem(
-                  title: 'Conversation Timeout',
+                  title: AppLocalizations.of(context)?.conversationTimeout ?? 'Conversation Timeout',
                   icon: const FaIcon(FontAwesomeIcons.clock, color: Color(0xFF8E8E93), size: 20),
                   onTap: () {
                     ConversationTimeoutDialog.show(context);
@@ -362,7 +398,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const Divider(height: 1, color: Color(0xFF3C3C43)),
                 _buildProfileItem(
-                  title: 'Import Data',
+                  title: AppLocalizations.of(context)?.importData ?? 'Import Data',
                   icon: const FaIcon(FontAwesomeIcons.fileImport, color: Color(0xFF8E8E93), size: 20),
                   onTap: () {
                     routeToPage(context, const ImportHistoryPage());
@@ -372,23 +408,9 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             const SizedBox(height: 32),
 
-            // PAYMENT SECTION
-            _buildSectionContainer(
-              children: [
-                _buildProfileItem(
-                  title: 'Payment Methods',
-                  icon: const FaIcon(FontAwesomeIcons.solidCreditCard, color: Color(0xFF8E8E93), size: 20),
-                  onTap: () {
-                    routeToPage(context, const PaymentsPage());
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-
             // PREFERENCES SECTION
             _buildPreferenceToggle(
-              title: 'Help improve Omi by sharing anonymized analytics data',
+              title: AppLocalizations.of(context)?.helpImproveApp ?? 'Help improve Maity by sharing anonymized analytics data',
               value: SharedPreferencesUtil().optInAnalytics,
               onChanged: (value) {
                 setState(() {
@@ -407,19 +429,19 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildSectionContainer(
               children: [
                 _buildProfileItem(
-                  title: 'User ID',
+                  title: AppLocalizations.of(context)?.userId ?? 'User ID',
                   subtitle: SharedPreferencesUtil().uid,
                   icon: const FaIcon(FontAwesomeIcons.solidClipboard, color: Color(0xFF8E8E93), size: 20),
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: SharedPreferencesUtil().uid));
                     ScaffoldMessenger.of(context)
-                        .showSnackBar(const SnackBar(content: Text('User ID copied to clipboard')));
+                        .showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)?.userIdCopied ?? 'User ID copied to clipboard')));
                   },
                 ),
                 const Divider(height: 1, color: Color(0xFF3C3C43)),
                 _buildProfileItem(
-                  title: 'Delete Account',
-                  subtitle: 'Delete your account and all data',
+                  title: AppLocalizations.of(context)?.deleteAccount ?? 'Delete Account',
+                  subtitle: AppLocalizations.of(context)?.deleteAccountDesc ?? 'Delete your account and all data',
                   icon: const FaIcon(FontAwesomeIcons.exclamationTriangle, color: Colors.red, size: 20),
                   onTap: () {
                     MixpanelManager().pageOpened('Profile Delete Account Dialog');

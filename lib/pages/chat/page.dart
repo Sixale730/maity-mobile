@@ -12,6 +12,7 @@ import 'package:omi/backend/schema/app.dart';
 import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/message.dart';
 import 'package:omi/gen/assets.gen.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/chat/select_text_screen.dart';
 import 'package:omi/pages/chat/widgets/ai_message.dart';
 import 'package:omi/pages/chat/widgets/user_message.dart';
@@ -158,16 +159,16 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                           ],
                         )
                       : provider.isClearingChat
-                          ? const Column(
+                          ? Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                CircularProgressIndicator(
+                                const CircularProgressIndicator(
                                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                 ),
-                                SizedBox(height: 16),
+                                const SizedBox(height: 16),
                                 Text(
-                                  "Deleting your messages from Omi's memory...",
-                                  style: TextStyle(color: Colors.white),
+                                  AppLocalizations.of(context)?.deletingMessages ?? "Deleting your messages from Maity's memory...",
+                                  style: const TextStyle(color: Colors.white),
                                 ),
                               ],
                             )
@@ -177,8 +178,8 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                                     padding: const EdgeInsets.only(bottom: 32.0),
                                     child: Text(
                                         connectivityProvider.isConnected
-                                            ? 'No messages yet!\nWhy don\'t you start a conversation?'
-                                            : 'Please check your internet connection and try again',
+                                            ? AppLocalizations.of(context)?.noMessagesYet ?? 'No messages yet!\nWhy don\'t you start a conversation?'
+                                            : AppLocalizations.of(context)?.checkInternetConnection ?? 'Please check your internet connection and try again',
                                         textAlign: TextAlign.center,
                                         style: const TextStyle(color: Colors.white)),
                                   ),
@@ -211,15 +212,15 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                                               await Clipboard.setData(ClipboardData(text: message.text.decodeString));
                                               if (context.mounted) {
                                                 ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(
+                                                  SnackBar(
                                                     content: Text(
-                                                      'Message copied to clipboard.',
-                                                      style: TextStyle(
+                                                      AppLocalizations.of(context)?.messageCopied ?? 'Message copied to clipboard.',
+                                                      style: const TextStyle(
                                                         color: Color.fromARGB(255, 255, 255, 255),
                                                         fontSize: 12.0,
                                                       ),
                                                     ),
-                                                    duration: Duration(milliseconds: 2000),
+                                                    duration: const Duration(milliseconds: 2000),
                                                   ),
                                                 );
                                                 Navigator.pop(context);
@@ -243,29 +244,29 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                                                 ? () {
                                                     provider.setMessageNps(message, 1);
                                                     Navigator.pop(context);
-                                                    AppSnackbar.showSnackbar('Thank you for your feedback!');
+                                                    AppSnackbar.showSnackbar(AppLocalizations.of(context)?.thankYouFeedback ?? 'Thank you for your feedback!');
                                                   }
                                                 : null,
                                             onThumbsDown: message.sender == MessageSender.ai && message.askForNps
                                                 ? () {
                                                     provider.setMessageNps(message, 0);
                                                     Navigator.pop(context);
-                                                    AppSnackbar.showSnackbar('Thank you for your feedback!');
+                                                    AppSnackbar.showSnackbar(AppLocalizations.of(context)?.thankYouFeedback ?? 'Thank you for your feedback!');
                                                   }
                                                 : null,
                                             onReport: () {
                                               if (message.sender == MessageSender.human) {
                                                 Navigator.pop(context);
                                                 ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(
+                                                  SnackBar(
                                                     content: Text(
-                                                      'You cannot report your own messages.',
-                                                      style: TextStyle(
+                                                      AppLocalizations.of(context)?.cannotReportOwnMessage ?? 'You cannot report your own messages.',
+                                                      style: const TextStyle(
                                                         color: Color.fromARGB(255, 255, 255, 255),
                                                         fontSize: 12.0,
                                                       ),
                                                     ),
-                                                    duration: Duration(milliseconds: 2000),
+                                                    duration: const Duration(milliseconds: 2000),
                                                   ),
                                                 );
                                                 return;
@@ -286,20 +287,20 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                                                       context.read<MessageProvider>().removeLocalMessage(message.id);
                                                       reportMessageServer(message.id);
                                                       ScaffoldMessenger.of(context).showSnackBar(
-                                                        const SnackBar(
+                                                        SnackBar(
                                                           content: Text(
-                                                            'Message reported successfully.',
-                                                            style: TextStyle(
+                                                            AppLocalizations.of(context)?.messageReported ?? 'Message reported successfully.',
+                                                            style: const TextStyle(
                                                               color: Color.fromARGB(255, 255, 255, 255),
                                                               fontSize: 12.0,
                                                             ),
                                                           ),
-                                                          duration: Duration(milliseconds: 2000),
+                                                          duration: const Duration(milliseconds: 2000),
                                                         ),
                                                       );
                                                     },
-                                                    'Report Message',
-                                                    'Are you sure you want to report this message?',
+                                                    AppLocalizations.of(context)?.reportMessage ?? 'Report Message',
+                                                    AppLocalizations.of(context)?.reportMessageConfirm ?? 'Are you sure you want to report this message?',
                                                   );
                                                 },
                                               );
@@ -468,9 +469,9 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                                       FocusScope.of(context).unfocus();
                                       if (provider.selectedFiles.length > 3) {
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('You can only upload 4 files at a time'),
-                                            duration: Duration(seconds: 2),
+                                          SnackBar(
+                                            content: Text(AppLocalizations.of(context)?.maxFilesLimit ?? 'You can only upload 4 files at a time'),
+                                            duration: const Duration(seconds: 2),
                                           ),
                                         );
                                         return;
@@ -518,12 +519,12 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                                           obscureText: false,
                                           textAlign: TextAlign.start,
                                           textAlignVertical: TextAlignVertical.center,
-                                          decoration: const InputDecoration(
-                                            hintText: 'Ask anything',
-                                            hintStyle: TextStyle(fontSize: 16.0, color: Colors.grey),
+                                          decoration: InputDecoration(
+                                            hintText: AppLocalizations.of(context)?.askAnything ?? 'Ask anything',
+                                            hintStyle: const TextStyle(fontSize: 16.0, color: Colors.grey),
                                             focusedBorder: InputBorder.none,
                                             enabledBorder: InputBorder.none,
-                                            contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                                            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
                                             isDense: true,
                                           ),
                                           minLines: 1,
@@ -691,7 +692,7 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
             context.read<MessageProvider>().clearChat();
             Navigator.of(context).pop();
           }
-        }, "Clear Chat?", "Are you sure you want to clear the chat? This action cannot be undone.");
+        }, AppLocalizations.of(context)?.clearChatQuestion ?? "Clear Chat?", AppLocalizations.of(context)?.clearChatConfirm ?? "Are you sure you want to clear the chat? This action cannot be undone.");
       },
     );
   }
@@ -772,10 +773,10 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                 width: double.infinity,
                 height: 32,
                 color: Colors.green,
-                child: const Center(
+                child: Center(
                   child: Text(
-                    'Syncing messages with server...',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
+                    AppLocalizations.of(context)?.syncingMessages ?? 'Syncing messages with server...',
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
               ),
@@ -851,7 +852,7 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                         child: PullDownMenu(
                           items: [
                             PullDownMenuItem(
-                              title: 'Clear Chat',
+                              title: AppLocalizations.of(context)?.clearChat ?? 'Clear Chat',
                               iconWidget: const Icon(Icons.delete, color: Colors.redAccent, size: 16),
                               onTap: () {
                                 controller.reverse().then((_) {
@@ -861,7 +862,7 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                               },
                             ),
                             PullDownMenuItem(
-                              title: 'Enable Apps',
+                              title: AppLocalizations.of(context)?.enableApps ?? 'Enable Apps',
                               iconWidget: const Icon(Icons.arrow_forward_ios, color: Colors.white60, size: 16),
                               onTap: () {
                                 controller.reverse().then((_) {
@@ -882,7 +883,7 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                               subtitle:
                                   msgProvider.chatApps.firstWhereOrNull((a) => a.id == appProvider.selectedChatAppId) ==
                                           null
-                                      ? 'Selected'
+                                      ? AppLocalizations.of(context)?.selected ?? 'Selected'
                                       : null,
                             ),
                             ...msgProvider.chatApps.map(
@@ -895,7 +896,7 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                                     _handleAppSelection(app.id, appProvider);
                                   });
                                 },
-                                subtitle: appProvider.selectedChatAppId == app.id ? 'Selected' : null,
+                                subtitle: appProvider.selectedChatAppId == app.id ? (AppLocalizations.of(context)?.selected ?? 'Selected') : null,
                               ),
                             )
                           ],
@@ -1022,7 +1023,7 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                 child: Column(
                   children: [
                     _buildIOSActionItem(
-                      title: "Take Photo",
+                      title: AppLocalizations.of(context)?.takePhoto ?? "Take Photo",
                       icon: Icons.camera_alt,
                       onTap: () {
                         HapticFeedback.selectionClick();
@@ -1035,7 +1036,7 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                     ),
                     _buildDivider(),
                     _buildIOSActionItem(
-                      title: "Photo Library",
+                      title: AppLocalizations.of(context)?.photoLibrary ?? "Photo Library",
                       icon: Icons.photo_library,
                       onTap: () {
                         HapticFeedback.selectionClick();
@@ -1047,7 +1048,7 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                     ),
                     _buildDivider(),
                     _buildIOSActionItem(
-                      title: "Choose File",
+                      title: AppLocalizations.of(context)?.chooseFile ?? "Choose File",
                       icon: Icons.folder,
                       onTap: () {
                         HapticFeedback.selectionClick();

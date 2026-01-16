@@ -78,6 +78,49 @@
   "setupSpeakerProfile": "Set up your speaker profile",
   "people": "People",
 
+  "speechProfile": "Speech Profile",
+  "voiceProfileTrained": "Trained",
+  "identifyingOthers": "Identifying Others",
+  "conversationTimeout": "Conversation Timeout",
+  "importData": "Import Data",
+
+  "maityNeedsToLearnVoice": "Maity needs to learn your voice to be able to recognise you.",
+  "howToTakeGoodSample": "How to take a good sample?",
+  "howToTakeGoodSampleDesc": "1. Make sure you are in a quiet place.\n2. Speak clearly and naturally.\n3. Make sure your device is in it's natural position, on your neck.\n\nOnce it's created, you can always improve it or do it again.",
+  "introduceYourself": "Introduce\nyourself",
+  "doItAgain": "Do it again",
+  "listenToMySpeechProfile": "Listen to my speech profile",
+  "recognizingOthers": "Recognizing others",
+  "allDone": "All done!",
+  "skipForNow": "Skip for now",
+
+  "multipleSpeakersDetected": "Multiple speakers detected",
+  "multipleSpeakersDesc": "It seems like there are multiple speakers in the recording. Please make sure you are in a quiet location and try again.",
+  "tryAgain": "Try Again",
+
+  "invalidRecordingDetected": "Invalid recording detected",
+  "notEnoughSpeech": "There is not enough speech detected. Please speak more and try again.",
+  "invalidRecordingDesc": "Please make sure you speak for at least 5 seconds and not more than 90.",
+
+  "authenticationRequired": "Authentication Required",
+  "authRequiredDesc": "You need to be signed in to create your voice profile. Please sign in and try again.",
+
+  "voiceProfileError": "Voice Profile Error",
+  "voiceProfileErrorDesc": "Could not save your voice profile. Please check your internet connection and try again.",
+
+  "verificationError": "Verification Error",
+  "verificationErrorDesc": "Your voice profile was not saved correctly. Please try again.",
+
+  "deviceDisconnected": "Device Disconnected",
+  "deviceDisconnectedDesc": "Please make sure your device is turned on and nearby, and try again.",
+
+  "deviceUpdateRequired": "Device Update Required",
+  "deviceUpdateRequiredDesc": "Your current device has an old firmware version (1.0.2). Please check our guide on how to update it.",
+  "viewGuide": "View Guide",
+
+  "connectionError": "Connection Error",
+  "connectionErrorDesc": "Failed to start speech profile recording. Please check your internet connection and try again.",
+
   "notifications": "Notifications",
   "permissionsRequired": "Permissions Required",
   "enableNotifications": "Enable Notifications",
@@ -257,5 +300,86 @@
     "placeholders": {
       "count": {"type": "String"}
     }
-  }
+  },
+
+  "deletingMessages": "Deleting your messages from Maity's memory...",
+  "noMessagesYet": "No messages yet!\nWhy don't you start a conversation?",
+  "checkInternetConnection": "Please check your internet connection and try again",
+  "messageCopied": "Message copied to clipboard.",
+  "thankYouFeedback": "Thank you for your feedback!",
+  "cannotReportOwnMessage": "You cannot report your own messages.",
+  "messageReported": "Message reported successfully.",
+  "reportMessage": "Report Message",
+  "reportMessageConfirm": "Are you sure you want to report this message?",
+  "clearChat": "Clear Chat",
+  "clearChatQuestion": "Clear Chat?",
+  "clearChatConfirm": "Are you sure you want to clear the chat? This action cannot be undone.",
+  "enableApps": "Enable Apps",
+  "selected": "Selected",
+  "syncingMessages": "Syncing messages with server...",
+  "askAnything": "Ask anything",
+  "maxFilesLimit": "You can only upload 4 files at a time",
+  "takePhoto": "Take Photo",
+  "photoLibrary": "Photo Library",
+  "chooseFile": "Choose File",
+  "dismiss": "Dismiss",
+
+  "waitingForTranscript": "Waiting for transcript or photos...",
+  "noSummaryYet": "No summary yet",
+  "finishedConversation": "Finished Conversation?",
+  "stopRecordingConfirm": "Are you sure you want to stop recording and summarize the conversation now?",
+  "hints": "Hints",
+  "dontAskAgain": "Don't ask me again",
+  "conversationSummarizedAfter": "Conversation is summarized after {minutes} minute{suffix} of no speech.",
+  "@conversationSummarizedAfter": {
+    "placeholders": {
+      "minutes": {"type": "int"},
+      "suffix": {"type": "String"}
+    }
+  },
+  "conversationEndsManually": "Conversation will only end manually.",
+
+  "searchConversations": "Search Conversations",
+  "semanticSearchAI": "Semantic search (AI)",
+  "textSearch": "Text search",
+  "filterByDate": "Filter by date",
+  "filteredByDate": "Filtered by {date} - Tap to clear",
+  "@filteredByDate": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+
+  "noInternetConnection": "No internet connection. Please check your connection.",
+  "internetRestored": "Internet connection is restored.",
+
+  "searching": "Searching",
+  "setYourName": "Set Your Name",
+  "changeYourName": "Change Your Name",
+  "primaryLanguage": "Primary Language",
+  "persona": "Persona",
+  "helpImproveApp": "Help improve Maity by sharing anonymized analytics data",
+  "userId": "User ID",
+  "userIdCopied": "User ID copied to clipboard",
+  "deleteAccount": "Delete Account",
+  "deleteAccountDesc": "Delete your account and all data",
+
+  "copiedToClipboard": "Copied to clipboard",
+  "offline": "Offline",
+  "batteryLevel": "Battery Level",
+  "productUpdate": "Product Update",
+  "deviceMustBeConnected": "Device must be connected",
+  "sdCardSync": "SD Card Sync",
+  "importAudioFiles": "Import audio files from SD Card",
+  "chargingIssues": "Issues charging the device?",
+  "tapToSeeGuide": "Tap to see the guide",
+  "unpair": "Unpair",
+  "disconnect": "Disconnect",
+  "productName": "Product Name",
+  "modelNumber": "Model Number",
+  "manufacturerName": "Manufacturer Name",
+  "firmwareVersion": "Firmware Version",
+  "deviceIdLabel": "Device ID",
+  "serialNumber": "Serial Number",
+  "unknown": "Unknown"
 }

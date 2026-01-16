@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/gen/assets.gen.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/capture/connect.dart';
 import 'package:omi/pages/home/device.dart';
 import 'package:omi/providers/device_provider.dart';
@@ -114,7 +115,7 @@ class BatteryInfoWidget extends StatelessWidget {
                       ),
                       const SizedBox(width: 8.0),
                       Text(
-                        "Disconnected",
+                        AppLocalizations.of(context)?.disconnected ?? "Disconnected",
                         style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white70),
                       ),
                     ],
@@ -147,12 +148,12 @@ class BatteryInfoWidget extends StatelessWidget {
                       isMemoriesPage ? const SizedBox(width: 8) : const SizedBox.shrink(),
                       deviceProvider.isConnecting && isMemoriesPage
                           ? Text(
-                              "Searching",
+                              AppLocalizations.of(context)?.searching ?? "Searching",
                               style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white),
                             )
                           : isMemoriesPage
                               ? Text(
-                                  "Connect Device",
+                                  AppLocalizations.of(context)?.connectDevice ?? "Connect Device",
                                   style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white),
                                 )
                               : const SizedBox.shrink(),

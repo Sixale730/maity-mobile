@@ -512,6 +512,204 @@ abstract class AppLocalizations {
   /// **'People'**
   String get people;
 
+  /// No description provided for @speechProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech Profile'**
+  String get speechProfile;
+
+  /// No description provided for @voiceProfileTrained.
+  ///
+  /// In en, this message translates to:
+  /// **'Trained'**
+  String get voiceProfileTrained;
+
+  /// No description provided for @identifyingOthers.
+  ///
+  /// In en, this message translates to:
+  /// **'Identifying Others'**
+  String get identifyingOthers;
+
+  /// No description provided for @conversationTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation Timeout'**
+  String get conversationTimeout;
+
+  /// No description provided for @importData.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Data'**
+  String get importData;
+
+  /// No description provided for @maityNeedsToLearnVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Maity needs to learn your voice to be able to recognise you.'**
+  String get maityNeedsToLearnVoice;
+
+  /// No description provided for @howToTakeGoodSample.
+  ///
+  /// In en, this message translates to:
+  /// **'How to take a good sample?'**
+  String get howToTakeGoodSample;
+
+  /// No description provided for @howToTakeGoodSampleDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Make sure you are in a quiet place.\n2. Speak clearly and naturally.\n3. Make sure your device is in it\'s natural position, on your neck.\n\nOnce it\'s created, you can always improve it or do it again.'**
+  String get howToTakeGoodSampleDesc;
+
+  /// No description provided for @introduceYourself.
+  ///
+  /// In en, this message translates to:
+  /// **'Introduce\nyourself'**
+  String get introduceYourself;
+
+  /// No description provided for @doItAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Do it again'**
+  String get doItAgain;
+
+  /// No description provided for @listenToMySpeechProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen to my speech profile'**
+  String get listenToMySpeechProfile;
+
+  /// No description provided for @recognizingOthers.
+  ///
+  /// In en, this message translates to:
+  /// **'Recognizing others'**
+  String get recognizingOthers;
+
+  /// No description provided for @allDone.
+  ///
+  /// In en, this message translates to:
+  /// **'All done!'**
+  String get allDone;
+
+  /// No description provided for @skipForNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip for now'**
+  String get skipForNow;
+
+  /// No description provided for @multipleSpeakersDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Multiple speakers detected'**
+  String get multipleSpeakersDetected;
+
+  /// No description provided for @multipleSpeakersDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'It seems like there are multiple speakers in the recording. Please make sure you are in a quiet location and try again.'**
+  String get multipleSpeakersDesc;
+
+  /// No description provided for @tryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try Again'**
+  String get tryAgain;
+
+  /// No description provided for @invalidRecordingDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid recording detected'**
+  String get invalidRecordingDetected;
+
+  /// No description provided for @notEnoughSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'There is not enough speech detected. Please speak more and try again.'**
+  String get notEnoughSpeech;
+
+  /// No description provided for @invalidRecordingDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Please make sure you speak for at least 5 seconds and not more than 90.'**
+  String get invalidRecordingDesc;
+
+  /// No description provided for @authenticationRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication Required'**
+  String get authenticationRequired;
+
+  /// No description provided for @authRequiredDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'You need to be signed in to create your voice profile. Please sign in and try again.'**
+  String get authRequiredDesc;
+
+  /// No description provided for @voiceProfileError.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice Profile Error'**
+  String get voiceProfileError;
+
+  /// No description provided for @voiceProfileErrorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save your voice profile. Please check your internet connection and try again.'**
+  String get voiceProfileErrorDesc;
+
+  /// No description provided for @verificationError.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification Error'**
+  String get verificationError;
+
+  /// No description provided for @verificationErrorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Your voice profile was not saved correctly. Please try again.'**
+  String get verificationErrorDesc;
+
+  /// No description provided for @deviceDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Disconnected'**
+  String get deviceDisconnected;
+
+  /// No description provided for @deviceDisconnectedDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Please make sure your device is turned on and nearby, and try again.'**
+  String get deviceDisconnectedDesc;
+
+  /// No description provided for @deviceUpdateRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Update Required'**
+  String get deviceUpdateRequired;
+
+  /// No description provided for @deviceUpdateRequiredDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Your current device has an old firmware version (1.0.2). Please check our guide on how to update it.'**
+  String get deviceUpdateRequiredDesc;
+
+  /// No description provided for @viewGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'View Guide'**
+  String get viewGuide;
+
+  /// No description provided for @connectionError.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection Error'**
+  String get connectionError;
+
+  /// No description provided for @connectionErrorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start speech profile recording. Please check your internet connection and try again.'**
+  String get connectionErrorDesc;
+
   /// No description provided for @notifications.
   ///
   /// In en, this message translates to:
@@ -991,6 +1189,390 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} memories'**
   String nMemories(String count);
+
+  /// No description provided for @deletingMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your messages from Maity\'s memory...'**
+  String get deletingMessages;
+
+  /// No description provided for @noMessagesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet!\nWhy don\'t you start a conversation?'**
+  String get noMessagesYet;
+
+  /// No description provided for @checkInternetConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Please check your internet connection and try again'**
+  String get checkInternetConnection;
+
+  /// No description provided for @messageCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Message copied to clipboard.'**
+  String get messageCopied;
+
+  /// No description provided for @thankYouFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Thank you for your feedback!'**
+  String get thankYouFeedback;
+
+  /// No description provided for @cannotReportOwnMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You cannot report your own messages.'**
+  String get cannotReportOwnMessage;
+
+  /// No description provided for @messageReported.
+  ///
+  /// In en, this message translates to:
+  /// **'Message reported successfully.'**
+  String get messageReported;
+
+  /// No description provided for @reportMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Report Message'**
+  String get reportMessage;
+
+  /// No description provided for @reportMessageConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to report this message?'**
+  String get reportMessageConfirm;
+
+  /// No description provided for @clearChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Chat'**
+  String get clearChat;
+
+  /// No description provided for @clearChatQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Chat?'**
+  String get clearChatQuestion;
+
+  /// No description provided for @clearChatConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to clear the chat? This action cannot be undone.'**
+  String get clearChatConfirm;
+
+  /// No description provided for @enableApps.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Apps'**
+  String get enableApps;
+
+  /// No description provided for @selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get selected;
+
+  /// No description provided for @syncingMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing messages with server...'**
+  String get syncingMessages;
+
+  /// No description provided for @askAnything.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask anything'**
+  String get askAnything;
+
+  /// No description provided for @maxFilesLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'You can only upload 4 files at a time'**
+  String get maxFilesLimit;
+
+  /// No description provided for @takePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Take Photo'**
+  String get takePhoto;
+
+  /// No description provided for @photoLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo Library'**
+  String get photoLibrary;
+
+  /// No description provided for @chooseFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose File'**
+  String get chooseFile;
+
+  /// No description provided for @dismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get dismiss;
+
+  /// No description provided for @waitingForTranscript.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for transcript or photos...'**
+  String get waitingForTranscript;
+
+  /// No description provided for @noSummaryYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No summary yet'**
+  String get noSummaryYet;
+
+  /// No description provided for @finishedConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished Conversation?'**
+  String get finishedConversation;
+
+  /// No description provided for @stopRecordingConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to stop recording and summarize the conversation now?'**
+  String get stopRecordingConfirm;
+
+  /// No description provided for @hints.
+  ///
+  /// In en, this message translates to:
+  /// **'Hints'**
+  String get hints;
+
+  /// No description provided for @dontAskAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t ask me again'**
+  String get dontAskAgain;
+
+  /// No description provided for @conversationSummarizedAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation is summarized after {minutes} minute{suffix} of no speech.'**
+  String conversationSummarizedAfter(int minutes, String suffix);
+
+  /// No description provided for @conversationEndsManually.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation will only end manually.'**
+  String get conversationEndsManually;
+
+  /// No description provided for @searchConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Search Conversations'**
+  String get searchConversations;
+
+  /// No description provided for @semanticSearchAI.
+  ///
+  /// In en, this message translates to:
+  /// **'Semantic search (AI)'**
+  String get semanticSearchAI;
+
+  /// No description provided for @textSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Text search'**
+  String get textSearch;
+
+  /// No description provided for @filterByDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by date'**
+  String get filterByDate;
+
+  /// No description provided for @filteredByDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Filtered by {date} - Tap to clear'**
+  String filteredByDate(String date);
+
+  /// No description provided for @noInternetConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'No internet connection. Please check your connection.'**
+  String get noInternetConnection;
+
+  /// No description provided for @internetRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Internet connection is restored.'**
+  String get internetRestored;
+
+  /// No description provided for @searching.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching'**
+  String get searching;
+
+  /// No description provided for @setYourName.
+  ///
+  /// In en, this message translates to:
+  /// **'Set Your Name'**
+  String get setYourName;
+
+  /// No description provided for @changeYourName.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Your Name'**
+  String get changeYourName;
+
+  /// No description provided for @primaryLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary Language'**
+  String get primaryLanguage;
+
+  /// No description provided for @persona.
+  ///
+  /// In en, this message translates to:
+  /// **'Persona'**
+  String get persona;
+
+  /// No description provided for @helpImproveApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Help improve Maity by sharing anonymized analytics data'**
+  String get helpImproveApp;
+
+  /// No description provided for @userId.
+  ///
+  /// In en, this message translates to:
+  /// **'User ID'**
+  String get userId;
+
+  /// No description provided for @userIdCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'User ID copied to clipboard'**
+  String get userIdCopied;
+
+  /// No description provided for @deleteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Account'**
+  String get deleteAccount;
+
+  /// No description provided for @deleteAccountDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete your account and all data'**
+  String get deleteAccountDesc;
+
+  /// No description provided for @copiedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard'**
+  String get copiedToClipboard;
+
+  /// No description provided for @offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get offline;
+
+  /// No description provided for @batteryLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Battery Level'**
+  String get batteryLevel;
+
+  /// No description provided for @productUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Product Update'**
+  String get productUpdate;
+
+  /// No description provided for @deviceMustBeConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Device must be connected'**
+  String get deviceMustBeConnected;
+
+  /// No description provided for @sdCardSync.
+  ///
+  /// In en, this message translates to:
+  /// **'SD Card Sync'**
+  String get sdCardSync;
+
+  /// No description provided for @importAudioFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Import audio files from SD Card'**
+  String get importAudioFiles;
+
+  /// No description provided for @chargingIssues.
+  ///
+  /// In en, this message translates to:
+  /// **'Issues charging the device?'**
+  String get chargingIssues;
+
+  /// No description provided for @tapToSeeGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to see the guide'**
+  String get tapToSeeGuide;
+
+  /// No description provided for @unpair.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpair'**
+  String get unpair;
+
+  /// No description provided for @disconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get disconnect;
+
+  /// No description provided for @productName.
+  ///
+  /// In en, this message translates to:
+  /// **'Product Name'**
+  String get productName;
+
+  /// No description provided for @modelNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Model Number'**
+  String get modelNumber;
+
+  /// No description provided for @manufacturerName.
+  ///
+  /// In en, this message translates to:
+  /// **'Manufacturer Name'**
+  String get manufacturerName;
+
+  /// No description provided for @firmwareVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Firmware Version'**
+  String get firmwareVersion;
+
+  /// No description provided for @deviceIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Device ID'**
+  String get deviceIdLabel;
+
+  /// No description provided for @serialNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial Number'**
+  String get serialNumber;
+
+  /// No description provided for @unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get unknown;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
