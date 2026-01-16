@@ -19,6 +19,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:omi/utils/file.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/utils/platform/platform_service.dart';
+import 'package:omi/services/supabase_auth_service.dart';
 import 'package:uuid/uuid.dart';
 
 class MessageProvider extends ChangeNotifier {
@@ -511,7 +512,9 @@ class MessageProvider extends ChangeNotifier {
     }
 
     try {
-      await for (var chunk in sendMessageStreamServer(text, appId: currentAppId, filesId: fileIds)) {
+      // Get maityUserId for conversation access via function calling
+      final maityUserId = SupabaseAuthService.instance.maityUserId;
+      await for (var chunk in sendMessageStreamServer(text, appId: currentAppId, filesId: fileIds, userId: maityUserId)) {
         if (chunk.type == MessageChunkType.think) {
           flushBuffer();
           message.thinkings.add(chunk.text);

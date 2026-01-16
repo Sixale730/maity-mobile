@@ -57,10 +57,14 @@ ServerMessageChunk? parseMessageChunk(String line, String messageId) {
   return null;
 }
 
-Stream<ServerMessageChunk> sendMessageStreamServer(String text, {String? appId, List<String>? filesId}) async* {
+Stream<ServerMessageChunk> sendMessageStreamServer(String text, {String? appId, List<String>? filesId, String? userId}) async* {
   var url = '${Env.apiBaseUrl}v2/messages?app_id=$appId';
   if (appId == null || appId.isEmpty || appId == 'null' || appId == 'no_selected') {
     url = '${Env.apiBaseUrl}v2/messages';
+  }
+  // Add user_id for function calling access to conversations
+  if (userId != null && userId.isNotEmpty) {
+    url += url.contains('?') ? '&user_id=$userId' : '?user_id=$userId';
   }
 
   var messageId = "1000"; // Default new message
@@ -72,10 +76,8 @@ Stream<ServerMessageChunk> sendMessageStreamServer(String text, {String? appId, 
     var messageChunk = parseMessageChunk(line, messageId);
     if (messageChunk != null) {
       yield messageChunk;
-    } else {
-      yield ServerMessageChunk.failedMessage();
-      return;
     }
+    // Ignore unrecognized lines (incomplete fragments from TCP chunking)
   }
 }
 
@@ -105,10 +107,8 @@ Stream<ServerMessageChunk> sendVoiceMessageStreamServer(List<File> files) async*
     var messageChunk = parseMessageChunk(line, messageId);
     if (messageChunk != null) {
       yield messageChunk;
-    } else {
-      yield ServerMessageChunk.failedMessage();
-      return;
     }
+    // Ignore unrecognized lines (incomplete fragments from TCP chunking)
   }
 }
 
