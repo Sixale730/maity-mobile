@@ -6,6 +6,7 @@ import 'package:flutter_provider_utilities/flutter_provider_utilities.dart';
 import 'package:omi/backend/http/api/apps.dart';
 import 'package:omi/backend/http/api/conversations.dart';
 import 'package:omi/backend/http/api/users.dart';
+import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/models/communication_feedback.dart';
 import 'package:omi/services/communication_service.dart';
 import 'package:omi/utils/platform/platform_manager.dart';
@@ -249,8 +250,8 @@ class ConversationDetailProvider extends ChangeNotifier with MessageNotifierMixi
 
   /// Load communication feedback for the current conversation
   Future<void> loadCommunicationFeedback() async {
-    final userId = SharedPreferencesUtil().maityUserId;
-    if (userId.isEmpty) {
+    final userId = SupabaseAuthService.instance.maityUserId;
+    if (userId == null || userId.isEmpty) {
       debugPrint('[ConversationDetailProvider] No userId, skipping feedback load');
       return;
     }
@@ -275,8 +276,8 @@ class ConversationDetailProvider extends ChangeNotifier with MessageNotifierMixi
 
   /// Regenerate communication feedback for the current conversation
   Future<bool> regenerateCommunicationFeedback() async {
-    final userId = SharedPreferencesUtil().maityUserId;
-    if (userId.isEmpty) {
+    final userId = SupabaseAuthService.instance.maityUserId;
+    if (userId == null || userId.isEmpty) {
       debugPrint('[ConversationDetailProvider] No userId, cannot regenerate feedback');
       return false;
     }
