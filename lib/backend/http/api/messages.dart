@@ -20,7 +20,7 @@ Future<List<ServerMessage>> getMessagesServer({
 Future<List<ServerMessage>> clearChatServer({String? appId}) async {
   if (appId == 'no_selected') appId = null;
   var response = await makeApiCall(
-    url: '${Env.maityBackendUrl}v2/messages?app_id=${appId ?? ''}',
+    url: '${Env.maityBackendUrl}/v2/messages?app_id=${appId ?? ''}',
     headers: {},
     method: 'DELETE',
     body: '',
@@ -77,9 +77,9 @@ Stream<ServerMessageChunk> sendMessageStreamServer(
   List<Map<String, String>>? messageHistory,
 }) async* {
   debugPrint('[Chat] maityBackendUrl = ${Env.maityBackendUrl}');
-  var url = '${Env.maityBackendUrl}v2/messages?app_id=$appId';
+  var url = '${Env.maityBackendUrl}/v2/messages?app_id=$appId';
   if (appId == null || appId.isEmpty || appId == 'null' || appId == 'no_selected') {
-    url = '${Env.maityBackendUrl}v2/messages';
+    url = '${Env.maityBackendUrl}/v2/messages';
   }
   debugPrint('[Chat] Sending to URL: $url');
   // Add user_id for function calling access to conversations
@@ -107,7 +107,7 @@ Stream<ServerMessageChunk> sendMessageStreamServer(
 
 Future<ServerMessage> getInitialAppMessage(String? appId) {
   return makeApiCall(
-    url: '${Env.maityBackendUrl}v2/initial-message?app_id=$appId',
+    url: '${Env.maityBackendUrl}/v2/initial-message?app_id=$appId',
     headers: {},
     method: 'POST',
     body: '',
@@ -125,7 +125,7 @@ Stream<ServerMessageChunk> sendVoiceMessageStreamServer(List<File> files) async*
   var messageId = "1000"; // Default new message
 
   await for (var line in makeMultipartStreamingApiCall(
-    url: '${Env.maityBackendUrl}v2/voice-messages',
+    url: '${Env.maityBackendUrl}/v2/voice-messages',
     files: files,
   )) {
     var messageChunk = parseMessageChunk(line, messageId);
@@ -137,9 +137,9 @@ Stream<ServerMessageChunk> sendVoiceMessageStreamServer(List<File> files) async*
 }
 
 Future<List<MessageFile>?> uploadFilesServer(List<File> files, {String? appId}) async {
-  var url = '${Env.maityBackendUrl}v2/files?app_id=$appId';
+  var url = '${Env.maityBackendUrl}/v2/files?app_id=$appId';
   if (appId == null || appId.isEmpty || appId == 'null' || appId == 'no_selected') {
-    url = '${Env.maityBackendUrl}v2/files';
+    url = '${Env.maityBackendUrl}/v2/files';
   }
 
   try {
@@ -163,7 +163,7 @@ Future<List<MessageFile>?> uploadFilesServer(List<File> files, {String? appId}) 
 
 Future reportMessageServer(String messageId) async {
   var response = await makeApiCall(
-    url: '${Env.maityBackendUrl}v2/messages/$messageId/report',
+    url: '${Env.maityBackendUrl}/v2/messages/$messageId/report',
     headers: {},
     method: 'POST',
     body: '',
@@ -177,7 +177,7 @@ Future reportMessageServer(String messageId) async {
 Future<String> transcribeVoiceMessage(File audioFile) async {
   try {
     var response = await makeMultipartApiCall(
-      url: '${Env.maityBackendUrl}v2/voice-message/transcribe',
+      url: '${Env.maityBackendUrl}/v2/voice-message/transcribe',
       files: [audioFile],
     );
 
