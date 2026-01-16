@@ -84,6 +84,7 @@ class CaptureProvider extends ChangeNotifier
   int _recordingDuration = 0; // in seconds
   DateTime? _recordingStartTime; // Track when recording started for local conversations
   bool _conversationFinalized = false; // Prevents duplicate saves when stopping recording
+  bool _isSpeechProfileMode = false; // Blocks conversation save during speech profile training
 
   int _getRecordingDuration() => _recordingDuration;
 
@@ -714,6 +715,21 @@ class CaptureProvider extends ChangeNotifier
       }
     });
     notifyListeners();
+  }
+
+  /// Enter speech profile mode - blocks conversation saves during voice training
+  void enterSpeechProfileMode() {
+    debugPrint('[Maity] Entering speech profile mode');
+    _isSpeechProfileMode = true;
+    _silenceTimer?.cancel();
+  }
+
+  /// Exit speech profile mode - allows normal conversation saves again
+  void exitSpeechProfileMode() {
+    debugPrint('[Maity] Exiting speech profile mode');
+    _isSpeechProfileMode = false;
+    segments.clear();
+    _resetStateVariables();
   }
 
   void clearTranscripts() {
@@ -1466,6 +1482,12 @@ class CaptureProvider extends ChangeNotifier
   /// Finalizes and saves a local conversation when using custom STT (Direct Deepgram)
   /// This is called when recording stops and we're not using the Omi backend
   Future<void> _finalizeLocalConversation() async {
+    // Block saving during speech profile training
+    if (_isSpeechProfileMode) {
+      debugPrint('[Maity] Speech profile mode active, skipping conversation save');
+      return;
+    }
+
     // Only save if we're using custom STT and have transcripts
     final customSttConfig = SharedPreferencesUtil().customSttConfig;
     if (!customSttConfig.isEnabled) {
@@ -1622,6 +1644,9 @@ class CaptureProvider extends ChangeNotifier
   /// Resets the silence timer - called when new segments arrive
   /// Only active for custom STT mode
   void _resetSilenceTimer() {
+    // Don't set up auto-save timer during speech profile training
+    if (_isSpeechProfileMode) return;
+
     final customSttConfig = SharedPreferencesUtil().customSttConfig;
     if (!customSttConfig.isEnabled) return;
 

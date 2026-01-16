@@ -87,8 +87,11 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
     Future restartDeviceRecording() async {
       debugPrint("restartDeviceRecording $mounted");
       if (mounted) {
-        Provider.of<CaptureProvider>(context, listen: false).clearTranscripts();
-        Provider.of<CaptureProvider>(context, listen: false).streamDeviceRecording(
+        final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+        // Exit speech profile mode and clear any accumulated segments
+        captureProvider.exitSpeechProfileMode();
+        captureProvider.clearTranscripts();
+        captureProvider.streamDeviceRecording(
           device: Provider.of<SpeechProfileProvider>(context, listen: false).deviceProvider?.connectedDevice,
         );
       }
@@ -429,6 +432,8 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                         }
 
                                         await stopDeviceRecording();
+                                        // Block conversation saves during speech profile training
+                                        Provider.of<CaptureProvider>(context, listen: false).enterSpeechProfileMode();
                                         try {
                                           await provider.initialise(finalizedCallback: restartDeviceRecording);
                                         } catch (e) {
