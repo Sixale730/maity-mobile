@@ -36,8 +36,8 @@ async def send_message(request: MessageRequest, app_id: str = Query(None)):
             if chunk.choices[0].delta.content:
                 content = chunk.choices[0].delta.content
                 full_response += content
-                # Format: "data: <content>\n" (Flutter expects this)
-                yield f"data: {content.replace(chr(10), '__CRLF__')}\n"
+                # Format: "data: <content>\n\n" (SSE standard - Flutter splits by \n\n)
+                yield f"data: {content.replace(chr(10), '__CRLF__')}\n\n"
 
         # Send done with base64 encoded message object
         message_obj = {
@@ -48,7 +48,7 @@ async def send_message(request: MessageRequest, app_id: str = Query(None)):
             "type": "text"
         }
         done_data = base64.b64encode(json.dumps(message_obj).encode()).decode()
-        yield f"done: {done_data}\n"
+        yield f"done: {done_data}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
