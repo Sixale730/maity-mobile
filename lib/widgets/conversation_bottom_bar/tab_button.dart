@@ -6,7 +6,7 @@ class TabButton extends StatelessWidget {
   final IconData? icon;
   final Widget? customIcon;
   final bool isSelected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final String? label;
   final String? appImage;
   final bool isLocalAsset;
@@ -19,7 +19,7 @@ class TabButton extends StatelessWidget {
     this.icon,
     this.customIcon,
     required this.isSelected,
-    required this.onTap,
+    this.onTap,
     this.label,
     this.appImage,
     this.isLocalAsset = false,
@@ -27,6 +27,8 @@ class TabButton extends StatelessWidget {
     this.isLoading = false,
     this.onDropdownPressed,
   });
+
+  bool get isDisabled => onTap == null;
 
   @override
   Widget build(BuildContext context) {
@@ -41,10 +43,12 @@ class TabButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () {
-            HapticFeedback.mediumImpact();
-            onTap();
-          }, // Always use onTap for tab selection
+          onTap: isDisabled
+              ? null
+              : () {
+                  HapticFeedback.mediumImpact();
+                  onTap!();
+                },
           child: Center(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -65,7 +69,9 @@ class TabButton extends StatelessWidget {
                 else if (icon != null)
                   Icon(
                     icon,
-                    color: isSelected ? Colors.white : Colors.grey.shade400,
+                    color: isDisabled
+                        ? Colors.grey.shade700
+                        : (isSelected ? Colors.white : Colors.grey.shade400),
                     size: 24,
                   ),
                 if (label != null) ...[

@@ -36,10 +36,6 @@ class ConversationBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!hasSegments) {
-      return const SizedBox();
-    }
-
     return Center(
       child: _buildBottomBar(context),
     );
@@ -97,7 +93,7 @@ class ConversationBottomBar extends StatelessWidget {
     return TabButton(
       icon: FontAwesomeIcons.solidComments,
       isSelected: selectedTab == ConversationTab.transcript,
-      onTap: () => onTabSelected(ConversationTab.transcript),
+      onTap: hasSegments ? () => onTabSelected(ConversationTab.transcript) : null,
     );
   }
 
