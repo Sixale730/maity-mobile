@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
-from fastapi import APIRouter, HTTPException, Query, Depends, Header
+from fastapi import APIRouter, HTTPException, Query, Depends, Header, Response
 
 from ..services.supabase_client import (
     insert_conversation,
@@ -13,6 +13,7 @@ from ..services.supabase_client import (
     get_conversations,
     get_conversation_with_segments,
     update_conversation_feedback,
+    delete_conversation,
 )
 from ..services.embeddings import generate_embedding, generate_embeddings_batch
 from ..services.supabase_auth import get_auth_user_id, optional_auth_user_id
@@ -336,3 +337,33 @@ async def get_single_conversation(
     except Exception as e:
         print(f"[OMI Router] Get conversation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch conversation: {str(e)}")
+
+
+@router.delete("/conversations/{conversation_id}", status_code=204)
+async def delete_conversation_endpoint(
+    conversation_id: str,
+    user_id: str = Query(..., description="User ID (maity.users UUID)"),
+    auth_user_id: Optional[str] = Depends(optional_auth_user_id),
+):
+    """
+    Delete a conversation (soft delete - sets deleted=True).
+
+    The conversation is not physically removed from the database,
+    but marked as deleted and excluded from queries.
+    """
+    try:
+        success = await delete_conversation(
+            user_id=user_id,
+            conversation_id=conversation_id,
+        )
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        return Response(status_code=204)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[OMI Router] Delete conversation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete conversation: {str(e)}")

@@ -700,8 +700,20 @@ class ConversationProvider extends ChangeNotifier {
     });
   }
 
-  void deleteConversationOnServer(String conversationId) {
-    deleteConversationServer(conversationId);
+  void deleteConversationOnServer(String conversationId) async {
+    // Delete from Supabase via OmiSupabaseService
+    final userId = SupabaseAuthService.instance.maityUserId;
+    if (userId != null) {
+      final success = await OmiSupabaseService.deleteConversation(
+        conversationId: conversationId,
+        userId: userId,
+      );
+      debugPrint('[ConversationProvider] Delete from Supabase: $success');
+    }
+
+    // Also delete from local storage
+    LocalConversationsService.instance.deleteConversation(conversationId);
+
     memoriesToDelete.remove(conversationId);
     deleteTimestamps.remove(conversationId);
     if (lastDeletedConversationId == conversationId) {

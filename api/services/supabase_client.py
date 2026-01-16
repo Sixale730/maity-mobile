@@ -286,3 +286,29 @@ async def get_conversation_with_segments(
         "conversation": conv_result.data,
         "segments": seg_result.data if seg_result.data else [],
     }
+
+
+async def delete_conversation(user_id: str, conversation_id: str) -> bool:
+    """
+    Soft delete a conversation (set deleted=True).
+
+    Args:
+        user_id: UUID de maity.users (no auth.users.id)
+        conversation_id: UUID of the conversation to delete
+
+    Returns:
+        True if conversation was found and deleted, False otherwise
+    """
+    supabase = get_supabase()
+
+    # Soft delete: set deleted=True (only if it belongs to the user)
+    result = (
+        supabase.schema("maity")
+        .table("omi_conversations")
+        .update({"deleted": True})
+        .eq("id", conversation_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+    return len(result.data) > 0 if result.data else False

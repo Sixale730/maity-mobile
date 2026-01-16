@@ -246,6 +246,33 @@ class OmiSupabaseService {
       return null;
     }
   }
+
+  /// Delete a conversation (soft delete - marks as deleted in Supabase)
+  /// [userId] es el UUID de maity.users
+  static Future<bool> deleteConversation({
+    required String conversationId,
+    required String userId,
+  }) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/v1/omi/conversations/$conversationId').replace(
+        queryParameters: {'user_id': userId},
+      );
+
+      debugPrint('[OmiSupabaseService] DELETE $uri');
+
+      final authHeader = await getAuthHeader();
+      final response = await http.delete(
+        uri,
+        headers: {'Authorization': authHeader},
+      ).timeout(_timeout);
+
+      debugPrint('[OmiSupabaseService] Delete response: ${response.statusCode}');
+      return response.statusCode == 204;
+    } catch (e) {
+      debugPrint('[OmiSupabaseService] Delete conversation error: $e');
+      return false;
+    }
+  }
 }
 
 /// Response from storing a conversation
