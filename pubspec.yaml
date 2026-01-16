@@ -205,10 +205,11 @@ flutter_gen:
   output: lib/gen/
 
 flutter_native_splash:
-  background_image: "assets/images/splash.png"
+  color: "#000000"
+  image: assets/images/maity_icon.png
   android_12:
-    image: assets/images/splash_icon.png
-    color: "#000000" # TODO: improve hero banner on android12
+    image: assets/images/maity_icon.png
+    color: "#000000"
 
   android: true
   ios: true
