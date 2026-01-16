@@ -117,6 +117,15 @@ class ConversationProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clear all search states (both text and semantic)
+  void clearSearch() {
+    previousQuery = "";
+    searchedConversations = [];
+    semanticSearchResults = [];
+    groupConversationsByDate();
+    notifyListeners();
+  }
+
   /// Perform semantic search using vector similarity in Supabase
   /// Falls back to text-based search if semantic search fails
   /// [userId] es el UUID de maity.users (no el firebase_uid)

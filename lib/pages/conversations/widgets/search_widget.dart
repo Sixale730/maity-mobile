@@ -176,9 +176,9 @@ class _SearchWidgetState extends State<SearchWidget> {
                 ),
                 suffixIcon: showClearButton
                     ? GestureDetector(
-                        onTap: () async {
+                        onTap: () {
                           var provider = Provider.of<ConversationProvider>(context, listen: false);
-                          await provider.searchConversations(""); // clear
+                          provider.clearSearch();
                           searchController.clear();
                           setShowClearButton();
                           MixpanelManager().searchQueryCleared();
