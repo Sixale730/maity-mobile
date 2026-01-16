@@ -181,6 +181,8 @@ class _SearchWidgetState extends State<SearchWidget> {
                           provider.clearSearch();
                           searchController.clear();
                           setShowClearButton();
+                          // Unfocus to restore the bottom navigation
+                          context.read<HomeProvider>().convoSearchFieldFocusNode.unfocus();
                           MixpanelManager().searchQueryCleared();
                         },
                         child: const Icon(
