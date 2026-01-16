@@ -82,10 +82,12 @@ Stream<ServerMessageChunk> sendMessageStreamServer(
     url = '${Env.maityBackendUrl}/v2/messages';
   }
   debugPrint('[Chat] Sending to URL: $url');
+  debugPrint('[Chat] userId parameter: $userId');
   // Add user_id for function calling access to conversations
   if (userId != null && userId.isNotEmpty) {
     url += url.contains('?') ? '&user_id=$userId' : '?user_id=$userId';
   }
+  debugPrint('[Chat] Final URL with user_id: $url');
 
   var messageId = "1000"; // Default new message
 

@@ -63,49 +63,13 @@ Future<({List<App> apps, Map<String, dynamic> pagination, Map<String, dynamic>? 
   int offset = 0,
   int limit = 50,
 }) async {
-  // Build URL with query parameters
-  final params = <String>[];
-  if (query != null && query.isNotEmpty) params.add('q=${Uri.encodeComponent(query)}');
-  if (category != null && category.isNotEmpty) params.add('category=${Uri.encodeComponent(category)}');
-  if (minRating != null) params.add('rating=$minRating');
-  if (capability != null && capability.isNotEmpty) params.add('capability=${Uri.encodeComponent(capability)}');
-  if (sort != null && sort.isNotEmpty) params.add('sort=${Uri.encodeComponent(sort)}');
-  if (myApps != null) params.add('my_apps=$myApps');
-  if (installedApps != null) params.add('installed_apps=$installedApps');
-  params.add('offset=$offset');
-  params.add('limit=$limit');
-
-  final url = '${Env.apiBaseUrl}v2/apps/search?${params.join('&')}';
-  final response = await makeApiCall(
-    url: url,
-    headers: {},
-    body: '',
-    method: 'GET',
+  // Disabled: Env.apiBaseUrl is not configured for Maity
+  debugPrint('[API Disabled] retrieveAppsSearch skipped');
+  return (
+    apps: <App>[],
+    pagination: {'total': 0, 'count': 0, 'offset': offset, 'limit': limit},
+    filters: null,
   );
-
-  try {
-    if (response == null || response.statusCode != 200 || response.body.isEmpty) {
-      return (
-        apps: <App>[],
-        pagination: {'total': 0, 'count': 0, 'offset': offset, 'limit': limit},
-        filters: null,
-      );
-    }
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final items = (data['data'] as List?) ?? [];
-    final apps = App.fromJsonList(items).where((p) => !p.deleted).toList();
-    final pagination = (data['pagination'] as Map<String, dynamic>? ?? {});
-    final filters = (data['filters'] as Map<String, dynamic>?);
-    return (apps: apps, pagination: pagination, filters: filters);
-  } catch (e, stackTrace) {
-    debugPrint(e.toString());
-    PlatformManager.instance.crashReporter.reportCrash(e, stackTrace);
-    return (
-      apps: <App>[],
-      pagination: {'total': 0, 'count': 0, 'offset': offset, 'limit': limit},
-      filters: null,
-    );
-  }
 }
 
 Future<List<App>> retrievePopularApps() async {
