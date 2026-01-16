@@ -6,6 +6,8 @@ import 'package:flutter_provider_utilities/flutter_provider_utilities.dart';
 import 'package:omi/backend/http/api/apps.dart';
 import 'package:omi/backend/http/api/conversations.dart';
 import 'package:omi/backend/http/api/users.dart';
+import 'package:omi/models/communication_feedback.dart';
+import 'package:omi/services/communication_service.dart';
 import 'package:omi/utils/platform/platform_manager.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/app.dart';
@@ -78,6 +80,15 @@ class ConversationDetailProvider extends ChangeNotifier with MessageNotifierMixi
   bool editSegmentLoading = false;
 
   bool showUnassignedFloatingButton = true;
+
+  // Communication feedback state
+  CommunicationFeedback? _conversationFeedback;
+  bool _isLoadingFeedback = false;
+  bool _isRegeneratingFeedback = false;
+
+  CommunicationFeedback? get conversationFeedback => _conversationFeedback;
+  bool get isLoadingFeedback => _isLoadingFeedback;
+  bool get isRegeneratingFeedback => _isRegeneratingFeedback;
 
   void toggleEditSegmentLoading(bool value) {
     editSegmentLoading = value;
@@ -231,6 +242,72 @@ class ConversationDetailProvider extends ChangeNotifier with MessageNotifierMixi
 
     // updateLoadingState(false);
     notifyListeners();
+
+    // Load communication feedback
+    loadCommunicationFeedback();
+  }
+
+  /// Load communication feedback for the current conversation
+  Future<void> loadCommunicationFeedback() async {
+    final userId = SharedPreferencesUtil().maityUserId;
+    if (userId.isEmpty) {
+      debugPrint('[ConversationDetailProvider] No userId, skipping feedback load');
+      return;
+    }
+
+    _isLoadingFeedback = true;
+    notifyListeners();
+
+    try {
+      final feedback = await CommunicationService.getConversationFeedback(
+        userId: userId,
+        conversationId: conversation.id,
+      );
+      _conversationFeedback = feedback;
+      debugPrint('[ConversationDetailProvider] Loaded feedback: ${feedback != null}');
+    } catch (e) {
+      debugPrint('[ConversationDetailProvider] Error loading feedback: $e');
+    } finally {
+      _isLoadingFeedback = false;
+      notifyListeners();
+    }
+  }
+
+  /// Regenerate communication feedback for the current conversation
+  Future<bool> regenerateCommunicationFeedback() async {
+    final userId = SharedPreferencesUtil().maityUserId;
+    if (userId.isEmpty) {
+      debugPrint('[ConversationDetailProvider] No userId, cannot regenerate feedback');
+      return false;
+    }
+
+    _isRegeneratingFeedback = true;
+    notifyListeners();
+
+    try {
+      final feedback = await CommunicationService.regenerateFeedback(
+        userId: userId,
+        conversationId: conversation.id,
+      );
+
+      if (feedback != null) {
+        _conversationFeedback = feedback;
+        debugPrint('[ConversationDetailProvider] Feedback regenerated successfully');
+        _isRegeneratingFeedback = false;
+        notifyListeners();
+        return true;
+      } else {
+        debugPrint('[ConversationDetailProvider] Failed to regenerate feedback');
+        _isRegeneratingFeedback = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[ConversationDetailProvider] Error regenerating feedback: $e');
+      _isRegeneratingFeedback = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   Future<bool> reprocessConversation({String? appId}) async {

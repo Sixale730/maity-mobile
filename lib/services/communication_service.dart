@@ -89,4 +89,46 @@ class CommunicationService {
       return null;
     }
   }
+
+  /// Regenerate communication feedback for a specific conversation
+  /// This analyzes the transcript segments and generates new feedback
+  static Future<CommunicationFeedback?> regenerateFeedback({
+    required String userId,
+    required String conversationId,
+  }) async {
+    try {
+      debugPrint(
+          '[CommunicationService] Regenerating feedback for conversation $conversationId');
+
+      final authHeader = await getAuthHeader();
+      final response = await http
+          .post(
+            Uri.parse(
+                '$_baseUrl/v1/communication/feedback/$conversationId/regenerate?user_id=$userId'),
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              'Authorization': authHeader,
+            },
+          )
+          .timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        debugPrint(
+            '[CommunicationService] Feedback regenerated successfully');
+        if (data['feedback'] != null) {
+          return CommunicationFeedback.fromJson(data['feedback']);
+        }
+        return null;
+      } else {
+        debugPrint(
+            '[CommunicationService] Error regenerating: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint(
+          '[CommunicationService] Error regenerating feedback: $e');
+      return null;
+    }
+  }
 }

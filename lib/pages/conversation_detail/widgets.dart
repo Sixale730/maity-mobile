@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gradient_borders/box_borders/gradient_box_border.dart';
 import 'package:omi/backend/http/api/conversations.dart';
 import 'package:omi/backend/http/webhooks.dart';
@@ -10,6 +11,7 @@ import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/geolocation.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/gen/assets.gen.dart';
+import 'package:omi/models/communication_feedback.dart';
 import 'package:omi/pages/apps/app_detail/app_detail.dart';
 import 'package:omi/pages/conversation_detail/conversation_detail_provider.dart';
 import 'package:omi/pages/conversation_detail/test_prompts.dart';
@@ -1084,6 +1086,366 @@ class _GetShareOptionsState extends State<GetShareOptions> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Widget to display communication feedback for a conversation
+class CommunicationFeedbackCard extends StatelessWidget {
+  const CommunicationFeedbackCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ConversationDetailProvider>(
+      builder: (context, provider, child) {
+        final feedback = provider.conversationFeedback;
+        final isLoading = provider.isLoadingFeedback;
+        final isRegenerating = provider.isRegeneratingFeedback;
+
+        // Don't show anything for discarded conversations
+        if (provider.conversation.discarded) {
+          return const SizedBox.shrink();
+        }
+
+        // Loading state
+        if (isLoading) {
+          return Container(
+            margin: const EdgeInsets.only(top: 24),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                ),
+              ),
+            ),
+          );
+        }
+
+        // No feedback - show generate button
+        if (feedback == null || !feedback.hasContent) {
+          return Container(
+            margin: const EdgeInsets.only(top: 24),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.psychology_outlined,
+                  size: 40,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Feedback de Comunicación',
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Analiza tu estilo de comunicación en esta conversación',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildGenerateButton(context, provider, isRegenerating),
+              ],
+            ),
+          );
+        }
+
+        // Has feedback - show full card
+        return Container(
+          margin: const EdgeInsets.only(top: 24),
+          decoration: BoxDecoration(
+            color: Colors.grey[900],
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with regenerate button
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 8, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const FaIcon(
+                          FontAwesomeIcons.commentDots,
+                          size: 16,
+                          color: Colors.deepPurple,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Feedback de Comunicación',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      onPressed: isRegenerating
+                          ? null
+                          : () async {
+                              HapticFeedback.lightImpact();
+                              final success = await provider.regenerateCommunicationFeedback();
+                              if (!success && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('No se pudo regenerar el feedback'),
+                                  ),
+                                );
+                              }
+                            },
+                      icon: isRegenerating
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                              ),
+                            )
+                          : const FaIcon(
+                              FontAwesomeIcons.arrowsRotate,
+                              size: 14,
+                              color: Colors.grey,
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Summary
+              if (feedback.summary.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  child: Text(
+                    feedback.summary,
+                    style: TextStyle(
+                      color: Colors.grey[300],
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+
+              const Divider(color: Colors.grey, height: 1),
+
+              // Strengths section
+              if (feedback.strengths.isNotEmpty)
+                _buildSection(
+                  title: 'Fortalezas',
+                  icon: FontAwesomeIcons.check,
+                  iconColor: Colors.green,
+                  items: feedback.strengths,
+                ),
+
+              // Areas to improve section
+              if (feedback.areasToImprove.isNotEmpty)
+                _buildSection(
+                  title: 'Áreas de Mejora',
+                  icon: FontAwesomeIcons.lightbulb,
+                  iconColor: Colors.amber,
+                  items: feedback.areasToImprove,
+                ),
+
+              // Observations section
+              if (feedback.observations.hasContent)
+                _buildObservationsSection(feedback.observations),
+
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGenerateButton(
+    BuildContext context,
+    ConversationDetailProvider provider,
+    bool isRegenerating,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        border: const GradientBoxBorder(
+          gradient: LinearGradient(colors: [
+            Color.fromARGB(127, 208, 208, 208),
+            Color.fromARGB(127, 188, 99, 121),
+            Color.fromARGB(127, 86, 101, 182),
+            Color.fromARGB(127, 126, 190, 236)
+          ]),
+          width: 2,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: MaterialButton(
+        onPressed: isRegenerating
+            ? null
+            : () async {
+                HapticFeedback.lightImpact();
+                final success = await provider.regenerateCommunicationFeedback();
+                if (!success && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('No se pudo generar el feedback'),
+                    ),
+                  );
+                }
+              },
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+          child: isRegenerating
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text(
+                  'Generar Feedback',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection({
+    required String title,
+    required IconData icon,
+    required Color iconColor,
+    required List<String> items,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              FaIcon(icon, size: 12, color: iconColor),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...items.map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 6, left: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '•  ',
+                      style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                    ),
+                    Expanded(
+                      child: Text(
+                        item,
+                        style: TextStyle(color: Colors.grey[300], fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildObservationsSection(CommunicationObservations observations) {
+    final items = <MapEntry<String, String>>[];
+
+    if (observations.clarity.isNotEmpty) {
+      items.add(MapEntry('Claridad', observations.clarity));
+    }
+    if (observations.structure.isNotEmpty) {
+      items.add(MapEntry('Estructura', observations.structure));
+    }
+    if (observations.callsToAction.isNotEmpty) {
+      items.add(MapEntry('Llamados a Acción', observations.callsToAction));
+    }
+    if (observations.objections.isNotEmpty) {
+      items.add(MapEntry('Manejo de Objeciones', observations.objections));
+    }
+
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              FaIcon(FontAwesomeIcons.eye, size: 12, color: Colors.blue),
+              SizedBox(width: 8),
+              Text(
+                'Observaciones',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...items.map((entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 8, left: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.key,
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      entry.value,
+                      style: TextStyle(color: Colors.grey[300], fontSize: 14),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
     );
   }
 }

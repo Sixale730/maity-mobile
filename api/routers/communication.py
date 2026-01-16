@@ -7,13 +7,14 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 
 from ..services.supabase_client import get_supabase
 from ..services.supabase_auth import optional_auth_user_id
-from ..services.communication_analyzer import aggregate_feedback
+from ..services.communication_analyzer import aggregate_feedback, analyze_communication
 from ..models.communication import (
     CommunicationFeedback,
     CommunicationObservations,
     AggregatedFeedback,
     CommunicationFeedbackResponse,
 )
+from ..models.conversation import TranscriptSegment
 
 
 router = APIRouter(prefix="/v1/communication", tags=["communication"])
@@ -250,4 +251,118 @@ async def get_conversation_feedback(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get feedback: {str(e)}",
+        )
+
+
+@router.post("/feedback/{conversation_id}/regenerate")
+async def regenerate_conversation_feedback(
+    conversation_id: str,
+    user_id: str = Query(..., description="User ID (maity.users UUID)"),
+    auth_user_id: Optional[str] = Depends(optional_auth_user_id),
+):
+    """
+    Regenerate communication feedback for a specific conversation.
+
+    This endpoint:
+    1. Fetches the conversation and its transcript segments
+    2. Analyzes the communication using OpenAI
+    3. Updates the communication_feedback field in the database
+    4. Returns the new feedback
+    """
+    supabase = get_supabase()
+
+    try:
+        # Get conversation with segments
+        conv_result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .select("id, title, transcript_text")
+            .eq("id", conversation_id)
+            .eq("user_id", user_id)
+            .single()
+            .execute()
+        )
+
+        if not conv_result.data:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        # Get transcript segments
+        segments_result = (
+            supabase.schema("maity")
+            .table("omi_transcript_segments")
+            .select("id, text, speaker, speaker_id, is_user, start_time, end_time")
+            .eq("conversation_id", conversation_id)
+            .order("start_time")
+            .execute()
+        )
+
+        segments_data = segments_result.data if segments_result.data else []
+
+        # Convert to TranscriptSegment objects
+        segments = [
+            TranscriptSegment(
+                text=s.get("text", ""),
+                speaker=s.get("speaker", "SPEAKER_00"),
+                speaker_id=s.get("speaker_id"),
+                is_user=s.get("is_user", False),
+                start=s.get("start_time", 0.0),
+                end=s.get("end_time", 0.0),
+            )
+            for s in segments_data
+        ]
+
+        if not segments:
+            raise HTTPException(
+                status_code=400,
+                detail="No transcript segments found for this conversation"
+            )
+
+        # Analyze communication
+        feedback = await analyze_communication(segments)
+
+        if not feedback:
+            raise HTTPException(
+                status_code=400,
+                detail="Could not generate feedback. Conversation may be too short."
+            )
+
+        # Convert to dict for storage
+        feedback_dict = {
+            "strengths": feedback.strengths,
+            "areas_to_improve": feedback.areas_to_improve,
+            "observations": {
+                "clarity": feedback.observations.clarity,
+                "structure": feedback.observations.structure,
+                "calls_to_action": feedback.observations.calls_to_action,
+                "objections": feedback.observations.objections,
+            },
+            "summary": feedback.summary,
+        }
+
+        # Update conversation with new feedback
+        update_result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .update({"communication_feedback": feedback_dict})
+            .eq("id", conversation_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
+        print(f"[Communication Router] Regenerated feedback for conversation {conversation_id}")
+
+        return {
+            "conversation_id": conversation_id,
+            "title": conv_result.data.get("title"),
+            "feedback": feedback_dict,
+            "regenerated": True,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[Communication Router] Failed to regenerate feedback: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to regenerate feedback: {str(e)}",
         )

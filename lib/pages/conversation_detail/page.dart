@@ -977,6 +977,8 @@ class SummaryTab extends StatelessWidget {
                       data.item1
                           ? const ReprocessDiscardedWidget()
                           : GetAppsWidgets(searchQuery: searchQuery, currentResultIndex: currentResultIndex),
+                      // Communication Feedback Card (only for non-discarded)
+                      if (!data.item1) const CommunicationFeedbackCard(),
                       const SizedBox(height: 150)
                     ],
                   ),

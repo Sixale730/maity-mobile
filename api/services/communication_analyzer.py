@@ -68,8 +68,13 @@ async def analyze_communication(
     # Filter only user segments for analysis
     user_segments = [s for s in segments if s.is_user]
 
+    # Si no hay segmentos del usuario, asumir que todos son del usuario
+    # (conversación de una sola persona grabando)
     if not user_segments:
-        # No user segments to analyze
+        user_segments = segments
+
+    if not user_segments:
+        # No segments at all to analyze
         return None
 
     # Build transcript text showing context
