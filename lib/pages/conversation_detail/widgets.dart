@@ -495,8 +495,8 @@ class AppResultDetailWidget extends StatelessWidget {
                   ),
           ),
 
-          // App info in a more subtle format below the content - only show if content is not empty
-          if (content.isNotEmpty)
+          // App info - only show if content exists and it's a real OMI App (not Maity AI summary)
+          if (content.isNotEmpty && app != null)
             GestureDetector(
               onTap: () async {
                 if (app != null) {
