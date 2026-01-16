@@ -137,20 +137,29 @@ async def search_conversations_by_embedding(
     """
     supabase = get_supabase()
 
-    # Use RPC function for vector search
-    # Function signature: search_omi_conversations(p_user_id, p_query_embedding, p_limit, p_similarity_threshold, p_include_discarded)
-    result = supabase.rpc(
-        "search_omi_conversations",
-        {
-            "p_user_id": user_id,
-            "p_query_embedding": query_embedding,
-            "p_limit": limit,
-            "p_similarity_threshold": similarity_threshold,
-            "p_include_discarded": include_discarded,
-        },
-    ).execute()
+    try:
+        print(f"[Supabase] Searching conversations for user: {user_id}")
+        print(f"[Supabase] Embedding length: {len(query_embedding)}, threshold: {similarity_threshold}")
 
-    return result.data if result.data else []
+        # Use RPC function for vector search
+        # Function signature: search_omi_conversations(p_user_id, p_query_embedding, p_limit, p_similarity_threshold, p_include_discarded)
+        result = supabase.schema("maity").rpc(
+            "search_omi_conversations",
+            {
+                "p_user_id": user_id,
+                "p_query_embedding": query_embedding,
+                "p_limit": limit,
+                "p_similarity_threshold": similarity_threshold,
+                "p_include_discarded": include_discarded,
+            },
+        ).execute()
+
+        print(f"[Supabase] RPC result count: {len(result.data) if result.data else 0}")
+
+        return result.data if result.data else []
+    except Exception as e:
+        print(f"[Supabase] RPC search_conversations failed: {e}")
+        return []
 
 
 async def search_segments_by_embedding(
@@ -167,18 +176,26 @@ async def search_segments_by_embedding(
     """
     supabase = get_supabase()
 
-    # Function signature: search_omi_segments(p_user_id, p_query_embedding, p_limit, p_similarity_threshold)
-    result = supabase.rpc(
-        "search_omi_segments",
-        {
-            "p_user_id": user_id,
-            "p_query_embedding": query_embedding,
-            "p_limit": limit,
-            "p_similarity_threshold": similarity_threshold,
-        },
-    ).execute()
+    try:
+        print(f"[Supabase] Searching segments for user: {user_id}")
 
-    return result.data if result.data else []
+        # Function signature: search_omi_segments(p_user_id, p_query_embedding, p_limit, p_similarity_threshold)
+        result = supabase.schema("maity").rpc(
+            "search_omi_segments",
+            {
+                "p_user_id": user_id,
+                "p_query_embedding": query_embedding,
+                "p_limit": limit,
+                "p_similarity_threshold": similarity_threshold,
+            },
+        ).execute()
+
+        print(f"[Supabase] RPC segments result count: {len(result.data) if result.data else 0}")
+
+        return result.data if result.data else []
+    except Exception as e:
+        print(f"[Supabase] RPC search_segments failed: {e}")
+        return []
 
 
 async def get_conversations(
