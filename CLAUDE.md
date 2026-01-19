@@ -81,6 +81,7 @@ Perfiles de voz para identificación del usuario (Speaker Verification):
 - lib/services/supabase_auth_service.dart - Servicio de auth Supabase (Google Sign-In nativo)
 - lib/providers/conversation_provider.dart - Estado de conversaciones + busqueda semantica
 - lib/providers/capture_provider.dart - Manejo de grabación, transcripción y guardado de conversaciones
+- lib/providers/usage_provider.dart - Estadísticas de uso desde Supabase (metrics)
 - lib/services/maity_api_service.dart - API backend (procesa y almacena en Supabase)
 - lib/services/omi_supabase_service.dart - Servicio para operaciones Supabase
 - lib/services/voice_profile_service.dart - Servicio para enrollment y verificación de voz
@@ -329,7 +330,7 @@ Speech Profile ahora funciona con custom STT (Deepgram):
 4. ~~Migrar auth de Firebase a Supabase~~ DONE (Google Sign-In)
 5. ~~Implementar guardado de conversaciones~~ DONE
 6. ~~Agregar busqueda semantica~~ DONE
-7. Dashboard de metricas
+7. ~~Dashboard de metricas~~ DONE
 8. UI para mostrar resultados de busqueda semantica
 9. Limpiar código legacy de Firebase Auth
 
@@ -340,11 +341,14 @@ Speech Profile ahora funciona con custom STT (Deepgram):
 | `/v1/omi/conversations/search` | POST | Busqueda semantica |
 | `/v1/omi/conversations` | GET | Listar conversaciones |
 | `/v1/omi/conversations/{id}` | GET | Obtener conversacion con segmentos |
+| `/v1/users/{user_id}/metrics` | GET | Metricas de uso por periodo (Supabase) |
+| `/v1/users/{user_id}/metrics/summary` | GET | Resumen de metricas (today, monthly, all-time) |
 
 ## Backend (Monorepo)
 Codigo en `C:\OMI\api\` (misma carpeta que Flutter app):
 - `api/index.py` - FastAPI entry point
 - `api/routers/omi.py` - Endpoints OMI para Supabase
+- `api/routers/metrics.py` - Endpoints de métricas de uso (Supabase)
 - `api/services/supabase_client.py` - Cliente Supabase con service_role
 - `api/services/embeddings.py` - Generacion de embeddings OpenAI
 - `vercel.json` - Configuracion de deploy Vercel
