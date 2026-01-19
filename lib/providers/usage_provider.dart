@@ -4,6 +4,8 @@ import 'package:omi/backend/http/api/payment.dart';
 import 'package:omi/models/subscription.dart';
 import 'package:omi/models/user_usage.dart';
 import 'package:omi/services/local_metrics_service.dart';
+import 'package:omi/services/maity_api_service.dart';
+import 'package:omi/services/supabase_auth_service.dart';
 
 class UsageProvider with ChangeNotifier {
   UserSubscriptionResponse? _subscription;
@@ -95,26 +97,59 @@ class UsageProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await getUserUsage(period: period);
+      // Get the maityUserId from SupabaseAuthService
+      final maityUserId = SupabaseAuthService.instance.maityUserId;
+      if (maityUserId == null || maityUserId.isEmpty) {
+        debugPrint('[UsageProvider] No maityUserId available, using local metrics');
+        _loadLocalMetrics(period);
+        _isUsageLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      // Convert period format: 'all_time' -> 'all' for API compatibility
+      final apiPeriod = period == 'all_time' ? 'all' : period;
+
+      final response = await MaityApiService.getMetrics(maityUserId, apiPeriod);
       if (response != null) {
+        // Map UserMetrics to UsageStats
+        final usageStats = UsageStats(
+          transcriptionSeconds: response.stats.transcriptionSeconds,
+          wordsTranscribed: response.stats.wordsTranscribed,
+          insightsGained: response.stats.insightsGained,
+          memoriesCreated: response.stats.conversationsCount,
+        );
+
+        // Map DailyMetrics to UsageHistoryPoint
+        final history = response.history
+            .map((h) => UsageHistoryPoint(
+                  date: h.date,
+                  transcriptionSeconds: (h.minutes * 60).round(),
+                  wordsTranscribed: h.words,
+                  insightsGained: 0,
+                  memoriesCreated: h.conversations,
+                ))
+            .toList();
+
         switch (period) {
           case 'today':
-            _todayUsage = response.today;
-            _todayHistory = response.history;
+            _todayUsage = usageStats;
+            _todayHistory = history;
             break;
           case 'monthly':
-            _monthlyUsage = response.monthly;
-            _monthlyHistory = response.history;
+            _monthlyUsage = usageStats;
+            _monthlyHistory = history;
             break;
           case 'yearly':
-            _yearlyUsage = response.yearly;
-            _yearlyHistory = response.history;
+            _yearlyUsage = usageStats;
+            _yearlyHistory = history;
             break;
           case 'all_time':
-            _allTimeUsage = response.allTime;
-            _allTimeHistory = response.history;
+            _allTimeUsage = usageStats;
+            _allTimeHistory = history;
             break;
         }
+        debugPrint('[UsageProvider] Loaded metrics from Supabase for $period');
       } else {
         // Fallback to local metrics
         _loadLocalMetrics(period);

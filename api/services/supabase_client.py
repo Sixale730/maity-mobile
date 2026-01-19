@@ -329,3 +329,134 @@ async def delete_conversation(user_id: str, conversation_id: str) -> bool:
     )
 
     return len(result.data) > 0 if result.data else False
+
+
+async def get_user_metrics(
+    user_id: str,
+    period: str = "monthly",
+) -> Dict[str, Any]:
+    """
+    Get aggregated metrics for a user from Supabase.
+
+    Args:
+        user_id: UUID de maity.users (no auth.users.id)
+        period: today, weekly, monthly, yearly, all
+
+    Returns:
+        Dict with aggregated stats and history
+    """
+    from datetime import timedelta
+    from collections import defaultdict
+
+    supabase = get_supabase()
+
+    # Calculate date range
+    now = datetime.utcnow()
+    if period == "today":
+        start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "weekly":
+        start_date = now - timedelta(days=7)
+    elif period == "monthly":
+        start_date = now - timedelta(days=30)
+    elif period == "yearly":
+        start_date = now - timedelta(days=365)
+    else:  # all
+        start_date = datetime(2020, 1, 1)
+
+    start_iso = start_date.isoformat()
+
+    try:
+        # Query conversations for the period
+        result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .select("duration_seconds, words_count, action_items, events, category, created_at")
+            .eq("user_id", user_id)
+            .eq("deleted", False)
+            .eq("discarded", False)
+            .gte("created_at", start_iso)
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        conversations = result.data if result.data else []
+
+        # Aggregate stats
+        total_seconds = 0
+        total_words = 0
+        total_conversations = len(conversations)
+        total_insights = 0
+        category_counts: Dict[str, int] = defaultdict(int)
+        daily_data: Dict[str, Dict[str, Any]] = defaultdict(
+            lambda: {"conversations": 0, "minutes": 0.0, "words": 0}
+        )
+
+        for conv in conversations:
+            duration = conv.get("duration_seconds") or 0
+            words = conv.get("words_count") or 0
+            action_items = conv.get("action_items") or []
+            events = conv.get("events") or []
+            category = conv.get("category") or "other"
+            created_at = conv.get("created_at", "")
+
+            total_seconds += duration
+            total_words += words
+            total_insights += len(action_items) + len(events)
+            category_counts[category] += 1
+
+            # Aggregate by date
+            if created_at:
+                date_key = created_at[:10]  # YYYY-MM-DD
+                daily_data[date_key]["conversations"] += 1
+                daily_data[date_key]["minutes"] += duration / 60
+                daily_data[date_key]["words"] += words
+
+        # Build top categories
+        top_categories = sorted(
+            [{"category": cat, "count": count} for cat, count in category_counts.items()],
+            key=lambda x: x["count"],
+            reverse=True,
+        )[:10]
+
+        # Build history (last 30 days max)
+        history = sorted(
+            [
+                {
+                    "date": date,
+                    "conversations": d["conversations"],
+                    "minutes": round(d["minutes"], 1),
+                    "words": d["words"],
+                }
+                for date, d in daily_data.items()
+            ],
+            key=lambda x: x["date"],
+            reverse=True,
+        )[:30]
+
+        return {
+            "period": period,
+            "user_id": user_id,
+            "stats": {
+                "transcription_seconds": total_seconds,
+                "words_transcribed": total_words,
+                "conversations_count": total_conversations,
+                "insights_gained": total_insights,
+                "top_categories": top_categories,
+            },
+            "history": history,
+        }
+
+    except Exception as e:
+        print(f"[Supabase] Error getting user metrics: {e}")
+        return {
+            "period": period,
+            "user_id": user_id,
+            "stats": {
+                "transcription_seconds": 0,
+                "words_transcribed": 0,
+                "conversations_count": 0,
+                "insights_gained": 0,
+                "top_categories": [],
+            },
+            "history": [],
+        }

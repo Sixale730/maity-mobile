@@ -5,13 +5,13 @@ import 'package:http/http.dart' as http;
 import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
+import 'package:omi/env/env.dart';
 import 'package:omi/services/omi_supabase_service.dart';
 
 /// Service for communicating with Maity backend API (Vercel)
 /// Handles conversation processing, metrics, and action items
 class MaityApiService {
-  // TODO: Update this URL after deploying to Vercel
-  static const String _baseUrl = 'https://maity-backend.vercel.app';
+  static String get _baseUrl => Env.maityBackendUrl ?? 'https://maity-mobile.vercel.app';
   static const Duration _timeout = Duration(seconds: 30);
 
   /// Process a conversation using the Maity backend
