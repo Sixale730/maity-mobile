@@ -517,3 +517,8 @@ El widget `CommunicationFeedbackCard` muestra:
 - Modelo: `gpt-4o-mini`
 - max_tokens: 800
 - temperature: 0.7
+
+## Documentación Adicional
+
+- `docs/CHAT_AGENT_DIFFERENCES.md` - Comparación detallada del chat agent entre Accounting y OMI (tools, prompts, providers)
+- `docs/google-sign-in-setup.md` - Configuración de Google Sign-In para Supabase Auth
