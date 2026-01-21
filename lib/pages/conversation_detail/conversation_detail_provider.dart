@@ -7,6 +7,7 @@ import 'package:omi/backend/http/api/apps.dart';
 import 'package:omi/backend/http/api/conversations.dart';
 import 'package:omi/backend/http/api/users.dart';
 import 'package:omi/services/supabase_auth_service.dart';
+import 'package:omi/services/omi_supabase_service.dart';
 import 'package:omi/models/communication_feedback.dart';
 import 'package:omi/services/communication_service.dart';
 import 'package:omi/utils/platform/platform_manager.dart';
@@ -218,6 +219,11 @@ class ConversationDetailProvider extends ChangeNotifier with MessageNotifierMixi
       }
     });
 
+    // Load segments from Supabase if they're empty (common when loading from list view)
+    if (conversation.transcriptSegments.isEmpty) {
+      await _loadConversationSegments();
+    }
+
     canDisplaySeconds = TranscriptSegment.canDisplaySeconds(conversation.transcriptSegments);
 
     loadPreferredSummarizationApp();
@@ -271,6 +277,35 @@ class ConversationDetailProvider extends ChangeNotifier with MessageNotifierMixi
     } finally {
       _isLoadingFeedback = false;
       notifyListeners();
+    }
+  }
+
+  /// Load conversation segments from Supabase when they're not available locally
+  Future<void> _loadConversationSegments() async {
+    final userId = SupabaseAuthService.instance.maityUserId;
+    if (userId == null || userId.isEmpty) {
+      debugPrint('[ConversationDetailProvider] No userId, skipping segment load');
+      return;
+    }
+
+    try {
+      debugPrint('[ConversationDetailProvider] Loading segments for conversation ${conversation.id}');
+      final detail = await OmiSupabaseService.getConversation(
+        userId: userId,
+        conversationId: conversation.id,
+      );
+
+      if (detail != null && detail.segments.isNotEmpty) {
+        final segments = detail.segments.map((s) => s.toTranscriptSegment()).toList();
+        conversation.transcriptSegments.clear();
+        conversation.transcriptSegments.addAll(segments);
+        debugPrint('[ConversationDetailProvider] Loaded ${segments.length} segments');
+        notifyListeners();
+      } else {
+        debugPrint('[ConversationDetailProvider] No segments found for conversation');
+      }
+    } catch (e) {
+      debugPrint('[ConversationDetailProvider] Error loading segments: $e');
     }
   }
 

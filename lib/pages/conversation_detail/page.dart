@@ -5,6 +5,7 @@ import 'package:flutter_provider_utilities/flutter_provider_utilities.dart';
 import 'package:omi/backend/http/api/conversations.dart';
 // import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/conversation.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/backend/schema/person.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/pages/capture/widgets/widgets.dart';
@@ -22,7 +23,6 @@ import 'package:omi/widgets/expandable_text.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/widgets/extensions/string.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:tuple/tuple.dart';
 import 'package:pull_down_button/pull_down_button.dart';
 
@@ -47,11 +47,9 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final focusTitleField = FocusNode();
   final focusOverviewField = FocusNode();
-  final GlobalKey _shareButtonKey = GlobalKey();
   TabController? _controller;
   final AppReviewService _appReviewService = AppReviewService();
   ConversationTab selectedTab = ConversationTab.summary;
-  bool _isSharing = false;
 
   // Search functionality
   bool _isSearching = false;
@@ -205,14 +203,15 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
     super.dispose();
   }
 
-  String _getTabTitle(ConversationTab tab) {
+  String _getTabTitle(BuildContext context, ConversationTab tab) {
+    final l10n = AppLocalizations.of(context);
     switch (tab) {
       case ConversationTab.transcript:
-        return 'Transcript';
+        return l10n?.transcription ?? 'Transcription';
       case ConversationTab.summary:
-        return 'Conversation';
+        return l10n?.summary ?? 'Summary';
       case ConversationTab.actionItems:
-        return 'Action Items';
+        return l10n?.actionItems ?? 'Action Items';
     }
   }
 
@@ -391,7 +390,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
               child: Padding(
                 padding: const EdgeInsets.only(left: 8.0),
                 child: Text(
-                  _getTabTitle(selectedTab),
+                  _getTabTitle(context, selectedTab),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -408,86 +407,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Share button (first) - directly share summary link
-                      Container(
-                        key: _shareButtonKey,
-                        width: 36,
-                        height: 36,
-                        margin: const EdgeInsets.only(right: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          onPressed: _isSharing
-                              ? null
-                              : () async {
-                                  setState(() {
-                                    _isSharing = true;
-                                  });
-                                  HapticFeedback.mediumImpact();
-
-                                  // Capture references before async operation
-                                  final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-                                  try {
-                                    // Directly share the summary link
-                                    bool shared = await setConversationVisibility(provider.conversation.id);
-                                    if (!shared) {
-                                      scaffoldMessenger.showSnackBar(
-                                        const SnackBar(content: Text('Conversation URL could not be shared.')),
-                                      );
-                                      setState(() {
-                                        _isSharing = false;
-                                      });
-                                      return;
-                                    }
-                                    String content = 'https://h.omi.me/memories/${provider.conversation.id}';
-                                    // Track share event
-                                    MixpanelManager().conversationShared(
-                                      conversation: provider.conversation,
-                                      shareMethod: 'url_share',
-                                    );
-                                    // Start sharing and get the position for iOS
-                                    final RenderBox? box =
-                                        _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
-                                    if (box != null) {
-                                      final Offset position = box.localToGlobal(Offset.zero);
-                                      final Size size = box.size;
-                                      Share.share(
-                                        content,
-                                        subject: provider.conversation.structured.title,
-                                        sharePositionOrigin:
-                                            Rect.fromLTWH(position.dx, position.dy, size.width, size.height),
-                                      );
-                                    } else {
-                                      Share.share(content, subject: provider.conversation.structured.title);
-                                    }
-                                    // Small delay to let share sheet appear, then clear loading
-                                    await Future.delayed(const Duration(milliseconds: 150));
-                                    setState(() {
-                                      _isSharing = false;
-                                    });
-                                  } catch (e) {
-                                    setState(() {
-                                      _isSharing = false;
-                                    });
-                                  }
-                                },
-                          icon: _isSharing
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const FaIcon(FontAwesomeIcons.arrowUpFromBracket, size: 16.0, color: Colors.white),
-                        ),
-                      ),
-                      // Search button (second) - only show on transcript and summary tabs
+                      // Search button - only show on transcript and summary tabs
                       if (_controller?.index != 2)
                         Container(
                           width: 36,
@@ -526,33 +446,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                         child: PullDownButton(
                           itemBuilder: (context) => [
                             PullDownMenuItem(
-                              title: 'Copy Transcript',
-                              iconWidget: const FaIcon(FontAwesomeIcons.copy, size: 16),
-                              onTap: () => _handleMenuSelection(context, 'copy_transcript', provider),
-                            ),
-                            PullDownMenuItem(
-                              title: 'Copy Summary',
-                              iconWidget: const FaIcon(FontAwesomeIcons.clone, size: 16),
-                              onTap: () => _handleMenuSelection(context, 'copy_summary', provider),
-                            ),
-                            // PullDownMenuItem(
-                            //   title: 'Trigger Integration',
-                            //   iconWidget: FaIcon(FontAwesomeIcons.paperPlane, size: 16),
-                            //   onTap: () => _handleMenuSelection(context, 'trigger_integration', provider),
-                            // ),
-                            PullDownMenuItem(
-                              title: 'Test Prompt',
-                              iconWidget: const FaIcon(FontAwesomeIcons.commentDots, size: 16),
-                              onTap: () => _handleMenuSelection(context, 'test_prompt', provider),
-                            ),
-                            if (!provider.conversation.discarded)
-                              PullDownMenuItem(
-                                title: 'Reprocess Conversation',
-                                iconWidget: const FaIcon(FontAwesomeIcons.arrowsRotate, size: 16),
-                                onTap: () => _handleMenuSelection(context, 'reprocess', provider),
-                              ),
-                            PullDownMenuItem(
-                              title: 'Delete Conversation',
+                              title: AppLocalizations.of(context)?.delete ?? 'Delete',
                               iconWidget: const FaIcon(FontAwesomeIcons.trashCan, size: 16, color: Colors.red),
                               onTap: () => _handleMenuSelection(context, 'delete', provider),
                             ),
@@ -918,7 +812,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                                       conversationId: provider.conversation.id,
                                       query: value,
                                       resultsCount: _totalSearchResults,
-                                      activeTab: _getTabTitle(selectedTab),
+                                      activeTab: _getTabTitle(context, selectedTab),
                                     );
                                   }
                                 });

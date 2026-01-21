@@ -504,4 +504,18 @@ class OmiSegment {
       endTime: (json['end_time'] as num).toDouble(),
     );
   }
+
+  /// Convert to TranscriptSegment for compatibility with existing UI
+  TranscriptSegment toTranscriptSegment() {
+    return TranscriptSegment(
+      id: id,
+      text: text,
+      speaker: speaker ?? 'SPEAKER_0$speakerId',
+      isUser: isUser,
+      personId: personId,
+      start: startTime,
+      end: endTime,
+      translations: [],
+    );
+  }
 }

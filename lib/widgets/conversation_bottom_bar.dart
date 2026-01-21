@@ -5,7 +5,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/schema/app.dart';
 import 'package:omi/gen/assets.gen.dart';
 import 'package:omi/pages/conversation_detail/conversation_detail_provider.dart';
-import 'package:omi/pages/conversation_detail/widgets/summarized_apps_sheet.dart';
 import 'package:omi/widgets/conversation_bottom_bar/tab_button.dart';
 import 'package:provider/provider.dart';
 
@@ -147,19 +146,6 @@ class ConversationBottomBar extends StatelessWidget {
         final isReprocessing = detailProvider.loadingReprocessConversation;
         final reprocessingApp = detailProvider.selectedAppForReprocessing;
 
-        void handleTap() {
-          if (selectedTab == ConversationTab.summary) {
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (context) => const SummarizedAppsBottomSheet(),
-            );
-          } else {
-            onTabSelected(ConversationTab.summary);
-          }
-        }
-
         return TabButton(
           icon: null,
           customIcon: app == null && reprocessingApp == null
@@ -169,15 +155,14 @@ class ConversationBottomBar extends StatelessWidget {
                 )
               : null,
           isSelected: selectedTab == ConversationTab.summary,
-          onTap: handleTap,
-          label: null, // Remove the label to show only icon + dropdown
+          onTap: () => onTabSelected(ConversationTab.summary),
+          label: null,
           appImage: isReprocessing
               ? (reprocessingApp != null ? reprocessingApp.getImageUrl() : Assets.images.herologo.path)
               : (app?.getImageUrl()),
           isLocalAsset: isReprocessing && reprocessingApp == null,
-          showDropdownArrow: true, // Always show dropdown arrow
+          showDropdownArrow: false,
           isLoading: isReprocessing,
-          onDropdownPressed: handleTap,
         );
       },
     );
