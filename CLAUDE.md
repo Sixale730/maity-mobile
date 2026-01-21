@@ -27,7 +27,7 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
 - URL: `https://nhlrtflkxoojvhbyocet.supabase.co`
 - Schema: `maity` (shared with web platform)
 - pgvector: v0.8.0 (1536 dimensions for text-embedding-3-small)
-- Tables: `maity.omi_conversations`, `maity.omi_transcript_segments`, `maity.voice_profiles`
+- Tables: `maity.omi_conversations`, `maity.omi_transcript_segments`, `maity.voice_profiles`, `maity.user_feedback`
 
 ## Database Schema
 
@@ -70,6 +70,19 @@ Perfiles de voz para identificación del usuario (Speaker Verification):
 - `is_active` (BOOLEAN) - Perfil activo
 - Índice HNSW para búsqueda por similitud coseno
 
+### maity.user_feedback
+Feedback de usuarios (comentarios, bugs, sugerencias):
+- `id` (UUID) - Primary key
+- `user_id` (UUID) - Referencia a maity.users.id
+- `auth_id` (UUID) - FK a auth.users.id
+- `feedback_type` (TEXT) - Tipo: 'comment', 'bug', 'suggestion'
+- `message` (TEXT) - Contenido del feedback
+- `app_version` (TEXT) - Versión de la app
+- `device_info` (TEXT) - Info del dispositivo
+- `status` (TEXT) - Estado: 'pending', 'reviewed', 'resolved'
+- `created_at` (TIMESTAMP) - Fecha de creación
+- RLS: Usuarios solo pueden insertar y ver su propio feedback
+
 ### RPC Functions
 - `maity.search_omi_conversations(p_user_id, ...)` - Busqueda semantica de conversaciones
 - `maity.search_omi_segments(p_user_id, ...)` - Busqueda semantica de segmentos
@@ -85,6 +98,7 @@ Perfiles de voz para identificación del usuario (Speaker Verification):
 - lib/services/maity_api_service.dart - API backend (procesa y almacena en Supabase)
 - lib/services/omi_supabase_service.dart - Servicio para operaciones Supabase
 - lib/services/voice_profile_service.dart - Servicio para enrollment y verificación de voz
+- lib/services/feedback_service.dart - Servicio para envío y consulta de feedback
 - lib/backend/http/shared.dart - Cliente HTTP con autenticacion centralizada
 - lib/backend/schema/conversation.dart - Modelos de datos
 - lib/pages/home/page.dart - Página principal con navegación inferior
@@ -171,9 +185,9 @@ La app distingue entre dos perfiles basados en el dominio del email:
 **Compartir:**
 - Share Maity → maity.com.mx
 
-**Soporte (solo si Intercom habilitado):**
-- Feedback / Bug
-- Help Center
+**Feedback:**
+- Send Feedback → FeedbackPage (formulario para enviar comentarios/bugs/sugerencias)
+- Feedback Received → FeedbackListPage (**solo Developer** - ver todos los feedback)
 
 **Privacidad y Configuración:**
 - Data & Privacy
@@ -225,6 +239,31 @@ Text(l10n.insights) // "Insights" o "Estadísticas"
 - UsagePage (Insights) - Completamente localizada
 - Onboarding pages - Completamente localizadas
 - Settings drawer - Completamente localizado
+- FindDevicesPage - Pantalla de conexión de dispositivo
+
+### Foreground Service Notification
+La notificación del servicio en segundo plano usa textos neutrales (no implica conexión):
+- Título: "Maity"
+- Texto: "Transcription service is ready."
+
+**Archivo**: `lib/utils/audio/foreground.dart:160-162`
+
+### Pantalla de Conexión de Dispositivo
+La pantalla de búsqueda y conexión de dispositivos está completamente localizada:
+
+| Clave | Inglés | Español |
+|-------|--------|---------|
+| `searchingForDevices` | Searching for devices... | Buscando dispositivos... |
+| `devicesFoundNearby` | X DEVICE(S) FOUND NEARBY | X DISPOSITIVO(S) ENCONTRADO(S) CERCA |
+| `pairingSuccessful` | PAIRING SUCCESSFUL | EMPAREJAMIENTO EXITOSO |
+| `contactSupport` | Contact Support? | ¿Contactar soporte? |
+| `connectLater` | Connect Later | Conectar después |
+
+**Email de soporte**: `julio.gonzalez@maity.com.mx`
+
+**Archivos**:
+- `lib/pages/onboarding/find_device/page.dart` - Pantalla principal
+- `lib/pages/onboarding/find_device/found_devices.dart` - Lista de dispositivos
 
 ### Localización de Fechas
 Las fechas se muestran en el idioma configurado usando el parámetro `locale` de `DateFormat`:
@@ -417,6 +456,42 @@ Speech Profile ahora funciona con custom STT (Deepgram):
 | `/v1/users/{user_id}/metrics` | GET | Metricas de uso por periodo (Supabase) |
 | `/v1/users/{user_id}/metrics/summary` | GET | Resumen de metricas (today, monthly, all-time) |
 | `/v2/messages` | POST | Chat con Maity (function calling para acceso a conversaciones) |
+| `/v1/feedback/submit` | POST | Enviar feedback (comment/bug/suggestion) |
+| `/v1/feedback/list` | GET | Listar feedback (solo developers @asertio.mx) |
+| `/v1/feedback/my` | GET | Ver feedback propio del usuario |
+
+## User Feedback System
+
+Sistema de feedback para que los usuarios envíen comentarios, reportes de bugs y sugerencias.
+
+### Arquitectura
+```
+Flutter (FeedbackPage) → Vercel (/v1/feedback/*) → Supabase (maity.user_feedback)
+```
+
+### Tipos de Feedback
+| Tipo | Descripción | Icono |
+|------|-------------|-------|
+| `comment` | Comentario general | 💬 Azul |
+| `bug` | Reporte de error | 🐛 Rojo |
+| `suggestion` | Sugerencia de mejora | 💡 Naranja |
+
+### Archivos del Sistema
+- `api/routers/feedback.py` - Endpoints FastAPI (submit, list, my)
+- `lib/services/feedback_service.dart` - Cliente Flutter
+- `lib/pages/settings/feedback_page.dart` - Formulario de feedback
+- `lib/pages/settings/feedback_list_page.dart` - Lista de feedback (developer)
+
+### Flujo de Feedback
+1. Usuario abre Settings → Send Feedback
+2. Selecciona tipo (Comentario/Bug/Sugerencia)
+3. Escribe mensaje y envía
+4. Backend guarda en `maity.user_feedback` con info de dispositivo y versión
+5. Developers (@asertio.mx) pueden ver todos los feedback en "Feedback Received"
+
+### Permisos
+- **Todos los usuarios**: Enviar feedback, ver su propio feedback
+- **Developers (@asertio.mx)**: Ver todos los feedback de todos los usuarios
 
 ## Chat Agent (Maity)
 
@@ -466,11 +541,32 @@ El chat agent usa un system prompt detallado que incluye:
 - Reglas de respuesta (español, conciso, formato claro)
 - Fecha actual para consultas relativas
 
+### Manejo de Resultados Vacíos
+
+El system prompt incluye reglas específicas para evitar respuestas genéricas cuando las herramientas no encuentran datos:
+
+**Reglas en SYSTEM_PROMPT (MANEJO DE RESULTADOS):**
+- Si `"total": 0` o listas vacías → Informar claramente al usuario
+- Si hay campo `"error"` → Mostrar descripción del problema
+- NUNCA preguntar "¿Te gustaría saber más?" sin mostrar información primero
+- SIEMPRE mostrar datos encontrados ANTES de ofrecer opciones adicionales
+- Si el resultado tiene campo `"message"` → Incluirlo en la respuesta
+
+**Campos `message` en respuestas de herramientas:**
+
+| Función | Campo message (cuando vacío) |
+|---------|------------------------------|
+| `buscar_conversaciones_db()` | "No encontré conversaciones entre {fecha_inicio} y {fecha_fin}" |
+| `buscar_semantico_db()` | "No encontré conversaciones relacionadas con '{query}'" |
+
+**Ubicación**: `api/routers/messages.py:70-75` (system prompt) y líneas 299-308, 376-384 (funciones)
+
 ## Backend (Monorepo)
 Codigo en `C:\OMI\api\` (misma carpeta que Flutter app):
 - `api/index.py` - FastAPI entry point
 - `api/routers/omi.py` - Endpoints OMI para Supabase
 - `api/routers/metrics.py` - Endpoints de métricas de uso (Supabase)
+- `api/routers/feedback.py` - Endpoints de feedback de usuarios
 - `api/services/supabase_client.py` - Cliente Supabase con service_role
 - `api/services/embeddings.py` - Generacion de embeddings OpenAI
 - `vercel.json` - Configuracion de deploy Vercel

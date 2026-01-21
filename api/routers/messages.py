@@ -63,10 +63,16 @@ REGLAS:
 - Sé conciso pero informativo
 - Incluye emoji + título al mostrar conversaciones
 - Usa formato claro para estadísticas y listas
-- Si no encuentras información, sugiere alternativas
 - Para preguntas sobre "hoy", usa resumen_dia
 - Para "mis tareas" o "pendientes", usa obtener_action_items
 - Para "estadísticas" o "uso", usa estadisticas_uso
+
+MANEJO DE RESULTADOS (MUY IMPORTANTE):
+- Si una herramienta devuelve "total": 0 o listas vacías, INFORMA CLARAMENTE al usuario: "No encontré conversaciones en ese período" o similar
+- Si hay un campo "error" en el resultado, informa: "Hubo un problema: [descripción]"
+- NUNCA preguntes "¿Te gustaría saber más?" si NO mostraste información primero
+- SIEMPRE muestra los datos encontrados ANTES de ofrecer opciones adicionales
+- Si el resultado tiene campo "message", inclúyelo en tu respuesta
 
 Fecha actual: {current_date}
 """
@@ -290,14 +296,19 @@ async def buscar_conversaciones_db(user_id: str, fecha_inicio: str = None, fecha
                     "words_count": conv.get("words_count"),
                 })
 
+        message = None
+        if not filtered:
+            message = f"No encontré conversaciones entre {fecha_inicio} y {fecha_fin}"
+
         return {
             "conversaciones": filtered[:limite],
             "total": len(filtered),
             "fecha_inicio": fecha_inicio,
             "fecha_fin": fecha_fin,
+            "message": message,
         }
     except Exception as e:
-        return {"error": str(e), "conversaciones": []}
+        return {"error": str(e), "conversaciones": [], "message": f"Error al buscar conversaciones: {str(e)}"}
 
 
 async def obtener_conversacion_db(user_id: str, conversation_id: str) -> dict:
@@ -362,13 +373,18 @@ async def buscar_semantico_db(user_id: str, query: str, limite: int = 5) -> dict
                 "relevancia": conv.get("similarity", 0),
             })
 
+        message = None
+        if not formatted:
+            message = f"No encontré conversaciones relacionadas con '{query}'"
+
         return {
             "query": query,
             "resultados": formatted,
             "total": len(formatted),
+            "message": message,
         }
     except Exception as e:
-        return {"error": str(e), "resultados": []}
+        return {"error": str(e), "resultados": [], "message": f"Error en búsqueda semántica: {str(e)}"}
 
 
 async def ejecutar_tool(tool_name: str, args: dict, user_id: str) -> str:
