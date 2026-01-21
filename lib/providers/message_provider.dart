@@ -358,10 +358,16 @@ class MessageProvider extends ChangeNotifier {
 
   Future clearChat() async {
     setClearingChat(true);
-    var mes = await clearChatServer(appId: appProvider?.selectedChatAppId);
-    messages = mes;
-    setClearingChat(false);
-    notifyListeners();
+    try {
+      var mes = await clearChatServer(appId: appProvider?.selectedChatAppId);
+      messages = mes;
+    } catch (e) {
+      debugPrint('[MessageProvider] Error clearing chat: $e');
+      messages = [];  // Clear locally even if server fails
+    } finally {
+      setClearingChat(false);
+      notifyListeners();
+    }
   }
 
   void addMessageLocally(String messageText) {
