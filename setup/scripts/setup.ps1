@@ -42,52 +42,27 @@ Write-Host ""
 
 
 function SetupFirebase {
+    # Note: firebase_options.dart is no longer needed (migrated to Supabase Auth)
+    # Only Google services config files are still used for Google Sign-In
+
     # Create directories if they don't exist
     New-Item -ItemType Directory -Force -Path "android/app/src/dev/", "ios/Config/Dev/", "ios/Runner/"
-    
+
     # Copy files
-    Copy-Item "setup/prebuilt/firebase_options.dart" -Destination "lib/firebase_options_dev.dart"
     Copy-Item "setup/prebuilt/google-services.json" -Destination "android/app/src/dev/"
     Copy-Item "setup/prebuilt/GoogleService-Info.plist" -Destination "ios/Config/Dev/"
     Copy-Item "setup/prebuilt/GoogleService-Info.plist" -Destination "ios/Runner/"
 
-    # Mocking setup
+    # Prod configs
     New-Item -ItemType Directory -Force -Path "android/app/src/prod/", "ios/Config/Prod/"
-    Copy-Item "setup/prebuilt/firebase_options.dart" -Destination "lib/firebase_options_prod.dart"
     Copy-Item "setup/prebuilt/google-services.json" -Destination "android/app/src/prod/"
     Copy-Item "setup/prebuilt/GoogleService-Info.plist" -Destination "ios/Config/Prod/"
 }
 
 
-function SetupFirebaseWithServiceAccount {
-    dart pub global activate flutterfire_cli
-    
-    # Dev configuration
-    flutterfire config `
-        --platforms="android,ios,web" `
-        --out="lib/firebase_options_dev.dart" `
-        --ios-bundle-id="com.friend-app-with-wearable.ios12.development" `
-        --android-app-id="com.friend.ios.dev" `
-        --android-out="android/app/src/dev/" `
-        --ios-out="ios/Config/Dev/" `
-        --service-account="$env:FIREBASE_SERVICE_ACCOUNT_KEY" `
-        --project="based-hardware-dev" `
-        --ios-target="Runner" `
-        --yes
-
-    # Prod configuration
-    flutterfire config `
-        --platforms="android,ios,web" `
-        --out="lib/firebase_options_prod.dart" `
-        --ios-bundle-id="com.friend-app-with-wearable.ios12" `
-        --android-app-id="com.friend.ios.dev" `
-        --android-out="android/app/src/prod/" `
-        --ios-out="ios/Config/Prod/" `
-        --service-account="$env:FIREBASE_SERVICE_ACCOUNT_KEY" `
-        --project="based-hardware-dev" `
-        --ios-target="Runner" `
-        --yes
-}
+# NOTE: SetupFirebaseWithServiceAccount removed - app migrated to Supabase Auth
+# Firebase config files (google-services.json, GoogleService-Info.plist) are still
+# used for Google Sign-In but firebase_options.dart is no longer needed.
 
 function SetupProvisioningProfile {
     # Check if fastlane exists

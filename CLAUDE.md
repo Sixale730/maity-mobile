@@ -332,7 +332,7 @@ Speech Profile ahora funciona con custom STT (Deepgram):
 6. ~~Agregar busqueda semantica~~ DONE
 7. ~~Dashboard de metricas~~ DONE
 8. UI para mostrar resultados de busqueda semantica
-9. Limpiar código legacy de Firebase Auth
+9. ~~Limpiar código legacy de Firebase Auth~~ DONE (eliminado firebase_options.dart y referencias en setup scripts)
 
 ## Vercel Backend Endpoints (OMI)
 | Endpoint | Metodo | Descripcion |
