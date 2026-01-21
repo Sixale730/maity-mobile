@@ -22,6 +22,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/main.dart';
+import 'package:omi/pages/settings/feedback_page.dart';
+import 'package:omi/pages/settings/feedback_list_page.dart';
 import 'device_settings.dart';
 import '../conversations/sync_page.dart';
 
@@ -444,36 +446,40 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
           ),
           const SizedBox(height: 32),
 
-          // Support Section
-          if (PlatformService.isIntercomSupported)
-            _buildSectionContainer(
-              children: [
-                _buildSettingsItem(
-                  title: AppLocalizations.of(context)?.feedbackBug ?? 'Feedback / Bug',
-                  icon: const FaIcon(FontAwesomeIcons.solidEnvelope, color: Color(0xFF8E8E93), size: 20),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final Uri url = Uri.parse('https://feedback.omi.me/');
-                    if (await canLaunchUrl(url)) {
-                      await launchUrl(url, mode: LaunchMode.inAppBrowserView);
-                    }
-                  },
-                ),
+          // Feedback Section
+          _buildSectionContainer(
+            children: [
+              _buildSettingsItem(
+                title: AppLocalizations.of(context)?.sendFeedback ?? 'Send Feedback',
+                icon: const FaIcon(FontAwesomeIcons.solidEnvelope, color: Color(0xFF8E8E93), size: 20),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const FeedbackPage(),
+                    ),
+                  );
+                },
+              ),
+              // Feedback Received - Developer only
+              if (_isDeveloperUser()) ...[
                 const Divider(height: 1, color: Color(0xFF3C3C43)),
                 _buildSettingsItem(
-                  title: AppLocalizations.of(context)?.helpCenter ?? 'Help Center',
-                  icon: const FaIcon(FontAwesomeIcons.book, color: Color(0xFF8E8E93), size: 20),
-                  onTap: () async {
+                  title: AppLocalizations.of(context)?.feedbackReceived ?? 'Feedback Received',
+                  icon: const FaIcon(FontAwesomeIcons.inbox, color: Color(0xFF8E8E93), size: 20),
+                  onTap: () {
                     Navigator.pop(context);
-                    final Uri url = Uri.parse('https://help.omi.me/en/');
-                    if (await canLaunchUrl(url)) {
-                      await launchUrl(url, mode: LaunchMode.inAppBrowserView);
-                    }
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const FeedbackListPage(),
+                      ),
+                    );
                   },
                 ),
               ],
-            ),
-          if (PlatformService.isIntercomSupported) const SizedBox(height: 32),
+            ],
+          ),
+          const SizedBox(height: 32),
 
           // Privacy & Settings Section
           _buildSectionContainer(
