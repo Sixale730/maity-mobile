@@ -354,21 +354,31 @@ class _AppShellState extends State<AppShell> {
     initDeepLinks();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (context.read<AuthenticationProvider>().isSignedIn()) {
-        context.read<HomeProvider>().setupHasSpeakerProfile();
-        context.read<HomeProvider>().setupUserPrimaryLanguage();
-        context.read<UserProvider>().initialize();
-        context.read<PeopleProvider>().initialize();
+      // Capture references before async operations
+      final authProvider = context.read<AuthenticationProvider>();
+      final homeProvider = context.read<HomeProvider>();
+      final userProvider = context.read<UserProvider>();
+      final peopleProvider = context.read<PeopleProvider>();
+      final messageProvider = context.read<MessageProvider>();
+      final appProvider = context.read<AppProvider>();
+      final usageProvider = context.read<UsageProvider>();
+
+      if (authProvider.isSignedIn()) {
+        homeProvider.setupHasSpeakerProfile();
+        homeProvider.setupUserPrimaryLanguage();
+        userProvider.initialize();
+        peopleProvider.initialize();
         try {
           await PlatformManager.instance.intercom.loginIdentifiedUser(SharedPreferencesUtil().uid);
         } catch (e) {
           debugPrint('Failed to login to Intercom: $e');
         }
 
-        context.read<MessageProvider>().setMessagesFromCache();
-        context.read<AppProvider>().setAppsFromCache();
-        context.read<MessageProvider>().refreshMessages();
-        context.read<UsageProvider>().fetchSubscription();
+        if (!mounted) return;
+        messageProvider.setMessagesFromCache();
+        appProvider.setAppsFromCache();
+        messageProvider.refreshMessages();
+        usageProvider.fetchSubscription();
 
         NotificationService.instance.saveNotificationToken();
       } else {

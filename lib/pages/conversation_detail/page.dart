@@ -427,11 +427,15 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                                     _isSharing = true;
                                   });
                                   HapticFeedback.mediumImpact();
+
+                                  // Capture references before async operation
+                                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+
                                   try {
                                     // Directly share the summary link
                                     bool shared = await setConversationVisibility(provider.conversation.id);
                                     if (!shared) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      scaffoldMessenger.showSnackBar(
                                         const SnackBar(content: Text('Conversation URL could not be shared.')),
                                       );
                                       setState(() {
@@ -1248,8 +1252,9 @@ class _ActionItemDetailWidgetState extends State<ActionItemDetailWidget> {
       _pendingStates[itemDescription] = newValue;
     });
 
-    // Get ConversationProvider for global state management
+    // Capture references before async operations
     final conversationProvider = Provider.of<ConversationProvider>(context, listen: false);
+    final currentContext = context;
 
     try {
       // Update global state immediately
@@ -1273,7 +1278,9 @@ class _ActionItemDetailWidgetState extends State<ActionItemDetailWidget> {
 
           if (!await _appReviewService.hasCompletedFirstActionItem()) {
             await _appReviewService.markFirstActionItemCompleted();
-            _appReviewService.showReviewPromptIfNeeded(context, isProcessingFirstConversation: false);
+            if (mounted) {
+              _appReviewService.showReviewPromptIfNeeded(currentContext, isProcessingFirstConversation: false);
+            }
           }
         } else {
           MixpanelManager().uncheckedActionItem(provider.conversation, currentIndex);

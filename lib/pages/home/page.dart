@@ -214,10 +214,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       switch (pageAlias) {
         case "apps":
           if (detailPageId != null && detailPageId.isNotEmpty) {
-            var app = await context.read<AppProvider>().getAppFromId(detailPageId);
+            // Capture references before async operation
+            final appProvider = context.read<AppProvider>();
+            final navigator = Navigator.of(context);
+
+            var app = await appProvider.getAppFromId(detailPageId);
             if (app != null && mounted) {
-              Navigator.push(
-                context,
+              navigator.push(
                 MaterialPageRoute(
                   builder: (context) => AppDetailPage(app: app),
                 ),
@@ -230,21 +233,26 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
           if (detailPageId != null && detailPageId.isNotEmpty) {
             var appId = detailPageId != "omi" ? detailPageId : ''; // omi ~ no select
             if (mounted) {
+              // Capture references before async operations
               var appProvider = Provider.of<AppProvider>(context, listen: false);
               var messageProvider = Provider.of<MessageProvider>(context, listen: false);
               App? selectedApp;
               if (appId.isNotEmpty) {
                 selectedApp = await appProvider.getAppFromId(appId);
               }
+              if (!mounted) break;
               appProvider.setSelectedChatAppId(appId);
               await messageProvider.refreshMessages();
+              if (!mounted) break;
               if (messageProvider.messages.isEmpty) {
                 messageProvider.sendInitialAppMessage(selectedApp);
               }
             }
           } else {
             if (mounted) {
-              await Provider.of<MessageProvider>(context, listen: false).refreshMessages();
+              // Capture reference before async operation
+              final messageProvider = Provider.of<MessageProvider>(context, listen: false);
+              await messageProvider.refreshMessages();
             }
           }
           // Navigate to chat page directly since it's no longer in the tab bar
@@ -319,12 +327,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
               connectivityProvider.previousConnection != isConnected) {
             previousConnection = isConnected;
             if (!isConnected) {
+              // Capture references before async delay
+              final scaffoldMessenger = ScaffoldMessenger.of(ctx);
+              final noInternetText = AppLocalizations.of(ctx)?.noInternetConnection ?? 'No internet connection. Please check your connection.';
+              final dismissText = AppLocalizations.of(ctx)?.dismiss ?? 'Dismiss';
+
               Future.delayed(const Duration(seconds: 2), () {
                 if (mounted && !connectivityProvider.isConnected) {
-                  ScaffoldMessenger.of(ctx).showMaterialBanner(
+                  scaffoldMessenger.showMaterialBanner(
                     MaterialBanner(
                       content: Text(
-                        AppLocalizations.of(ctx)?.noInternetConnection ?? 'No internet connection. Please check your connection.',
+                        noInternetText,
                         style: const TextStyle(color: Colors.white70),
                       ),
                       backgroundColor: const Color(0xFF424242), // Dark gray instead of red
@@ -332,9 +345,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                       actions: [
                         TextButton(
                           onPressed: () {
-                            ScaffoldMessenger.of(ctx).hideCurrentMaterialBanner();
+                            scaffoldMessenger.hideCurrentMaterialBanner();
                           },
-                          child: Text(AppLocalizations.of(ctx)?.dismiss ?? 'Dismiss', style: const TextStyle(color: Colors.white70)),
+                          child: Text(dismissText, style: const TextStyle(color: Colors.white70)),
                         ),
                       ],
                     ),
@@ -342,13 +355,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                 }
               });
             } else {
+              // Capture references before async operations
+              final scaffoldMessenger = ScaffoldMessenger.of(ctx);
+              final internetRestoredText = AppLocalizations.of(ctx)?.internetRestored ?? 'Internet connection is restored.';
+              final dismissText = AppLocalizations.of(ctx)?.dismiss ?? 'Dismiss';
+              final conversationProvider = ctx.read<ConversationProvider>();
+              final messageProvider = ctx.read<MessageProvider>();
+
               Future.delayed(Duration.zero, () {
                 if (mounted) {
-                  ScaffoldMessenger.of(ctx).hideCurrentMaterialBanner();
-                  ScaffoldMessenger.of(ctx).showMaterialBanner(
+                  scaffoldMessenger.hideCurrentMaterialBanner();
+                  scaffoldMessenger.showMaterialBanner(
                     MaterialBanner(
                       content: Text(
-                        AppLocalizations.of(ctx)?.internetRestored ?? 'Internet connection is restored.',
+                        internetRestoredText,
                         style: const TextStyle(color: Colors.white),
                       ),
                       backgroundColor: const Color(0xFF2E7D32), // Dark green instead of bright green
@@ -357,15 +377,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                         TextButton(
                           onPressed: () {
                             if (mounted) {
-                              ScaffoldMessenger.of(ctx).hideCurrentMaterialBanner();
+                              scaffoldMessenger.hideCurrentMaterialBanner();
                             }
                           },
-                          child: Text(AppLocalizations.of(ctx)?.dismiss ?? 'Dismiss', style: const TextStyle(color: Colors.white)),
+                          child: Text(dismissText, style: const TextStyle(color: Colors.white)),
                         ),
                       ],
                       onVisible: () => Future.delayed(const Duration(seconds: 3), () {
                         if (mounted) {
-                          ScaffoldMessenger.of(ctx).hideCurrentMaterialBanner();
+                          scaffoldMessenger.hideCurrentMaterialBanner();
                         }
                       }),
                     ),
@@ -374,14 +394,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
 
                 WidgetsBinding.instance.addPostFrameCallback((_) async {
                   if (mounted) {
-                    if (ctx.read<ConversationProvider>().conversations.isEmpty) {
-                      await ctx.read<ConversationProvider>().getInitialConversations();
+                    if (conversationProvider.conversations.isEmpty) {
+                      await conversationProvider.getInitialConversations();
                     } else {
                       // Force refresh when internet connection is restored
-                      await ctx.read<ConversationProvider>().forceRefreshConversations();
+                      await conversationProvider.forceRefreshConversations();
                     }
-                    if (ctx.read<MessageProvider>().messages.isEmpty) {
-                      await ctx.read<MessageProvider>().refreshMessages();
+                    if (!mounted) return;
+                    if (messageProvider.messages.isEmpty) {
+                      await messageProvider.refreshMessages();
                     }
                   }
                 });

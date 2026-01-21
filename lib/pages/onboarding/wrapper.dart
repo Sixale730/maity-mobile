@@ -253,19 +253,23 @@ class _OnboardingWrapperState extends State<OnboardingWrapper> with TickerProvid
           routeToPage(context, const HomePageWrapper(), replace: true);
         },
         goNext: () async {
+          // Capture references before async operations
           var provider = context.read<OnboardingProvider>();
+          final currentContext = context;
+
           MixpanelManager().onboardingStepCompleted('Find Devices');
 
           if (hasSpeechProfile) {
             // Skip speech profile, go directly to device onboarding
-            routeToPage(context, const DeviceOnboardingWrapper(), replace: true);
+            routeToPage(currentContext, const DeviceOnboardingWrapper(), replace: true);
           } else {
             var codec = await _getAudioCodec(provider.deviceId);
+            if (!mounted) return;
             if (codec.isOpusSupported()) {
               _goNext(); // Go to Speech Profile page
             } else {
               // Device selected, but not Opus, skip speech profile and go to device onboarding
-              routeToPage(context, const DeviceOnboardingWrapper(), replace: true);
+              routeToPage(currentContext, const DeviceOnboardingWrapper(), replace: true);
             }
           }
         },

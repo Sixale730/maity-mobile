@@ -518,6 +518,43 @@ El widget `CommunicationFeedbackCard` muestra:
 - max_tokens: 800
 - temperature: 0.7
 
+## Patrón para BuildContext con Operaciones Async
+
+Para evitar el warning `use_build_context_synchronously`, siempre capturar referencias a widgets/servicios basados en context **ANTES** de operaciones async:
+
+### Patrón Correcto
+```dart
+Future<void> myAsyncMethod() async {
+  if (!mounted) return;  // Check ANTES
+
+  // Capturar ANTES del await
+  final provider = context.read<MyProvider>();
+  final navigator = Navigator.of(context);
+  final scaffoldMessenger = ScaffoldMessenger.of(context);
+  final l10n = AppLocalizations.of(context);
+
+  await someAsyncOperation();  // Operación async
+
+  if (!mounted) return;  // Check DESPUÉS
+
+  // Usar referencias capturadas (NO context directo)
+  navigator.push(...);
+  scaffoldMessenger.showSnackBar(...);
+}
+```
+
+### Archivos con Patrón Aplicado
+- `lib/pages/home/page.dart` - Connectivity banners, navigation
+- `lib/core/app_shell.dart` - initState providers
+- `lib/pages/conversation_detail/page.dart` - Share, action items
+- `lib/pages/onboarding/wrapper.dart` - Device connection flow
+
+### Reglas
+1. Siempre verificar `mounted` antes y después de awaits en StatefulWidget
+2. Capturar Navigator, ScaffoldMessenger, Providers ANTES del await
+3. No usar `context.read<>()` después de un await sin verificar mounted
+4. Para callbacks en widgets stateless, usar el context del builder
+
 ## Documentación Adicional
 
 - `docs/CHAT_AGENT_DIFFERENCES.md` - Comparación detallada del chat agent entre Accounting y OMI (tools, prompts, providers)
