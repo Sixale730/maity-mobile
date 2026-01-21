@@ -1939,6 +1939,282 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try asking:'**
   String get tryAsking;
+
+  /// No description provided for @sendFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Feedback'**
+  String get sendFeedback;
+
+  /// No description provided for @feedbackReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback Received'**
+  String get feedbackReceived;
+
+  /// No description provided for @feedbackType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get feedbackType;
+
+  /// No description provided for @feedbackTypeComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment'**
+  String get feedbackTypeComment;
+
+  /// No description provided for @feedbackTypeBug.
+  ///
+  /// In en, this message translates to:
+  /// **'Bug Report'**
+  String get feedbackTypeBug;
+
+  /// No description provided for @feedbackTypeSuggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestion'**
+  String get feedbackTypeSuggestion;
+
+  /// No description provided for @feedbackMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Message'**
+  String get feedbackMessage;
+
+  /// No description provided for @feedbackMessageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell us what you think...'**
+  String get feedbackMessageHint;
+
+  /// No description provided for @feedbackSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get feedbackSubmit;
+
+  /// No description provided for @feedbackSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Thank you for your feedback!'**
+  String get feedbackSuccess;
+
+  /// No description provided for @feedbackError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to submit. Please try again.'**
+  String get feedbackError;
+
+  /// No description provided for @aboutMaityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'About Maity'**
+  String get aboutMaityTitle;
+
+  /// No description provided for @privacyPolicyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacyPolicyTitle;
+
+  /// No description provided for @visitWebsite.
+  ///
+  /// In en, this message translates to:
+  /// **'Visit Website'**
+  String get visitWebsite;
+
+  /// No description provided for @helpOrInquiries.
+  ///
+  /// In en, this message translates to:
+  /// **'Help or Inquiries?'**
+  String get helpOrInquiries;
+
+  /// No description provided for @yourPrivacyYourControl.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Privacy, Your Control'**
+  String get yourPrivacyYourControl;
+
+  /// No description provided for @atMaityPrivacyCommitment.
+  ///
+  /// In en, this message translates to:
+  /// **'At Maity, we are committed to protecting your privacy. This page allows you to control how your data is stored and used.'**
+  String get atMaityPrivacyCommitment;
+
+  /// No description provided for @learnMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn more...'**
+  String get learnMore;
+
+  /// No description provided for @dataPrivacyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data & Privacy'**
+  String get dataPrivacyTitle;
+
+  /// No description provided for @dataProtectionLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Data Protection Level'**
+  String get dataProtectionLevel;
+
+  /// No description provided for @dataProtectionDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Your data is secured by default with strong encryption. Review your settings and future privacy options below.'**
+  String get dataProtectionDescription;
+
+  /// No description provided for @contactSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Support?'**
+  String get contactSupport;
+
+  /// No description provided for @connectLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Later'**
+  String get connectLater;
+
+  /// No description provided for @searchingForDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching for devices...'**
+  String get searchingForDevices;
+
+  /// No description provided for @devicesFoundNearby.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} {count, plural, =1{DEVICE} other{DEVICES}} FOUND NEARBY'**
+  String devicesFoundNearby(int count);
+
+  /// No description provided for @pairingSuccessful.
+  ///
+  /// In en, this message translates to:
+  /// **'PAIRING SUCCESSFUL'**
+  String get pairingSuccessful;
+
+  /// No description provided for @maityIsActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Maity'**
+  String get maityIsActive;
+
+  /// No description provided for @transcriptionServiceReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription service is ready'**
+  String get transcriptionServiceReady;
+
+  /// No description provided for @maximumSecurityE2ee.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum Security (E2EE)'**
+  String get maximumSecurityE2ee;
+
+  /// No description provided for @e2eeDialogContent.
+  ///
+  /// In en, this message translates to:
+  /// **'End-to-end encryption is the gold standard for privacy. When enabled, your data is encrypted on your device before it\'s sent to our servers. This means no one, not even Maity, can access your content.'**
+  String get e2eeDialogContent;
+
+  /// No description provided for @importantTradeoffs.
+  ///
+  /// In en, this message translates to:
+  /// **'Important Trade-offs:'**
+  String get importantTradeoffs;
+
+  /// No description provided for @e2eeTradeoff1.
+  ///
+  /// In en, this message translates to:
+  /// **'Some features like external app integrations may be disabled.'**
+  String get e2eeTradeoff1;
+
+  /// No description provided for @e2eeTradeoff2.
+  ///
+  /// In en, this message translates to:
+  /// **'If you lose your password, your data cannot be recovered.'**
+  String get e2eeTradeoff2;
+
+  /// No description provided for @featureComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'This feature is coming soon!'**
+  String get featureComingSoon;
+
+  /// No description provided for @comingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming Soon'**
+  String get comingSoon;
+
+  /// No description provided for @migrationInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Migration in progress. You cannot change the protection level until it is complete.'**
+  String get migrationInProgress;
+
+  /// No description provided for @migrationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Migration Failed'**
+  String get migrationFailed;
+
+  /// No description provided for @migratingFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Migrating from'**
+  String get migratingFrom;
+
+  /// No description provided for @migratingTo.
+  ///
+  /// In en, this message translates to:
+  /// **'to'**
+  String get migratingTo;
+
+  /// No description provided for @objects.
+  ///
+  /// In en, this message translates to:
+  /// **'objects'**
+  String get objects;
+
+  /// No description provided for @secureEncryption.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure Encryption'**
+  String get secureEncryption;
+
+  /// No description provided for @secureEncryptionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Your data is encrypted with a key unique to you on our servers, hosted on Google Cloud. This means your raw content is inaccessible to anyone, including Maity staff or Google, directly from the database.'**
+  String get secureEncryptionDesc;
+
+  /// No description provided for @endToEndEncryption.
+  ///
+  /// In en, this message translates to:
+  /// **'End-to-End Encryption'**
+  String get endToEndEncryption;
+
+  /// No description provided for @e2eeShortDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable for maximum security where only you can access your data. Tap to learn more.'**
+  String get e2eeShortDesc;
+
+  /// No description provided for @dataAlwaysEncrypted.
+  ///
+  /// In en, this message translates to:
+  /// **'Regardless of the level, your data is always encrypted at rest and in transit.'**
+  String get dataAlwaysEncrypted;
+
+  /// No description provided for @connect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get connect;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

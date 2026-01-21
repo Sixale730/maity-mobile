@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_provider_utilities/flutter_provider_utilities.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/device_provider.dart';
 import 'package:omi/providers/onboarding_provider.dart';
 import 'package:omi/pages/onboarding/apple_watch_permission_page.dart';
@@ -179,6 +180,7 @@ class _FoundDevicesState extends State<FoundDevices> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<OnboardingProvider>(builder: (context, provider, child) {
       return MessageListener<OnboardingProvider>(
         showError: (error) {
@@ -210,17 +212,18 @@ class _FoundDevicesState extends State<FoundDevices> {
             !provider.isConnected
                 ? Text(
                     provider.deviceList.isEmpty
-                        ? 'Searching for devices...'
-                        : '${provider.deviceList.length} ${provider.deviceList.length == 1 ? "DEVICE" : "DEVICES"} FOUND NEARBY',
+                        ? l10n?.searchingForDevices ?? 'Searching for devices...'
+                        : l10n?.devicesFoundNearby(provider.deviceList.length) ??
+                            '${provider.deviceList.length} ${provider.deviceList.length == 1 ? "DEVICE" : "DEVICES"} FOUND NEARBY',
                     style: const TextStyle(
                       fontWeight: FontWeight.w400,
                       fontSize: 14,
                       color: Color(0x66FFFFFF),
                     ),
                   )
-                : const Text(
-                    'PAIRING SUCCESSFUL',
-                    style: TextStyle(
+                : Text(
+                    l10n?.pairingSuccessful ?? 'PAIRING SUCCESSFUL',
+                    style: const TextStyle(
                       fontWeight: FontWeight.w400,
                       fontSize: 12,
                       color: Color(0x66FFFFFF),

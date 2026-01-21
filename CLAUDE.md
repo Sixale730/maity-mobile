@@ -240,6 +240,35 @@ Text(l10n.insights) // "Insights" o "Estadísticas"
 - Onboarding pages - Completamente localizadas
 - Settings drawer - Completamente localizado
 - FindDevicesPage - Pantalla de conexión de dispositivo
+- ConnectDevicePage - Pantalla de reconexión de dispositivo
+- DataPrivacyPage - Página de datos y privacidad
+
+### Página de Datos y Privacidad
+La página Data & Privacy está completamente localizada incluyendo la sección de protección de datos:
+
+| Clave | Inglés | Español |
+|-------|--------|---------|
+| `maximumSecurityE2ee` | Maximum Security (E2EE) | Máxima Seguridad (E2EE) |
+| `e2eeDialogContent` | End-to-end encryption is the gold standard... | La encriptación de extremo a extremo es el estándar de oro... |
+| `importantTradeoffs` | Important Trade-offs: | Consideraciones importantes: |
+| `e2eeTradeoff1` | Some features like external app integrations... | Algunas funciones como integraciones con apps externas... |
+| `e2eeTradeoff2` | If you lose your password... | Si pierdes tu contraseña... |
+| `featureComingSoon` | This feature is coming soon! | ¡Esta función estará disponible pronto! |
+| `comingSoon` | Coming Soon | Próximamente |
+| `migrationInProgress` | Migration in progress... | Migración en progreso... |
+| `migrationFailed` | Migration Failed | Migración Fallida |
+| `migratingFrom` | Migrating from | Migrando de |
+| `migratingTo` | to | a |
+| `objects` | objects | objetos |
+| `secureEncryption` | Secure Encryption | Encriptación Segura |
+| `secureEncryptionDesc` | Your data is encrypted with a key unique to you... | Tus datos están encriptados con una clave única para ti... |
+| `endToEndEncryption` | End-to-End Encryption | Encriptación de Extremo a Extremo |
+| `e2eeShortDesc` | Enable for maximum security... | Activa para máxima seguridad... |
+| `dataAlwaysEncrypted` | Regardless of the level, your data is always encrypted... | Independientemente del nivel, tus datos siempre están encriptados... |
+
+**Archivos**:
+- `lib/pages/settings/data_privacy_page.dart` - Página principal
+- `lib/pages/settings/widgets/data_protection_section.dart` - Sección de protección de datos
 
 ### Foreground Service Notification
 La notificación del servicio en segundo plano usa textos neutrales (no implica conexión):
@@ -253,6 +282,7 @@ La pantalla de búsqueda y conexión de dispositivos está completamente localiz
 
 | Clave | Inglés | Español |
 |-------|--------|---------|
+| `connect` | Connect | Conectar |
 | `searchingForDevices` | Searching for devices... | Buscando dispositivos... |
 | `devicesFoundNearby` | X DEVICE(S) FOUND NEARBY | X DISPOSITIVO(S) ENCONTRADO(S) CERCA |
 | `pairingSuccessful` | PAIRING SUCCESSFUL | EMPAREJAMIENTO EXITOSO |
@@ -262,6 +292,7 @@ La pantalla de búsqueda y conexión de dispositivos está completamente localiz
 **Email de soporte**: `julio.gonzalez@maity.com.mx`
 
 **Archivos**:
+- `lib/pages/capture/connect.dart` - Pantalla de reconexión
 - `lib/pages/onboarding/find_device/page.dart` - Pantalla principal
 - `lib/pages/onboarding/find_device/found_devices.dart` - Lista de dispositivos
 

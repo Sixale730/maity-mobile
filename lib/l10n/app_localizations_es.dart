@@ -981,4 +981,157 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get tryAsking => 'Prueba preguntar:';
+
+  @override
+  String get sendFeedback => 'Enviar Comentarios';
+
+  @override
+  String get feedbackReceived => 'Comentarios Recibidos';
+
+  @override
+  String get feedbackType => 'Tipo';
+
+  @override
+  String get feedbackTypeComment => 'Comentario';
+
+  @override
+  String get feedbackTypeBug => 'Reporte de Error';
+
+  @override
+  String get feedbackTypeSuggestion => 'Sugerencia';
+
+  @override
+  String get feedbackMessage => 'Tu Mensaje';
+
+  @override
+  String get feedbackMessageHint => 'Cuéntanos qué piensas...';
+
+  @override
+  String get feedbackSubmit => 'Enviar';
+
+  @override
+  String get feedbackSuccess => '¡Gracias por tus comentarios!';
+
+  @override
+  String get feedbackError => 'No se pudo enviar. Intenta de nuevo.';
+
+  @override
+  String get aboutMaityTitle => 'Acerca de Maity';
+
+  @override
+  String get privacyPolicyTitle => 'Política de Privacidad';
+
+  @override
+  String get visitWebsite => 'Visitar Sitio Web';
+
+  @override
+  String get helpOrInquiries => '¿Ayuda o Consultas?';
+
+  @override
+  String get yourPrivacyYourControl => 'Tu Privacidad, Tu Control';
+
+  @override
+  String get atMaityPrivacyCommitment =>
+      'En Maity, estamos comprometidos a proteger tu privacidad. Esta página te permite controlar cómo se almacenan y usan tus datos.';
+
+  @override
+  String get learnMore => 'Más información...';
+
+  @override
+  String get dataPrivacyTitle => 'Datos y Privacidad';
+
+  @override
+  String get dataProtectionLevel => 'Nivel de Protección de Datos';
+
+  @override
+  String get dataProtectionDescription =>
+      'Tus datos están protegidos por defecto con encriptación fuerte. Revisa tu configuración y opciones de privacidad a continuación.';
+
+  @override
+  String get contactSupport => '¿Contactar soporte?';
+
+  @override
+  String get connectLater => 'Conectar después';
+
+  @override
+  String get searchingForDevices => 'Buscando dispositivos...';
+
+  @override
+  String devicesFoundNearby(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'DISPOSITIVOS ENCONTRADOS',
+      one: 'DISPOSITIVO ENCONTRADO',
+    );
+    return '$count $_temp0 CERCA';
+  }
+
+  @override
+  String get pairingSuccessful => 'EMPAREJAMIENTO EXITOSO';
+
+  @override
+  String get maityIsActive => 'Maity';
+
+  @override
+  String get transcriptionServiceReady => 'El servicio de transcripción está listo';
+
+  @override
+  String get maximumSecurityE2ee => 'Máxima Seguridad (E2EE)';
+
+  @override
+  String get e2eeDialogContent =>
+      'La encriptación de extremo a extremo es el estándar de oro para la privacidad. Cuando está activada, tus datos se encriptan en tu dispositivo antes de enviarse a nuestros servidores. Esto significa que nadie, ni siquiera Maity, puede acceder a tu contenido.';
+
+  @override
+  String get importantTradeoffs => 'Consideraciones importantes:';
+
+  @override
+  String get e2eeTradeoff1 => 'Algunas funciones como integraciones con apps externas pueden deshabilitarse.';
+
+  @override
+  String get e2eeTradeoff2 => 'Si pierdes tu contraseña, tus datos no pueden recuperarse.';
+
+  @override
+  String get featureComingSoon => '¡Esta función estará disponible pronto!';
+
+  @override
+  String get comingSoon => 'Próximamente';
+
+  @override
+  String get migrationInProgress =>
+      'Migración en progreso. No puedes cambiar el nivel de protección hasta que se complete.';
+
+  @override
+  String get migrationFailed => 'Migración Fallida';
+
+  @override
+  String get migratingFrom => 'Migrando de';
+
+  @override
+  String get migratingTo => 'a';
+
+  @override
+  String get objects => 'objetos';
+
+  @override
+  String get secureEncryption => 'Encriptación Segura';
+
+  @override
+  String get secureEncryptionDesc =>
+      'Tus datos están encriptados con una clave única para ti en nuestros servidores, alojados en Google Cloud. Esto significa que tu contenido no es accesible para nadie, incluyendo el personal de Maity o Google, directamente desde la base de datos.';
+
+  @override
+  String get endToEndEncryption => 'Encriptación de Extremo a Extremo';
+
+  @override
+  String get e2eeShortDesc =>
+      'Activa para máxima seguridad donde solo tú puedes acceder a tus datos. Toca para más información.';
+
+  @override
+  String get dataAlwaysEncrypted =>
+      'Independientemente del nivel, tus datos siempre están encriptados en reposo y en tránsito.';
+
+  @override
+  String get connect => 'Conectar';
 }

@@ -452,5 +452,62 @@
   "howICommunicate": "How I communicate",
   "welcomeToMaity": "Hi! I'm Maity",
   "maityWelcomeSubtitle": "Your personal assistant connected to your wearable. Ask me about your conversations, tasks, or statistics.",
-  "tryAsking": "Try asking:"
+  "tryAsking": "Try asking:",
+
+  "sendFeedback": "Send Feedback",
+  "feedbackReceived": "Feedback Received",
+  "feedbackType": "Type",
+  "feedbackTypeComment": "Comment",
+  "feedbackTypeBug": "Bug Report",
+  "feedbackTypeSuggestion": "Suggestion",
+  "feedbackMessage": "Your Message",
+  "feedbackMessageHint": "Tell us what you think...",
+  "feedbackSubmit": "Submit",
+  "feedbackSuccess": "Thank you for your feedback!",
+  "feedbackError": "Failed to submit. Please try again.",
+
+  "aboutMaityTitle": "About Maity",
+  "privacyPolicyTitle": "Privacy Policy",
+  "visitWebsite": "Visit Website",
+  "helpOrInquiries": "Help or Inquiries?",
+
+  "yourPrivacyYourControl": "Your Privacy, Your Control",
+  "atMaityPrivacyCommitment": "At Maity, we are committed to protecting your privacy. This page allows you to control how your data is stored and used.",
+  "learnMore": "Learn more...",
+  "dataPrivacyTitle": "Data & Privacy",
+  "dataProtectionLevel": "Data Protection Level",
+  "dataProtectionDescription": "Your data is secured by default with strong encryption. Review your settings and future privacy options below.",
+
+  "contactSupport": "Contact Support?",
+  "connectLater": "Connect Later",
+  "searchingForDevices": "Searching for devices...",
+  "devicesFoundNearby": "{count} {count, plural, =1{DEVICE} other{DEVICES}} FOUND NEARBY",
+  "@devicesFoundNearby": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "pairingSuccessful": "PAIRING SUCCESSFUL",
+  "maityIsActive": "Maity",
+  "transcriptionServiceReady": "Transcription service is ready",
+
+  "maximumSecurityE2ee": "Maximum Security (E2EE)",
+  "e2eeDialogContent": "End-to-end encryption is the gold standard for privacy. When enabled, your data is encrypted on your device before it's sent to our servers. This means no one, not even Maity, can access your content.",
+  "importantTradeoffs": "Important Trade-offs:",
+  "e2eeTradeoff1": "Some features like external app integrations may be disabled.",
+  "e2eeTradeoff2": "If you lose your password, your data cannot be recovered.",
+  "featureComingSoon": "This feature is coming soon!",
+  "comingSoon": "Coming Soon",
+  "migrationInProgress": "Migration in progress. You cannot change the protection level until it is complete.",
+  "migrationFailed": "Migration Failed",
+  "migratingFrom": "Migrating from",
+  "migratingTo": "to",
+  "objects": "objects",
+  "secureEncryption": "Secure Encryption",
+  "secureEncryptionDesc": "Your data is encrypted with a key unique to you on our servers, hosted on Google Cloud. This means your raw content is inaccessible to anyone, including Maity staff or Google, directly from the database.",
+  "endToEndEncryption": "End-to-End Encryption",
+  "e2eeShortDesc": "Enable for maximum security where only you can access your data. Tap to learn more.",
+  "dataAlwaysEncrypted": "Regardless of the level, your data is always encrypted at rest and in transit.",
+
+  "connect": "Connect"
 }

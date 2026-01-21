@@ -978,4 +978,155 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tryAsking => 'Try asking:';
+
+  @override
+  String get sendFeedback => 'Send Feedback';
+
+  @override
+  String get feedbackReceived => 'Feedback Received';
+
+  @override
+  String get feedbackType => 'Type';
+
+  @override
+  String get feedbackTypeComment => 'Comment';
+
+  @override
+  String get feedbackTypeBug => 'Bug Report';
+
+  @override
+  String get feedbackTypeSuggestion => 'Suggestion';
+
+  @override
+  String get feedbackMessage => 'Your Message';
+
+  @override
+  String get feedbackMessageHint => 'Tell us what you think...';
+
+  @override
+  String get feedbackSubmit => 'Submit';
+
+  @override
+  String get feedbackSuccess => 'Thank you for your feedback!';
+
+  @override
+  String get feedbackError => 'Failed to submit. Please try again.';
+
+  @override
+  String get aboutMaityTitle => 'About Maity';
+
+  @override
+  String get privacyPolicyTitle => 'Privacy Policy';
+
+  @override
+  String get visitWebsite => 'Visit Website';
+
+  @override
+  String get helpOrInquiries => 'Help or Inquiries?';
+
+  @override
+  String get yourPrivacyYourControl => 'Your Privacy, Your Control';
+
+  @override
+  String get atMaityPrivacyCommitment =>
+      'At Maity, we are committed to protecting your privacy. This page allows you to control how your data is stored and used.';
+
+  @override
+  String get learnMore => 'Learn more...';
+
+  @override
+  String get dataPrivacyTitle => 'Data & Privacy';
+
+  @override
+  String get dataProtectionLevel => 'Data Protection Level';
+
+  @override
+  String get dataProtectionDescription =>
+      'Your data is secured by default with strong encryption. Review your settings and future privacy options below.';
+
+  @override
+  String get contactSupport => 'Contact Support?';
+
+  @override
+  String get connectLater => 'Connect Later';
+
+  @override
+  String get searchingForDevices => 'Searching for devices...';
+
+  @override
+  String devicesFoundNearby(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'DEVICES',
+      one: 'DEVICE',
+    );
+    return '$count $_temp0 FOUND NEARBY';
+  }
+
+  @override
+  String get pairingSuccessful => 'PAIRING SUCCESSFUL';
+
+  @override
+  String get maityIsActive => 'Maity';
+
+  @override
+  String get transcriptionServiceReady => 'Transcription service is ready';
+
+  @override
+  String get maximumSecurityE2ee => 'Maximum Security (E2EE)';
+
+  @override
+  String get e2eeDialogContent =>
+      'End-to-end encryption is the gold standard for privacy. When enabled, your data is encrypted on your device before it\'s sent to our servers. This means no one, not even Maity, can access your content.';
+
+  @override
+  String get importantTradeoffs => 'Important Trade-offs:';
+
+  @override
+  String get e2eeTradeoff1 => 'Some features like external app integrations may be disabled.';
+
+  @override
+  String get e2eeTradeoff2 => 'If you lose your password, your data cannot be recovered.';
+
+  @override
+  String get featureComingSoon => 'This feature is coming soon!';
+
+  @override
+  String get comingSoon => 'Coming Soon';
+
+  @override
+  String get migrationInProgress =>
+      'Migration in progress. You cannot change the protection level until it is complete.';
+
+  @override
+  String get migrationFailed => 'Migration Failed';
+
+  @override
+  String get migratingFrom => 'Migrating from';
+
+  @override
+  String get migratingTo => 'to';
+
+  @override
+  String get objects => 'objects';
+
+  @override
+  String get secureEncryption => 'Secure Encryption';
+
+  @override
+  String get secureEncryptionDesc =>
+      'Your data is encrypted with a key unique to you on our servers, hosted on Google Cloud. This means your raw content is inaccessible to anyone, including Maity staff or Google, directly from the database.';
+
+  @override
+  String get endToEndEncryption => 'End-to-End Encryption';
+
+  @override
+  String get e2eeShortDesc => 'Enable for maximum security where only you can access your data. Tap to learn more.';
+
+  @override
+  String get dataAlwaysEncrypted => 'Regardless of the level, your data is always encrypted at rest and in transit.';
+
+  @override
+  String get connect => 'Connect';
 }

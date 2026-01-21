@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/settings/webview.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/utils/other/temp.dart';
@@ -14,10 +15,12 @@ class AboutOmiPage extends StatefulWidget {
 class _AboutOmiPageState extends State<AboutOmiPage> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
       appBar: AppBar(
-        title: const Text('About Omi'),
+        title: Text(l10n?.aboutMaityTitle ?? 'About Maity'),
         backgroundColor: Theme.of(context).colorScheme.primary,
       ),
       body: Padding(
@@ -26,45 +29,40 @@ class _AboutOmiPageState extends State<AboutOmiPage> {
           children: [
             ListTile(
               contentPadding: const EdgeInsets.fromLTRB(4, 0, 24, 0),
-              title: const Text('Privacy Policy', style: TextStyle(color: Colors.white)),
+              title: Text(l10n?.privacyPolicyTitle ?? 'Privacy Policy', style: const TextStyle(color: Colors.white)),
               trailing: const Icon(Icons.privacy_tip_outlined, size: 20),
               onTap: () {
                 MixpanelManager().pageOpened('About Privacy Policy');
                 routeToPage(
                   context,
-                  const PageWebView(url: 'https://www.omi.me/pages/privacy', title: 'Privacy Policy'),
+                  PageWebView(url: 'https://maity.com.mx/privacidad', title: l10n?.privacyPolicyTitle ?? 'Privacy Policy'),
                 );
               },
             ),
             ListTile(
               contentPadding: const EdgeInsets.fromLTRB(4, 0, 24, 0),
-              title: const Text('Visit Website', style: TextStyle(color: Colors.white)),
-              subtitle: const Text('https://omi.me'),
+              title: Text(l10n?.visitWebsite ?? 'Visit Website', style: const TextStyle(color: Colors.white)),
+              subtitle: const Text('https://maity.com.mx'),
               trailing: const Icon(Icons.language_outlined, size: 20),
               onTap: () {
                 MixpanelManager().pageOpened('About Visit Website');
-                // routeToPage(context, const PageWebView(url: 'https://www.omi.me/', title: 'omi'));
-                launchUrl(Uri.parse('https://www.omi.me/'));
+                launchUrl(Uri.parse('https://maity.com.mx/'));
               },
             ),
             ListTile(
-              title: const Text('Help or Inquiries?', style: TextStyle(color: Colors.white)),
-              subtitle: const Text('team@basedhardware.com'),
+              title: Text(l10n?.helpOrInquiries ?? 'Help or Inquiries?', style: const TextStyle(color: Colors.white)),
+              subtitle: const Text('contacto@maity.com.mx'),
               contentPadding: const EdgeInsets.fromLTRB(4, 0, 24, 0),
               trailing: const Icon(Icons.help_outline_outlined, color: Colors.white, size: 20),
               onTap: () async {
-                // Intercom disabled
-                // await IntercomManager.instance.intercom.displayMessenger();
-              },
-            ),
-            ListTile(
-              contentPadding: const EdgeInsets.fromLTRB(4, 0, 24, 0),
-              title: const Text('Join the community!', style: TextStyle(color: Colors.white)),
-              subtitle: const Text('8000+ members and counting.'),
-              trailing: const Icon(Icons.discord, color: Colors.purple, size: 20),
-              onTap: () {
-                MixpanelManager().pageOpened('About Join Discord');
-                launchUrl(Uri.parse('http://discord.omi.me'));
+                final Uri emailUri = Uri(
+                  scheme: 'mailto',
+                  path: 'contacto@maity.com.mx',
+                  queryParameters: {'subject': 'Maity App - Help Request'},
+                );
+                if (await canLaunchUrl(emailUri)) {
+                  await launchUrl(emailUri);
+                }
               },
             ),
           ],

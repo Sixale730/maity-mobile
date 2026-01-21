@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -25,34 +26,34 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
   }
 
   void _showE2eeComingSoonDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF2c2c2e),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.lock_person_outlined, color: Colors.white),
-            SizedBox(width: 10),
-            Text('Maximum Security (E2EE)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            const Icon(Icons.lock_person_outlined, color: Colors.white),
+            const SizedBox(width: 10),
+            Text(l10n?.maximumSecurityE2ee ?? 'Maximum Security (E2EE)',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ],
         ),
         content: RichText(
           text: TextSpan(
             style: TextStyle(color: Colors.white.withValues(alpha: 0.8), height: 1.5, fontSize: 15),
-            children: const [
+            children: [
+              TextSpan(text: '${l10n?.e2eeDialogContent ?? "End-to-end encryption is the gold standard for privacy. When enabled, your data is encrypted on your device before it's sent to our servers. This means no one, not even Maity, can access your content."}\n\n'),
               TextSpan(
-                  text:
-                      'End-to-end encryption is the gold standard for privacy. When enabled, your data is encrypted on your device before it\'s sent to our servers. This means no one, not even Omi, can access your content.\n\n'),
-              TextSpan(
-                text: 'Important Trade-offs:\n',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                text: '${l10n?.importantTradeoffs ?? "Important Trade-offs:"}\n',
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              TextSpan(text: '• Some features like external app integrations may be disabled.\n'),
-              TextSpan(text: '• If you lose your password, your data cannot be recovered.\n\n'),
+              TextSpan(text: '• ${l10n?.e2eeTradeoff1 ?? "Some features like external app integrations may be disabled."}\n'),
+              TextSpan(text: '• ${l10n?.e2eeTradeoff2 ?? "If you lose your password, your data cannot be recovered."}\n\n'),
               TextSpan(
-                text: 'This feature is coming soon!',
-                style: TextStyle(fontStyle: FontStyle.italic),
+                text: l10n?.featureComingSoon ?? 'This feature is coming soon!',
+                style: const TextStyle(fontStyle: FontStyle.italic),
               ),
             ],
           ),
@@ -60,7 +61,7 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(l10n?.ok ?? 'OK', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -69,6 +70,7 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<UserProvider>(
       builder: (context, provider, child) {
         final isMigrating = provider.isMigrating;
@@ -77,13 +79,14 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (isMigrating || migrationFailed) _buildMigrationStatus(provider),
+            if (isMigrating || migrationFailed) _buildMigrationStatus(context, provider),
             if (isMigrating)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.only(bottom: 16, left: 8, right: 8),
                 child: Text(
-                  'Migration in progress. You cannot change the protection level until it is complete.',
+                  l10n?.migrationInProgress ??
+                      'Migration in progress. You cannot change the protection level until it is complete.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.9),
@@ -96,7 +99,8 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
             const SizedBox(height: 12),
             _buildInfoRow(
               Icons.shield_outlined,
-              'Regardless of the level, your data is always encrypted at rest and in transit.',
+              l10n?.dataAlwaysEncrypted ??
+                  'Regardless of the level, your data is always encrypted at rest and in transit.',
             ),
           ],
         );
@@ -104,7 +108,8 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
     );
   }
 
-  Widget _buildMigrationStatus(UserProvider provider) {
+  Widget _buildMigrationStatus(BuildContext context, UserProvider provider) {
+    final l10n = AppLocalizations.of(context);
     if (provider.migrationFailed) {
       return Container(
         padding: const EdgeInsets.all(16),
@@ -122,9 +127,9 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
               children: [
                 Icon(Icons.error_outline, color: Colors.red.shade300, size: 20),
                 const SizedBox(width: 8),
-                const Text(
-                  'Migration Failed',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                Text(
+                  l10n?.migrationFailed ?? 'Migration Failed',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ],
             ),
@@ -140,7 +145,7 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
                 provider.updateDataProtectionLevel(provider.targetLevel);
               },
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(l10n?.retry ?? 'Retry'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.secondary,
                 foregroundColor: Colors.white,
@@ -166,12 +171,12 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
             text: TextSpan(
               style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.4),
               children: [
-                const TextSpan(text: 'Migrating from '),
+                TextSpan(text: '${l10n?.migratingFrom ?? "Migrating from"} '),
                 TextSpan(
                   text: provider.sourceLevel.capitalize(),
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                const TextSpan(text: ' to '),
+                TextSpan(text: ' ${l10n?.migratingTo ?? "to"} '),
                 TextSpan(
                   text: provider.targetLevel.capitalize(),
                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -211,7 +216,7 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
                 style: const TextStyle(color: Colors.grey, fontSize: 12),
               ),
               Text(
-                '${provider.migrationProcessedCount} / ${provider.migrationTotalCount} objects',
+                '${provider.migrationProcessedCount} / ${provider.migrationTotalCount} ${l10n?.objects ?? "objects"}',
                 style: const TextStyle(color: Colors.grey, fontSize: 12),
               ),
             ],
@@ -222,6 +227,7 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
   }
 
   Widget _buildDefaultProtectionCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -245,9 +251,9 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Secure Encryption',
-                  style: TextStyle(
+                Text(
+                  l10n?.secureEncryption ?? 'Secure Encryption',
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     fontSize: 16,
@@ -255,7 +261,8 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Your data is encrypted with a key unique to you on our servers, hosted on Google Cloud. This means your raw content is inaccessible to anyone, including Omi staff or Google, directly from the database.',
+                  l10n?.secureEncryptionDesc ??
+                      'Your data is encrypted with a key unique to you on our servers, hosted on Google Cloud. This means your raw content is inaccessible to anyone, including Maity staff or Google, directly from the database.',
                   style: TextStyle(color: Colors.grey.shade400, fontSize: 14, height: 1.4),
                 ),
               ],
@@ -267,6 +274,7 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
   }
 
   Widget _buildE2eeCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return GestureDetector(
       onTap: () => _showE2eeComingSoonDialog(context),
       child: Container(
@@ -288,12 +296,14 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
                 children: [
                   Row(
                     children: [
-                      const Text(
-                        'End-to-End Encryption',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontSize: 16,
+                      Flexible(
+                        child: Text(
+                          l10n?.endToEndEncryption ?? 'End-to-End Encryption',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -303,9 +313,9 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
                           color: Colors.grey.shade700,
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Text(
-                          'Coming Soon',
-                          style: TextStyle(
+                        child: Text(
+                          l10n?.comingSoon ?? 'Coming Soon',
+                          style: const TextStyle(
                             fontSize: 10,
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -316,7 +326,8 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Enable for maximum security where only you can access your data. Tap to learn more.',
+                    l10n?.e2eeShortDesc ??
+                        'Enable for maximum security where only you can access your data. Tap to learn more.',
                     style: TextStyle(color: Colors.grey.shade400, fontSize: 14, height: 1.4),
                   ),
                 ],

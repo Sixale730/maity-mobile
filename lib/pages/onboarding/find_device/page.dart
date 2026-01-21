@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/home_provider.dart';
 import 'package:omi/providers/onboarding_provider.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
@@ -71,6 +72,7 @@ class _FindDevicesPageState extends State<FindDevicesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<OnboardingProvider>(
       builder: (context, provider, child) {
         return Column(
@@ -84,14 +86,14 @@ class _FindDevicesPageState extends State<FindDevicesPage> {
             if (provider.deviceList.isEmpty && provider.enableInstructions) const SizedBox(height: 48),
             if (provider.deviceList.isEmpty && provider.enableInstructions)
               ElevatedButton(
-                onPressed: () => launchUrl(Uri.parse('mailto:team@basedhardware.com')),
+                onPressed: () => launchUrl(Uri.parse('mailto:julio.gonzalez@maity.com.mx')),
                 child: Container(
                   width: double.infinity,
                   height: 45,
                   alignment: Alignment.center,
-                  child: const Text(
-                    'Contact Support?',
-                    style: TextStyle(
+                  child: Text(
+                    l10n?.contactSupport ?? 'Contact Support?',
+                    style: const TextStyle(
                       fontWeight: FontWeight.w400,
                       fontSize: 16,
                       color: Colors.white,
@@ -114,9 +116,9 @@ class _FindDevicesPageState extends State<FindDevicesPage> {
                   width: double.infinity,
                   height: 45,
                   alignment: Alignment.center,
-                  child: const Text(
-                    'Connect Later',
-                    style: TextStyle(
+                  child: Text(
+                    l10n?.connectLater ?? 'Connect Later',
+                    style: const TextStyle(
                       fontWeight: FontWeight.w400,
                       fontSize: 16,
                       color: Colors.white,

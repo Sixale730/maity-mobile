@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/settings/device_settings.dart';
 import 'package:omi/pages/home/page.dart';
 import 'package:omi/pages/onboarding/find_device/page.dart';
@@ -17,9 +18,10 @@ class ConnectDevicePage extends StatefulWidget {
 class _ConnectDevicePageState extends State<ConnectDevicePage> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
         appBar: AppBar(
-          title: const Text('Connect'),
+          title: Text(l10n?.connect ?? 'Connect'),
           backgroundColor: Theme.of(context).colorScheme.primary,
           actions: [
             IconButton(
