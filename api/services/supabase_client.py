@@ -460,3 +460,410 @@ async def get_user_metrics(
             },
             "history": [],
         }
+
+
+async def get_day_summary(
+    user_id: str,
+    fecha: str = None,
+) -> Dict[str, Any]:
+    """
+    Get a complete summary of a specific day including conversations,
+    metrics, action items, and events.
+
+    Args:
+        user_id: UUID de maity.users (no auth.users.id)
+        fecha: Date in YYYY-MM-DD format. Defaults to today.
+    """
+    from collections import defaultdict
+
+    supabase = get_supabase()
+
+    if not fecha:
+        fecha = datetime.utcnow().strftime("%Y-%m-%d")
+
+    # Date range for the day
+    start_date = f"{fecha}T00:00:00"
+    end_date = f"{fecha}T23:59:59"
+
+    try:
+        result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .select("id, title, overview, emoji, category, duration_seconds, words_count, action_items, events, created_at")
+            .eq("user_id", user_id)
+            .eq("deleted", False)
+            .eq("discarded", False)
+            .gte("created_at", start_date)
+            .lte("created_at", end_date)
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        conversations = result.data if result.data else []
+
+        # Aggregate metrics
+        total_duration = 0
+        total_words = 0
+        all_action_items = []
+        all_events = []
+        category_counts: Dict[str, int] = defaultdict(int)
+
+        for conv in conversations:
+            total_duration += conv.get("duration_seconds") or 0
+            total_words += conv.get("words_count") or 0
+
+            # Extract action items with conversation context
+            for item in (conv.get("action_items") or []):
+                all_action_items.append({
+                    "description": item.get("description", ""),
+                    "completed": item.get("completed", False),
+                    "conversation_title": conv.get("title"),
+                    "conversation_emoji": conv.get("emoji"),
+                    "conversation_id": conv.get("id"),
+                })
+
+            # Extract events
+            for event in (conv.get("events") or []):
+                all_events.append({
+                    "title": event.get("title", ""),
+                    "start": event.get("start"),
+                    "end": event.get("end"),
+                    "conversation_title": conv.get("title"),
+                })
+
+            category = conv.get("category") or "other"
+            category_counts[category] += 1
+
+        # Format conversations for response
+        formatted_convs = [
+            {
+                "id": c.get("id"),
+                "title": c.get("title"),
+                "overview": c.get("overview"),
+                "emoji": c.get("emoji"),
+                "category": c.get("category"),
+                "duration_seconds": c.get("duration_seconds"),
+                "created_at": c.get("created_at"),
+            }
+            for c in conversations
+        ]
+
+        return {
+            "fecha": fecha,
+            "conversaciones": formatted_convs,
+            "total_conversaciones": len(conversations),
+            "duracion_total_segundos": total_duration,
+            "duracion_total_minutos": round(total_duration / 60, 1),
+            "palabras_totales": total_words,
+            "action_items": all_action_items,
+            "eventos": all_events,
+            "categorias": dict(category_counts),
+        }
+
+    except Exception as e:
+        print(f"[Supabase] Error getting day summary: {e}")
+        return {
+            "fecha": fecha,
+            "conversaciones": [],
+            "total_conversaciones": 0,
+            "duracion_total_segundos": 0,
+            "duracion_total_minutos": 0,
+            "palabras_totales": 0,
+            "action_items": [],
+            "eventos": [],
+            "categorias": {},
+            "error": str(e),
+        }
+
+
+async def get_action_items(
+    user_id: str,
+    fecha_inicio: str = None,
+    fecha_fin: str = None,
+    texto_busqueda: str = None,
+    limite: int = 20,
+) -> Dict[str, Any]:
+    """
+    Get action items from conversations within a date range.
+
+    Args:
+        user_id: UUID de maity.users (no auth.users.id)
+        fecha_inicio: Start date YYYY-MM-DD. Defaults to 7 days ago.
+        fecha_fin: End date YYYY-MM-DD. Defaults to today.
+        texto_busqueda: Optional text to filter action items.
+        limite: Max number of action items to return.
+    """
+    supabase = get_supabase()
+
+    now = datetime.utcnow()
+    if not fecha_fin:
+        fecha_fin = now.strftime("%Y-%m-%d")
+    if not fecha_inicio:
+        fecha_inicio = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+
+    start_date = f"{fecha_inicio}T00:00:00"
+    end_date = f"{fecha_fin}T23:59:59"
+
+    try:
+        result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .select("id, title, emoji, action_items, created_at")
+            .eq("user_id", user_id)
+            .eq("deleted", False)
+            .eq("discarded", False)
+            .gte("created_at", start_date)
+            .lte("created_at", end_date)
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        conversations = result.data if result.data else []
+
+        # Extract all action items with context
+        all_items = []
+        for conv in conversations:
+            for item in (conv.get("action_items") or []):
+                description = item.get("description", "")
+
+                # Filter by search text if provided
+                if texto_busqueda and texto_busqueda.lower() not in description.lower():
+                    continue
+
+                all_items.append({
+                    "description": description,
+                    "completed": item.get("completed", False),
+                    "conversation_title": conv.get("title"),
+                    "conversation_emoji": conv.get("emoji"),
+                    "conversation_id": conv.get("id"),
+                    "fecha": conv.get("created_at", "")[:10],
+                })
+
+                if len(all_items) >= limite:
+                    break
+
+            if len(all_items) >= limite:
+                break
+
+        # Count pending vs completed
+        pendientes = sum(1 for i in all_items if not i["completed"])
+        completados = sum(1 for i in all_items if i["completed"])
+
+        return {
+            "action_items": all_items[:limite],
+            "total": len(all_items),
+            "pendientes": pendientes,
+            "completados": completados,
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin,
+        }
+
+    except Exception as e:
+        print(f"[Supabase] Error getting action items: {e}")
+        return {
+            "action_items": [],
+            "total": 0,
+            "pendientes": 0,
+            "completados": 0,
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin,
+            "error": str(e),
+        }
+
+
+async def search_by_category(
+    user_id: str,
+    categoria: str,
+    fecha_inicio: str = None,
+    fecha_fin: str = None,
+    limite: int = 10,
+) -> Dict[str, Any]:
+    """
+    Search conversations by category.
+
+    Args:
+        user_id: UUID de maity.users (no auth.users.id)
+        categoria: Category to filter by (e.g., 'work', 'personal')
+        fecha_inicio: Optional start date YYYY-MM-DD
+        fecha_fin: Optional end date YYYY-MM-DD
+        limite: Max conversations to return
+    """
+    supabase = get_supabase()
+
+    try:
+        query = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .select("id, title, overview, emoji, category, duration_seconds, words_count, created_at")
+            .eq("user_id", user_id)
+            .eq("deleted", False)
+            .eq("discarded", False)
+            .ilike("category", categoria)
+        )
+
+        if fecha_inicio:
+            query = query.gte("created_at", f"{fecha_inicio}T00:00:00")
+        if fecha_fin:
+            query = query.lte("created_at", f"{fecha_fin}T23:59:59")
+
+        result = (
+            query
+            .order("created_at", desc=True)
+            .limit(limite)
+            .execute()
+        )
+
+        conversations = result.data if result.data else []
+
+        # Format response
+        formatted = [
+            {
+                "id": c.get("id"),
+                "title": c.get("title"),
+                "overview": c.get("overview"),
+                "emoji": c.get("emoji"),
+                "category": c.get("category"),
+                "duration_seconds": c.get("duration_seconds"),
+                "words_count": c.get("words_count"),
+                "created_at": c.get("created_at"),
+            }
+            for c in conversations
+        ]
+
+        return {
+            "categoria": categoria,
+            "conversaciones": formatted,
+            "total": len(formatted),
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin,
+        }
+
+    except Exception as e:
+        print(f"[Supabase] Error searching by category: {e}")
+        return {
+            "categoria": categoria,
+            "conversaciones": [],
+            "total": 0,
+            "error": str(e),
+        }
+
+
+async def get_communication_feedback_aggregate(
+    user_id: str,
+    fecha_inicio: str = None,
+    fecha_fin: str = None,
+    limite: int = 20,
+) -> Dict[str, Any]:
+    """
+    Aggregate communication feedback from multiple conversations.
+
+    Args:
+        user_id: UUID de maity.users (no auth.users.id)
+        fecha_inicio: Start date YYYY-MM-DD. Defaults to 30 days ago.
+        fecha_fin: End date YYYY-MM-DD. Defaults to today.
+        limite: Max conversations to analyze.
+    """
+    from collections import Counter
+
+    supabase = get_supabase()
+
+    now = datetime.utcnow()
+    if not fecha_fin:
+        fecha_fin = now.strftime("%Y-%m-%d")
+    if not fecha_inicio:
+        fecha_inicio = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+
+    start_date = f"{fecha_inicio}T00:00:00"
+    end_date = f"{fecha_fin}T23:59:59"
+
+    try:
+        result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .select("id, title, communication_feedback, created_at")
+            .eq("user_id", user_id)
+            .eq("deleted", False)
+            .eq("discarded", False)
+            .gte("created_at", start_date)
+            .lte("created_at", end_date)
+            .not_.is_("communication_feedback", "null")
+            .order("created_at", desc=True)
+            .limit(limite)
+            .execute()
+        )
+
+        conversations = result.data if result.data else []
+
+        # Aggregate feedback
+        all_strengths = Counter()
+        all_areas_to_improve = Counter()
+        total_filler_words: Dict[str, int] = {}
+        all_objections_received = []
+        all_objections_made = []
+        total_pero_count = 0
+        conversations_analyzed = 0
+
+        for conv in conversations:
+            feedback = conv.get("communication_feedback")
+            if not feedback:
+                continue
+
+            conversations_analyzed += 1
+
+            # Count strengths
+            for strength in (feedback.get("strengths") or []):
+                all_strengths[strength] += 1
+
+            # Count areas to improve
+            for area in (feedback.get("areas_to_improve") or []):
+                all_areas_to_improve[area] += 1
+
+            # Aggregate counters if present
+            counters = feedback.get("counters") or {}
+
+            # Filler words
+            for word, count in (counters.get("filler_words") or {}).items():
+                total_filler_words[word] = total_filler_words.get(word, 0) + count
+
+            # Pero count
+            total_pero_count += counters.get("pero_count", 0)
+
+            # Objections
+            all_objections_received.extend(counters.get("objections_received") or [])
+            all_objections_made.extend(counters.get("objections_made") or [])
+
+        # Get top items
+        top_strengths = [s for s, _ in all_strengths.most_common(5)]
+        top_areas = [a for a, _ in all_areas_to_improve.most_common(5)]
+
+        # Sort filler words by frequency
+        sorted_fillers = dict(sorted(total_filler_words.items(), key=lambda x: x[1], reverse=True))
+
+        return {
+            "conversaciones_analizadas": conversations_analyzed,
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin,
+            "fortalezas_frecuentes": top_strengths,
+            "areas_de_mejora_frecuentes": top_areas,
+            "muletillas_totales": sorted_fillers,
+            "total_muletillas": sum(total_filler_words.values()),
+            "conteo_pero": total_pero_count,
+            "objeciones_recibidas": all_objections_received[:10],
+            "objeciones_hechas": all_objections_made[:10],
+        }
+
+    except Exception as e:
+        print(f"[Supabase] Error getting communication feedback: {e}")
+        return {
+            "conversaciones_analizadas": 0,
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin,
+            "fortalezas_frecuentes": [],
+            "areas_de_mejora_frecuentes": [],
+            "muletillas_totales": {},
+            "total_muletillas": 0,
+            "conteo_pero": 0,
+            "objeciones_recibidas": [],
+            "objeciones_hechas": [],
+            "error": str(e),
+        }

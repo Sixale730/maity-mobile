@@ -343,5 +343,13 @@
   "categoryFamily": "Familia",
   "categoryEconomics": "Economía",
   "categoryEnvironment": "Medio Ambiente",
-  "categoryOther": "Otro"
+  "categoryOther": "Otro",
+
+  "todaySummary": "Resumen de hoy",
+  "myTasks": "Mis pendientes",
+  "myStats": "Mis estadísticas",
+  "howICommunicate": "Cómo me comunico",
+  "welcomeToMaity": "¡Hola! Soy Maity",
+  "maityWelcomeSubtitle": "Tu asistente personal conectado a tu wearable. Pregúntame sobre tus conversaciones, tareas o estadísticas.",
+  "tryAsking": "Prueba preguntar:"
 }

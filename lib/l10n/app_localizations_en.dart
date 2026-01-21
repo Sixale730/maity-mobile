@@ -341,7 +341,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enableLocation => 'Enable Location';
 
   @override
-  String get welcomeToMaity => 'Welcome to Maity';
+  String get welcomeToMaity => 'Hi! I\'m Maity';
 
   @override
   String get yourAiCompanion => 'Your AI Companion';
@@ -959,4 +959,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get categoryOther => 'Other';
+
+  @override
+  String get todaySummary => 'Today\'s summary';
+
+  @override
+  String get myTasks => 'My tasks';
+
+  @override
+  String get myStats => 'My stats';
+
+  @override
+  String get howICommunicate => 'How I communicate';
+
+  @override
+  String get maityWelcomeSubtitle =>
+      'Your personal assistant connected to your wearable. Ask me about your conversations, tasks, or statistics.';
+
+  @override
+  String get tryAsking => 'Try asking:';
 }

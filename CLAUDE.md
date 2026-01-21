@@ -416,6 +416,55 @@ Speech Profile ahora funciona con custom STT (Deepgram):
 | `/v1/omi/conversations/{id}` | GET | Obtener conversacion con segmentos |
 | `/v1/users/{user_id}/metrics` | GET | Metricas de uso por periodo (Supabase) |
 | `/v1/users/{user_id}/metrics/summary` | GET | Resumen de metricas (today, monthly, all-time) |
+| `/v2/messages` | POST | Chat con Maity (function calling para acceso a conversaciones) |
+
+## Chat Agent (Maity)
+
+Sistema de chat con acceso a las conversaciones del usuario mediante function calling de OpenAI.
+
+### Arquitectura
+```
+Flutter (ChatPage) → Vercel (/v2/messages) → OpenAI (gpt-4o-mini + function calling) → Supabase
+```
+
+### Tools Disponibles (8 herramientas)
+
+| Tool | Descripción | Uso típico |
+|------|-------------|------------|
+| `buscar_conversaciones` | Buscar por rango de fechas | "¿De qué hablé ayer?" |
+| `obtener_conversacion` | Ver detalles completos con transcripción | Ver una conversación específica |
+| `buscar_semantico` | Búsqueda por tema o contenido | "Conversaciones sobre el proyecto X" |
+| `resumen_dia` | Resumen completo del día con métricas | "¿Qué hice hoy?" |
+| `obtener_action_items` | Lista de tareas pendientes | "Mis pendientes" |
+| `buscar_por_categoria` | Filtrar por categoría | "Conversaciones de trabajo" |
+| `estadisticas_uso` | Métricas por período (today, weekly, monthly, yearly, all) | "Mis estadísticas del mes" |
+| `feedback_comunicacion` | Análisis del estilo de comunicación | "¿Cómo me comunico?" |
+
+### Quick Actions (UI)
+
+La página de chat muestra 4 acciones rápidas cuando está vacía:
+
+| Acción | Mensaje enviado |
+|--------|-----------------|
+| Resumen de hoy | "¿Qué hice hoy?" |
+| Mis pendientes | "¿Cuáles son mis tareas pendientes?" |
+| Mis estadísticas | "¿Cuáles son mis estadísticas del mes?" |
+| Cómo me comunico | "¿Cómo es mi estilo de comunicación?" |
+
+### Archivos del Sistema
+- `api/routers/messages.py` - Endpoint /v2/messages + definición de tools
+- `api/services/supabase_client.py` - Funciones de base de datos para tools
+- `lib/pages/chat/page.dart` - UI de chat con quick actions
+- `lib/providers/message_provider.dart` - Estado del chat
+
+### System Prompt
+
+El chat agent usa un system prompt detallado que incluye:
+- Capacidades del asistente
+- Lista de herramientas disponibles
+- Categorías válidas para filtrar
+- Reglas de respuesta (español, conciso, formato claro)
+- Fecha actual para consultas relativas
 
 ## Backend (Monorepo)
 Codigo en `C:\OMI\api\` (misma carpeta que Flutter app):

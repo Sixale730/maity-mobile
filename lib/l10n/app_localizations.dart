@@ -749,7 +749,7 @@ abstract class AppLocalizations {
   /// No description provided for @welcomeToMaity.
   ///
   /// In en, this message translates to:
-  /// **'Welcome to Maity'**
+  /// **'Hi! I\'m Maity'**
   String get welcomeToMaity;
 
   /// No description provided for @yourAiCompanion.
@@ -1903,6 +1903,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Other'**
   String get categoryOther;
+
+  /// No description provided for @todaySummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s summary'**
+  String get todaySummary;
+
+  /// No description provided for @myTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'My tasks'**
+  String get myTasks;
+
+  /// No description provided for @myStats.
+  ///
+  /// In en, this message translates to:
+  /// **'My stats'**
+  String get myStats;
+
+  /// No description provided for @howICommunicate.
+  ///
+  /// In en, this message translates to:
+  /// **'How I communicate'**
+  String get howICommunicate;
+
+  /// No description provided for @maityWelcomeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your personal assistant connected to your wearable. Ask me about your conversations, tasks, or statistics.'**
+  String get maityWelcomeSubtitle;
+
+  /// No description provided for @tryAsking.
+  ///
+  /// In en, this message translates to:
+  /// **'Try asking:'**
+  String get tryAsking;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

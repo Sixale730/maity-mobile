@@ -444,5 +444,13 @@
   "categoryFamily": "Family",
   "categoryEconomics": "Economics",
   "categoryEnvironment": "Environment",
-  "categoryOther": "Other"
+  "categoryOther": "Other",
+
+  "todaySummary": "Today's summary",
+  "myTasks": "My tasks",
+  "myStats": "My stats",
+  "howICommunicate": "How I communicate",
+  "welcomeToMaity": "Hi! I'm Maity",
+  "maityWelcomeSubtitle": "Your personal assistant connected to your wearable. Ask me about your conversations, tasks, or statistics.",
+  "tryAsking": "Try asking:"
 }
