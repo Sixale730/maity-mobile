@@ -99,6 +99,34 @@ La app tiene 2 tabs en la barra de navegación inferior:
 
 **Nota**: Los tabs de ActionItems, Memories y Apps fueron ocultados temporalmente.
 
+## Página de Detalle de Conversación
+
+La página `lib/pages/conversation_detail/page.dart` muestra el detalle de una conversación con tres tabs:
+
+### Tabs (ConversationTab)
+| Tab | Título (EN) | Título (ES) | Descripción |
+|-----|-------------|-------------|-------------|
+| transcript | Transcription | Transcripción | Transcripción completa con timestamps |
+| summary | Summary | Resumen | Resumen generado por IA |
+| actionItems | Action Items | Elementos de Acción | Lista de acciones a tomar |
+
+### AppBar Actions
+La barra de navegación superior tiene los siguientes botones:
+1. **Botón de Búsqueda** (🔍) - Solo visible en tabs de Transcripción y Resumen
+2. **Menú de 3 puntos** (⋮) - Opción única: "Eliminar" (localizado)
+
+**Funcionalidad removida**:
+- Botón de compartir (share) - Eliminado para simplificar la UI
+- Opciones del menú: Copy Transcript, Copy Summary, Test Prompt, Reprocess Conversation
+- Botón "Generate Summary" con borde morado gradiente - Eliminado de GetAppsWidgets (solo muestra "No summary available" cuando no hay resumen)
+- Dropdown de "Summary Template" en barra inferior - Eliminado de ConversationBottomBar (el tab de Summary ahora solo cambia de tab, no abre modal)
+
+### Localización
+Los títulos de los tabs usan `AppLocalizations`:
+- `l10n.transcription` → "Transcription" / "Transcripción"
+- `l10n.summary` → "Summary" / "Resumen"
+- `l10n.actionItems` → "Action Items" / "Elementos de Acción"
+
 ## Assets y Splash Screen
 
 ### Imágenes de Logo
@@ -123,11 +151,21 @@ El drawer de configuración ha sido personalizado para Maity:
 - Título "Settings" / "Ajustes"
 - Email del usuario logueado (de SharedPreferencesUtil().email)
 
+### Perfiles de Usuario
+La app distingue entre dos perfiles basados en el dominio del email:
+
+| Perfil | Email | Acceso |
+|--------|-------|--------|
+| **Developer** | `*@asertio.mx` | Todas las opciones (Storage, Developer Settings) |
+| **Usuario Final** | Cualquier otro email | Opciones reducidas (sin Storage ni Developer Settings) |
+
+**Helper**: `_isDeveloperUser()` en `settings_drawer.dart` verifica si el email termina en `@asertio.mx`
+
 ### Secciones
 
 **Perfil y Dispositivo:**
 - Profile - Configuración de perfil
-- Storage - Sincronización de datos
+- Storage - Sincronización de datos (**solo Developer**)
 - Device Settings - Configuración Bluetooth
 
 **Compartir:**
@@ -140,7 +178,7 @@ El drawer de configuración ha sido personalizado para Maity:
 **Privacidad y Configuración:**
 - Data & Privacy
 - Language - Selector de idioma (es/en)
-- Developer Settings
+- Developer Settings (**solo Developer**)
 - About Maity
 
 **Sesión:**
@@ -187,6 +225,28 @@ Text(l10n.insights) // "Insights" o "Estadísticas"
 - UsagePage (Insights) - Completamente localizada
 - Onboarding pages - Completamente localizadas
 - Settings drawer - Completamente localizado
+
+### Localización de Fechas
+Las fechas se muestran en el idioma configurado usando el parámetro `locale` de `DateFormat`:
+
+```dart
+dateTimeFormat('MMM dd', date, locale: SharedPreferencesUtil().appLanguage)
+// Español: "Ene 15"
+// English: "Jan 15"
+```
+
+**Archivos actualizados:**
+- `lib/pages/conversations/widgets/date_list_item.dart` - Fechas en lista de conversaciones
+- `lib/pages/conversation_detail/widgets.dart` - Fechas y horas en detalle
+- `lib/utils/other/temp.dart` - `formatChatTimestamp()` para chat
+
+**Formatos usados:**
+| Formato | Español | Inglés |
+|---------|---------|--------|
+| `MMM dd` | Ene 15 | Jan 15 |
+| `MMM d` | Ene 5 | Jan 5 |
+| `MMM d, yyyy` | Ene 5, 2025 | Jan 5, 2025 |
+| `h:mm a` | 3:45 PM | 3:45 PM |
 
 ## Autenticacion (Supabase Auth)
 
@@ -255,6 +315,19 @@ Los segmentos de transcripción se acumulan durante una conversación:
 
 **Importante**: Los segmentos de Deepgram/Gemini Live necesitan un campo `id` único.
 Los servicios STT (streaming y polling) generan IDs con formato: `{timestamp}_{start}_{index}`
+
+### Carga de Segmentos en Detalle de Conversación
+Cuando el usuario abre el detalle de una conversación desde la lista:
+
+1. `ConversationProvider.getConversations()` obtiene conversaciones **SIN segmentos** (optimización)
+2. `conversation.transcriptSegments` está vacío → tab de transcripción deshabilitado
+3. `ConversationDetailProvider.initConversation()` detecta lista vacía
+4. Llama `_loadConversationSegments()` → `OmiSupabaseService.getConversation()`
+5. Backend retorna conversación **CON segmentos**
+6. `OmiSegment.toTranscriptSegment()` convierte cada segmento
+7. Tab de transcripción se habilita al tener segmentos
+
+**Ubicación**: `lib/pages/conversation_detail/conversation_detail_provider.dart:283-310`
 
 ### Guardar via MaityApiService (legacy)
 1. MaityApiService.processConversation() procesa con OpenAI
@@ -546,7 +619,7 @@ Future<void> myAsyncMethod() async {
 ### Archivos con Patrón Aplicado
 - `lib/pages/home/page.dart` - Connectivity banners, navigation
 - `lib/core/app_shell.dart` - initState providers
-- `lib/pages/conversation_detail/page.dart` - Share, action items
+- `lib/pages/conversation_detail/page.dart` - Delete, action items
 - `lib/pages/onboarding/wrapper.dart` - Device connection flow
 
 ### Reglas

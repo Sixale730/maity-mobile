@@ -332,6 +332,12 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
     );
   }
 
+  /// Returns true if the user has a developer profile (@asertio.mx email)
+  bool _isDeveloperUser() {
+    final email = SharedPreferencesUtil().email;
+    return email.endsWith('@asertio.mx');
+  }
+
   void _showCopyNotification() {
     final overlay = Overlay.of(context);
     late OverlayEntry overlayEntry;
@@ -390,19 +396,22 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                   routeToPage(context, const ProfilePage());
                 },
               ),
-              const Divider(height: 1, color: Color(0xFF3C3C43)),
-              _buildSettingsItem(
-                title: AppLocalizations.of(context)?.storage ?? 'Storage',
-                icon: const FaIcon(FontAwesomeIcons.database, color: Color(0xFF8E8E93), size: 20),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const SyncPage(),
-                    ),
-                  );
-                },
-              ),
+              // Storage - Developer only
+              if (_isDeveloperUser()) ...[
+                const Divider(height: 1, color: Color(0xFF3C3C43)),
+                _buildSettingsItem(
+                  title: AppLocalizations.of(context)?.storage ?? 'Storage',
+                  icon: const FaIcon(FontAwesomeIcons.database, color: Color(0xFF8E8E93), size: 20),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const SyncPage(),
+                      ),
+                    );
+                  },
+                ),
+              ],
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
                 title: AppLocalizations.of(context)?.deviceSettings ?? 'Device Settings',
@@ -491,15 +500,18 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 ),
                 onTap: () => _showLanguageSelector(context),
               ),
-              const Divider(height: 1, color: Color(0xFF3C3C43)),
-              _buildSettingsItem(
-                title: AppLocalizations.of(context)?.developerSettings ?? 'Developer Settings',
-                icon: const FaIcon(FontAwesomeIcons.code, color: Color(0xFF8E8E93), size: 20),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await routeToPage(context, const DeveloperSettingsPage());
-                },
-              ),
+              // Developer Settings - Developer only
+              if (_isDeveloperUser()) ...[
+                const Divider(height: 1, color: Color(0xFF3C3C43)),
+                _buildSettingsItem(
+                  title: AppLocalizations.of(context)?.developerSettings ?? 'Developer Settings',
+                  icon: const FaIcon(FontAwesomeIcons.code, color: Color(0xFF8E8E93), size: 20),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await routeToPage(context, const DeveloperSettingsPage());
+                  },
+                ),
+              ],
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
                 title: AppLocalizations.of(context)?.aboutMaity ?? 'About Maity',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omi/backend/preferences.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/utils/other/temp.dart';
 
@@ -27,7 +28,7 @@ class DateListItem extends StatelessWidget {
                 ? l10n.today
                 : isYesterday
                     ? l10n.yesterday
-                    : dateTimeFormat('MMM dd', date),
+                    : dateTimeFormat('MMM dd', date, locale: SharedPreferencesUtil().appLanguage),
             style: const TextStyle(color: Colors.white, fontSize: 16),
           ),
           const SizedBox(width: 16),

@@ -79,11 +79,13 @@ class GetSummaryWidgets extends StatelessWidget {
   const GetSummaryWidgets({super.key, this.searchQuery = ''});
 
   String setTime(DateTime? startedAt, DateTime createdAt, DateTime? finishedAt) {
-    return startedAt == null ? dateTimeFormat('h:mm a', createdAt) : dateTimeFormat('h:mm a', startedAt);
+    final locale = SharedPreferencesUtil().appLanguage;
+    return startedAt == null ? dateTimeFormat('h:mm a', createdAt, locale: locale) : dateTimeFormat('h:mm a', startedAt, locale: locale);
   }
 
   String setTimeSDCard(DateTime? startedAt, DateTime createdAt) {
-    return startedAt == null ? dateTimeFormat('h:mm a', createdAt) : dateTimeFormat('h:mm a', startedAt);
+    final locale = SharedPreferencesUtil().appLanguage;
+    return startedAt == null ? dateTimeFormat('h:mm a', createdAt, locale: locale) : dateTimeFormat('h:mm a', startedAt, locale: locale);
   }
 
   String _getDuration(ServerConversation conversation) {
@@ -106,9 +108,9 @@ class GetSummaryWidgets extends StatelessWidget {
     } else if (dateOnly == yesterday) {
       return AppLocalizations.of(context)?.yesterday ?? 'Yesterday';
     } else if (date.year == now.year) {
-      return dateTimeFormat('MMM d', date);
+      return dateTimeFormat('MMM d', date, locale: SharedPreferencesUtil().appLanguage);
     } else {
-      return dateTimeFormat('MMM d, yyyy', date);
+      return dateTimeFormat('MMM d, yyyy', date, locale: SharedPreferencesUtil().appLanguage);
     }
   }
 
@@ -636,49 +638,14 @@ class GetAppsWidgets extends StatelessWidget {
                 ],
         );
       },
-      child: ListView(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 32),
           Text(
             'No summary available\nfor this conversation.',
             style: Theme.of(context).textTheme.titleLarge!.copyWith(fontSize: 20),
             textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  border: const GradientBoxBorder(
-                    gradient: LinearGradient(colors: [
-                      Color.fromARGB(127, 208, 208, 208),
-                      Color.fromARGB(127, 188, 99, 121),
-                      Color.fromARGB(127, 86, 101, 182),
-                      Color.fromARGB(127, 126, 190, 236)
-                    ]),
-                    width: 2,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: MaterialButton(
-                  onPressed: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => const SummarizedAppsBottomSheet(),
-                    );
-                  },
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                      child: Text('Generate Summary', style: TextStyle(color: Colors.white, fontSize: 16))),
-                ),
-              ),
-            ],
           ),
           const SizedBox(height: 32),
         ],

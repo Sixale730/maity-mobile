@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:omi/backend/preferences.dart';
 
 String dateTimeFormat(String format, DateTime? dateTime, {String? locale}) {
   if (dateTime == null) return '';
@@ -25,16 +26,17 @@ String formatChatTimestamp(DateTime dateTime) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+  final locale = SharedPreferencesUtil().appLanguage;
 
   if (messageDate == today) {
     // Today, show time only
-    return dateTimeFormat('h:mm a', dateTime);
+    return dateTimeFormat('h:mm a', dateTime, locale: locale);
   } else if (messageDate == today.subtract(const Duration(days: 1))) {
     // Yesterday
-    return 'Yesterday ${dateTimeFormat('h:mm a', dateTime)}';
+    return 'Yesterday ${dateTimeFormat('h:mm a', dateTime, locale: locale)}';
   } else {
     // Other days
-    return dateTimeFormat('MMM d, h:mm a', dateTime);
+    return dateTimeFormat('MMM d, h:mm a', dateTime, locale: locale);
   }
 }
 
