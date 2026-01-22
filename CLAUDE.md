@@ -144,8 +144,25 @@ Los títulos de los tabs usan `AppLocalizations`:
 ## Assets y Splash Screen
 
 ### Imágenes de Logo
-- `assets/images/maity_icon.png` - Logo original (1340×1345 px) usado para app icon
+- `assets/images/app_launcher_icon.png` - Logo blanco sobre transparente (base para launcher icon)
+- `assets/images/maity_launcher_icon.png` - Logo rosa (#F93A6E) sobre transparente, usado para launcher icon Android
+- `assets/images/maity_icon.png` - Logo original con colores (1340×1345 px)
 - `assets/images/maity_splash.png` - Logo para splash screen (1152×1152 px, logo ~600px centrado)
+
+### App Launcher Icon (Android)
+El icono de la app usa el sistema de adaptive icons de Android:
+- **Foreground**: `maity_launcher_icon.png` (logo rosa #F93A6E con padding adecuado)
+- **Background**: `#0F0F0F` (negro)
+- Configurado en `pubspec.yaml` sección `flutter_launcher_icons`
+- Regenerar con: `dart run flutter_launcher_icons`
+
+**Nota**: `maity_launcher_icon.png` se genera a partir de `app_launcher_icon.png` cambiando el color blanco a rosa (#F93A6E).
+Para regenerar, usar PIL: reemplazar píxeles donde R>200, G>200, B>200 por (249, 58, 110).
+
+Archivos generados en `android/app/src/main/res/mipmap-*/`:
+- `ic_launcher.png` - Icono estándar
+- `ic_launcher_foreground.png` - Capa frontal (logo)
+- `ic_launcher_background.png` - Capa de fondo (color)
 
 ### Splash Screen (Android 12+)
 Android 12+ aplica una máscara circular de 768px sobre el splash icon. Para evitar que los 6 círculos decorativos del logo se corten:

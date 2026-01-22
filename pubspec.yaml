@@ -162,9 +162,9 @@ flutter_launcher_icons:
   remove_alpha_ios: true
   web:
     generate: false
-  image_path: "assets/images/maity_icon.png"
+  image_path: "assets/images/maity_launcher_icon.png"
   adaptive_icon_background: "#0F0F0F"
-  adaptive_icon_foreground: "assets/images/maity_icon.png"
+  adaptive_icon_foreground: "assets/images/maity_launcher_icon.png"
 
 flutter:
   generate: true
