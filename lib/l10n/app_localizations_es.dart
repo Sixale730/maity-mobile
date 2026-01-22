@@ -1377,4 +1377,37 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get sdCardStep3 => 'El servidor procesa los archivos de audio y crea memorias';
+
+  @override
+  String get notificationWaitingConnection => 'Sin dispositivo conectado. Toca para grabar.';
+
+  @override
+  String get notificationDeviceConnected => 'Dispositivo conectado - Listo para grabar';
+
+  @override
+  String get notificationPhoneMicActive => 'Micrófono activo - Listo para grabar';
+
+  @override
+  String get notificationRecording => 'Grabando...';
+
+  @override
+  String get notificationProcessing => 'Procesando audio...';
+
+  @override
+  String get notificationServiceReady => 'Servicio de transcripción listo';
+
+  @override
+  String get notificationButtonConnect => 'Conectar';
+
+  @override
+  String get notificationButtonUseMic => 'Usar Mic';
+
+  @override
+  String get usePhoneMicrophone => 'Usar Micrófono del Teléfono';
+
+  @override
+  String get usePhoneMicrophoneDesc => 'Graba con el micrófono integrado de tu dispositivo';
+
+  @override
+  String get orDivider => 'o';
 }

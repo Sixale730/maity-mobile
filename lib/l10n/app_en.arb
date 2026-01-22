@@ -602,5 +602,19 @@
   "sdCardSyncDesc": "SD Card Sync will import your memories from the SD Card to the app",
   "sdCardStep1": "Checks for audio files on the SD Card",
   "sdCardStep2": "Maity then syncs the audio files with the server",
-  "sdCardStep3": "The server processes the audio files and creates memories"
+  "sdCardStep3": "The server processes the audio files and creates memories",
+
+  "notificationWaitingConnection": "No device connected. Tap to record.",
+  "notificationDeviceConnected": "Device connected - Ready to record",
+  "notificationPhoneMicActive": "Phone mic active - Ready to record",
+  "notificationRecording": "Recording...",
+  "notificationProcessing": "Processing audio...",
+  "notificationServiceReady": "Transcription service ready",
+
+  "notificationButtonConnect": "Connect",
+  "notificationButtonUseMic": "Use Mic",
+
+  "usePhoneMicrophone": "Use Phone Microphone",
+  "usePhoneMicrophoneDesc": "Record with your device's built-in microphone",
+  "orDivider": "or"
 }

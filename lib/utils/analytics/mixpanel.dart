@@ -478,6 +478,8 @@ class MixpanelManager {
 
   void useWithoutDeviceOnboardingFindDevices() => track('Use Without Device Onboarding Find Devices');
 
+  void usePhoneMicrophoneOnboarding() => track('Use Phone Microphone Onboarding');
+
   // void pageViewed(String pageName) => startTimingEvent('Page View $pageName');
 
   void addedPerson() => track('Added Person');

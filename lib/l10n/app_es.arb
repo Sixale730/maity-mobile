@@ -481,5 +481,19 @@
   "sdCardSyncDesc": "La Sincronización de Tarjeta SD importará tus memorias de la Tarjeta SD a la app",
   "sdCardStep1": "Busca archivos de audio en la Tarjeta SD",
   "sdCardStep2": "Maity sincroniza los archivos de audio con el servidor",
-  "sdCardStep3": "El servidor procesa los archivos de audio y crea memorias"
+  "sdCardStep3": "El servidor procesa los archivos de audio y crea memorias",
+
+  "notificationWaitingConnection": "Sin dispositivo conectado. Toca para grabar.",
+  "notificationDeviceConnected": "Dispositivo conectado - Listo para grabar",
+  "notificationPhoneMicActive": "Micrófono activo - Listo para grabar",
+  "notificationRecording": "Grabando...",
+  "notificationProcessing": "Procesando audio...",
+  "notificationServiceReady": "Servicio de transcripción listo",
+
+  "notificationButtonConnect": "Conectar",
+  "notificationButtonUseMic": "Usar Mic",
+
+  "usePhoneMicrophone": "Usar Micrófono del Teléfono",
+  "usePhoneMicrophoneDesc": "Graba con el micrófono integrado de tu dispositivo",
+  "orDivider": "o"
 }

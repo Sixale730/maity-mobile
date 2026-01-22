@@ -263,6 +263,9 @@ class CaptureProvider extends ChangeNotifier
     debugPrint('connected device changed from ${_recordingDevice?.id} to ${device?.id}');
     _recordingDevice = device;
     notifyListeners();
+
+    // Update foreground notification when device connection changes
+    _updateForegroundNotification(_getNotificationState());
   }
 
   void updateRecordingDevice(BtDevice? device) {
@@ -819,6 +822,9 @@ class CaptureProvider extends ChangeNotifier
     recordingState = state;
     notifyListeners();
     _broadcastRecordingState();
+
+    // Update foreground notification with appropriate state
+    _updateForegroundNotification(_getNotificationState());
   }
 
   streamRecording() async {
@@ -1460,6 +1466,41 @@ class CaptureProvider extends ChangeNotifier
     };
 
     _controlBarChannel.invokeMethod('updateRecordingState', stateData);
+  }
+
+  /// Updates the foreground service notification with the current state.
+  /// States: 'waiting', 'device_connected', 'phone_mic', 'recording', 'processing', 'ready'
+  void _updateForegroundNotification(String state) {
+    if (PlatformService.isDesktop) return;
+
+    final lang = SharedPreferencesUtil().appLanguage;
+    FlutterForegroundTask.sendDataToTask(jsonEncode({
+      'type': 'notification',
+      'state': state,
+      'lang': lang,
+    }));
+    debugPrint('[ForegroundNotification] Sent state=$state, lang=$lang');
+  }
+
+  /// Determines the appropriate notification state based on current provider state
+  String _getNotificationState() {
+    // Recording states take priority
+    if (recordingState == RecordingState.record ||
+        recordingState == RecordingState.deviceRecord ||
+        recordingState == RecordingState.systemAudioRecord) {
+      return 'recording';
+    }
+    if (recordingState == RecordingState.initialising) {
+      return 'processing';
+    }
+
+    // Device connected but not recording
+    if (_recordingDevice != null) {
+      return 'device_connected';
+    }
+
+    // Fallback to waiting
+    return 'waiting';
   }
 
   void _startRecordingTimer() {

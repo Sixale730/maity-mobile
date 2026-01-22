@@ -1,10 +1,46 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:omi/backend/preferences.dart';
 import 'package:omi/utils/platform/platform_service.dart';
+
+/// Localized notification messages for foreground service.
+/// The TaskHandler runs in a separate isolate and cannot access AppLocalizations,
+/// so we use hardcoded maps for localization.
+const _notificationMessages = {
+  'en': {
+    'waiting': 'No device connected. Tap to record.',
+    'device_connected': 'Device connected - Ready to record',
+    'phone_mic': 'Phone mic active - Ready to record',
+    'recording': 'Recording...',
+    'processing': 'Processing audio...',
+    'ready': 'Transcription service ready',
+  },
+  'es': {
+    'waiting': 'Sin dispositivo conectado. Toca para grabar.',
+    'device_connected': 'Dispositivo conectado - Listo para grabar',
+    'phone_mic': 'Micrófono activo - Listo para grabar',
+    'recording': 'Grabando...',
+    'processing': 'Procesando audio...',
+    'ready': 'Servicio de transcripción listo',
+  }
+};
+
+/// Localized button texts for notification action buttons.
+const _buttonTexts = {
+  'en': {
+    'connect_device': 'Connect',
+    'use_phone_mic': 'Use Mic',
+  },
+  'es': {
+    'connect_device': 'Conectar',
+    'use_phone_mic': 'Usar Mic',
+  }
+};
 
 @pragma('vm:entry-point')
 void _startForegroundCallback() {
@@ -49,7 +85,54 @@ class _ForegroundFirstTaskHandler extends TaskHandler {
   @override
   void onReceiveData(Object data) async {
     debugPrint('onReceiveData: $data');
+
+    // Handle notification state updates
+    if (data is String) {
+      try {
+        final Map<String, dynamic> parsed = jsonDecode(data);
+        if (parsed['type'] == 'notification') {
+          final String state = parsed['state'] ?? 'ready';
+          final String lang = parsed['lang'] ?? 'en';
+          await _updateNotification(state, lang);
+          return;
+        }
+      } catch (e) {
+        debugPrint('Failed to parse notification data: $e');
+      }
+    }
+
     await _locationInBackground();
+  }
+
+  Future<void> _updateNotification(String state, String lang) async {
+    // Get localized messages, fallback to English if language not found
+    final messages = _notificationMessages[lang] ?? _notificationMessages['en']!;
+    final notificationText = messages[state] ?? messages['ready']!;
+
+    debugPrint('Updating notification: state=$state, lang=$lang, text=$notificationText');
+
+    // Only show action buttons when in 'waiting' state (no device connected, not recording)
+    List<NotificationButton>? buttons;
+    if (state == 'waiting') {
+      final btnTexts = _buttonTexts[lang] ?? _buttonTexts['en']!;
+      buttons = [
+        NotificationButton(id: 'connect_device', text: btnTexts['connect_device']!),
+        NotificationButton(id: 'use_phone_mic', text: btnTexts['use_phone_mic']!),
+      ];
+    }
+
+    await FlutterForegroundTask.updateService(
+      notificationTitle: 'Maity',
+      notificationText: notificationText,
+      notificationButtons: buttons,
+    );
+  }
+
+  @override
+  void onNotificationButtonPressed(String id) {
+    debugPrint('Notification button pressed: $id');
+    // Send the action to the main app so it can navigate appropriately
+    FlutterForegroundTask.sendDataToMain({'action': id});
   }
 
   @override
@@ -68,6 +151,13 @@ class _ForegroundFirstTaskHandler extends TaskHandler {
 class ForegroundUtil {
   static bool _isInitialized = false;
   static bool _isStarting = false;
+
+  /// Gets the initial notification text based on the current language setting.
+  static String _getInitialNotificationText() {
+    final lang = SharedPreferencesUtil().appLanguage;
+    final messages = _notificationMessages[lang] ?? _notificationMessages['en']!;
+    return messages['waiting']!;
+  }
 
   static Future<void> requestPermissions() async {
     // Android 13+, you need to allow notification permission to display foreground service notification.
@@ -159,7 +249,7 @@ class ForegroundUtil {
       } else {
         result = await FlutterForegroundTask.startService(
           notificationTitle: 'Maity',
-          notificationText: 'Transcription service is ready.',
+          notificationText: _getInitialNotificationText(),
           callback: _startForegroundCallback,
         );
       }

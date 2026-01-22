@@ -2659,6 +2659,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The server processes the audio files and creates memories'**
   String get sdCardStep3;
+
+  /// No description provided for @notificationWaitingConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'No device connected. Tap to record.'**
+  String get notificationWaitingConnection;
+
+  /// No description provided for @notificationDeviceConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Device connected - Ready to record'**
+  String get notificationDeviceConnected;
+
+  /// No description provided for @notificationPhoneMicActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone mic active - Ready to record'**
+  String get notificationPhoneMicActive;
+
+  /// No description provided for @notificationRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording...'**
+  String get notificationRecording;
+
+  /// No description provided for @notificationProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing audio...'**
+  String get notificationProcessing;
+
+  /// No description provided for @notificationServiceReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription service ready'**
+  String get notificationServiceReady;
+
+  /// No description provided for @notificationButtonConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get notificationButtonConnect;
+
+  /// No description provided for @notificationButtonUseMic.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Mic'**
+  String get notificationButtonUseMic;
+
+  /// No description provided for @usePhoneMicrophone.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Phone Microphone'**
+  String get usePhoneMicrophone;
+
+  /// No description provided for @usePhoneMicrophoneDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Record with your device\'s built-in microphone'**
+  String get usePhoneMicrophoneDesc;
+
+  /// No description provided for @orDivider.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get orDivider;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
