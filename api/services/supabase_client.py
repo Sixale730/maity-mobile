@@ -434,6 +434,8 @@ async def get_user_metrics(
         )[:30]
 
         return {
+            "success": True,
+            "error": None,
             "period": period,
             "user_id": user_id,
             "stats": {
@@ -449,6 +451,8 @@ async def get_user_metrics(
     except Exception as e:
         print(f"[Supabase] Error getting user metrics: {e}")
         return {
+            "success": False,
+            "error": f"Error al obtener métricas de uso: {str(e)}",
             "period": period,
             "user_id": user_id,
             "stats": {
@@ -549,6 +553,8 @@ async def get_day_summary(
         ]
 
         return {
+            "success": True,
+            "error": None,
             "fecha": fecha,
             "conversaciones": formatted_convs,
             "total_conversaciones": len(conversations),
@@ -563,6 +569,8 @@ async def get_day_summary(
     except Exception as e:
         print(f"[Supabase] Error getting day summary: {e}")
         return {
+            "success": False,
+            "error": f"Error al obtener resumen del día: {str(e)}",
             "fecha": fecha,
             "conversaciones": [],
             "total_conversaciones": 0,
@@ -572,7 +580,6 @@ async def get_day_summary(
             "action_items": [],
             "eventos": [],
             "categorias": {},
-            "error": str(e),
         }
 
 
@@ -650,6 +657,8 @@ async def get_action_items(
         completados = sum(1 for i in all_items if i["completed"])
 
         return {
+            "success": True,
+            "error": None,
             "action_items": all_items[:limite],
             "total": len(all_items),
             "pendientes": pendientes,
@@ -661,13 +670,14 @@ async def get_action_items(
     except Exception as e:
         print(f"[Supabase] Error getting action items: {e}")
         return {
+            "success": False,
+            "error": f"Error al obtener action items: {str(e)}",
             "action_items": [],
             "total": 0,
             "pendientes": 0,
             "completados": 0,
             "fecha_inicio": fecha_inicio,
             "fecha_fin": fecha_fin,
-            "error": str(e),
         }
 
 
@@ -731,6 +741,8 @@ async def search_by_category(
         ]
 
         return {
+            "success": True,
+            "error": None,
             "categoria": categoria,
             "conversaciones": formatted,
             "total": len(formatted),
@@ -741,10 +753,11 @@ async def search_by_category(
     except Exception as e:
         print(f"[Supabase] Error searching by category: {e}")
         return {
+            "success": False,
+            "error": f"Error al buscar por categoría: {str(e)}",
             "categoria": categoria,
             "conversaciones": [],
             "total": 0,
-            "error": str(e),
         }
 
 
@@ -840,6 +853,8 @@ async def get_communication_feedback_aggregate(
         sorted_fillers = dict(sorted(total_filler_words.items(), key=lambda x: x[1], reverse=True))
 
         return {
+            "success": True,
+            "error": None,
             "conversaciones_analizadas": conversations_analyzed,
             "fecha_inicio": fecha_inicio,
             "fecha_fin": fecha_fin,
@@ -855,6 +870,8 @@ async def get_communication_feedback_aggregate(
     except Exception as e:
         print(f"[Supabase] Error getting communication feedback: {e}")
         return {
+            "success": False,
+            "error": f"Error al obtener feedback de comunicación: {str(e)}",
             "conversaciones_analizadas": 0,
             "fecha_inicio": fecha_inicio,
             "fecha_fin": fecha_fin,
@@ -865,5 +882,4 @@ async def get_communication_feedback_aggregate(
             "conteo_pero": 0,
             "objeciones_recibidas": [],
             "objeciones_hechas": [],
-            "error": str(e),
         }

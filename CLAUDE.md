@@ -242,6 +242,8 @@ Text(l10n.insights) // "Insights" o "Estadísticas"
 - FindDevicesPage - Pantalla de conexión de dispositivo
 - ConnectDevicePage - Pantalla de reconexión de dispositivo
 - DataPrivacyPage - Página de datos y privacidad
+- PrivacyInfoPage - Página de información de privacidad (About → Privacy Policy)
+- AboutOmiPage - Página About Maity
 
 ### Página de Datos y Privacidad
 La página Data & Privacy está completamente localizada incluyendo la sección de protección de datos:
@@ -269,6 +271,29 @@ La página Data & Privacy está completamente localizada incluyendo la sección 
 **Archivos**:
 - `lib/pages/settings/data_privacy_page.dart` - Página principal
 - `lib/pages/settings/widgets/data_protection_section.dart` - Sección de protección de datos
+
+### Página de Información de Privacidad (Privacy Policy)
+La página de Política de Privacidad (accesible desde About Maity) está completamente localizada:
+
+| Clave | Inglés | Español |
+|-------|--------|---------|
+| `privacyInformationTitle` | Privacy Information | Información de Privacidad |
+| `yourPrivacyMatters` | Your Privacy Matters to Us | Tu Privacidad Nos Importa |
+| `privacyIntro` | At Maity, we take your privacy very seriously... | En Maity, nos tomamos tu privacidad muy en serio... |
+| `whatWeTrack` | What We Track | Lo Que Rastreamos |
+| `anonymityAndPrivacy` | Anonymity and Privacy | Anonimato y Privacidad |
+| `optInOutOptions` | Opt-In and Opt-Out Options | Opciones de Participación |
+| `ourCommitment` | Our Commitment | Nuestro Compromiso |
+| `privacyCommitmentText` | We are committed to using the data... | Estamos comprometidos a usar los datos... |
+| `privacyThankYou` | Thank you for being a valued user of Maity... | Gracias por ser un usuario valioso de Maity... |
+
+**Email de soporte**: `julio.gonzalez@maity.com.mx`
+
+**Archivos**:
+- `lib/pages/settings/privacy.dart` - Página de información de privacidad
+- `lib/pages/settings/about.dart` - Página About Maity (navega a PrivacyInfoPage)
+
+**Nota**: La página de privacidad ahora es local (no WebView) y muestra contenido de Maity (no Omi).
 
 ### Foreground Service Notification
 La notificación del servicio en segundo plano usa textos neutrales (no implica conexión):
@@ -572,16 +597,65 @@ El chat agent usa un system prompt detallado que incluye:
 - Reglas de respuesta (español, conciso, formato claro)
 - Fecha actual para consultas relativas
 
-### Manejo de Resultados Vacíos
+### Patrón de Respuesta Estandarizado
 
-El system prompt incluye reglas específicas para evitar respuestas genéricas cuando las herramientas no encuentran datos:
+Todas las funciones de `supabase_client.py` usadas por el chat agent retornan un formato estandarizado:
+
+```python
+# Éxito
+{
+    "success": True,
+    "error": None,
+    "data": {...}  # datos específicos de la función
+}
+
+# Error
+{
+    "success": False,
+    "error": "Descripción del error en español",
+    "data": None  # o valores vacíos por defecto
+}
+```
+
+**Funciones con patrón estandarizado:**
+- `get_user_metrics()` - Estadísticas de uso
+- `get_day_summary()` - Resumen del día
+- `get_action_items()` - Action items
+- `search_by_category()` - Búsqueda por categoría
+- `get_communication_feedback_aggregate()` - Feedback de comunicación
+
+### Manejo de Errores en Chat
+
+**ejecutar_tool() con try-except global:**
+La función `ejecutar_tool()` en `messages.py` captura cualquier error inesperado:
+
+```python
+try:
+    # ejecutar herramienta
+    return json.dumps(result)
+except Exception as e:
+    print(f"[Messages] ERROR in ejecutar_tool({tool_name}): {e}")
+    return json.dumps({
+        "success": False,
+        "error": f"Error ejecutando {tool_name}: {str(e)}",
+        "data": None
+    })
+```
+
+**Logging de resultados:**
+Después de ejecutar cada herramienta, se imprime un preview del resultado (primeros 500 chars) para debugging en Vercel logs.
+
+### Manejo de Resultados en System Prompt
+
+El system prompt incluye reglas específicas para manejar respuestas de herramientas:
 
 **Reglas en SYSTEM_PROMPT (MANEJO DE RESULTADOS):**
-- Si `"total": 0` o listas vacías → Informar claramente al usuario
-- Si hay campo `"error"` → Mostrar descripción del problema
+- SIEMPRE verificar el campo `"success"` primero
+- Si `"success": false` → Informar: "Hubo un problema: [error]"
+- Si `"success": true` pero `"total": 0` → Informar claramente al usuario
+- Si hay campo `"message"` → Incluirlo en la respuesta
 - NUNCA preguntar "¿Te gustaría saber más?" sin mostrar información primero
 - SIEMPRE mostrar datos encontrados ANTES de ofrecer opciones adicionales
-- Si el resultado tiene campo `"message"` → Incluirlo en la respuesta
 
 **Campos `message` en respuestas de herramientas:**
 
@@ -590,7 +664,7 @@ El system prompt incluye reglas específicas para evitar respuestas genéricas c
 | `buscar_conversaciones_db()` | "No encontré conversaciones entre {fecha_inicio} y {fecha_fin}" |
 | `buscar_semantico_db()` | "No encontré conversaciones relacionadas con '{query}'" |
 
-**Ubicación**: `api/routers/messages.py:70-75` (system prompt) y líneas 299-308, 376-384 (funciones)
+**Ubicación**: `api/routers/messages.py:70-77` (system prompt) y `api/services/supabase_client.py` (funciones)
 
 ## Backend (Monorepo)
 Codigo en `C:\OMI\api\` (misma carpeta que Flutter app):

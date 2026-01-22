@@ -68,11 +68,13 @@ REGLAS:
 - Para "estadísticas" o "uso", usa estadisticas_uso
 
 MANEJO DE RESULTADOS (MUY IMPORTANTE):
-- Si una herramienta devuelve "total": 0 o listas vacías, INFORMA CLARAMENTE al usuario: "No encontré conversaciones en ese período" o similar
-- Si hay un campo "error" en el resultado, informa: "Hubo un problema: [descripción]"
+- SIEMPRE verifica el campo "success" en los resultados de las herramientas
+- Si "success": false, informa claramente: "Hubo un problema: [error]" y muestra el contenido del campo "error"
+- Si "success": true pero "total": 0 o listas vacías, INFORMA CLARAMENTE: "No encontré conversaciones en ese período" o similar
+- Si el resultado tiene campo "message", inclúyelo en tu respuesta
 - NUNCA preguntes "¿Te gustaría saber más?" si NO mostraste información primero
 - SIEMPRE muestra los datos encontrados ANTES de ofrecer opciones adicionales
-- Si el resultado tiene campo "message", inclúyelo en tu respuesta
+- Si hay errores de conexión o timeout, sugiere al usuario intentar de nuevo más tarde
 
 Fecha actual: {current_date}
 """
@@ -389,75 +391,83 @@ async def buscar_semantico_db(user_id: str, query: str, limite: int = 5) -> dict
 
 async def ejecutar_tool(tool_name: str, args: dict, user_id: str) -> str:
     """Ejecuta una herramienta y retorna el resultado como JSON string"""
+    try:
+        if tool_name == "buscar_conversaciones":
+            result = await buscar_conversaciones_db(
+                user_id=user_id,
+                fecha_inicio=args.get("fecha_inicio"),
+                fecha_fin=args.get("fecha_fin"),
+                limite=args.get("limite", 10),
+            )
+            return json.dumps(result, default=str, ensure_ascii=False)
 
-    if tool_name == "buscar_conversaciones":
-        result = await buscar_conversaciones_db(
-            user_id=user_id,
-            fecha_inicio=args.get("fecha_inicio"),
-            fecha_fin=args.get("fecha_fin"),
-            limite=args.get("limite", 10),
-        )
-        return json.dumps(result, default=str, ensure_ascii=False)
+        elif tool_name == "obtener_conversacion":
+            result = await obtener_conversacion_db(
+                user_id=user_id,
+                conversation_id=args["conversation_id"],
+            )
+            return json.dumps(result, default=str, ensure_ascii=False)
 
-    elif tool_name == "obtener_conversacion":
-        result = await obtener_conversacion_db(
-            user_id=user_id,
-            conversation_id=args["conversation_id"],
-        )
-        return json.dumps(result, default=str, ensure_ascii=False)
+        elif tool_name == "buscar_semantico":
+            result = await buscar_semantico_db(
+                user_id=user_id,
+                query=args["query"],
+                limite=args.get("limite", 5),
+            )
+            return json.dumps(result, default=str, ensure_ascii=False)
 
-    elif tool_name == "buscar_semantico":
-        result = await buscar_semantico_db(
-            user_id=user_id,
-            query=args["query"],
-            limite=args.get("limite", 5),
-        )
-        return json.dumps(result, default=str, ensure_ascii=False)
+        elif tool_name == "resumen_dia":
+            result = await get_day_summary(
+                user_id=user_id,
+                fecha=args.get("fecha"),
+            )
+            return json.dumps(result, default=str, ensure_ascii=False)
 
-    elif tool_name == "resumen_dia":
-        result = await get_day_summary(
-            user_id=user_id,
-            fecha=args.get("fecha"),
-        )
-        return json.dumps(result, default=str, ensure_ascii=False)
+        elif tool_name == "obtener_action_items":
+            result = await get_action_items(
+                user_id=user_id,
+                fecha_inicio=args.get("fecha_inicio"),
+                fecha_fin=args.get("fecha_fin"),
+                texto_busqueda=args.get("texto_busqueda"),
+                limite=args.get("limite", 20),
+            )
+            return json.dumps(result, default=str, ensure_ascii=False)
 
-    elif tool_name == "obtener_action_items":
-        result = await get_action_items(
-            user_id=user_id,
-            fecha_inicio=args.get("fecha_inicio"),
-            fecha_fin=args.get("fecha_fin"),
-            texto_busqueda=args.get("texto_busqueda"),
-            limite=args.get("limite", 20),
-        )
-        return json.dumps(result, default=str, ensure_ascii=False)
+        elif tool_name == "buscar_por_categoria":
+            result = await search_by_category(
+                user_id=user_id,
+                categoria=args["categoria"],
+                fecha_inicio=args.get("fecha_inicio"),
+                fecha_fin=args.get("fecha_fin"),
+                limite=args.get("limite", 10),
+            )
+            return json.dumps(result, default=str, ensure_ascii=False)
 
-    elif tool_name == "buscar_por_categoria":
-        result = await search_by_category(
-            user_id=user_id,
-            categoria=args["categoria"],
-            fecha_inicio=args.get("fecha_inicio"),
-            fecha_fin=args.get("fecha_fin"),
-            limite=args.get("limite", 10),
-        )
-        return json.dumps(result, default=str, ensure_ascii=False)
+        elif tool_name == "estadisticas_uso":
+            result = await get_user_metrics(
+                user_id=user_id,
+                period=args.get("periodo", "monthly"),
+            )
+            return json.dumps(result, default=str, ensure_ascii=False)
 
-    elif tool_name == "estadisticas_uso":
-        result = await get_user_metrics(
-            user_id=user_id,
-            period=args.get("periodo", "monthly"),
-        )
-        return json.dumps(result, default=str, ensure_ascii=False)
+        elif tool_name == "feedback_comunicacion":
+            result = await get_communication_feedback_aggregate(
+                user_id=user_id,
+                fecha_inicio=args.get("fecha_inicio"),
+                fecha_fin=args.get("fecha_fin"),
+                limite=args.get("limite", 20),
+            )
+            return json.dumps(result, default=str, ensure_ascii=False)
 
-    elif tool_name == "feedback_comunicacion":
-        result = await get_communication_feedback_aggregate(
-            user_id=user_id,
-            fecha_inicio=args.get("fecha_inicio"),
-            fecha_fin=args.get("fecha_fin"),
-            limite=args.get("limite", 20),
-        )
-        return json.dumps(result, default=str, ensure_ascii=False)
+        return json.dumps({"success": False, "error": f"Herramienta '{tool_name}' no encontrada"})
 
-    return json.dumps({"error": f"Herramienta '{tool_name}' no encontrada"})
+    except Exception as e:
+        print(f"[Messages] ERROR in ejecutar_tool({tool_name}): {e}")
+        return json.dumps({
+            "success": False,
+            "error": f"Error ejecutando {tool_name}: {str(e)}",
+            "data": None
+        }, ensure_ascii=False)
 
 
 @router.post("/messages")
@@ -564,6 +574,10 @@ async def send_message(
                         args=args,
                         user_id=user_id,
                     )
+
+                    # Log tool result (first 500 chars) for debugging
+                    result_preview = result[:500] if len(result) > 500 else result
+                    print(f"[Messages] Tool result preview: {result_preview}")
 
                     messages.append({
                         "role": "tool",
