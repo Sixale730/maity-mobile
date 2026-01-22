@@ -341,14 +341,59 @@ La sección de Storage (solo visible para developers `@asertio.mx`) está comple
 | `on` / `off` | On / Off | Activado / Desactivado |
 
 ### Foreground Service Notification
-La notificación del servicio en segundo plano usa textos neutrales (no implica conexión):
-- Título: "Maity"
-- Texto: "Transcription service is ready."
+La notificación del servicio en segundo plano muestra el estado actual de la grabación:
 
-**Archivo**: `lib/utils/audio/foreground.dart:160-162`
+| Estado | Inglés | Español | Cuándo se muestra |
+|--------|--------|---------|-------------------|
+| `waiting` | No device connected. Tap to record. | Sin dispositivo conectado. Toca para grabar. | Sin dispositivo, sin grabación |
+| `device_connected` | Device connected - Ready to record | Dispositivo conectado - Listo para grabar | Dispositivo Omi conectado |
+| `phone_mic` | Phone mic active - Ready to record | Micrófono activo - Listo para grabar | Usando micrófono del teléfono |
+| `recording` | Recording... | Grabando... | Grabando (cualquier fuente) |
+| `processing` | Processing audio... | Procesando audio... | Inicializando o procesando |
+| `ready` | Transcription service ready | Servicio de transcripción listo | Fallback genérico |
+
+#### Botones de Acción en Notificación
+Cuando el estado es `waiting`, la notificación muestra dos botones de acción:
+
+| Botón | ID | Inglés | Español | Acción |
+|-------|-----|--------|---------|--------|
+| Conectar | `connect_device` | Connect | Conectar | Navega a FindDevicesPage |
+| Usar Mic | `use_phone_mic` | Use Mic | Usar Mic | Navega a FindDevicesPage |
+
+Ambos botones navegan a la pantalla de conexión, donde el usuario puede elegir entre conectar un dispositivo Omi o usar el micrófono del teléfono.
+
+**Arquitectura:**
+```
+CaptureProvider (main app)
+    ↓ updateRecordingState() / _updateRecordingDevice()
+    ↓
+  _updateForegroundNotification(state)
+    ↓
+  FlutterForegroundTask.sendDataToTask({type, state, lang})
+    ↓
+_ForegroundFirstTaskHandler (background isolate)
+    ↓ onReceiveData()
+    ↓
+  FlutterForegroundTask.updateService(notificationText, notificationButtons)
+
+Usuario presiona botón en notificación
+    ↓
+_ForegroundFirstTaskHandler.onNotificationButtonPressed(id)
+    ↓
+FlutterForegroundTask.sendDataToMain({'action': id})
+    ↓
+main.dart: FlutterForegroundTask.receivePort?.listen()
+    ↓
+_handleNotificationAction() → Navigator.push(FindDevicesPage)
+```
+
+**Archivos**:
+- `lib/utils/audio/foreground.dart` - TaskHandler con mapa de notificaciones y botones localizados
+- `lib/providers/capture_provider.dart` - Envía actualizaciones de estado al servicio
+- `lib/main.dart` - Escucha acciones de botones y navega
 
 ### Pantalla de Conexión de Dispositivo
-La pantalla de búsqueda y conexión de dispositivos está completamente localizada:
+La pantalla de búsqueda y conexión de dispositivos incluye una opción para usar el micrófono del teléfono:
 
 | Clave | Inglés | Español |
 |-------|--------|---------|
@@ -357,13 +402,41 @@ La pantalla de búsqueda y conexión de dispositivos está completamente localiz
 | `devicesFoundNearby` | X DEVICE(S) FOUND NEARBY | X DISPOSITIVO(S) ENCONTRADO(S) CERCA |
 | `pairingSuccessful` | PAIRING SUCCESSFUL | EMPAREJAMIENTO EXITOSO |
 | `contactSupport` | Contact Support? | ¿Contactar soporte? |
+| `orDivider` | or | o |
+| `usePhoneMicrophone` | Use Phone Microphone | Usar Micrófono del Teléfono |
+| `usePhoneMicrophoneDesc` | Record with your device's built-in microphone | Graba con el micrófono integrado de tu dispositivo |
 | `connectLater` | Connect Later | Conectar después |
+
+**Layout de FindDevicesPage:**
+```
+┌─────────────────────────────────────────┐
+│     [Animación de búsqueda / Omi]       │
+│     "Buscando dispositivos..."          │
+│     [Lista de dispositivos]             │
+│     [Contact Support?]                  │
+├─────────────────────────────────────────┤
+│              ───── o ─────              │
+├─────────────────────────────────────────┤
+│     ┌───────────────────────────────┐   │
+│     │  📱 Usar Micrófono del        │   │
+│     │     Teléfono                  │   │
+│     │  Graba con el micrófono       │   │
+│     │  integrado de tu dispositivo  │   │
+│     └───────────────────────────────┘   │
+│     [Conectar después]                  │
+└─────────────────────────────────────────┘
+```
+
+Al presionar "Usar Micrófono del Teléfono":
+1. Se marca `onboardingCompleted = true`
+2. Se registra el evento `usePhoneMicrophoneOnboarding` en Mixpanel
+3. Navega a `HomePageWrapper` (pantalla principal)
 
 **Email de soporte**: `julio.gonzalez@maity.com.mx`
 
 **Archivos**:
 - `lib/pages/capture/connect.dart` - Pantalla de reconexión
-- `lib/pages/onboarding/find_device/page.dart` - Pantalla principal
+- `lib/pages/onboarding/find_device/page.dart` - Pantalla principal con opción de micrófono
 - `lib/pages/onboarding/find_device/found_devices.dart` - Lista de dispositivos
 
 ### Localización de Fechas
