@@ -228,6 +228,14 @@ class $AssetsImagesGen {
   AssetGenImage get maityIcon =>
       const AssetGenImage('assets/images/maity_icon.png');
 
+  /// File path: assets/images/maity_launcher_icon.png
+  AssetGenImage get maityLauncherIcon =>
+      const AssetGenImage('assets/images/maity_launcher_icon.png');
+
+  /// File path: assets/images/maity_splash.png
+  AssetGenImage get maitySplash =>
+      const AssetGenImage('assets/images/maity_splash.png');
+
   /// File path: assets/images/new_background.png
   AssetGenImage get newBackground =>
       const AssetGenImage('assets/images/new_background.png');
@@ -387,6 +395,8 @@ class $AssetsImagesGen {
     logoTransparent,
     logoTransparentV2,
     maityIcon,
+    maityLauncherIcon,
+    maitySplash,
     newBackground,
     notionLogo,
     omiDevkitWithoutRope,

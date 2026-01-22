@@ -1076,17 +1076,23 @@ abstract class AppLocalizations {
   /// **'Action items, and notes automatically captured.'**
   String get providingDesc;
 
-  /// No description provided for @remembering.
+  /// No description provided for @conversationsDesc.
   ///
   /// In en, this message translates to:
-  /// **'Remembering'**
-  String get remembering;
+  /// **'Total conversations recorded.'**
+  String get conversationsDesc;
 
-  /// No description provided for @rememberingDesc.
+  /// No description provided for @memoriesMetric.
   ///
   /// In en, this message translates to:
-  /// **'Facts and details remembered for you.'**
-  String get rememberingDesc;
+  /// **'Memories'**
+  String get memoriesMetric;
+
+  /// No description provided for @memoriesMetricDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Facts and insights extracted from your conversations.'**
+  String get memoriesMetricDesc;
 
   /// No description provided for @listeningMins.
   ///
@@ -1106,11 +1112,23 @@ abstract class AppLocalizations {
   /// **'Insights'**
   String get insightsLabel;
 
+  /// No description provided for @conversationsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations'**
+  String get conversationsLabel;
+
   /// No description provided for @memoriesLabel.
   ///
   /// In en, this message translates to:
   /// **'Memories'**
   String get memoriesLabel;
+
+  /// No description provided for @nConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} conversations'**
+  String nConversations(String count);
 
   /// No description provided for @minUsedThisMonth.
   ///

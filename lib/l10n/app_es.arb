@@ -193,13 +193,17 @@
   "understandingDesc": "Palabras entendidas de tus conversaciones.",
   "providing": "Proporcionando",
   "providingDesc": "Elementos de acción y notas capturadas automáticamente.",
-  "remembering": "Recordando",
-  "rememberingDesc": "Hechos y detalles recordados para ti.",
+  "conversationsDesc": "Total de conversaciones grabadas.",
+  "memoriesMetric": "Memorias",
+  "memoriesMetricDesc": "Hechos e ideas extraídas de tus conversaciones.",
 
   "listeningMins": "Escuchando (mins)",
   "understandingWords": "Entendiendo (palabras)",
   "insightsLabel": "Estadísticas",
-  "memoriesLabel": "Recuerdos",
+  "conversationsLabel": "Conversaciones",
+  "memoriesLabel": "Memorias",
+
+  "nConversations": "{count} conversaciones",
 
   "minUsedThisMonth": "{used} de {limit} min usados este mes",
   "wordsUsedThisMonth": "{used} de {limit} palabras usadas este mes",

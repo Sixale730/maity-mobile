@@ -33,7 +33,7 @@ class UsagePage extends StatefulWidget {
 class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
   late TabController _tabController;
   final List<GlobalKey> _screenshotKeys = List.generate(4, (_) => GlobalKey());
-  final List<bool> _isMetricVisible = [true, true, true, true];
+  final List<bool> _isMetricVisible = [true, true, true, true, true];
   final bool _isUpgrading = false;
   final bool _isCancelling = false;
   bool? _isSubscriptionExpanded;
@@ -796,6 +796,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
     if (stats.transcriptionSeconds == 0 &&
         stats.wordsTranscribed == 0 &&
         stats.insightsGained == 0 &&
+        stats.conversationsCreated == 0 &&
         stats.memoriesCreated == 0) {
       return RefreshIndicator(
         onRefresh: onRefresh,
@@ -871,12 +872,23 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
               const SizedBox(height: 16),
               _buildUsageCard(
                 context,
-                icon: FontAwesomeIcons.brain,
-                title: l10n.remembering,
-                value: l10n.nMemories(numberFormatter.format(stats.memoriesCreated)),
-                subtitle: l10n.rememberingDesc,
+                icon: FontAwesomeIcons.solidMessage,
+                title: l10n.conversations,
+                value: l10n.nConversations(numberFormatter.format(stats.conversationsCreated)),
+                subtitle: l10n.conversationsDesc,
                 color: Colors.purple.shade300,
-                metricType: 'remembering',
+                metricType: 'conversations',
+                subscription: provider.subscription,
+              ),
+              const SizedBox(height: 16),
+              _buildUsageCard(
+                context,
+                icon: FontAwesomeIcons.lightbulb,
+                title: l10n.memoriesMetric,
+                value: l10n.nMemories(numberFormatter.format(stats.memoriesCreated)),
+                subtitle: l10n.memoriesMetricDesc,
+                color: Colors.pink.shade300,
+                metricType: 'memories',
                 subscription: provider.subscription,
               ),
             ],
@@ -903,6 +915,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
               transcriptionSeconds: 0,
               wordsTranscribed: 0,
               insightsGained: 0,
+              conversationsCreated: 0,
               memoriesCreated: 0);
         });
         break;
@@ -920,6 +933,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
               transcriptionSeconds: 0,
               wordsTranscribed: 0,
               insightsGained: 0,
+              conversationsCreated: 0,
               memoriesCreated: 0);
         });
         break;
@@ -936,6 +950,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
               transcriptionSeconds: 0,
               wordsTranscribed: 0,
               insightsGained: 0,
+              conversationsCreated: 0,
               memoriesCreated: 0);
         });
         break;
@@ -957,6 +972,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
               transcriptionSeconds: 0,
               wordsTranscribed: 0,
               insightsGained: 0,
+              conversationsCreated: 0,
               memoriesCreated: 0);
         }).toList();
         break;
@@ -969,6 +985,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
       Colors.green.shade300,
       Colors.orange.shade300,
       Colors.purple.shade300,
+      Colors.pink.shade300,
     ];
 
     double maxY = 0;
@@ -984,19 +1001,23 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
         if (point.insightsGained.toDouble() > maxY) maxY = point.insightsGained.toDouble();
       }
       if (_isMetricVisible[3]) {
+        if (point.conversationsCreated.toDouble() > maxY) maxY = point.conversationsCreated.toDouble();
+      }
+      if (_isMetricVisible[4]) {
         if (point.memoriesCreated.toDouble() > maxY) maxY = point.memoriesCreated.toDouble();
       }
     }
     maxY = maxY * 1.2;
     if (maxY == 0) maxY = 1;
 
-    final List<List<FlSpot>> allSpots = List.generate(4, (_) => []);
+    final List<List<FlSpot>> allSpots = List.generate(5, (_) => []);
     for (var i = 0; i < processedHistory.length; i++) {
       final point = processedHistory[i];
       allSpots[0].add(FlSpot(i.toDouble(), point.transcriptionSeconds / 60.0));
       allSpots[1].add(FlSpot(i.toDouble(), point.wordsTranscribed.toDouble()));
       allSpots[2].add(FlSpot(i.toDouble(), point.insightsGained.toDouble()));
-      allSpots[3].add(FlSpot(i.toDouble(), point.memoriesCreated.toDouble()));
+      allSpots[3].add(FlSpot(i.toDouble(), point.conversationsCreated.toDouble()));
+      allSpots[4].add(FlSpot(i.toDouble(), point.memoriesCreated.toDouble()));
     }
 
     List<LineChartBarData> lineBarsData = [];
@@ -1042,7 +1063,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
           getTooltipColor: (touchedSpot) => Colors.grey.shade800,
           getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
             final l10n = AppLocalizations.of(context)!;
-            final metricNames = [l10n.listeningMins, l10n.understandingWords, l10n.insightsLabel, l10n.memoriesLabel];
+            final metricNames = [l10n.listeningMins, l10n.understandingWords, l10n.insightsLabel, l10n.conversationsLabel, l10n.memoriesLabel];
             return touchedBarSpots
                 .map((barSpot) {
                   final flSpot = barSpot;
@@ -1173,7 +1194,8 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
       {'color': Colors.blue.shade300, 'text': l10n.listeningMins},
       {'color': Colors.green.shade300, 'text': l10n.understandingWords},
       {'color': Colors.orange.shade300, 'text': l10n.insightsLabel},
-      {'color': Colors.purple.shade300, 'text': l10n.memoriesLabel},
+      {'color': Colors.purple.shade300, 'text': l10n.conversationsLabel},
+      {'color': Colors.pink.shade300, 'text': l10n.memoriesLabel},
     ];
 
     return Wrap(

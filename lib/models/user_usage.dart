@@ -7,12 +7,14 @@ class UsageStats {
   final int transcriptionSeconds;
   final int wordsTranscribed;
   final int insightsGained;
+  final int conversationsCreated;
   final int memoriesCreated;
 
   UsageStats({
     required this.transcriptionSeconds,
     required this.wordsTranscribed,
     required this.insightsGained,
+    required this.conversationsCreated,
     required this.memoriesCreated,
   });
 
@@ -26,6 +28,7 @@ class UsageHistoryPoint {
   final int transcriptionSeconds;
   final int wordsTranscribed;
   final int insightsGained;
+  final int conversationsCreated;
   final int memoriesCreated;
 
   UsageHistoryPoint({
@@ -33,6 +36,7 @@ class UsageHistoryPoint {
     required this.transcriptionSeconds,
     required this.wordsTranscribed,
     required this.insightsGained,
+    required this.conversationsCreated,
     required this.memoriesCreated,
   });
 

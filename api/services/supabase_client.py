@@ -381,14 +381,28 @@ async def get_user_metrics(
 
         conversations = result.data if result.data else []
 
+        # Query memories for the period
+        memories_result = (
+            supabase.schema("maity")
+            .table("omi_memories")
+            .select("id, created_at")
+            .eq("user_id", user_id)
+            .eq("deleted", False)
+            .gte("created_at", start_iso)
+            .execute()
+        )
+
+        memories = memories_result.data if memories_result.data else []
+
         # Aggregate stats
         total_seconds = 0
         total_words = 0
         total_conversations = len(conversations)
         total_insights = 0
+        total_memories = len(memories)
         category_counts: Dict[str, int] = defaultdict(int)
         daily_data: Dict[str, Dict[str, Any]] = defaultdict(
-            lambda: {"conversations": 0, "minutes": 0.0, "words": 0}
+            lambda: {"conversations": 0, "minutes": 0.0, "words": 0, "insights": 0, "memories": 0}
         )
 
         for conv in conversations:
@@ -399,9 +413,10 @@ async def get_user_metrics(
             category = conv.get("category") or "other"
             created_at = conv.get("created_at", "")
 
+            insights_count = len(action_items) + len(events)
             total_seconds += duration
             total_words += words
-            total_insights += len(action_items) + len(events)
+            total_insights += insights_count
             category_counts[category] += 1
 
             # Aggregate by date
@@ -410,6 +425,14 @@ async def get_user_metrics(
                 daily_data[date_key]["conversations"] += 1
                 daily_data[date_key]["minutes"] += duration / 60
                 daily_data[date_key]["words"] += words
+                daily_data[date_key]["insights"] += insights_count
+
+        # Aggregate memories by date
+        for memory in memories:
+            created_at = memory.get("created_at", "")
+            if created_at:
+                date_key = created_at[:10]  # YYYY-MM-DD
+                daily_data[date_key]["memories"] += 1
 
         # Build top categories
         top_categories = sorted(
@@ -426,6 +449,8 @@ async def get_user_metrics(
                     "conversations": d["conversations"],
                     "minutes": round(d["minutes"], 1),
                     "words": d["words"],
+                    "insights": d["insights"],
+                    "memories": d["memories"],
                 }
                 for date, d in daily_data.items()
             ],
@@ -443,6 +468,7 @@ async def get_user_metrics(
                 "words_transcribed": total_words,
                 "conversations_count": total_conversations,
                 "insights_gained": total_insights,
+                "memories_count": total_memories,
                 "top_categories": top_categories,
             },
             "history": history,
@@ -460,6 +486,7 @@ async def get_user_metrics(
                 "words_transcribed": 0,
                 "conversations_count": 0,
                 "insights_gained": 0,
+                "memories_count": 0,
                 "top_categories": [],
             },
             "history": [],

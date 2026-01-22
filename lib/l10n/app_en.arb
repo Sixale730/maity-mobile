@@ -214,13 +214,22 @@
   "understandingDesc": "Words understood from your conversations.",
   "providing": "Providing",
   "providingDesc": "Action items, and notes automatically captured.",
-  "remembering": "Remembering",
-  "rememberingDesc": "Facts and details remembered for you.",
+  "conversationsDesc": "Total conversations recorded.",
+  "memoriesMetric": "Memories",
+  "memoriesMetricDesc": "Facts and insights extracted from your conversations.",
 
   "listeningMins": "Listening (mins)",
   "understandingWords": "Understanding (words)",
   "insightsLabel": "Insights",
+  "conversationsLabel": "Conversations",
   "memoriesLabel": "Memories",
+
+  "nConversations": "{count} conversations",
+  "@nConversations": {
+    "placeholders": {
+      "count": {"type": "String"}
+    }
+  },
 
   "minUsedThisMonth": "{used} of {limit} min used this month",
   "@minUsedThisMonth": {

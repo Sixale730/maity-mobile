@@ -517,10 +517,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get providingDesc => 'Elementos de acción y notas capturadas automáticamente.';
 
   @override
-  String get remembering => 'Recordando';
+  String get conversationsDesc => 'Total de conversaciones grabadas.';
 
   @override
-  String get rememberingDesc => 'Hechos y detalles recordados para ti.';
+  String get memoriesMetric => 'Memorias';
+
+  @override
+  String get memoriesMetricDesc => 'Hechos e ideas extraídas de tus conversaciones.';
 
   @override
   String get listeningMins => 'Escuchando (mins)';
@@ -532,7 +535,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get insightsLabel => 'Estadísticas';
 
   @override
-  String get memoriesLabel => 'Recuerdos';
+  String get conversationsLabel => 'Conversaciones';
+
+  @override
+  String get memoriesLabel => 'Memorias';
+
+  @override
+  String nConversations(String count) {
+    return '$count conversaciones';
+  }
 
   @override
   String minUsedThisMonth(String used, int limit) {

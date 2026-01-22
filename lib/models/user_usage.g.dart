@@ -10,6 +10,7 @@ UsageStats _$UsageStatsFromJson(Map<String, dynamic> json) => UsageStats(
       transcriptionSeconds: (json['transcription_seconds'] as num).toInt(),
       wordsTranscribed: (json['words_transcribed'] as num).toInt(),
       insightsGained: (json['insights_gained'] as num).toInt(),
+      conversationsCreated: (json['conversations_created'] as num).toInt(),
       memoriesCreated: (json['memories_created'] as num).toInt(),
     );
 
@@ -18,6 +19,7 @@ Map<String, dynamic> _$UsageStatsToJson(UsageStats instance) =>
       'transcription_seconds': instance.transcriptionSeconds,
       'words_transcribed': instance.wordsTranscribed,
       'insights_gained': instance.insightsGained,
+      'conversations_created': instance.conversationsCreated,
       'memories_created': instance.memoriesCreated,
     };
 
@@ -27,6 +29,7 @@ UsageHistoryPoint _$UsageHistoryPointFromJson(Map<String, dynamic> json) =>
       transcriptionSeconds: (json['transcription_seconds'] as num).toInt(),
       wordsTranscribed: (json['words_transcribed'] as num).toInt(),
       insightsGained: (json['insights_gained'] as num).toInt(),
+      conversationsCreated: (json['conversations_created'] as num).toInt(),
       memoriesCreated: (json['memories_created'] as num).toInt(),
     );
 
@@ -36,6 +39,7 @@ Map<String, dynamic> _$UsageHistoryPointToJson(UsageHistoryPoint instance) =>
       'transcription_seconds': instance.transcriptionSeconds,
       'words_transcribed': instance.wordsTranscribed,
       'insights_gained': instance.insightsGained,
+      'conversations_created': instance.conversationsCreated,
       'memories_created': instance.memoriesCreated,
     };
 

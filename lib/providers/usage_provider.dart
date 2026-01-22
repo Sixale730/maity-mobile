@@ -117,7 +117,8 @@ class UsageProvider with ChangeNotifier {
           transcriptionSeconds: response.stats.transcriptionSeconds,
           wordsTranscribed: response.stats.wordsTranscribed,
           insightsGained: response.stats.insightsGained,
-          memoriesCreated: response.stats.conversationsCount,
+          conversationsCreated: response.stats.conversationsCount,
+          memoriesCreated: response.stats.memoriesCount,
         );
 
         // Map DailyMetrics to UsageHistoryPoint
@@ -126,8 +127,9 @@ class UsageProvider with ChangeNotifier {
                   date: h.date,
                   transcriptionSeconds: (h.minutes * 60).round(),
                   wordsTranscribed: h.words,
-                  insightsGained: 0,
-                  memoriesCreated: h.conversations,
+                  insightsGained: h.insights,
+                  conversationsCreated: h.conversations,
+                  memoriesCreated: h.memories,
                 ))
             .toList();
 
@@ -177,7 +179,8 @@ class UsageProvider with ChangeNotifier {
               : 0,
           wordsTranscribed: summary.today.words,
           insightsGained: 0,
-          memoriesCreated: summary.today.conversations,
+          conversationsCreated: summary.today.conversations,
+          memoriesCreated: 0,
         );
         _todayHistory = [];
         break;
@@ -186,7 +189,8 @@ class UsageProvider with ChangeNotifier {
           transcriptionSeconds: (summary.monthly.minutes * 60).round(),
           wordsTranscribed: summary.monthly.words,
           insightsGained: 0,
-          memoriesCreated: summary.monthly.conversations,
+          conversationsCreated: summary.monthly.conversations,
+          memoriesCreated: 0,
         );
         _monthlyHistory = recentDaily
             .map((d) => UsageHistoryPoint(
@@ -194,7 +198,8 @@ class UsageProvider with ChangeNotifier {
                   transcriptionSeconds: d.transcriptionSeconds,
                   wordsTranscribed: d.wordsTranscribed,
                   insightsGained: 0,
-                  memoriesCreated: d.conversations,
+                  conversationsCreated: d.conversations,
+                  memoriesCreated: 0,
                 ))
             .toList();
         break;
@@ -204,7 +209,8 @@ class UsageProvider with ChangeNotifier {
           transcriptionSeconds: (summary.allTime.minutes * 60).round(),
           wordsTranscribed: summary.allTime.words,
           insightsGained: summary.allTime.insights,
-          memoriesCreated: summary.allTime.conversations,
+          conversationsCreated: summary.allTime.conversations,
+          memoriesCreated: 0,
         );
         _allTimeHistory = recentDaily
             .map((d) => UsageHistoryPoint(
@@ -212,7 +218,8 @@ class UsageProvider with ChangeNotifier {
                   transcriptionSeconds: d.transcriptionSeconds,
                   wordsTranscribed: d.wordsTranscribed,
                   insightsGained: 0,
-                  memoriesCreated: d.conversations,
+                  conversationsCreated: d.conversations,
+                  memoriesCreated: 0,
                 ))
             .toList();
         if (period == 'yearly') {

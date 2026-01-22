@@ -16,6 +16,8 @@ class DailyMetrics(BaseModel):
     conversations: int = 0
     minutes: float = 0.0
     words: int = 0
+    insights: int = 0
+    memories: int = 0
 
 
 class UserStats(BaseModel):
@@ -24,6 +26,7 @@ class UserStats(BaseModel):
     words_transcribed: int = 0
     conversations_count: int = 0
     insights_gained: int = 0
+    memories_count: int = 0
     top_categories: List[CategoryCount] = Field(default_factory=list)
 
 

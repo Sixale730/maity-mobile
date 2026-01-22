@@ -45,6 +45,7 @@ async def get_metrics(
             words_transcribed=stats_dict.get("words_transcribed", 0),
             conversations_count=stats_dict.get("conversations_count", 0),
             insights_gained=stats_dict.get("insights_gained", 0),
+            memories_count=stats_dict.get("memories_count", 0),
             top_categories=[
                 CategoryCount(category=c["category"], count=c["count"])
                 for c in stats_dict.get("top_categories", [])
@@ -57,6 +58,8 @@ async def get_metrics(
                 conversations=h["conversations"],
                 minutes=h["minutes"],
                 words=h["words"],
+                insights=h.get("insights", 0),
+                memories=h.get("memories", 0),
             )
             for h in metrics_dict.get("history", [])
         ]

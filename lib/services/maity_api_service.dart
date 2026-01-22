@@ -292,6 +292,7 @@ class UserStats {
   final int wordsTranscribed;
   final int conversationsCount;
   final int insightsGained;
+  final int memoriesCount;
   final List<CategoryCount> topCategories;
 
   UserStats({
@@ -299,6 +300,7 @@ class UserStats {
     required this.wordsTranscribed,
     required this.conversationsCount,
     required this.insightsGained,
+    required this.memoriesCount,
     required this.topCategories,
   });
 
@@ -308,6 +310,7 @@ class UserStats {
       wordsTranscribed: json['words_transcribed'] ?? 0,
       conversationsCount: json['conversations_count'] ?? 0,
       insightsGained: json['insights_gained'] ?? 0,
+      memoriesCount: json['memories_count'] ?? 0,
       topCategories: (json['top_categories'] as List<dynamic>?)
               ?.map((c) => CategoryCount.fromJson(c))
               .toList() ??
@@ -337,12 +340,16 @@ class DailyMetrics {
   final int conversations;
   final double minutes;
   final int words;
+  final int insights;
+  final int memories;
 
   DailyMetrics({
     required this.date,
     required this.conversations,
     required this.minutes,
     required this.words,
+    required this.insights,
+    required this.memories,
   });
 
   factory DailyMetrics.fromJson(Map<String, dynamic> json) {
@@ -351,6 +358,8 @@ class DailyMetrics {
       conversations: json['conversations'] ?? 0,
       minutes: (json['minutes'] ?? 0).toDouble(),
       words: json['words'] ?? 0,
+      insights: json['insights'] ?? 0,
+      memories: json['memories'] ?? 0,
     );
   }
 }
