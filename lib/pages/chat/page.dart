@@ -1018,11 +1018,13 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
     ];
 
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
             // Welcome message
             Container(
               padding: const EdgeInsets.all(20),
@@ -1081,7 +1083,8 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
                 );
               }).toList(),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
