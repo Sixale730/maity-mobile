@@ -169,6 +169,16 @@ class MyApp extends StatefulWidget {
 
   // The navigator key is necessary to navigate using static methods
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+  /// Notifier para cambios de locale (permite rebuild sin perder estado)
+  static final ValueNotifier<Locale> localeNotifier =
+      ValueNotifier(Locale(SharedPreferencesUtil().appLanguage));
+
+  /// Método para cambiar el idioma desde cualquier parte de la app
+  static void changeLocale(String languageCode) {
+    SharedPreferencesUtil().appLanguage = languageCode;
+    localeNotifier.value = Locale(languageCode);
+  }
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
@@ -353,67 +363,73 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ],
         builder: (context, child) {
           return WithForegroundTask(
-            child: MaterialApp(
-              debugShowCheckedModeBanner: false,
-              title: 'Maity',
-              navigatorKey: MyApp.navigatorKey,
-              localizationsDelegates: const [
-                AppLocalizations.delegate,
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
-              supportedLocales: const [
-                Locale('es'), // Spanish (default)
-                Locale('en'), // English
-              ],
-              locale: Locale(SharedPreferencesUtil().appLanguage),
-              theme: ThemeData(
-                  useMaterial3: false,
-                  colorScheme: const ColorScheme.dark(
-                    primary: Colors.black,
-                    secondary: Color(0xFFFF0050), // Maity Rosa Principal
-                    surface: Colors.black38,
+            child: ValueListenableBuilder<Locale>(
+              valueListenable: MyApp.localeNotifier,
+              builder: (context, locale, child) {
+                return MaterialApp(
+                  debugShowCheckedModeBanner: false,
+                  title: 'Maity',
+                  navigatorKey: MyApp.navigatorKey,
+                  localizationsDelegates: const [
+                    AppLocalizations.delegate,
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                  ],
+                  supportedLocales: const [
+                    Locale('es'), // Spanish (default)
+                    Locale('en'), // English
+                  ],
+                  locale: locale, // Usar el valor del notifier
+                  theme: ThemeData(
+                    useMaterial3: false,
+                    colorScheme: const ColorScheme.dark(
+                      primary: Colors.black,
+                      secondary: Color(0xFFFF0050), // Maity Rosa Principal
+                      surface: Colors.black38,
+                    ),
+                    snackBarTheme: const SnackBarThemeData(
+                      backgroundColor: Color(0xFF1F1F25),
+                      contentTextStyle: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w500),
+                    ),
+                    textTheme: TextTheme(
+                      titleLarge: const TextStyle(fontSize: 18, color: Colors.white),
+                      titleMedium: const TextStyle(fontSize: 16, color: Colors.white),
+                      bodyMedium: const TextStyle(fontSize: 14, color: Colors.white),
+                      labelMedium: TextStyle(fontSize: 12, color: Colors.grey.shade200),
+                    ),
+                    textSelectionTheme: const TextSelectionThemeData(
+                      cursorColor: Colors.white,
+                      selectionColor: Color(0xFFFF0050), // Maity Rosa Principal
+                      selectionHandleColor: Colors.white,
+                    ),
+                    cupertinoOverrideTheme: const CupertinoThemeData(
+                      primaryColor: Colors.white, // Controls the selection handles on iOS
+                    ),
                   ),
-                  snackBarTheme: const SnackBarThemeData(
-                    backgroundColor: Color(0xFF1F1F25),
-                    contentTextStyle: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w500),
+                  themeMode: ThemeMode.dark,
+                  builder: (context, child) {
+                    FlutterError.onError = (FlutterErrorDetails details) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        Logger.instance.talker.handle(details.exception, details.stack);
+                        DebugLogManager.logError(details.exception, details.stack, 'FlutterError');
+                      });
+                    };
+                    ErrorWidget.builder = (errorDetails) {
+                      return CustomErrorWidget(errorMessage: errorDetails.exceptionAsString());
+                    };
+                    return child!;
+                  },
+                  home: TalkerWrapper(
+                    talker: Logger.instance.talker,
+                    options: const TalkerWrapperOptions(
+                      enableErrorAlerts: false,
+                      enableExceptionAlerts: false,
+                    ),
+                    child: const AppShell(),
                   ),
-                  textTheme: TextTheme(
-                    titleLarge: const TextStyle(fontSize: 18, color: Colors.white),
-                    titleMedium: const TextStyle(fontSize: 16, color: Colors.white),
-                    bodyMedium: const TextStyle(fontSize: 14, color: Colors.white),
-                    labelMedium: TextStyle(fontSize: 12, color: Colors.grey.shade200),
-                  ),
-                  textSelectionTheme: const TextSelectionThemeData(
-                    cursorColor: Colors.white,
-                    selectionColor: Color(0xFFFF0050), // Maity Rosa Principal
-                    selectionHandleColor: Colors.white,
-                  ),
-                  cupertinoOverrideTheme: const CupertinoThemeData(
-                    primaryColor: Colors.white, // Controls the selection handles on iOS
-                  )),
-              themeMode: ThemeMode.dark,
-              builder: (context, child) {
-                FlutterError.onError = (FlutterErrorDetails details) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    Logger.instance.talker.handle(details.exception, details.stack);
-                    DebugLogManager.logError(details.exception, details.stack, 'FlutterError');
-                  });
-                };
-                ErrorWidget.builder = (errorDetails) {
-                  return CustomErrorWidget(errorMessage: errorDetails.exceptionAsString());
-                };
-                return child!;
+                );
               },
-              home: TalkerWrapper(
-                talker: Logger.instance.talker,
-                options: const TalkerWrapperOptions(
-                  enableErrorAlerts: false,
-                  enableExceptionAlerts: false,
-                ),
-                child: const AppShell(),
-              ),
             ),
           );
         });

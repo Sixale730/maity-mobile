@@ -302,14 +302,8 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                     ? const Icon(Icons.check, color: Color(0xFFFF0050))
                     : null,
                 onTap: () {
-                  SharedPreferencesUtil().appLanguage = 'es';
-                  Navigator.pop(ctx);
-                  Navigator.pop(context);
-                  // Restart app to apply language change
-                  MyApp.navigatorKey.currentState?.pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const AppShell()),
-                    (route) => false,
-                  );
+                  MyApp.changeLocale('es');
+                  Navigator.pop(ctx); // Solo cerrar el modal de idioma
                 },
               ),
               ListTile(
@@ -319,14 +313,8 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                     ? const Icon(Icons.check, color: Color(0xFFFF0050))
                     : null,
                 onTap: () {
-                  SharedPreferencesUtil().appLanguage = 'en';
-                  Navigator.pop(ctx);
-                  Navigator.pop(context);
-                  // Restart app to apply language change
-                  MyApp.navigatorKey.currentState?.pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const AppShell()),
-                    (route) => false,
-                  );
+                  MyApp.changeLocale('en');
+                  Navigator.pop(ctx); // Solo cerrar el modal de idioma
                 },
               ),
               const SizedBox(height: 8),

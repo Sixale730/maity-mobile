@@ -88,6 +88,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   bool scriptsInProgress = false;
 
   final GlobalKey<State<ConversationsPage>> _conversationsPageKey = GlobalKey<State<ConversationsPage>>();
+  final GlobalKey<State<MemoriesPage>> _memoriesPageKey = GlobalKey<State<MemoriesPage>>();
   final GlobalKey<State<UsagePage>> _usagePageKey = GlobalKey<State<UsagePage>>();
   late final List<Widget> _pages;
 
@@ -105,6 +106,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         }
         break;
       case 1:
+        // MemoriesPage - could add scroll controller if needed
+        break;
+      case 2:
         // UsagePage doesn't have a scroll controller
         break;
     }
@@ -159,6 +163,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   void initState() {
     _pages = [
       ConversationsPage(key: _conversationsPageKey),
+      MemoriesPage(key: _memoriesPageKey),
       UsagePage(key: _usagePageKey),
     ];
     SharedPreferencesUtil().onboardingCompleted = true;
@@ -182,6 +187,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
 
       switch (pageAlias) {
         case "memories":
+        case "facts":
+          homePageIdx = 1;
+          break;
+        case "insights":
+        case "usage":
           homePageIdx = 2;
           break;
         case "apps":
@@ -283,11 +293,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
           }
           break;
         case "facts":
-          MyApp.navigatorKey.currentState?.push(
-            MaterialPageRoute(
-              builder: (context) => const MemoriesPage(),
-            ),
-          );
+          // Memories is now tab index 1, already handled by homePageIdx
           break;
         default:
       }
@@ -415,9 +421,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
           builder: (context, homeProvider, _) {
             return Scaffold(
               backgroundColor: Theme.of(context).colorScheme.primary,
-              appBar: homeProvider.selectedIndex == 2 ? null : _buildAppBar(context),
+              appBar: homeProvider.selectedIndex == 3 ? null : _buildAppBar(context),
               body: DefaultTabController(
-                length: 2,
+                length: 3,
                 initialIndex: homeProvider.selectedIndex,
                 child: GestureDetector(
                   onTap: () {
@@ -495,14 +501,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                             ),
                                           ),
                                         ),
-                                        // Center space for record button - only when no OMI device is connected
-                                        if (!isOmiDeviceConnected) const SizedBox(width: 80),
-                                        // Usage Insights tab
+                                        // Memories tab
                                         Expanded(
                                           child: InkWell(
                                             onTap: () {
                                               HapticFeedback.mediumImpact();
-                                              MixpanelManager().bottomNavigationTabClicked('Insights');
+                                              MixpanelManager().bottomNavigationTabClicked('Memories');
                                               primaryFocus?.unfocus();
                                               if (home.selectedIndex == 1) {
                                                 _scrollToTop(1);
@@ -514,8 +518,35 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                               height: 90,
                                               child: Center(
                                                 child: Icon(
-                                                  FontAwesomeIcons.chartLine,
+                                                  FontAwesomeIcons.lightbulb,
                                                   color: home.selectedIndex == 1 ? Colors.white : Colors.grey,
+                                                  size: 26,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        // Center space for record button - only when no OMI device is connected
+                                        if (!isOmiDeviceConnected) const SizedBox(width: 80),
+                                        // Usage Insights tab
+                                        Expanded(
+                                          child: InkWell(
+                                            onTap: () {
+                                              HapticFeedback.mediumImpact();
+                                              MixpanelManager().bottomNavigationTabClicked('Insights');
+                                              primaryFocus?.unfocus();
+                                              if (home.selectedIndex == 2) {
+                                                _scrollToTop(2);
+                                                return;
+                                              }
+                                              home.setIndex(2);
+                                            },
+                                            child: SizedBox(
+                                              height: 90,
+                                              child: Center(
+                                                child: Icon(
+                                                  FontAwesomeIcons.chartLine,
+                                                  color: home.selectedIndex == 2 ? Colors.white : Colors.grey,
                                                   size: 26,
                                                 ),
                                               ),

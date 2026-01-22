@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'package:omi/widgets/extensions/string.dart';
 import 'package:omi/backend/http/api/memories.dart';
-import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/memory.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:tuple/tuple.dart';
-import 'package:uuid/uuid.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -18,6 +16,7 @@ class MemoriesProvider extends ChangeNotifier {
   bool _excludeInteresting = false;
   List<Tuple2<MemoryCategory, int>> categories = [];
   MemoryCategory? selectedCategory;
+  int _pendingReviewCount = 0;
 
   List<Memory> get memories => _memories;
   List<Memory> get unreviewed => _unreviewed;
@@ -25,6 +24,7 @@ class MemoriesProvider extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   MemoryCategory? get categoryFilter => _categoryFilter;
   bool get excludeInteresting => _excludeInteresting;
+  int get pendingReviewCount => _pendingReviewCount;
 
   List<Memory> get filteredMemories {
     return _memories.where((memory) {
@@ -87,14 +87,25 @@ class MemoriesProvider extends ChangeNotifier {
     _loading = true;
     notifyListeners();
 
-    _memories = await getMemories();
+    final response = await getMemories();
+    _memories = response.memories;
+    _pendingReviewCount = response.pendingReview;
+
     _unreviewed = _memories
-        .where(
-            (memory) => !memory.reviewed && memory.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 1))))
+        .where((memory) =>
+            !memory.reviewed && memory.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 1))))
         .toList();
 
     _loading = false;
     _setCategories();
+  }
+
+  /// Load memories pending review
+  Future<void> loadPendingMemories() async {
+    final response = await getMemories(pendingOnly: true);
+    _unreviewed = response.memories;
+    _pendingReviewCount = response.pendingReview;
+    notifyListeners();
   }
 
   Memory? _lastDeletedMemory;
@@ -153,7 +164,6 @@ class MemoriesProvider extends ChangeNotifier {
     _setCategories();
     notifyListeners();
 
-    final restoredMemory = _lastDeletedMemory;
     _lastDeletedMemory = null;
 
     return true;
@@ -170,29 +180,20 @@ class MemoriesProvider extends ChangeNotifier {
     _setCategories();
   }
 
-  Future<bool> createMemory(String content,
-      [MemoryVisibility visibility = MemoryVisibility.public,
-      MemoryCategory category = MemoryCategory.interesting]) async {
-    final success = await createMemoryServer(content, visibility.name, category.name);
+  Future<Memory?> createMemory(String content,
+      [MemoryVisibility visibility = MemoryVisibility.private,
+      MemoryCategory category = MemoryCategory.manual]) async {
+    final newMemory = await createMemoryServer(
+      content: content,
+      visibility: visibility.name,
+    );
 
-    if (success) {
-      final newMemory = Memory(
-        id: const Uuid().v4(),
-        uid: SharedPreferencesUtil().uid,
-        content: content,
-        category: category,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        conversationId: null,
-        reviewed: false,
-        manuallyAdded: true,
-        visibility: visibility,
-      );
+    if (newMemory != null) {
       _memories.add(newMemory);
       _setCategories();
     }
 
-    return success;
+    return newMemory;
   }
 
   Future<void> updateMemoryVisibility(Memory memory, MemoryVisibility visibility) async {
@@ -237,31 +238,30 @@ class MemoriesProvider extends ChangeNotifier {
     return success;
   }
 
-  void reviewMemory(Memory memory, bool approved, String source) async {
+  Future<void> reviewMemory(Memory memory, bool approved, String source) async {
     MixpanelManager().memoryReviewed(memory, approved, source);
 
-    await reviewMemoryServer(memory.id, approved);
+    final reviewedMemory = await reviewMemoryServer(memory.id, approved);
 
     final idx = _memories.indexWhere((m) => m.id == memory.id);
     if (idx != -1) {
-      memory.reviewed = true;
-      memory.userReview = approved;
-
       if (!approved) {
-        memory.deleted = true;
+        // Memory was rejected - remove it
         _memories.removeAt(idx);
         _unreviewed.remove(memory);
-        // Don't call deleteMemory again because it would be a duplicate deletion
+      } else if (reviewedMemory != null) {
+        // Memory was approved - update it
+        _memories[idx] = reviewedMemory;
+        _unreviewed.removeWhere((m) => m.id == memory.id);
       } else {
+        // Fallback: update locally
+        memory.reviewed = true;
+        memory.userReview = approved;
         _memories[idx] = memory;
-
-        // Remove from unreviewed list
-        final unreviewedIdx = _unreviewed.indexWhere((m) => m.id == memory.id);
-        if (unreviewedIdx != -1) {
-          _unreviewed.removeAt(unreviewedIdx);
-        }
+        _unreviewed.removeWhere((m) => m.id == memory.id);
       }
 
+      _pendingReviewCount = _unreviewed.length;
       _setCategories();
     }
   }
@@ -292,5 +292,25 @@ class MemoriesProvider extends ChangeNotifier {
     }
 
     _setCategories();
+  }
+
+  /// Extract memories from a conversation using AI
+  Future<ExtractMemoriesResponse?> extractFromConversation(String conversationId) async {
+    final response = await extractMemoriesFromConversation(conversationId);
+
+    if (response != null && response.memoriesCreated > 0) {
+      // Add extracted memories to local list
+      _memories.addAll(response.memories);
+      _unreviewed.addAll(response.memories.where((m) => !m.reviewed));
+      _pendingReviewCount += response.memories.where((m) => !m.reviewed).length;
+      _setCategories();
+    }
+
+    return response;
+  }
+
+  /// Search memories semantically
+  Future<List<Memory>> semanticSearch(String query, {int limit = 10}) async {
+    return await searchMemories(query: query, limit: limit);
   }
 }

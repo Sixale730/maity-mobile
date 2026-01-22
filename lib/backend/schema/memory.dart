@@ -4,11 +4,12 @@ enum MemoryVisibility { private, public }
 
 class Memory {
   String id;
-  String uid;
+  String? userId;
+  String? authId;
   String content;
   MemoryCategory category;
   DateTime createdAt;
-  DateTime updatedAt;
+  DateTime? updatedAt;
   String? conversationId;
   bool reviewed;
   bool? userReview;
@@ -20,11 +21,12 @@ class Memory {
 
   Memory({
     required this.id,
-    required this.uid,
+    this.userId,
+    this.authId,
     required this.content,
     required this.category,
     required this.createdAt,
-    required this.updatedAt,
+    this.updatedAt,
     this.conversationId,
     this.reviewed = false,
     this.userReview,
@@ -37,15 +39,20 @@ class Memory {
 
   factory Memory.fromJson(Map<String, dynamic> json) {
     return Memory(
-      id: json['id'],
-      uid: json['uid'],
-      content: json['content'],
+      id: json['id'] ?? '',
+      userId: json['user_id'],
+      authId: json['auth_id'],
+      content: json['content'] ?? '',
       category: MemoryCategory.values.firstWhere(
         (e) => e.toString().split('.').last == json['category'],
         orElse: () => MemoryCategory.interesting,
       ),
-      createdAt: DateTime.parse(json['created_at']).toLocal(),
-      updatedAt: DateTime.parse(json['updated_at']).toLocal(),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at']).toLocal()
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at']).toLocal()
+          : null,
       conversationId: json['conversation_id'],
       reviewed: json['reviewed'] ?? false,
       userReview: json['user_review'],
@@ -53,8 +60,8 @@ class Memory {
       edited: json['edited'] ?? false,
       deleted: json['deleted'] ?? false,
       visibility: json['visibility'] != null
-          ? (MemoryVisibility.values.asNameMap()[json['visibility']] ?? MemoryVisibility.public)
-          : MemoryVisibility.public,
+          ? (MemoryVisibility.values.asNameMap()[json['visibility']] ?? MemoryVisibility.private)
+          : MemoryVisibility.private,
       isLocked: json['is_locked'] ?? false,
     );
   }
@@ -62,19 +69,66 @@ class Memory {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'uid': uid,
+      'user_id': userId,
+      'auth_id': authId,
       'content': content,
       'category': category.toString().split('.').last,
       'created_at': createdAt.toUtc().toIso8601String(),
-      'updated_at': updatedAt.toUtc().toIso8601String(),
-      'memory_id': conversationId,
+      'updated_at': updatedAt?.toUtc().toIso8601String(),
+      'conversation_id': conversationId,
       'reviewed': reviewed,
       'user_review': userReview,
       'manually_added': manuallyAdded,
       'edited': edited,
       'deleted': deleted,
-      'visibility': visibility,
+      'visibility': visibility.toString().split('.').last,
       'is_locked': isLocked,
     };
+  }
+}
+
+class MemoryListResponse {
+  List<Memory> memories;
+  int total;
+  int pendingReview;
+
+  MemoryListResponse({
+    required this.memories,
+    required this.total,
+    required this.pendingReview,
+  });
+
+  factory MemoryListResponse.fromJson(Map<String, dynamic> json) {
+    return MemoryListResponse(
+      memories: (json['memories'] as List?)
+              ?.map((m) => Memory.fromJson(m))
+              .toList() ??
+          [],
+      total: json['total'] ?? 0,
+      pendingReview: json['pending_review'] ?? 0,
+    );
+  }
+}
+
+class ExtractMemoriesResponse {
+  String conversationId;
+  int memoriesCreated;
+  List<Memory> memories;
+
+  ExtractMemoriesResponse({
+    required this.conversationId,
+    required this.memoriesCreated,
+    required this.memories,
+  });
+
+  factory ExtractMemoriesResponse.fromJson(Map<String, dynamic> json) {
+    return ExtractMemoriesResponse(
+      conversationId: json['conversation_id'] ?? '',
+      memoriesCreated: json['memories_created'] ?? 0,
+      memories: (json['memories'] as List?)
+              ?.map((m) => Memory.fromJson(m))
+              .toList() ??
+          [],
+    );
   }
 }

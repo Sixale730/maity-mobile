@@ -27,7 +27,7 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
 - URL: `https://nhlrtflkxoojvhbyocet.supabase.co`
 - Schema: `maity` (shared with web platform)
 - pgvector: v0.8.0 (1536 dimensions for text-embedding-3-small)
-- Tables: `maity.omi_conversations`, `maity.omi_transcript_segments`, `maity.voice_profiles`, `maity.user_feedback`
+- Tables: `maity.omi_conversations`, `maity.omi_transcript_segments`, `maity.omi_memories`, `maity.voice_profiles`, `maity.user_feedback`
 
 ## Database Schema
 
@@ -70,6 +70,25 @@ Perfiles de voz para identificación del usuario (Speaker Verification):
 - `is_active` (BOOLEAN) - Perfil activo
 - Índice HNSW para búsqueda por similitud coseno
 
+### maity.omi_memories
+Memorias extraídas de conversaciones o creadas manualmente:
+- `id` (UUID) - Primary key
+- `user_id` (UUID) - Referencia a maity.users.id
+- `auth_id` (UUID) - FK a auth.users.id
+- `conversation_id` (UUID, nullable) - FK a omi_conversations.id (origen de la memoria)
+- `content` (TEXT) - Contenido de la memoria
+- `category` (TEXT) - Categoría: 'interesting', 'system', 'manual'
+- `reviewed` (BOOLEAN) - Si el usuario revisó la memoria
+- `user_review` (BOOLEAN, nullable) - true=aprobada, false=rechazada
+- `manually_added` (BOOLEAN) - Si fue creada por el usuario
+- `edited` (BOOLEAN) - Si fue editada
+- `deleted` (BOOLEAN) - Soft delete
+- `visibility` (TEXT) - 'private' o 'public'
+- `is_locked` (BOOLEAN) - Si está bloqueada para edición
+- `embedding` (vector(1536)) - Embedding para búsqueda semántica
+- Índice HNSW para búsqueda vectorial rápida
+- RLS: Usuarios solo pueden acceder a sus propias memorias
+
 ### maity.user_feedback
 Feedback de usuarios (comentarios, bugs, sugerencias):
 - `id` (UUID) - Primary key
@@ -88,6 +107,8 @@ Feedback de usuarios (comentarios, bugs, sugerencias):
 - `maity.search_omi_segments(p_user_id, ...)` - Busqueda semantica de segmentos
 - `maity.get_omi_conversation_with_segments(p_user_id, ...)` - Obtener conversacion con segmentos
 - `maity.get_voice_profile(p_user_id)` - Obtener perfil de voz del usuario
+- `maity.search_omi_memories(p_user_id, ...)` - Búsqueda semántica de memorias
+- `maity.get_pending_memories(p_user_id)` - Obtener memorias pendientes de revisión
 
 ## Archivos Clave
 - lib/providers/auth_provider.dart - Autenticacion con Supabase Auth
@@ -95,23 +116,26 @@ Feedback de usuarios (comentarios, bugs, sugerencias):
 - lib/providers/conversation_provider.dart - Estado de conversaciones + busqueda semantica
 - lib/providers/capture_provider.dart - Manejo de grabación, transcripción y guardado de conversaciones
 - lib/providers/usage_provider.dart - Estadísticas de uso desde Supabase (metrics)
+- lib/providers/memories_provider.dart - Estado de memorias (CRUD + revisión + búsqueda)
 - lib/services/maity_api_service.dart - API backend (procesa y almacena en Supabase)
 - lib/services/omi_supabase_service.dart - Servicio para operaciones Supabase
 - lib/services/voice_profile_service.dart - Servicio para enrollment y verificación de voz
 - lib/services/feedback_service.dart - Servicio para envío y consulta de feedback
 - lib/backend/http/shared.dart - Cliente HTTP con autenticacion centralizada
 - lib/backend/schema/conversation.dart - Modelos de datos
+- lib/backend/schema/memory.dart - Modelos de memorias
 - lib/pages/home/page.dart - Página principal con navegación inferior
 
 ## Navegación de la App
-La app tiene 2 tabs en la barra de navegación inferior:
+La app tiene 3 tabs en la barra de navegación inferior:
 
 | Índice | Página | Icono | Descripción |
 |--------|--------|-------|-------------|
 | 0 | ConversationsPage | House | Lista de conversaciones grabadas |
-| 1 | UsagePage | ChartLine | Estadísticas de uso (Insights) |
+| 1 | MemoriesPage | Lightbulb | Memorias extraídas de conversaciones |
+| 2 | UsagePage | ChartLine | Estadísticas de uso (Insights) |
 
-**Nota**: Los tabs de ActionItems, Memories y Apps fueron ocultados temporalmente.
+**Nota**: Los tabs de ActionItems y Apps fueron ocultados temporalmente.
 
 ## Página de Detalle de Conversación
 
@@ -251,6 +275,29 @@ Text(l10n.insights) // "Insights" o "Estadísticas"
 1. Agregar clave a `app_en.arb` con valor en inglés
 2. Agregar misma clave a `app_es.arb` con traducción
 3. Ejecutar `flutter gen-l10n` para regenerar
+
+### Cambiar Idioma en Runtime
+El idioma se puede cambiar en runtime sin reiniciar la app usando `ValueNotifier`:
+
+```dart
+// Desde cualquier parte de la app:
+MyApp.changeLocale('es');  // Cambiar a español
+MyApp.changeLocale('en');  // Cambiar a inglés
+```
+
+**Arquitectura:**
+- `MyApp.localeNotifier` - ValueNotifier<Locale> que dispara rebuild del MaterialApp
+- `MyApp.changeLocale(code)` - Método estático que actualiza SharedPreferences y notifica
+- `ValueListenableBuilder` envuelve MaterialApp en `main.dart`
+
+**Ventajas:**
+- Cambio instantáneo sin perder estado de navegación
+- No interrumpe grabaciones activas (CaptureProvider es singleton)
+- No requiere cerrar modals/drawers manualmente
+
+**Archivos:**
+- `lib/main.dart:173-181` - localeNotifier y changeLocale()
+- `lib/pages/settings/settings_drawer.dart:304-317` - Uso en selector de idioma
 
 ### Páginas Localizadas
 - UsagePage (Insights) - Completamente localizada
@@ -713,6 +760,14 @@ Speech Profile ahora funciona con custom STT (Deepgram):
 | `/v1/feedback/submit` | POST | Enviar feedback (comment/bug/suggestion) |
 | `/v1/feedback/list` | GET | Listar feedback (solo developers @asertio.mx) |
 | `/v1/feedback/my` | GET | Ver feedback propio del usuario |
+| `/v1/memories` | GET | Listar memorias del usuario |
+| `/v1/memories` | POST | Crear memoria manualmente |
+| `/v1/memories/{id}` | GET | Obtener memoria específica |
+| `/v1/memories/{id}` | PATCH | Actualizar contenido/visibilidad |
+| `/v1/memories/{id}/review` | POST | Aprobar o rechazar memoria |
+| `/v1/memories/{id}` | DELETE | Eliminar memoria |
+| `/v1/memories/extract` | POST | Extraer memorias de una conversación |
+| `/v1/memories/search` | POST | Búsqueda semántica de memorias |
 
 ## User Feedback System
 
@@ -902,8 +957,11 @@ Codigo en `C:\OMI\api\` (misma carpeta que Flutter app):
 - `api/routers/omi.py` - Endpoints OMI para Supabase
 - `api/routers/metrics.py` - Endpoints de métricas de uso (Supabase)
 - `api/routers/feedback.py` - Endpoints de feedback de usuarios
+- `api/routers/memories.py` - Endpoints de memorias (CRUD + extracción + búsqueda)
 - `api/services/supabase_client.py` - Cliente Supabase con service_role
 - `api/services/embeddings.py` - Generacion de embeddings OpenAI
+- `api/services/memory_extractor.py` - Extracción de memorias con OpenAI
+- `api/models/memory.py` - Modelos Pydantic para memorias
 - `vercel.json` - Configuracion de deploy Vercel
 - `requirements.txt` - Dependencias Python
 
@@ -1107,6 +1165,93 @@ Future<void> myAsyncMethod() async {
 2. Capturar Navigator, ScaffoldMessenger, Providers ANTES del await
 3. No usar `context.read<>()` después de un await sin verificar mounted
 4. Para callbacks en widgets stateless, usar el context del builder
+
+## Sistema de Memorias
+
+Sistema para extraer y gestionar hechos interesantes de las conversaciones del usuario.
+
+### Arquitectura
+```
+Conversación finaliza → Usuario solicita extracción → Vercel (/v1/memories/extract)
+    ↓
+OpenAI GPT-4o-mini analiza transcripción → Extrae 2-5 memorias
+    ↓
+Genera embeddings → Guarda en maity.omi_memories
+    ↓
+Usuario revisa en MemoriesPage (aprobar/rechazar con swipe)
+```
+
+### Categorías de Memorias
+| Categoría | Origen | Descripción |
+|-----------|--------|-------------|
+| `interesting` | IA | Hechos interesantes extraídos automáticamente |
+| `system` | Sistema | Metadatos o información del sistema |
+| `manual` | Usuario | Creadas manualmente por el usuario |
+
+### Flujo de Revisión
+1. IA extrae memorias de conversaciones con `reviewed=false`
+2. Usuario ve banner "N memories to review" en MemoriesPage
+3. Swipe o tap abre MemoriesReviewSheet
+4. Aprobar → `reviewed=true, user_review=true`
+5. Rechazar → `deleted=true, user_review=false`
+
+### Archivos del Sistema
+**Backend:**
+- `api/routers/memories.py` - Endpoints FastAPI (CRUD + extract + search)
+- `api/services/memory_extractor.py` - Servicio de extracción con OpenAI
+- `api/models/memory.py` - Modelos Pydantic
+
+**Flutter:**
+- `lib/backend/http/api/memories.dart` - Cliente API
+- `lib/backend/schema/memory.dart` - Modelos Dart
+- `lib/providers/memories_provider.dart` - Estado y operaciones
+- `lib/pages/memories/page.dart` - Lista de memorias
+- `lib/pages/memories/widgets/memory_review_sheet.dart` - Revisión con swipe
+- `lib/pages/memories/widgets/memory_dialog.dart` - Crear/editar memoria
+- `lib/pages/memories/widgets/memory_item.dart` - Item de lista
+
+### Prompt de Extracción
+```
+Analiza esta conversación y extrae 2-5 hechos o insights interesantes:
+- Información factual (fechas, nombres, lugares, decisiones)
+- Insights o aprendizajes compartidos
+- Compromisos o acuerdos mencionados
+- Datos específicos que el usuario querría recordar
+
+NO incluir: saludos genéricos, información obvia, fragmentos sin contexto
+```
+
+### Búsqueda Semántica de Memorias
+1. `MemoriesProvider.semanticSearch(query)` llama al backend
+2. Backend genera embedding del query
+3. Busca por similitud coseno en `maity.omi_memories.embedding`
+4. Threshold de similitud: 0.7
+
+### UI de la Página de Memorias
+```
+┌─────────────────────────────────────────────┐
+│  [Search] [Filter ▼] [Settings]             │
+├─────────────────────────────────────────────┤
+│  ⚠️ N memories to review          [Review]  │ ← Solo si hay pendientes
+├─────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────┐    │
+│  │ 💡 Memory content here...           │    │
+│  │    Interesting • Jan 15             │    │
+│  └─────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────┐    │
+│  │ ✏️ Manual memory created by user... │    │
+│  │    Manual • Jan 14                  │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│                        [+] FAB             │
+└─────────────────────────────────────────────┘
+```
+
+### Filtros Disponibles
+- All - Todas las memorias
+- Interesting - Extraídas por IA
+- System - Del sistema
+- Manual - Creadas por usuario
 
 ## Documentación Adicional
 
