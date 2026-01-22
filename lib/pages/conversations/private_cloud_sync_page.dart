@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -14,6 +15,7 @@ class _PrivateCloudSyncPageState extends State<PrivateCloudSyncPage> {
   bool _isSaving = false;
 
   Future<void> _togglePrivateCloudSync(bool value) async {
+    final l10n = AppLocalizations.of(context);
     if (value) {
       final confirmed = await _showEnableDialog();
       if (confirmed != true) return;
@@ -27,7 +29,7 @@ class _PrivateCloudSyncPageState extends State<PrivateCloudSyncPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              value ? 'Private Cloud Sync enabled' : 'Private Cloud Sync disabled',
+              value ? (l10n?.privateCloudSyncEnabled ?? 'Private Cloud Sync enabled') : (l10n?.privateCloudSyncDisabled ?? 'Private Cloud Sync disabled'),
             ),
             backgroundColor: Colors.green,
           ),
@@ -48,26 +50,27 @@ class _PrivateCloudSyncPageState extends State<PrivateCloudSyncPage> {
   }
 
   Future<bool?> _showEnableDialog() {
+    final l10n = AppLocalizations.of(context);
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Enable Private Cloud Sync', style: TextStyle(color: Colors.white)),
-        content: const Column(
+        title: Text(l10n?.enablePrivateCloudSync ?? 'Enable Private Cloud Sync', style: const TextStyle(color: Colors.white)),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Your real-time recordings will be stored in the private cloud storage as you speak. Audio is captured and saved securely during conversations.',
-              style: TextStyle(color: Colors.white70, fontSize: 16, height: 1.4),
+              l10n?.privateCloudSyncDialogDesc ?? 'Your real-time recordings will be stored in the private cloud storage as you speak. Audio is captured and saved securely during conversations.',
+              style: const TextStyle(color: Colors.white70, fontSize: 16, height: 1.4),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child: Text(l10n?.cancel ?? 'Cancel', style: const TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
@@ -75,7 +78,7 @@ class _PrivateCloudSyncPageState extends State<PrivateCloudSyncPage> {
               backgroundColor: Theme.of(context).colorScheme.secondary,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Enable'),
+            child: Text(l10n?.enable ?? 'Enable'),
           ),
         ],
       ),
@@ -84,6 +87,7 @@ class _PrivateCloudSyncPageState extends State<PrivateCloudSyncPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
         final isEnabled = userProvider.privateCloudSyncEnabled;
@@ -91,7 +95,7 @@ class _PrivateCloudSyncPageState extends State<PrivateCloudSyncPage> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Private Cloud Sync'),
+            title: Text(l10n?.privateCloudSync ?? 'Private Cloud Sync'),
             backgroundColor: Theme.of(context).colorScheme.primary,
           ),
           backgroundColor: Theme.of(context).colorScheme.primary,
@@ -115,9 +119,9 @@ class _PrivateCloudSyncPageState extends State<PrivateCloudSyncPage> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Private Cloud Sync',
-                                  style: TextStyle(
+                                Text(
+                                  l10n?.privateCloudSync ?? 'Private Cloud Sync',
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 20,
                                     fontWeight: FontWeight.w600,
@@ -125,7 +129,7 @@ class _PrivateCloudSyncPageState extends State<PrivateCloudSyncPage> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  isEnabled ? 'On' : 'Off',
+                                  isEnabled ? (l10n?.on ?? 'On') : (l10n?.off ?? 'Off'),
                                   style: TextStyle(
                                     color: Colors.grey.shade400,
                                     fontSize: 14,
@@ -136,7 +140,7 @@ class _PrivateCloudSyncPageState extends State<PrivateCloudSyncPage> {
                             ),
                             const SizedBox(height: 20),
                             Text(
-                              'Private Cloud Sync stores your real-time recordings in the cloud as you speak. Your audio is captured and securely saved to the private cloud storage in real-time.',
+                              l10n?.privateCloudSyncFullDesc ?? 'Private Cloud Sync stores your real-time recordings in the cloud as you speak. Your audio is captured and securely saved to the private cloud storage in real-time.',
                               style: TextStyle(
                                 color: Colors.grey.shade300,
                                 fontSize: 15,
@@ -147,12 +151,14 @@ class _PrivateCloudSyncPageState extends State<PrivateCloudSyncPage> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
-                                  'Enable Private Cloud Sync',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
+                                Expanded(
+                                  child: Text(
+                                    l10n?.enablePrivateCloudSync ?? 'Enable Private Cloud Sync',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                                 CupertinoSwitch(

@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/connectivity_provider.dart';
 import 'package:omi/providers/sync_provider.dart';
 import 'package:omi/providers/user_provider.dart';
@@ -57,6 +58,7 @@ class WalListItem extends StatelessWidget {
 
   void _showSdCardInfoDialog(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -66,7 +68,7 @@ class WalListItem extends StatelessWidget {
           children: [
             const Icon(Icons.info_outline, color: Colors.amber, size: 24),
             const SizedBox(width: 12),
-            Text('SD Card Audio', style: theme.textTheme.titleLarge),
+            Text(l10n?.sdCardAudio ?? 'SD Card Audio', style: theme.textTheme.titleLarge),
           ],
         ),
         content: Column(
@@ -74,12 +76,12 @@ class WalListItem extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'This audio file is stored on your device\'s SD card.',
+              l10n?.sdCardAudioDesc ?? 'This audio file is stored on your device\'s SD card.',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
             Text(
-              'You can process the file but cannot play or share it directly from the SD card.',
+              l10n?.sdCardAudioCannotPlay ?? 'You can process the file but cannot play or share it directly from the SD card.',
               style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
             ),
           ],
@@ -87,7 +89,7 @@ class WalListItem extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Got it', style: TextStyle(color: theme.colorScheme.secondary, fontWeight: FontWeight.bold)),
+            child: Text(l10n?.gotIt ?? 'Got it', style: TextStyle(color: theme.colorScheme.secondary, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -96,6 +98,7 @@ class WalListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<SyncProvider>(
       builder: (context, syncProvider, child) {
         final hasError = syncProvider.failedWal?.id == wal.id;
@@ -132,9 +135,9 @@ class WalListItem extends StatelessWidget {
                         confirmDismiss: (direction) {
                           return OmiConfirmDialog.show(
                             context,
-                            title: 'Confirm Deletion',
-                            message: 'Are you sure you want to delete this audio file? This action cannot be undone.',
-                            confirmLabel: 'Delete',
+                            title: l10n?.confirmDeletion ?? 'Confirm Deletion',
+                            message: l10n?.deleteAudioConfirm ?? 'Are you sure you want to delete this audio file? This action cannot be undone.',
+                            confirmLabel: l10n?.delete ?? 'Delete',
                             confirmColor: Colors.red,
                           );
                         },
@@ -199,11 +202,11 @@ class WalListItem extends StatelessWidget {
                                   ),
                                   // Simplified status indicator
                                   if (wal.isSyncing)
-                                    _buildStatusChip('Processing', Colors.orange)
+                                    _buildStatusChip(l10n?.processingStatus ?? 'Processing', Colors.orange)
                                   else if (hasError)
-                                    _buildStatusChip('Failed', Colors.red)
+                                    _buildStatusChip(l10n?.failedStatus ?? 'Failed', Colors.red)
                                   else if (wal.status == WalStatus.miss)
-                                    _buildStatusChip('Not Processed', Colors.grey)
+                                    _buildStatusChip(l10n?.notProcessedStatus ?? 'Not Processed', Colors.grey)
                                 ],
                               ),
                               // Progress bar for syncing - only show if actually syncing
@@ -313,6 +316,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
   }
 
   Widget _buildStorageControlCard() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       padding: const EdgeInsets.all(20),
@@ -323,9 +327,9 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Storage Settings',
-            style: TextStyle(
+          Text(
+            l10n?.storageSettings ?? 'Storage Settings',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -339,15 +343,15 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Complete Archive',
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                    Text(
+                      l10n?.completeArchive ?? 'Complete Archive',
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       SharedPreferencesUtil().unlimitedLocalStorageEnabled
-                          ? 'Create a complete personal archive of all your recordings'
-                          : 'Save phone\'s storage space by only keeping failed uploads',
+                          ? (l10n?.completeArchiveDesc ?? 'Create a complete personal archive of all your recordings')
+                          : (l10n?.saveStorageSpace ?? 'Save phone\'s storage space by only keeping failed uploads'),
                       style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                     ),
                   ],
@@ -393,9 +397,9 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Private Cloud Sync',
-                              style: TextStyle(
+                            Text(
+                              l10n?.privateCloudSync ?? 'Private Cloud Sync',
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
@@ -403,7 +407,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Store real-time recordings in the private cloud',
+                              l10n?.privateCloudSyncDesc ?? 'Store real-time recordings in the private cloud',
                               style: TextStyle(
                                 color: Colors.grey.shade400,
                                 fontSize: 14,
@@ -413,7 +417,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                         ),
                       ),
                       Text(
-                        isEnabled ? 'On' : 'Off',
+                        isEnabled ? (l10n?.on ?? 'On') : (l10n?.off ?? 'Off'),
                         style: TextStyle(
                           color: Colors.grey.shade500,
                           fontSize: 14,
@@ -434,6 +438,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
   }
 
   Widget _buildStorageFilterChips() {
+    final l10n = AppLocalizations.of(context);
     return Consumer<SyncProvider>(
       builder: (context, syncProvider, child) {
         return Container(
@@ -441,13 +446,13 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.filter_list, color: Colors.white70, size: 16),
-                  SizedBox(width: 8),
+                  const Icon(Icons.filter_list, color: Colors.white70, size: 16),
+                  const SizedBox(width: 8),
                   Text(
-                    'Filter:',
-                    style: TextStyle(
+                    l10n?.filter ?? 'Filter:',
+                    style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -459,20 +464,20 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
               Row(
                 children: [
                   _buildFilterChip(
-                    label: 'All Recordings',
+                    label: l10n?.allRecordings ?? 'All Recordings',
                     isSelected: syncProvider.storageFilter == null,
                     onTap: () => syncProvider.clearStorageFilter(),
                   ),
                   const SizedBox(width: 8),
                   _buildFilterChip(
-                    label: 'Phone Storage',
+                    label: l10n?.phoneStorage ?? 'Phone Storage',
                     isSelected:
                         syncProvider.storageFilter == WalStorage.disk || syncProvider.storageFilter == WalStorage.mem,
                     onTap: () => syncProvider.setStorageFilter(WalStorage.disk),
                   ),
                   const SizedBox(width: 8),
                   _buildFilterChip(
-                    label: 'SD Card',
+                    label: l10n?.sdCard ?? 'SD Card',
                     isSelected: syncProvider.storageFilter == WalStorage.sdcard,
                     onTap: () => syncProvider.setStorageFilter(WalStorage.sdcard),
                   ),
@@ -512,6 +517,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
 
   void _showConsentDialog(BuildContext context, VoidCallback onConfirm) {
     bool consentConfirmed = false;
+    final l10n = AppLocalizations.of(context);
 
     showDialog(
       context: context,
@@ -520,20 +526,20 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
           return AlertDialog(
             backgroundColor: const Color(0xFF1A1A1A),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Row(
+            title: Row(
               children: [
-                Icon(Icons.privacy_tip, color: Colors.orange, size: 24),
-                SizedBox(width: 12),
-                Text('Privacy & Consent', style: TextStyle(color: Colors.white)),
+                const Icon(Icons.privacy_tip, color: Colors.orange, size: 24),
+                const SizedBox(width: 12),
+                Text(l10n?.privacyAndConsent ?? 'Privacy & Consent', style: const TextStyle(color: Colors.white)),
               ],
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'You\'re switching to Complete Archive Mode, which will keep all your audio recordings on this device.',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                Text(
+                  l10n?.switchingToArchiveMode ?? 'You\'re switching to Complete Archive Mode, which will keep all your audio recordings on this device.',
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 16),
                 Container(
@@ -550,14 +556,14 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                           Icon(Icons.privacy_tip, color: Colors.grey.shade400, size: 16),
                           const SizedBox(width: 6),
                           Text(
-                            'Privacy Notice',
+                            l10n?.privacyNotice ?? 'Privacy Notice',
                             style: TextStyle(color: Colors.grey.shade300, fontWeight: FontWeight.w600, fontSize: 14),
                           ),
                         ],
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Your recordings may capture other people\'s voices. Please ensure you have consent from all participants before recording.',
+                        l10n?.recordingsPrivacyWarning ?? 'Your recordings may capture other people\'s voices. Please ensure you have consent from all participants before recording.',
                         style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                       ),
                     ],
@@ -576,10 +582,10 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                       activeColor: Colors.deepPurple,
                     ),
                     const SizedBox(width: 8),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'I have consent from all participants in my recordings',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                        l10n?.consentCheckbox ?? 'I have consent from all participants in my recordings',
+                        style: const TextStyle(color: Colors.white70, fontSize: 14),
                       ),
                     ),
                   ],
@@ -589,7 +595,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                child: Text(l10n?.cancel ?? 'Cancel', style: const TextStyle(color: Colors.grey)),
               ),
               TextButton(
                 onPressed: consentConfirmed
@@ -599,7 +605,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                       }
                     : null,
                 child: Text(
-                  'Enable Storage',
+                  l10n?.enableStorage ?? 'Enable Storage',
                   style: TextStyle(
                     color: consentConfirmed ? Colors.deepPurple : Colors.grey,
                     fontWeight: FontWeight.w600,
@@ -614,11 +620,12 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
   }
 
   void _showDeleteProcessedDialog(BuildContext context, SyncProvider provider) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await OmiConfirmDialog.show(
       context,
-      title: 'Delete All Processed Files',
-      message: 'This will permanently delete all processed audio files from your phone. This action cannot be undone.',
-      confirmLabel: 'Delete',
+      title: l10n?.deleteAllProcessedFiles ?? 'Delete All Processed Files',
+      message: l10n?.deleteProcessedConfirm ?? 'This will permanently delete all processed audio files from your phone. This action cannot be undone.',
+      confirmLabel: l10n?.delete ?? 'Delete',
       confirmColor: Colors.red,
     );
 
@@ -626,8 +633,8 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
       await provider.deleteAllSyncedWals();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('All processed audio files have been deleted'),
+          SnackBar(
+            content: Text(l10n?.allProcessedDeleted ?? 'All processed audio files have been deleted'),
             backgroundColor: Colors.green,
           ),
         );
@@ -649,6 +656,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
 
   void _showSdCardWarningDialog(BuildContext context, SyncProvider syncProvider, int sdCardCount) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -658,7 +666,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
           children: [
             Icon(Icons.sd_card, color: theme.colorScheme.secondary, size: 24),
             const SizedBox(width: 12),
-            Text('SD Card Processing', style: theme.textTheme.titleLarge),
+            Text(l10n?.sdCardProcessing ?? 'SD Card Processing', style: theme.textTheme.titleLarge),
           ],
         ),
         content: Column(
@@ -666,7 +674,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Ready to process $sdCardCount recording${sdCardCount > 1 ? 's' : ''} from your SD card into conversations.',
+              l10n?.readyToProcess(sdCardCount) ?? 'Ready to process $sdCardCount recording${sdCardCount > 1 ? 's' : ''} from your SD card into conversations.',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
@@ -677,7 +685,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                'After processing, the original files will be removed from your SD card to free up storage space.',
+                l10n?.afterProcessingRemoved ?? 'After processing, the original files will be removed from your SD card to free up storage space.',
                 style: TextStyle(color: Colors.grey.shade300, fontSize: 14),
               ),
             ),
@@ -686,7 +694,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(l10n?.cancel ?? 'Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -697,7 +705,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
               backgroundColor: theme.colorScheme.secondary,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Process'),
+            child: Text(l10n?.processAudio ?? 'Process'),
           ),
         ],
       ),
@@ -706,6 +714,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
 
 
   Widget _buildSummaryCard(SyncProvider syncProvider) {
+    final l10n = AppLocalizations.of(context);
     if (syncProvider.syncError != null && syncProvider.failedWal == null) {
       return Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -716,14 +725,14 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
         ),
         child: Column(
           children: [
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline, color: Colors.red, size: 24),
-                SizedBox(width: 12),
+                const Icon(Icons.error_outline, color: Colors.red, size: 24),
+                const SizedBox(width: 12),
                 Text(
-                  'Something Went Wrong',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                  l10n?.somethingWentWrong ?? 'Something Went Wrong',
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -739,9 +748,9 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
               child: ElevatedButton.icon(
                 onPressed: () => syncProvider.retrySync(),
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text(
-                  'Try Again',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                label: Text(
+                  l10n?.tryAgain ?? 'Try Again',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.grey.shade700,
@@ -768,18 +777,20 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
         ),
         child: Column(
           children: [
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.orange),
                 ),
-                SizedBox(width: 12),
-                Text(
-                  'Creating Your Conversations...',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    l10n?.creatingConversations ?? 'Creating Your Conversations...',
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ],
             ),
@@ -795,14 +806,14 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
             Text(
               syncProvider.walBasedProgress > 0
                   ? '${(syncProvider.walBasedProgress * 100).toInt()}% complete (${syncProvider.processedWalsCount}/${syncProvider.initialMissingWalsCount} recordings)'
-                  : 'Processing...',
+                  : (l10n?.processing ?? 'Processing...'),
               style: const TextStyle(color: Colors.white70, fontSize: 12),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Please keep the app open while we work on your recordings.',
-              style: TextStyle(color: Colors.white70, fontSize: 14),
+            Text(
+              l10n?.keepAppOpen ?? 'Please keep the app open while we work on your recordings.',
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
           ],
         ),
@@ -819,20 +830,20 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
         ),
         child: Column(
           children: [
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.check_circle, color: Colors.green, size: 24),
-                SizedBox(width: 12),
+                const Icon(Icons.check_circle, color: Colors.green, size: 24),
+                const SizedBox(width: 12),
                 Text(
-                  'All Done!',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                  l10n?.allDone ?? 'All Done!',
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             Text(
-              'Successfully created ${syncProvider.syncedConversationsPointers.length} conversations from your recordings.',
+              l10n?.successfullyCreated(syncProvider.syncedConversationsPointers.length) ?? 'Successfully created ${syncProvider.syncedConversationsPointers.length} conversations from your recordings.',
               style: const TextStyle(color: Colors.white70, fontSize: 14),
               textAlign: TextAlign.center,
             ),
@@ -844,9 +855,9 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                   routeToPage(context, const SyncedConversationsPage());
                 },
                 icon: const Icon(Icons.visibility, size: 18),
-                label: const Text(
-                  'View Your New Conversations',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                label: Text(
+                  l10n?.viewNewConversations ?? 'View Your New Conversations',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.secondary,
@@ -901,8 +912,8 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
               const SizedBox(height: 8),
               Text(
                 totalSecondsToProcess > 0
-                    ? '${stats.missedFiles} audio recording${stats.missedFiles != 1 ? 's' : ''} ready to convert into readable conversations'
-                    : 'All your audio recordings have been processed into conversations',
+                    ? (l10n?.audioReadyToConvert(stats.missedFiles) ?? '${stats.missedFiles} audio recording${stats.missedFiles != 1 ? 's' : ''} ready to convert into readable conversations')
+                    : (l10n?.allAudioProcessed ?? 'All your audio recordings have been processed into conversations'),
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 14,
@@ -916,10 +927,10 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildStatItem('Total Files', '${stats.totalFiles}'),
-                  _buildStatItem('Total Size', stats.totalSizeFormatted),
-                  _buildStatItem('On Phone', '${stats.phoneFiles}'),
-                  _buildStatItem('On SD Card', '${stats.sdcardFiles}'),
+                  _buildStatItem(l10n?.totalFiles ?? 'Total Files', '${stats.totalFiles}'),
+                  _buildStatItem(l10n?.totalSize ?? 'Total Size', stats.totalSizeFormatted),
+                  _buildStatItem(l10n?.onPhone ?? 'On Phone', '${stats.phoneFiles}'),
+                  _buildStatItem(l10n?.onSdCard ?? 'On SD Card', '${stats.sdcardFiles}'),
                 ],
               ),
               const SizedBox(height: 24),
@@ -934,11 +945,11 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: const Row(
+                                content: Row(
                                   children: [
-                                    Icon(Icons.wifi_off, color: Colors.white),
-                                    SizedBox(width: 8),
-                                    Text('Internet connection required for AI processing'),
+                                    const Icon(Icons.wifi_off, color: Colors.white),
+                                    const SizedBox(width: 8),
+                                    Flexible(child: Text(l10n?.internetRequired ?? 'Internet connection required for AI processing')),
                                   ],
                                 ),
                                 backgroundColor: Colors.red.shade700,
@@ -952,7 +963,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                         },
                   icon: const Icon(Icons.cloud_upload, size: 20),
                   label: Text(
-                    totalSecondsToProcess > 0 ? 'Process Audio' : 'All Audio Processed',
+                    totalSecondsToProcess > 0 ? (l10n?.processAudio ?? 'Process Audio') : (l10n?.allAudioProcessedBtn ?? 'All Audio Processed'),
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -976,6 +987,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return PopScope(
       canPop: true,
       onPopInvoked: (didPop) {
@@ -989,7 +1001,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
       child: Consumer<SyncProvider>(builder: (context, syncProvider, child) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Storage'),
+            title: Text(l10n?.storage ?? 'Storage'),
             backgroundColor: Theme.of(context).colorScheme.primary,
             actions: [
               FutureBuilder<WalStats>(
@@ -1002,11 +1014,11 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                       }
                     },
                     itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                      const PopupMenuItem<String>(
+                      PopupMenuItem<String>(
                         value: 'delete_all',
                         child: ListTile(
-                          leading: Icon(Icons.delete_sweep),
-                          title: Text('Delete All Processed Files'),
+                          leading: const Icon(Icons.delete_sweep),
+                          title: Text(l10n?.deleteAllProcessedFiles ?? 'Delete All Processed Files'),
                         ),
                       ),
                     ],
@@ -1069,18 +1081,18 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            const Text(
-                              'No Audio Files Yet',
-                              style: TextStyle(
+                            Text(
+                              l10n?.noAudioFilesYet ?? 'No Audio Files Yet',
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              'Your Omi device will automatically save audio recordings here. Once you have recordings, you can process them into readable conversations.',
-                              style: TextStyle(color: Colors.grey, fontSize: 14),
+                            Text(
+                              l10n?.omiAutoSaveDesc ?? 'Your Omi device will automatically save audio recordings here. Once you have recordings, you can process them into readable conversations.',
+                              style: const TextStyle(color: Colors.grey, fontSize: 14),
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 12),
@@ -1096,7 +1108,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Phone microphone recordings are processed instantly and don\'t appear here.',
+                                      l10n?.phoneMicProcessedInstantly ?? 'Phone microphone recordings are processed instantly and don\'t appear here.',
                                       style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                                     ),
                                   ),
@@ -1135,8 +1147,8 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                             const SizedBox(height: 16),
                             Text(
                               syncProvider.storageFilter == WalStorage.sdcard
-                                  ? 'No SD Card Recordings'
-                                  : 'No Phone Storage Recordings',
+                                  ? (l10n?.noSdCardRecordings ?? 'No SD Card Recordings')
+                                  : (l10n?.noPhoneStorageRecordings ?? 'No Phone Storage Recordings'),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
@@ -1146,8 +1158,8 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                             const SizedBox(height: 8),
                             Text(
                               syncProvider.storageFilter == WalStorage.sdcard
-                                  ? 'No audio files found on your device\'s SD card. Make sure your Omi device has recorded audio to its SD card.'
-                                  : 'No audio files found in phone storage. Audio gets stored here when your Omi device transfers recordings to your phone.',
+                                  ? (l10n?.noSdCardRecordingsDesc ?? 'No audio files found on your device\'s SD card. Make sure your Omi device has recorded audio to its SD card.')
+                                  : (l10n?.noPhoneStorageRecordingsDesc ?? 'No audio files found in phone storage. Audio gets stored here when your Omi device transfers recordings to your phone.'),
                               style: const TextStyle(color: Colors.grey, fontSize: 14),
                               textAlign: TextAlign.center,
                             ),

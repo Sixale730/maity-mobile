@@ -244,6 +244,9 @@ Text(l10n.insights) // "Insights" o "Estadísticas"
 - DataPrivacyPage - Página de datos y privacidad
 - PrivacyInfoPage - Página de información de privacidad (About → Privacy Policy)
 - AboutOmiPage - Página About Maity
+- SyncPage (Storage) - Página de almacenamiento (solo developers)
+- PrivateCloudSyncPage - Sincronización en nube privada
+- AboutSdCardSync - Información de sincronización de SD Card
 
 ### Página de Datos y Privacidad
 La página Data & Privacy está completamente localizada incluyendo la sección de protección de datos:
@@ -294,6 +297,31 @@ La página de Política de Privacidad (accesible desde About Maity) está comple
 - `lib/pages/settings/about.dart` - Página About Maity (navega a PrivacyInfoPage)
 
 **Nota**: La página de privacidad ahora es local (no WebView) y muestra contenido de Maity (no Omi).
+
+### Página de Almacenamiento (Storage)
+La sección de Storage (solo visible para developers `@asertio.mx`) está completamente localizada:
+
+**Archivos**:
+- `lib/pages/conversations/sync_page.dart` - Página principal de almacenamiento
+- `lib/pages/conversations/private_cloud_sync_page.dart` - Sincronización en nube privada
+- `lib/pages/sdcard/about_sdcard_sync.dart` - Información sobre sincronización de SD Card
+
+| Clave | Inglés | Español |
+|-------|--------|---------|
+| `storageSettings` | Storage Settings | Configuración de Almacenamiento |
+| `completeArchive` | Complete Archive | Archivo Completo |
+| `completeArchiveDesc` | Create a complete personal archive... | Crea un archivo personal completo... |
+| `privateCloudSync` | Private Cloud Sync | Sincronización en Nube Privada |
+| `privateCloudSyncDesc` | Store real-time recordings in the private cloud | Almacena grabaciones en tiempo real en la nube privada |
+| `allRecordings` | All Recordings | Todas las Grabaciones |
+| `phoneStorage` | Phone Storage | Almacenamiento del Teléfono |
+| `sdCard` | SD Card | Tarjeta SD |
+| `privacyAndConsent` | Privacy & Consent | Privacidad y Consentimiento |
+| `creatingConversations` | Creating Your Conversations... | Creando Tus Conversaciones... |
+| `processAudio` | Process Audio | Procesar Audio |
+| `noAudioFilesYet` | No Audio Files Yet | Sin Archivos de Audio Aún |
+| `howDoesItWork` | How does it work? | ¿Cómo funciona? |
+| `on` / `off` | On / Off | Activado / Desactivado |
 
 ### Foreground Service Notification
 La notificación del servicio en segundo plano usa textos neutrales (no implica conexión):

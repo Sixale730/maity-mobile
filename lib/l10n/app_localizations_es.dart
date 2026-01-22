@@ -1164,4 +1164,217 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get privacyThankYou =>
       'Gracias por ser un usuario valioso de Maity. Si tienes preguntas o inquietudes, no dudes en contactarnos a julio.gonzalez@maity.com.mx.';
+
+  @override
+  String get storageSettings => 'Configuración de Almacenamiento';
+
+  @override
+  String get completeArchive => 'Archivo Completo';
+
+  @override
+  String get completeArchiveDesc => 'Crea un archivo personal completo de todas tus grabaciones';
+
+  @override
+  String get saveStorageSpace => 'Ahorra espacio de almacenamiento guardando solo cargas fallidas';
+
+  @override
+  String get privateCloudSync => 'Sincronización en Nube Privada';
+
+  @override
+  String get privateCloudSyncDesc => 'Almacena grabaciones en tiempo real en la nube privada';
+
+  @override
+  String get filter => 'Filtro:';
+
+  @override
+  String get allRecordings => 'Todas las Grabaciones';
+
+  @override
+  String get phoneStorage => 'Almacenamiento del Teléfono';
+
+  @override
+  String get sdCard => 'Tarjeta SD';
+
+  @override
+  String get privacyAndConsent => 'Privacidad y Consentimiento';
+
+  @override
+  String get switchingToArchiveMode =>
+      'Estás cambiando al Modo de Archivo Completo, que mantendrá todas tus grabaciones de audio en este dispositivo.';
+
+  @override
+  String get privacyNotice => 'Aviso de Privacidad';
+
+  @override
+  String get recordingsPrivacyWarning =>
+      'Tus grabaciones pueden capturar las voces de otras personas. Por favor asegúrate de tener el consentimiento de todos los participantes antes de grabar.';
+
+  @override
+  String get consentCheckbox => 'Tengo el consentimiento de todos los participantes en mis grabaciones';
+
+  @override
+  String get enableStorage => 'Habilitar Almacenamiento';
+
+  @override
+  String get deleteAllProcessedFiles => 'Eliminar Todos los Archivos Procesados';
+
+  @override
+  String get deleteProcessedConfirm =>
+      'Esto eliminará permanentemente todos los archivos de audio procesados de tu teléfono. Esta acción no se puede deshacer.';
+
+  @override
+  String get allProcessedDeleted => 'Todos los archivos de audio procesados han sido eliminados';
+
+  @override
+  String readyToProcess(int count) {
+    return 'Listo para procesar $count grabación(es) de tu tarjeta SD en conversaciones.';
+  }
+
+  @override
+  String get afterProcessingRemoved =>
+      'Después de procesar, los archivos originales se eliminarán de tu tarjeta SD para liberar espacio de almacenamiento.';
+
+  @override
+  String get somethingWentWrong => 'Algo Salió Mal';
+
+  @override
+  String get creatingConversations => 'Creando Tus Conversaciones...';
+
+  @override
+  String get keepAppOpen => 'Por favor mantén la app abierta mientras procesamos tus grabaciones.';
+
+  @override
+  String successfullyCreated(int count) {
+    return 'Se crearon exitosamente $count conversaciones de tus grabaciones.';
+  }
+
+  @override
+  String get viewNewConversations => 'Ver Tus Nuevas Conversaciones';
+
+  @override
+  String audioReadyToConvert(int count) {
+    return '$count grabación(es) de audio lista(s) para convertir en conversaciones legibles';
+  }
+
+  @override
+  String get allAudioProcessed => 'Todas tus grabaciones de audio han sido procesadas en conversaciones';
+
+  @override
+  String get totalFiles => 'Archivos Totales';
+
+  @override
+  String get totalSize => 'Tamaño Total';
+
+  @override
+  String get onPhone => 'En Teléfono';
+
+  @override
+  String get onSdCard => 'En Tarjeta SD';
+
+  @override
+  String get processAudio => 'Procesar Audio';
+
+  @override
+  String get allAudioProcessedBtn => 'Todo el Audio Procesado';
+
+  @override
+  String get noAudioFilesYet => 'Sin Archivos de Audio Aún';
+
+  @override
+  String get omiAutoSaveDesc =>
+      'Tu dispositivo Omi guardará automáticamente las grabaciones de audio aquí. Una vez que tengas grabaciones, podrás procesarlas en conversaciones legibles.';
+
+  @override
+  String get phoneMicProcessedInstantly =>
+      'Las grabaciones del micrófono del teléfono se procesan instantáneamente y no aparecen aquí.';
+
+  @override
+  String get noSdCardRecordings => 'Sin Grabaciones en Tarjeta SD';
+
+  @override
+  String get noPhoneStorageRecordings => 'Sin Grabaciones en Teléfono';
+
+  @override
+  String get noSdCardRecordingsDesc =>
+      'No se encontraron archivos de audio en la tarjeta SD de tu dispositivo. Asegúrate de que tu dispositivo Omi haya grabado audio en su tarjeta SD.';
+
+  @override
+  String get noPhoneStorageRecordingsDesc =>
+      'No se encontraron archivos de audio en el almacenamiento del teléfono. El audio se guarda aquí cuando tu dispositivo Omi transfiere grabaciones a tu teléfono.';
+
+  @override
+  String get sdCardAudio => 'Audio de Tarjeta SD';
+
+  @override
+  String get sdCardAudioDesc => 'Este archivo de audio está almacenado en la tarjeta SD de tu dispositivo.';
+
+  @override
+  String get sdCardAudioCannotPlay =>
+      'Puedes procesar el archivo pero no puedes reproducirlo o compartirlo directamente desde la tarjeta SD.';
+
+  @override
+  String get gotIt => 'Entendido';
+
+  @override
+  String get sdCardProcessing => 'Procesamiento de Tarjeta SD';
+
+  @override
+  String get confirmDeletion => 'Confirmar Eliminación';
+
+  @override
+  String get deleteAudioConfirm =>
+      '¿Estás seguro de que quieres eliminar este archivo de audio? Esta acción no se puede deshacer.';
+
+  @override
+  String get processingStatus => 'Procesando';
+
+  @override
+  String get failedStatus => 'Fallido';
+
+  @override
+  String get notProcessedStatus => 'Sin Procesar';
+
+  @override
+  String get internetRequired => 'Se requiere conexión a internet para el procesamiento con IA';
+
+  @override
+  String get privateCloudSyncEnabled => 'Sincronización en Nube Privada habilitada';
+
+  @override
+  String get privateCloudSyncDisabled => 'Sincronización en Nube Privada deshabilitada';
+
+  @override
+  String get enablePrivateCloudSync => 'Habilitar Sincronización en Nube Privada';
+
+  @override
+  String get privateCloudSyncDialogDesc =>
+      'Tus grabaciones en tiempo real se almacenarán en la nube privada mientras hablas. El audio se captura y guarda de forma segura durante las conversaciones.';
+
+  @override
+  String get on => 'Activado';
+
+  @override
+  String get off => 'Desactivado';
+
+  @override
+  String get privateCloudSyncFullDesc =>
+      'La Sincronización en Nube Privada almacena tus grabaciones en tiempo real en la nube mientras hablas. Tu audio se captura y guarda de forma segura en el almacenamiento de nube privada en tiempo real.';
+
+  @override
+  String get enable => 'Habilitar';
+
+  @override
+  String get howDoesItWork => '¿Cómo funciona?';
+
+  @override
+  String get sdCardSyncDesc => 'La Sincronización de Tarjeta SD importará tus memorias de la Tarjeta SD a la app';
+
+  @override
+  String get sdCardStep1 => 'Busca archivos de audio en la Tarjeta SD';
+
+  @override
+  String get sdCardStep2 => 'Maity sincroniza los archivos de audio con el servidor';
+
+  @override
+  String get sdCardStep3 => 'El servidor procesa los archivos de audio y crea memorias';
 }

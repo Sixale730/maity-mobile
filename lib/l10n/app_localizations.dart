@@ -2269,6 +2269,396 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Thank you for being a valued user of Maity. If you have any questions or concerns, feel free to reach out to us at julio.gonzalez@maity.com.mx.'**
   String get privacyThankYou;
+
+  /// No description provided for @storageSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage Settings'**
+  String get storageSettings;
+
+  /// No description provided for @completeArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete Archive'**
+  String get completeArchive;
+
+  /// No description provided for @completeArchiveDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a complete personal archive of all your recordings'**
+  String get completeArchiveDesc;
+
+  /// No description provided for @saveStorageSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'Save phone\'s storage space by only keeping failed uploads'**
+  String get saveStorageSpace;
+
+  /// No description provided for @privateCloudSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Private Cloud Sync'**
+  String get privateCloudSync;
+
+  /// No description provided for @privateCloudSyncDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Store real-time recordings in the private cloud'**
+  String get privateCloudSyncDesc;
+
+  /// No description provided for @filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter:'**
+  String get filter;
+
+  /// No description provided for @allRecordings.
+  ///
+  /// In en, this message translates to:
+  /// **'All Recordings'**
+  String get allRecordings;
+
+  /// No description provided for @phoneStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone Storage'**
+  String get phoneStorage;
+
+  /// No description provided for @sdCard.
+  ///
+  /// In en, this message translates to:
+  /// **'SD Card'**
+  String get sdCard;
+
+  /// No description provided for @privacyAndConsent.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy & Consent'**
+  String get privacyAndConsent;
+
+  /// No description provided for @switchingToArchiveMode.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re switching to Complete Archive Mode, which will keep all your audio recordings on this device.'**
+  String get switchingToArchiveMode;
+
+  /// No description provided for @privacyNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Notice'**
+  String get privacyNotice;
+
+  /// No description provided for @recordingsPrivacyWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Your recordings may capture other people\'s voices. Please ensure you have consent from all participants before recording.'**
+  String get recordingsPrivacyWarning;
+
+  /// No description provided for @consentCheckbox.
+  ///
+  /// In en, this message translates to:
+  /// **'I have consent from all participants in my recordings'**
+  String get consentCheckbox;
+
+  /// No description provided for @enableStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Storage'**
+  String get enableStorage;
+
+  /// No description provided for @deleteAllProcessedFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete All Processed Files'**
+  String get deleteAllProcessedFiles;
+
+  /// No description provided for @deleteProcessedConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This will permanently delete all processed audio files from your phone. This action cannot be undone.'**
+  String get deleteProcessedConfirm;
+
+  /// No description provided for @allProcessedDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'All processed audio files have been deleted'**
+  String get allProcessedDeleted;
+
+  /// No description provided for @readyToProcess.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to process {count} recording(s) from your SD card into conversations.'**
+  String readyToProcess(int count);
+
+  /// No description provided for @afterProcessingRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'After processing, the original files will be removed from your SD card to free up storage space.'**
+  String get afterProcessingRemoved;
+
+  /// No description provided for @somethingWentWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Something Went Wrong'**
+  String get somethingWentWrong;
+
+  /// No description provided for @creatingConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating Your Conversations...'**
+  String get creatingConversations;
+
+  /// No description provided for @keepAppOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Please keep the app open while we work on your recordings.'**
+  String get keepAppOpen;
+
+  /// No description provided for @successfullyCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Successfully created {count} conversations from your recordings.'**
+  String successfullyCreated(int count);
+
+  /// No description provided for @viewNewConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'View Your New Conversations'**
+  String get viewNewConversations;
+
+  /// No description provided for @audioReadyToConvert.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} audio recording(s) ready to convert into readable conversations'**
+  String audioReadyToConvert(int count);
+
+  /// No description provided for @allAudioProcessed.
+  ///
+  /// In en, this message translates to:
+  /// **'All your audio recordings have been processed into conversations'**
+  String get allAudioProcessed;
+
+  /// No description provided for @totalFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Files'**
+  String get totalFiles;
+
+  /// No description provided for @totalSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Size'**
+  String get totalSize;
+
+  /// No description provided for @onPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'On Phone'**
+  String get onPhone;
+
+  /// No description provided for @onSdCard.
+  ///
+  /// In en, this message translates to:
+  /// **'On SD Card'**
+  String get onSdCard;
+
+  /// No description provided for @processAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Process Audio'**
+  String get processAudio;
+
+  /// No description provided for @allAudioProcessedBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'All Audio Processed'**
+  String get allAudioProcessedBtn;
+
+  /// No description provided for @noAudioFilesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No Audio Files Yet'**
+  String get noAudioFilesYet;
+
+  /// No description provided for @omiAutoSaveDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Omi device will automatically save audio recordings here. Once you have recordings, you can process them into readable conversations.'**
+  String get omiAutoSaveDesc;
+
+  /// No description provided for @phoneMicProcessedInstantly.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone microphone recordings are processed instantly and don\'t appear here.'**
+  String get phoneMicProcessedInstantly;
+
+  /// No description provided for @noSdCardRecordings.
+  ///
+  /// In en, this message translates to:
+  /// **'No SD Card Recordings'**
+  String get noSdCardRecordings;
+
+  /// No description provided for @noPhoneStorageRecordings.
+  ///
+  /// In en, this message translates to:
+  /// **'No Phone Storage Recordings'**
+  String get noPhoneStorageRecordings;
+
+  /// No description provided for @noSdCardRecordingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'No audio files found on your device\'s SD card. Make sure your Omi device has recorded audio to its SD card.'**
+  String get noSdCardRecordingsDesc;
+
+  /// No description provided for @noPhoneStorageRecordingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'No audio files found in phone storage. Audio gets stored here when your Omi device transfers recordings to your phone.'**
+  String get noPhoneStorageRecordingsDesc;
+
+  /// No description provided for @sdCardAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'SD Card Audio'**
+  String get sdCardAudio;
+
+  /// No description provided for @sdCardAudioDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'This audio file is stored on your device\'s SD card.'**
+  String get sdCardAudioDesc;
+
+  /// No description provided for @sdCardAudioCannotPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'You can process the file but cannot play or share it directly from the SD card.'**
+  String get sdCardAudioCannotPlay;
+
+  /// No description provided for @gotIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get gotIt;
+
+  /// No description provided for @sdCardProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'SD Card Processing'**
+  String get sdCardProcessing;
+
+  /// No description provided for @confirmDeletion.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Deletion'**
+  String get confirmDeletion;
+
+  /// No description provided for @deleteAudioConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this audio file? This action cannot be undone.'**
+  String get deleteAudioConfirm;
+
+  /// No description provided for @processingStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing'**
+  String get processingStatus;
+
+  /// No description provided for @failedStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get failedStatus;
+
+  /// No description provided for @notProcessedStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Not Processed'**
+  String get notProcessedStatus;
+
+  /// No description provided for @internetRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Internet connection required for AI processing'**
+  String get internetRequired;
+
+  /// No description provided for @privateCloudSyncEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Private Cloud Sync enabled'**
+  String get privateCloudSyncEnabled;
+
+  /// No description provided for @privateCloudSyncDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Private Cloud Sync disabled'**
+  String get privateCloudSyncDisabled;
+
+  /// No description provided for @enablePrivateCloudSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Private Cloud Sync'**
+  String get enablePrivateCloudSync;
+
+  /// No description provided for @privateCloudSyncDialogDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Your real-time recordings will be stored in the private cloud storage as you speak. Audio is captured and saved securely during conversations.'**
+  String get privateCloudSyncDialogDesc;
+
+  /// No description provided for @on.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get on;
+
+  /// No description provided for @off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get off;
+
+  /// No description provided for @privateCloudSyncFullDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Private Cloud Sync stores your real-time recordings in the cloud as you speak. Your audio is captured and securely saved to the private cloud storage in real-time.'**
+  String get privateCloudSyncFullDesc;
+
+  /// No description provided for @enable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get enable;
+
+  /// No description provided for @howDoesItWork.
+  ///
+  /// In en, this message translates to:
+  /// **'How does it work?'**
+  String get howDoesItWork;
+
+  /// No description provided for @sdCardSyncDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'SD Card Sync will import your memories from the SD Card to the app'**
+  String get sdCardSyncDesc;
+
+  /// No description provided for @sdCardStep1.
+  ///
+  /// In en, this message translates to:
+  /// **'Checks for audio files on the SD Card'**
+  String get sdCardStep1;
+
+  /// No description provided for @sdCardStep2.
+  ///
+  /// In en, this message translates to:
+  /// **'Maity then syncs the audio files with the server'**
+  String get sdCardStep2;
+
+  /// No description provided for @sdCardStep3.
+  ///
+  /// In en, this message translates to:
+  /// **'The server processes the audio files and creates memories'**
+  String get sdCardStep3;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

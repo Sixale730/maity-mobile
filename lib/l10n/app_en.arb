@@ -519,5 +519,88 @@
   "optInOutOptions": "Opt-In and Opt-Out Options",
   "ourCommitment": "Our Commitment",
   "privacyCommitmentText": "We are committed to using the data we collect only to make Maity a better product for you. Your privacy and trust are paramount to us.",
-  "privacyThankYou": "Thank you for being a valued user of Maity. If you have any questions or concerns, feel free to reach out to us at julio.gonzalez@maity.com.mx."
+  "privacyThankYou": "Thank you for being a valued user of Maity. If you have any questions or concerns, feel free to reach out to us at julio.gonzalez@maity.com.mx.",
+
+  "storageSettings": "Storage Settings",
+  "completeArchive": "Complete Archive",
+  "completeArchiveDesc": "Create a complete personal archive of all your recordings",
+  "saveStorageSpace": "Save phone's storage space by only keeping failed uploads",
+  "privateCloudSync": "Private Cloud Sync",
+  "privateCloudSyncDesc": "Store real-time recordings in the private cloud",
+  "filter": "Filter:",
+  "allRecordings": "All Recordings",
+  "phoneStorage": "Phone Storage",
+  "sdCard": "SD Card",
+  "privacyAndConsent": "Privacy & Consent",
+  "switchingToArchiveMode": "You're switching to Complete Archive Mode, which will keep all your audio recordings on this device.",
+  "privacyNotice": "Privacy Notice",
+  "recordingsPrivacyWarning": "Your recordings may capture other people's voices. Please ensure you have consent from all participants before recording.",
+  "consentCheckbox": "I have consent from all participants in my recordings",
+  "enableStorage": "Enable Storage",
+  "deleteAllProcessedFiles": "Delete All Processed Files",
+  "deleteProcessedConfirm": "This will permanently delete all processed audio files from your phone. This action cannot be undone.",
+  "allProcessedDeleted": "All processed audio files have been deleted",
+  "readyToProcess": "Ready to process {count} recording(s) from your SD card into conversations.",
+  "@readyToProcess": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "afterProcessingRemoved": "After processing, the original files will be removed from your SD card to free up storage space.",
+  "somethingWentWrong": "Something Went Wrong",
+  "creatingConversations": "Creating Your Conversations...",
+  "keepAppOpen": "Please keep the app open while we work on your recordings.",
+  "successfullyCreated": "Successfully created {count} conversations from your recordings.",
+  "@successfullyCreated": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "viewNewConversations": "View Your New Conversations",
+  "audioReadyToConvert": "{count} audio recording(s) ready to convert into readable conversations",
+  "@audioReadyToConvert": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "allAudioProcessed": "All your audio recordings have been processed into conversations",
+  "totalFiles": "Total Files",
+  "totalSize": "Total Size",
+  "onPhone": "On Phone",
+  "onSdCard": "On SD Card",
+  "processAudio": "Process Audio",
+  "allAudioProcessedBtn": "All Audio Processed",
+  "noAudioFilesYet": "No Audio Files Yet",
+  "omiAutoSaveDesc": "Your Omi device will automatically save audio recordings here. Once you have recordings, you can process them into readable conversations.",
+  "phoneMicProcessedInstantly": "Phone microphone recordings are processed instantly and don't appear here.",
+  "noSdCardRecordings": "No SD Card Recordings",
+  "noPhoneStorageRecordings": "No Phone Storage Recordings",
+  "noSdCardRecordingsDesc": "No audio files found on your device's SD card. Make sure your Omi device has recorded audio to its SD card.",
+  "noPhoneStorageRecordingsDesc": "No audio files found in phone storage. Audio gets stored here when your Omi device transfers recordings to your phone.",
+  "sdCardAudio": "SD Card Audio",
+  "sdCardAudioDesc": "This audio file is stored on your device's SD card.",
+  "sdCardAudioCannotPlay": "You can process the file but cannot play or share it directly from the SD card.",
+  "gotIt": "Got it",
+  "sdCardProcessing": "SD Card Processing",
+  "confirmDeletion": "Confirm Deletion",
+  "deleteAudioConfirm": "Are you sure you want to delete this audio file? This action cannot be undone.",
+  "processingStatus": "Processing",
+  "failedStatus": "Failed",
+  "notProcessedStatus": "Not Processed",
+  "internetRequired": "Internet connection required for AI processing",
+
+  "privateCloudSyncEnabled": "Private Cloud Sync enabled",
+  "privateCloudSyncDisabled": "Private Cloud Sync disabled",
+  "enablePrivateCloudSync": "Enable Private Cloud Sync",
+  "privateCloudSyncDialogDesc": "Your real-time recordings will be stored in the private cloud storage as you speak. Audio is captured and saved securely during conversations.",
+  "on": "On",
+  "off": "Off",
+  "privateCloudSyncFullDesc": "Private Cloud Sync stores your real-time recordings in the cloud as you speak. Your audio is captured and securely saved to the private cloud storage in real-time.",
+  "enable": "Enable",
+
+  "howDoesItWork": "How does it work?",
+  "sdCardSyncDesc": "SD Card Sync will import your memories from the SD Card to the app",
+  "sdCardStep1": "Checks for audio files on the SD Card",
+  "sdCardStep2": "Maity then syncs the audio files with the server",
+  "sdCardStep3": "The server processes the audio files and creates memories"
 }
