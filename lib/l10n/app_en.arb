@@ -509,5 +509,15 @@
   "e2eeShortDesc": "Enable for maximum security where only you can access your data. Tap to learn more.",
   "dataAlwaysEncrypted": "Regardless of the level, your data is always encrypted at rest and in transit.",
 
-  "connect": "Connect"
+  "connect": "Connect",
+
+  "privacyInformationTitle": "Privacy Information",
+  "yourPrivacyMatters": "Your Privacy Matters to Us",
+  "privacyIntro": "At Maity, we take your privacy very seriously. We want to be transparent about the data we collect and how we use it to improve our product for you. Here's what you need to know:",
+  "whatWeTrack": "What We Track",
+  "anonymityAndPrivacy": "Anonymity and Privacy",
+  "optInOutOptions": "Opt-In and Opt-Out Options",
+  "ourCommitment": "Our Commitment",
+  "privacyCommitmentText": "We are committed to using the data we collect only to make Maity a better product for you. Your privacy and trust are paramount to us.",
+  "privacyThankYou": "Thank you for being a valued user of Maity. If you have any questions or concerns, feel free to reach out to us at julio.gonzalez@maity.com.mx."
 }

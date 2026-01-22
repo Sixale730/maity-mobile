@@ -2215,6 +2215,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connect'**
   String get connect;
+
+  /// No description provided for @privacyInformationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Information'**
+  String get privacyInformationTitle;
+
+  /// No description provided for @yourPrivacyMatters.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Privacy Matters to Us'**
+  String get yourPrivacyMatters;
+
+  /// No description provided for @privacyIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'At Maity, we take your privacy very seriously. We want to be transparent about the data we collect and how we use it to improve our product for you. Here\'s what you need to know:'**
+  String get privacyIntro;
+
+  /// No description provided for @whatWeTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'What We Track'**
+  String get whatWeTrack;
+
+  /// No description provided for @anonymityAndPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Anonymity and Privacy'**
+  String get anonymityAndPrivacy;
+
+  /// No description provided for @optInOutOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Opt-In and Opt-Out Options'**
+  String get optInOutOptions;
+
+  /// No description provided for @ourCommitment.
+  ///
+  /// In en, this message translates to:
+  /// **'Our Commitment'**
+  String get ourCommitment;
+
+  /// No description provided for @privacyCommitmentText.
+  ///
+  /// In en, this message translates to:
+  /// **'We are committed to using the data we collect only to make Maity a better product for you. Your privacy and trust are paramount to us.'**
+  String get privacyCommitmentText;
+
+  /// No description provided for @privacyThankYou.
+  ///
+  /// In en, this message translates to:
+  /// **'Thank you for being a valued user of Maity. If you have any questions or concerns, feel free to reach out to us at julio.gonzalez@maity.com.mx.'**
+  String get privacyThankYou;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:omi/l10n/app_localizations.dart';
-import 'package:omi/pages/settings/webview.dart';
+import 'package:omi/pages/settings/privacy.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/utils/other/temp.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -33,10 +33,7 @@ class _AboutOmiPageState extends State<AboutOmiPage> {
               trailing: const Icon(Icons.privacy_tip_outlined, size: 20),
               onTap: () {
                 MixpanelManager().pageOpened('About Privacy Policy');
-                routeToPage(
-                  context,
-                  PageWebView(url: 'https://maity.com.mx/privacidad', title: l10n?.privacyPolicyTitle ?? 'Privacy Policy'),
-                );
+                routeToPage(context, const PrivacyInfoPage());
               },
             ),
             ListTile(
@@ -51,13 +48,13 @@ class _AboutOmiPageState extends State<AboutOmiPage> {
             ),
             ListTile(
               title: Text(l10n?.helpOrInquiries ?? 'Help or Inquiries?', style: const TextStyle(color: Colors.white)),
-              subtitle: const Text('contacto@maity.com.mx'),
+              subtitle: const Text('julio.gonzalez@maity.com.mx'),
               contentPadding: const EdgeInsets.fromLTRB(4, 0, 24, 0),
               trailing: const Icon(Icons.help_outline_outlined, color: Colors.white, size: 20),
               onTap: () async {
                 final Uri emailUri = Uri(
                   scheme: 'mailto',
-                  path: 'contacto@maity.com.mx',
+                  path: 'julio.gonzalez@maity.com.mx',
                   queryParameters: {'subject': 'Maity App - Help Request'},
                 );
                 if (await canLaunchUrl(emailUri)) {

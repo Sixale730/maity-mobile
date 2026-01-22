@@ -403,5 +403,15 @@
   "e2eeShortDesc": "Activa para máxima seguridad donde solo tú puedes acceder a tus datos. Toca para más información.",
   "dataAlwaysEncrypted": "Independientemente del nivel, tus datos siempre están encriptados en reposo y en tránsito.",
 
-  "connect": "Conectar"
+  "connect": "Conectar",
+
+  "privacyInformationTitle": "Información de Privacidad",
+  "yourPrivacyMatters": "Tu Privacidad Nos Importa",
+  "privacyIntro": "En Maity, nos tomamos tu privacidad muy en serio. Queremos ser transparentes sobre los datos que recopilamos y cómo los usamos para mejorar nuestro producto para ti. Esto es lo que necesitas saber:",
+  "whatWeTrack": "Lo Que Rastreamos",
+  "anonymityAndPrivacy": "Anonimato y Privacidad",
+  "optInOutOptions": "Opciones de Participación",
+  "ourCommitment": "Nuestro Compromiso",
+  "privacyCommitmentText": "Estamos comprometidos a usar los datos que recopilamos solo para hacer de Maity un mejor producto para ti. Tu privacidad y confianza son primordiales para nosotros.",
+  "privacyThankYou": "Gracias por ser un usuario valioso de Maity. Si tienes preguntas o inquietudes, no dudes en contactarnos a julio.gonzalez@maity.com.mx."
 }

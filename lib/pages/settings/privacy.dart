@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:omi/l10n/app_localizations.dart';
 
 class PrivacyInfoPage extends StatelessWidget {
   const PrivacyInfoPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
       appBar: AppBar(
-        title: const Text('Privacy Information'),
+        title: Text(l10n?.privacyInformationTitle ?? 'Privacy Information'),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new),
@@ -19,22 +22,23 @@ class PrivacyInfoPage extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: [
-            const Text(
-              'Your Privacy Matters to Us',
-              style: TextStyle(
+            Text(
+              l10n?.yourPrivacyMatters ?? 'Your Privacy Matters to Us',
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'At Omi, we take your privacy very seriously. We want to be transparent about the data we collect and how we use it to improve our product for you. Here\'s what you need to know:',
-              style: TextStyle(fontSize: 16),
+            Text(
+              l10n?.privacyIntro ??
+                  'At Maity, we take your privacy very seriously. We want to be transparent about the data we collect and how we use it to improve our product for you. Here\'s what you need to know:',
+              style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'What We Track',
-              style: TextStyle(
+            Text(
+              l10n?.whatWeTrack ?? 'What We Track',
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -64,18 +68,14 @@ class PrivacyInfoPage extends StatelessWidget {
                 'Backups: We track when backups are enabled or disabled, and when a backups password is set.'),
             _buildBulletPoint('Support: We track when you contact support.'),
             _buildBulletPoint('Privacy Page: We track when you open the privacy details page.'),
-            _buildBulletPoint('Join Discord: We track when you click to join our Discord.'),
             _buildBulletPoint('Copy Conversation Details: We track when you copy conversation details.'),
-            _buildBulletPoint('Upgrade Modal: We track when the upgrade modal is dismissed or clicked.'),
             _buildBulletPoint('Get/Connect Device: We track when you click to get or connect your device.'),
             _buildBulletPoint('Disconnect Device: We track when you disconnect your device.'),
             _buildBulletPoint('Battery Indicator: We track when you click the battery indicator.'),
-            _buildBulletPoint('Advanced Mode: We track interactions with the advanced mode documentation.'),
-            _buildBulletPoint('Use Without Device: We track interactions with the use without device onboarding.'),
             const SizedBox(height: 16),
-            const Text(
-              'Anonymity and Privacy',
-              style: TextStyle(
+            Text(
+              l10n?.anonymityAndPrivacy ?? 'Anonymity and Privacy',
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -88,9 +88,9 @@ class PrivacyInfoPage extends StatelessWidget {
             _buildBulletPoint(
                 'No Selling of Data: We do not sell or share your data with any third parties. The data we collect is solely used to understand how you use the app and to make improvements.'),
             const SizedBox(height: 16),
-            const Text(
-              'Opt-In and Opt-Out Options',
-              style: TextStyle(
+            Text(
+              l10n?.optInOutOptions ?? 'Opt-In and Opt-Out Options',
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -99,22 +99,24 @@ class PrivacyInfoPage extends StatelessWidget {
             _buildBulletPoint('Opt-In: You can choose to opt in to tracking to help us enhance your experience.'),
             _buildBulletPoint('Opt-Out: You can opt out of tracking at any time, and we will reset all your data.'),
             const SizedBox(height: 16),
-            const Text(
-              'Our Commitment',
-              style: TextStyle(
+            Text(
+              l10n?.ourCommitment ?? 'Our Commitment',
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'We are committed to using the data we collect only to make Omi a better product for you. Your privacy and trust are paramount to us.',
-              style: TextStyle(fontSize: 16),
+            Text(
+              l10n?.privacyCommitmentText ??
+                  'We are committed to using the data we collect only to make Maity a better product for you. Your privacy and trust are paramount to us.',
+              style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Thank you for being a valued user of Omi. If you have any questions or concerns, feel free to reach out to us to team@basedhardware.com.',
-              style: TextStyle(fontSize: 16),
+            Text(
+              l10n?.privacyThankYou ??
+                  'Thank you for being a valued user of Maity. If you have any questions or concerns, feel free to reach out to us at julio.gonzalez@maity.com.mx.',
+              style: const TextStyle(fontSize: 16),
             ),
           ],
         ),

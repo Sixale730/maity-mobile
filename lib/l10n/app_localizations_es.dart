@@ -1134,4 +1134,34 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get connect => 'Conectar';
+
+  @override
+  String get privacyInformationTitle => 'Información de Privacidad';
+
+  @override
+  String get yourPrivacyMatters => 'Tu Privacidad Nos Importa';
+
+  @override
+  String get privacyIntro =>
+      'En Maity, nos tomamos tu privacidad muy en serio. Queremos ser transparentes sobre los datos que recopilamos y cómo los usamos para mejorar nuestro producto para ti. Esto es lo que necesitas saber:';
+
+  @override
+  String get whatWeTrack => 'Lo Que Rastreamos';
+
+  @override
+  String get anonymityAndPrivacy => 'Anonimato y Privacidad';
+
+  @override
+  String get optInOutOptions => 'Opciones de Participación';
+
+  @override
+  String get ourCommitment => 'Nuestro Compromiso';
+
+  @override
+  String get privacyCommitmentText =>
+      'Estamos comprometidos a usar los datos que recopilamos solo para hacer de Maity un mejor producto para ti. Tu privacidad y confianza son primordiales para nosotros.';
+
+  @override
+  String get privacyThankYou =>
+      'Gracias por ser un usuario valioso de Maity. Si tienes preguntas o inquietudes, no dudes en contactarnos a julio.gonzalez@maity.com.mx.';
 }
