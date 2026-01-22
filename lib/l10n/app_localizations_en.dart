@@ -1403,4 +1403,222 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orDivider => 'or';
+
+  @override
+  String get communicationFeedbackTitle => 'Communication Feedback';
+
+  @override
+  String get analyzeCommunicationStyle => 'Analyze your communication style in this conversation';
+
+  @override
+  String get generateFeedback => 'Generate Feedback';
+
+  @override
+  String get couldNotRegenerateFeedback => 'Could not regenerate feedback';
+
+  @override
+  String get couldNotGenerateFeedback => 'Could not generate feedback';
+
+  @override
+  String get strengths => 'Strengths';
+
+  @override
+  String get fillerWordsLabel => 'Filler Words';
+
+  @override
+  String get objectionsLabel => 'Objections';
+
+  @override
+  String get detectedFillerWords => 'Detected filler words';
+
+  @override
+  String get objectionWordsLabel => 'Objection words';
+
+  @override
+  String get objectionsReceived => 'Objections received';
+
+  @override
+  String get objectionsMade => 'Objections made';
+
+  @override
+  String get communicationMetrics => 'Communication Metrics';
+
+  @override
+  String get butCounter => '\"But\"';
+
+  @override
+  String get actionItemsCopiedToClipboard => 'Action items copied to clipboard';
+
+  @override
+  String get deleteSelectedItems => 'Delete Selected Items';
+
+  @override
+  String get deleteActionItem => 'Delete Action Item';
+
+  @override
+  String areYouSureDeleteActionItems(int count, String suffix) {
+    return 'Are you sure you want to delete $count selected action item$suffix?';
+  }
+
+  @override
+  String actionItemsDeleted(int count, String suffix) {
+    return '$count action item$suffix deleted';
+  }
+
+  @override
+  String get failedToDeleteSomeItems => 'Failed to delete some items';
+
+  @override
+  String get failedToDeleteItems => 'Failed to delete items';
+
+  @override
+  String get areYouSureDeleteActionItem => 'Are you sure you want to delete this action item?';
+
+  @override
+  String actionItemDeleted(String description) {
+    return 'Action item \"$description\" deleted';
+  }
+
+  @override
+  String get failedToDeleteActionItem => 'Failed to delete action item';
+
+  @override
+  String get actionItemMarkedIncomplete => 'Action item marked as incomplete';
+
+  @override
+  String get actionItemCompleted => 'Action item completed';
+
+  @override
+  String nSelected(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get selectAll => 'Select all';
+
+  @override
+  String get deleteSelected => 'Delete selected';
+
+  @override
+  String get toDos => 'To-Do\'s';
+
+  @override
+  String get tapEditLongPressSwipe => 'Tap to edit • Long press to select • Swipe for actions';
+
+  @override
+  String get toDoTab => 'To Do';
+
+  @override
+  String get doneTab => 'Done';
+
+  @override
+  String get oldTab => 'Old';
+
+  @override
+  String get allCaughtUp => '🎉 All caught up!\nNo pending action items';
+
+  @override
+  String get noCompletedItemsYet => 'No completed items yet';
+
+  @override
+  String get noOldTasks => '✅ No old tasks';
+
+  @override
+  String get noItems => 'No items';
+
+  @override
+  String get readyForActionItems => 'Ready for Action Items';
+
+  @override
+  String get aiExtractsTasksDescription =>
+      'Your AI will automatically extract tasks and to-dos from your conversations. They\'ll appear here when created.';
+
+  @override
+  String get automaticallyExtracted => 'Automatically extracted from conversations';
+
+  @override
+  String get tapToEditSwipe => 'Tap to edit, swipe to complete or delete';
+
+  @override
+  String get filterByDateRanges => 'Filter and organize by date ranges';
+
+  @override
+  String get actionItemDescriptionEmpty => 'Action item description cannot be empty.';
+
+  @override
+  String get actionItemUpdated => 'Action item updated';
+
+  @override
+  String get failedToUpdateActionItem => 'Failed to update action item';
+
+  @override
+  String get actionItemCreated => 'Action item created';
+
+  @override
+  String get failedToCreateActionItem => 'Failed to create action item';
+
+  @override
+  String get completed => 'Completed';
+
+  @override
+  String get markComplete => 'Mark complete';
+
+  @override
+  String get whatNeedsToBeDone => 'What needs to be done?';
+
+  @override
+  String get addDueDate => 'Add due date';
+
+  @override
+  String get pressDoneToSave => 'Press done to save';
+
+  @override
+  String get pressDoneToCreate => 'Press done to create';
+
+  @override
+  String get contentCopiedToClipboard => 'Content copied to clipboard';
+
+  @override
+  String get transcriptCopiedToClipboard => 'Transcript copied to clipboard';
+
+  @override
+  String get errorProcessingConversation => 'Error while processing conversation. Please try again later.';
+
+  @override
+  String get copy => 'Copy';
+
+  @override
+  String get selectText => 'Select Text';
+
+  @override
+  String get share => 'Share';
+
+  @override
+  String get notHelpful => 'Not Helpful';
+
+  @override
+  String get report => 'Report';
+
+  @override
+  String get noPendingActionItems => 'No pending action items';
+
+  @override
+  String get noCompletedItemsYetDetail => 'No completed items yet';
+
+  @override
+  String get toDo => 'To-Do';
+
+  @override
+  String get noActionItemsTitle => 'No Action Items';
+
+  @override
+  String get noActionItemsDescription =>
+      'Tasks and to-dos from this conversation will appear here once they are created.';
+
+  @override
+  String get deleteConversationConfirmation =>
+      'Are you sure you want to delete this conversation? This action cannot be undone.';
+
+  @override
+  String get checkInternetAndRetry => 'Please check your internet connection and try again.';
 }

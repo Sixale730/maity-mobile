@@ -13,6 +13,7 @@ import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/services/app_review_service.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/ui/molecules/omi_confirm_dialog.dart';
+import 'package:omi/l10n/app_localizations.dart';
 
 class ActionItemsPage extends StatefulWidget {
   const ActionItemsPage({super.key});
@@ -164,9 +165,9 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                'To-Do\'s',
-                                style: TextStyle(
+                              Text(
+                                AppLocalizations.of(context)?.toDos ?? 'To-Do\'s',
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
                                   fontWeight: FontWeight.w600,
@@ -184,7 +185,7 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Tap to edit • Long press to select • Swipe for actions',
+                            AppLocalizations.of(context)?.tapEditLongPressSwipe ?? 'Tap to edit • Long press to select • Swipe for actions',
                             style: TextStyle(
                               color: Colors.grey.shade500,
                               fontSize: 12,
@@ -245,21 +246,21 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
                                           child: GestureDetector(
                                             onTap: () => _onTabChanged(0),
                                             behavior: HitTestBehavior.opaque,
-                                            child: _buildTabLabel('To Do', todoItems.length),
+                                            child: _buildTabLabel(AppLocalizations.of(context)?.toDoTab ?? 'To Do', todoItems.length, 0),
                                           ),
                                         ),
                                         Expanded(
                                           child: GestureDetector(
                                             onTap: () => _onTabChanged(1),
                                             behavior: HitTestBehavior.opaque,
-                                            child: _buildTabLabel('Done', doneItems.length),
+                                            child: _buildTabLabel(AppLocalizations.of(context)?.doneTab ?? 'Done', doneItems.length, 1),
                                           ),
                                         ),
                                         Expanded(
                                           child: GestureDetector(
                                             onTap: () => _onTabChanged(2),
                                             behavior: HitTestBehavior.opaque,
-                                            child: _buildTabLabel('Old', snoozedItems.length),
+                                            child: _buildTabLabel(AppLocalizations.of(context)?.oldTab ?? 'Old', snoozedItems.length, 2),
                                           ),
                                         ),
                                       ],
@@ -290,7 +291,7 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
                         ),
                         child: Center(
                           child: Text(
-                            _getEmptyTabMessage(),
+                            _getEmptyTabMessage(context),
                             style: TextStyle(
                               color: Colors.grey.shade400,
                               fontSize: 14,
@@ -348,16 +349,17 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
     );
   }
 
-  String _getEmptyTabMessage() {
+  String _getEmptyTabMessage(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     switch (_selectedTabIndex) {
       case 0: // To Do
-        return '🎉 All caught up!\nNo pending action items';
+        return l10n?.allCaughtUp ?? '🎉 All caught up!\nNo pending action items';
       case 1: // Done
-        return 'No completed items yet';
+        return l10n?.noCompletedItemsYet ?? 'No completed items yet';
       case 2: // Old
-        return '✅ No old tasks';
+        return l10n?.noOldTasks ?? '✅ No old tasks';
       default:
-        return 'No items';
+        return l10n?.noItems ?? 'No items';
     }
   }
 
@@ -410,12 +412,13 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
         if (direction == DismissDirection.startToEnd) {
           // Swipe right - Toggle completion
           await provider.updateActionItemState(item, !item.completed);
+          final l10n = AppLocalizations.of(context);
 
           // Show feedback
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(item.completed ? 'Action item marked as incomplete' : 'Action item completed'),
+                content: Text(item.completed ? (l10n?.actionItemMarkedIncomplete ?? 'Action item marked as incomplete') : (l10n?.actionItemCompleted ?? 'Action item completed')),
                 backgroundColor: item.completed ? Colors.orange : Colors.green,
                 duration: const Duration(seconds: 2),
               ),
@@ -474,7 +477,7 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
         constraints: const BoxConstraints(),
       ),
       title: Text(
-        '${provider.selectedCount} selected',
+        AppLocalizations.of(context)?.nSelected(provider.selectedCount) ?? '${provider.selectedCount} selected',
         style: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
@@ -484,14 +487,14 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
         if (provider.selectedCount < currentTabItems.length)
           IconButton(
             icon: const FaIcon(FontAwesomeIcons.squareCheck, size: 18),
-            tooltip: 'Select all',
+            tooltip: AppLocalizations.of(context)?.selectAll ?? 'Select all',
             onPressed: () => provider.selectAllItemsFromTab(_selectedTabIndex),
             padding: const EdgeInsets.symmetric(horizontal: 8),
           ),
         if (provider.hasSelection)
           IconButton(
             icon: const FaIcon(FontAwesomeIcons.trash, size: 20),
-            tooltip: 'Delete selected',
+            tooltip: AppLocalizations.of(context)?.deleteSelected ?? 'Delete selected',
             onPressed: () => _deleteSelectedItems(provider),
             padding: const EdgeInsets.symmetric(horizontal: 8),
           ),
@@ -513,10 +516,11 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
     }
 
     // Show confirmation dialog for bulk delete
+    final l10n = AppLocalizations.of(context);
     final result = await OmiConfirmDialog.showWithSkipOption(
       context,
-      title: 'Delete Selected Items',
-      message: 'Are you sure you want to delete $selectedCount selected action item${selectedCount > 1 ? 's' : ''}?',
+      title: l10n?.deleteSelectedItems ?? 'Delete Selected Items',
+      message: l10n?.areYouSureDeleteActionItems(selectedCount, selectedCount > 1 ? 's' : '') ?? 'Are you sure you want to delete $selectedCount selected action item${selectedCount > 1 ? 's' : ''}?',
     );
 
     if (result != null && result.confirmed) {
@@ -531,6 +535,7 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
 
   Future<void> _performBulkDelete(ActionItemsProvider provider) async {
     final selectedCount = provider.selectedCount;
+    final l10n = AppLocalizations.of(context);
 
     try {
       final success = await provider.deleteSelectedItems();
@@ -538,15 +543,15 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
       if (mounted && success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$selectedCount action item${selectedCount > 1 ? 's' : ''} deleted'),
+            content: Text(l10n?.actionItemsDeleted(selectedCount, selectedCount > 1 ? 's' : '') ?? '$selectedCount action item${selectedCount > 1 ? 's' : ''} deleted'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
         );
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to delete some items'),
+          SnackBar(
+            content: Text(l10n?.failedToDeleteSomeItems ?? 'Failed to delete some items'),
             backgroundColor: Colors.red,
           ),
         );
@@ -554,8 +559,8 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to delete items'),
+          SnackBar(
+            content: Text(l10n?.failedToDeleteItems ?? 'Failed to delete items'),
             backgroundColor: Colors.red,
           ),
         );
@@ -565,6 +570,7 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
 
   Future<void> _deleteActionItem(ActionItemWithMetadata item, ActionItemsProvider provider) async {
     final prefs = SharedPreferencesUtil();
+    final l10n = AppLocalizations.of(context);
 
     // Check if user has opted out of delete confirmations
     if (!prefs.showActionItemDeleteConfirmation) {
@@ -575,8 +581,8 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
 
     final result = await OmiConfirmDialog.showWithSkipOption(
       context,
-      title: 'Delete Action Item',
-      message: 'Are you sure you want to delete this action item?',
+      title: l10n?.deleteActionItem ?? 'Delete Action Item',
+      message: l10n?.areYouSureDeleteActionItem ?? 'Are you sure you want to delete this action item?',
     );
 
     if (result?.confirmed == true) {
@@ -591,20 +597,21 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
 
   Future<void> _performDeleteActionItem(ActionItemWithMetadata item, ActionItemsProvider provider) async {
     final success = await provider.deleteActionItem(item);
+    final l10n = AppLocalizations.of(context);
 
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Action item "${item.description}" deleted'),
+            content: Text(l10n?.actionItemDeleted(item.description) ?? 'Action item "${item.description}" deleted'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to delete action item'),
+          SnackBar(
+            content: Text(l10n?.failedToDeleteActionItem ?? 'Failed to delete action item'),
             backgroundColor: Colors.red,
           ),
         );
@@ -622,8 +629,7 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
     );
   }
 
-  Widget _buildTabLabel(String label, int count) {
-    final int tabIndex = label == 'To Do' ? 0 : (label == 'Done' ? 1 : (label == 'Old' ? 2 : 2));
+  Widget _buildTabLabel(String label, int count, int tabIndex) {
     final bool isSelected = _selectedTabIndex == tabIndex;
 
     return Container(
@@ -657,6 +663,7 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
   }
 
   Widget _buildFirstTimeEmptyState() {
+    final l10n = AppLocalizations.of(context);
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -710,9 +717,9 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
         const SizedBox(height: 28),
 
         // Welcome heading
-        const Text(
-          'Ready for Action Items',
-          style: TextStyle(
+        Text(
+          l10n?.readyForActionItems ?? 'Ready for Action Items',
+          style: const TextStyle(
             color: Color(0xFFFFFFFF),
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -724,10 +731,10 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
         const SizedBox(height: 16),
 
         // Educational description
-        const Text(
-          'Your AI will automatically extract tasks and to-dos from your conversations. They\'ll appear here when created.',
+        Text(
+          l10n?.aiExtractsTasksDescription ?? 'Your AI will automatically extract tasks and to-dos from your conversations. They\'ll appear here when created.',
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: Color(0xFFB0B0B0),
             fontSize: 16,
             height: 1.6,
@@ -761,10 +768,10 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Automatically extracted from conversations',
-                      style: TextStyle(
+                      l10n?.automaticallyExtracted ?? 'Automatically extracted from conversations',
+                      style: const TextStyle(
                         color: Color(0xFFE5E5E5),
                         fontSize: 14,
                         height: 1.4,
@@ -785,10 +792,10 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Tap to edit, swipe to complete or delete',
-                      style: TextStyle(
+                      l10n?.tapToEditSwipe ?? 'Tap to edit, swipe to complete or delete',
+                      style: const TextStyle(
                         color: Color(0xFFE5E5E5),
                         fontSize: 14,
                         height: 1.4,
@@ -809,10 +816,10 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Filter and organize by date ranges',
-                      style: TextStyle(
+                      l10n?.filterByDateRanges ?? 'Filter and organize by date ranges',
+                      style: const TextStyle(
                         color: Color(0xFFE5E5E5),
                         fontSize: 14,
                         height: 1.4,

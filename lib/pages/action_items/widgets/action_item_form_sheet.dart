@@ -5,6 +5,7 @@ import 'package:omi/backend/schema/schema.dart';
 import 'package:omi/providers/action_items_provider.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:provider/provider.dart';
+import 'package:omi/l10n/app_localizations.dart';
 
 class ActionItemFormSheet extends StatefulWidget {
   final ActionItemWithMetadata? actionItem; // null for create, non-null for edit
@@ -51,10 +52,11 @@ class _ActionItemFormSheetState extends State<ActionItemFormSheet> {
   }
 
   void _saveActionItem() async {
+    final l10n = AppLocalizations.of(context);
     if (_textController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Action item description cannot be empty.'),
+        SnackBar(
+          content: Text(l10n?.actionItemDescriptionEmpty ?? 'Action item description cannot be empty.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -78,10 +80,10 @@ class _ActionItemFormSheetState extends State<ActionItemFormSheet> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Action item updated'),
+          SnackBar(
+            content: Text(l10n?.actionItemUpdated ?? 'Action item updated'),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -110,10 +112,10 @@ class _ActionItemFormSheetState extends State<ActionItemFormSheet> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to update action item'),
+            SnackBar(
+              content: Text(l10n?.failedToUpdateActionItem ?? 'Failed to update action item'),
               backgroundColor: Colors.red,
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -121,10 +123,10 @@ class _ActionItemFormSheetState extends State<ActionItemFormSheet> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Action item created'),
+          SnackBar(
+            content: Text(l10n?.actionItemCreated ?? 'Action item created'),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -144,20 +146,20 @@ class _ActionItemFormSheetState extends State<ActionItemFormSheet> {
           );
         } else if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to create action item'),
+            SnackBar(
+              content: Text(l10n?.failedToCreateActionItem ?? 'Failed to create action item'),
               backgroundColor: Colors.red,
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to create action item'),
+            SnackBar(
+              content: Text(l10n?.failedToCreateActionItem ?? 'Failed to create action item'),
               backgroundColor: Colors.red,
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -167,6 +169,7 @@ class _ActionItemFormSheetState extends State<ActionItemFormSheet> {
 
   void _deleteActionItem() async {
     if (!widget.isEditing) return;
+    final l10n = AppLocalizations.of(context);
 
     Navigator.pop(context);
 
@@ -176,16 +179,16 @@ class _ActionItemFormSheetState extends State<ActionItemFormSheet> {
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Action item deleted'),
+          SnackBar(
+            content: Text(l10n?.actionItemDeleted(widget.actionItem!.description) ?? 'Action item deleted'),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to delete action item'),
+          SnackBar(
+            content: Text(l10n?.failedToDeleteActionItem ?? 'Failed to delete action item'),
             backgroundColor: Colors.red,
           ),
         );
@@ -293,7 +296,7 @@ class _ActionItemFormSheetState extends State<ActionItemFormSheet> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      _isCompleted ? 'Completed' : 'Mark complete',
+                      _isCompleted ? (AppLocalizations.of(context)?.completed ?? 'Completed') : (AppLocalizations.of(context)?.markComplete ?? 'Mark complete'),
                       style: TextStyle(
                         color: Colors.grey.shade300,
                         fontSize: 14,
@@ -307,34 +310,35 @@ class _ActionItemFormSheetState extends State<ActionItemFormSheet> {
                     icon: const Icon(Icons.delete_outline, color: Colors.red),
                     onPressed: () {
                       // Show delete confirmation dialog
+                      final l10n = AppLocalizations.of(context);
                       showDialog(
                         context: context,
-                        builder: (context) => AlertDialog(
+                        builder: (dialogContext) => AlertDialog(
                           backgroundColor: const Color(0xFF1F1F25),
-                          title: const Text(
-                            'Delete Action Item',
-                            style: TextStyle(color: Colors.white),
+                          title: Text(
+                            l10n?.deleteActionItem ?? 'Delete Action Item',
+                            style: const TextStyle(color: Colors.white),
                           ),
                           content: Text(
-                            'Are you sure you want to delete this action item?',
+                            l10n?.areYouSureDeleteActionItem ?? 'Are you sure you want to delete this action item?',
                             style: TextStyle(color: Colors.grey.shade300),
                           ),
                           actions: [
                             TextButton(
-                              onPressed: () => Navigator.pop(context, false),
+                              onPressed: () => Navigator.pop(dialogContext, false),
                               child: Text(
-                                'Cancel',
+                                l10n?.cancel ?? 'Cancel',
                                 style: TextStyle(color: Colors.grey.shade400),
                               ),
                             ),
                             TextButton(
                               onPressed: () {
-                                Navigator.pop(context, true); // Close dialog
+                                Navigator.pop(dialogContext, true); // Close dialog
                                 _deleteActionItem();
                               },
-                              child: const Text(
-                                'Delete',
-                                style: TextStyle(color: Colors.red),
+                              child: Text(
+                                l10n?.delete ?? 'Delete',
+                                style: const TextStyle(color: Colors.red),
                               ),
                             ),
                           ],
@@ -360,7 +364,7 @@ class _ActionItemFormSheetState extends State<ActionItemFormSheet> {
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.zero,
                 isDense: true,
-                hintText: widget.isEditing ? null : 'What needs to be done?',
+                hintText: widget.isEditing ? null : (AppLocalizations.of(context)?.whatNeedsToBeDone ?? 'What needs to be done?'),
                 hintStyle: TextStyle(
                   color: Colors.grey[500],
                   fontSize: 16,
@@ -388,7 +392,7 @@ class _ActionItemFormSheetState extends State<ActionItemFormSheet> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text(
-                        _selectedDueDate != null ? _formatDueDateWithTime(_selectedDueDate!) : 'Add due date',
+                        _selectedDueDate != null ? _formatDueDateWithTime(_selectedDueDate!) : (AppLocalizations.of(context)?.addDueDate ?? 'Add due date'),
                         style: TextStyle(
                           color: _selectedDueDate != null ? Colors.white : Colors.grey.shade500,
                           fontSize: 16,
@@ -434,7 +438,7 @@ class _ActionItemFormSheetState extends State<ActionItemFormSheet> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Press done to ${widget.isEditing ? 'save' : 'create'}',
+                        widget.isEditing ? (AppLocalizations.of(context)?.pressDoneToSave ?? 'Press done to save') : (AppLocalizations.of(context)?.pressDoneToCreate ?? 'Press done to create'),
                         style: TextStyle(
                           color: Colors.grey.shade400,
                           fontSize: 11,

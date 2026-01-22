@@ -846,14 +846,14 @@ class AppLocalizationsEs extends AppLocalizations {
       'Aún no hay feedback. Empieza a grabar conversaciones para obtener insights sobre tu estilo de comunicación.';
 
   @override
-  String get deleteConversation => '¿Eliminar conversación?';
+  String get deleteConversation => '¿Eliminar Conversación?';
 
   @override
   String get deleteConversationConfirm =>
       '¿Estás seguro de que quieres eliminar esta conversación? Esta acción no se puede deshacer.';
 
   @override
-  String get unableToDeleteConversation => 'No se puede eliminar la conversación';
+  String get unableToDeleteConversation => 'No se Puede Eliminar la Conversación';
 
   @override
   String get checkInternetAndTryAgain => 'Por favor verifica tu conexión a internet e intenta de nuevo.';
@@ -1410,4 +1410,222 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get orDivider => 'o';
+
+  @override
+  String get communicationFeedbackTitle => 'Feedback de Comunicación';
+
+  @override
+  String get analyzeCommunicationStyle => 'Analiza tu estilo de comunicación en esta conversación';
+
+  @override
+  String get generateFeedback => 'Generar Feedback';
+
+  @override
+  String get couldNotRegenerateFeedback => 'No se pudo regenerar el feedback';
+
+  @override
+  String get couldNotGenerateFeedback => 'No se pudo generar el feedback';
+
+  @override
+  String get strengths => 'Fortalezas';
+
+  @override
+  String get fillerWordsLabel => 'Muletillas';
+
+  @override
+  String get objectionsLabel => 'Objeciones';
+
+  @override
+  String get detectedFillerWords => 'Muletillas detectadas';
+
+  @override
+  String get objectionWordsLabel => 'Palabras de objeción';
+
+  @override
+  String get objectionsReceived => 'Objeciones recibidas';
+
+  @override
+  String get objectionsMade => 'Objeciones hechas';
+
+  @override
+  String get communicationMetrics => 'Métricas de Comunicación';
+
+  @override
+  String get butCounter => '\"Pero\"';
+
+  @override
+  String get actionItemsCopiedToClipboard => 'Elementos de acción copiados al portapapeles';
+
+  @override
+  String get deleteSelectedItems => 'Eliminar Elementos Seleccionados';
+
+  @override
+  String get deleteActionItem => 'Eliminar Elemento de Acción';
+
+  @override
+  String areYouSureDeleteActionItems(int count, String suffix) {
+    return '¿Estás seguro de que quieres eliminar $count elemento$suffix de acción seleccionado$suffix?';
+  }
+
+  @override
+  String actionItemsDeleted(int count, String suffix) {
+    return '$count elemento$suffix de acción eliminado$suffix';
+  }
+
+  @override
+  String get failedToDeleteSomeItems => 'No se pudieron eliminar algunos elementos';
+
+  @override
+  String get failedToDeleteItems => 'No se pudieron eliminar los elementos';
+
+  @override
+  String get areYouSureDeleteActionItem => '¿Estás seguro de que quieres eliminar este elemento de acción?';
+
+  @override
+  String actionItemDeleted(String description) {
+    return 'Elemento de acción \"$description\" eliminado';
+  }
+
+  @override
+  String get failedToDeleteActionItem => 'No se pudo eliminar el elemento de acción';
+
+  @override
+  String get actionItemMarkedIncomplete => 'Elemento de acción marcado como incompleto';
+
+  @override
+  String get actionItemCompleted => 'Elemento de acción completado';
+
+  @override
+  String nSelected(int count) {
+    return '$count seleccionado(s)';
+  }
+
+  @override
+  String get selectAll => 'Seleccionar todo';
+
+  @override
+  String get deleteSelected => 'Eliminar seleccionados';
+
+  @override
+  String get toDos => 'Pendientes';
+
+  @override
+  String get tapEditLongPressSwipe => 'Toca para editar • Mantén presionado para seleccionar • Desliza para acciones';
+
+  @override
+  String get toDoTab => 'Pendiente';
+
+  @override
+  String get doneTab => 'Hecho';
+
+  @override
+  String get oldTab => 'Antiguo';
+
+  @override
+  String get allCaughtUp => '🎉 ¡Al día!\nSin elementos de acción pendientes';
+
+  @override
+  String get noCompletedItemsYet => 'Sin elementos completados aún';
+
+  @override
+  String get noOldTasks => '✅ Sin tareas antiguas';
+
+  @override
+  String get noItems => 'Sin elementos';
+
+  @override
+  String get readyForActionItems => 'Listo para Elementos de Acción';
+
+  @override
+  String get aiExtractsTasksDescription =>
+      'Tu IA extraerá automáticamente tareas y pendientes de tus conversaciones. Aparecerán aquí cuando se creen.';
+
+  @override
+  String get automaticallyExtracted => 'Extraídos automáticamente de conversaciones';
+
+  @override
+  String get tapToEditSwipe => 'Toca para editar, desliza para completar o eliminar';
+
+  @override
+  String get filterByDateRanges => 'Filtra y organiza por rangos de fecha';
+
+  @override
+  String get actionItemDescriptionEmpty => 'La descripción del elemento de acción no puede estar vacía.';
+
+  @override
+  String get actionItemUpdated => 'Elemento de acción actualizado';
+
+  @override
+  String get failedToUpdateActionItem => 'No se pudo actualizar el elemento de acción';
+
+  @override
+  String get actionItemCreated => 'Elemento de acción creado';
+
+  @override
+  String get failedToCreateActionItem => 'No se pudo crear el elemento de acción';
+
+  @override
+  String get completed => 'Completado';
+
+  @override
+  String get markComplete => 'Marcar completo';
+
+  @override
+  String get whatNeedsToBeDone => '¿Qué necesita hacerse?';
+
+  @override
+  String get addDueDate => 'Agregar fecha límite';
+
+  @override
+  String get pressDoneToSave => 'Presiona listo para guardar';
+
+  @override
+  String get pressDoneToCreate => 'Presiona listo para crear';
+
+  @override
+  String get contentCopiedToClipboard => 'Contenido copiado al portapapeles';
+
+  @override
+  String get transcriptCopiedToClipboard => 'Transcripción copiada al portapapeles';
+
+  @override
+  String get errorProcessingConversation => 'Error al procesar la conversación. Intenta de nuevo más tarde.';
+
+  @override
+  String get copy => 'Copiar';
+
+  @override
+  String get selectText => 'Seleccionar Texto';
+
+  @override
+  String get share => 'Compartir';
+
+  @override
+  String get notHelpful => 'No Útil';
+
+  @override
+  String get report => 'Reportar';
+
+  @override
+  String get noPendingActionItems => 'Sin elementos de acción pendientes';
+
+  @override
+  String get noCompletedItemsYetDetail => 'Sin elementos completados aún';
+
+  @override
+  String get toDo => 'Pendiente';
+
+  @override
+  String get noActionItemsTitle => 'Sin Elementos de Acción';
+
+  @override
+  String get noActionItemsDescription =>
+      'Las tareas y pendientes de esta conversación aparecerán aquí una vez que se creen.';
+
+  @override
+  String get deleteConversationConfirmation =>
+      '¿Estás seguro de que quieres eliminar esta conversación? Esta acción no se puede deshacer.';
+
+  @override
+  String get checkInternetAndRetry => 'Por favor verifica tu conexión a internet e intenta de nuevo.';
 }

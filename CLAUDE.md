@@ -461,6 +461,86 @@ dateTimeFormat('MMM dd', date, locale: SharedPreferencesUtil().appLanguage)
 | `MMM d, yyyy` | Ene 5, 2025 | Jan 5, 2025 |
 | `h:mm a` | 3:45 PM | 3:45 PM |
 
+### Communication Feedback (Detalle de Conversación)
+El widget CommunicationFeedbackCard está completamente localizado:
+
+**Archivos**:
+- `lib/pages/conversation_detail/widgets.dart` - Widget CommunicationFeedbackCard
+
+| Clave | Inglés | Español |
+|-------|--------|---------|
+| `communicationFeedbackTitle` | Communication Feedback | Feedback de Comunicación |
+| `analyzeCommunicationStyle` | Analyze your communication style... | Analiza tu estilo de comunicación... |
+| `generateFeedback` | Generate Feedback | Generar Feedback |
+| `couldNotRegenerateFeedback` | Could not regenerate feedback | No se pudo regenerar el feedback |
+| `strengths` | Strengths | Fortalezas |
+| `areasToImprove` | Areas to Improve | Áreas de Mejora |
+| `clarity` | Clarity | Claridad |
+| `structure` | Structure | Estructura |
+| `callsToAction` | Calls to Action | Llamados a Acción |
+| `objectionHandling` | Objection Handling | Manejo de Objeciones |
+| `observations` | Observations | Observaciones |
+| `communicationMetrics` | Communication Metrics | Métricas de Comunicación |
+| `butCounter` | "But" | "Pero" |
+| `fillerWordsLabel` | Filler Words | Muletillas |
+| `objectionsLabel` | Objections | Objeciones |
+| `detectedFillerWords` | Detected filler words | Muletillas detectadas |
+| `objectionsReceived` | Objections received | Objeciones recibidas |
+| `objectionsMade` | Objections made | Objeciones hechas |
+
+### Action Items Page
+La página de Action Items está completamente localizada:
+
+**Archivos**:
+- `lib/pages/action_items/action_items_page.dart`
+- `lib/pages/action_items/widgets/action_item_form_sheet.dart`
+
+| Clave | Inglés | Español |
+|-------|--------|---------|
+| `toDos` | To-Do's | Pendientes |
+| `toDoTab` / `doneTab` / `oldTab` | To Do / Done / Old | Pendiente / Hecho / Antiguo |
+| `allCaughtUp` | 🎉 All caught up! | 🎉 ¡Al día! |
+| `noCompletedItemsYet` | No completed items yet | Sin elementos completados aún |
+| `deleteSelectedItems` | Delete Selected Items | Eliminar Elementos Seleccionados |
+| `deleteActionItem` | Delete Action Item | Eliminar Elemento de Acción |
+| `actionItemsDeleted` | {count} action item(s) deleted | {count} elemento(s) de acción eliminado(s) |
+| `actionItemDeleted` | Action item "{description}" deleted | Elemento de acción "{description}" eliminado |
+| `failedToDeleteActionItem` | Failed to delete action item | No se pudo eliminar el elemento de acción |
+| `actionItemUpdated` | Action item updated | Elemento de acción actualizado |
+| `actionItemCreated` | Action item created | Elemento de acción creado |
+| `completed` | Completed | Completado |
+| `markComplete` | Mark complete | Marcar completo |
+| `whatNeedsToBeDone` | What needs to be done? | ¿Qué necesita hacerse? |
+| `addDueDate` | Add due date | Agregar fecha límite |
+
+### Chat Message Actions
+El menú de acciones de mensajes del chat está completamente localizado:
+
+**Archivos**:
+- `lib/pages/chat/widgets/message_action_menu.dart`
+
+| Clave | Inglés | Español |
+|-------|--------|---------|
+| `copy` | Copy | Copiar |
+| `selectText` | Select Text | Seleccionar Texto |
+| `share` | Share | Compartir |
+| `notHelpful` | Not Helpful | No Útil |
+| `report` | Report | Reportar |
+
+### Diálogos de Conversación
+Los diálogos de eliminación de conversación están localizados:
+
+**Archivos**:
+- `lib/pages/conversation_detail/page.dart`
+
+| Clave | Inglés | Español |
+|-------|--------|---------|
+| `deleteConversation` | Delete Conversation? | ¿Eliminar Conversación? |
+| `deleteConversationConfirmation` | Are you sure... This action cannot be undone. | ¿Estás seguro... Esta acción no se puede deshacer. |
+| `unableToDeleteConversation` | Unable to Delete Conversation | No se Puede Eliminar la Conversación |
+| `checkInternetAndRetry` | Please check your internet... | Por favor verifica tu conexión... |
+| `contentCopiedToClipboard` | Content copied to clipboard | Contenido copiado al portapapeles |
+
 ## Autenticacion (Supabase Auth)
 
 ### Flujo de Autenticacion

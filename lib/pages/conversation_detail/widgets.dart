@@ -227,9 +227,9 @@ class ActionItemsListWidget extends StatelessWidget {
                           text:
                               '- ${provider.conversation.structured.actionItems.map((e) => e.description.decodeString).join('\n- ')}',
                         ));
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Action items copied to clipboard'),
-                          duration: Duration(seconds: 2),
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(AppLocalizations.of(context)?.actionItemsCopiedToClipboard ?? 'Action items copied to clipboard'),
+                          duration: const Duration(seconds: 2),
                         ));
                         MixpanelManager().copiedConversationDetails(provider.conversation, source: 'Action Items');
                       },
@@ -1115,7 +1115,7 @@ class CommunicationFeedbackCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Feedback de Comunicación',
+                  AppLocalizations.of(context)?.communicationFeedbackTitle ?? 'Communication Feedback',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 16,
@@ -1124,7 +1124,7 @@ class CommunicationFeedbackCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Analiza tu estilo de comunicación en esta conversación',
+                  AppLocalizations.of(context)?.analyzeCommunicationStyle ?? 'Analyze your communication style in this conversation',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.grey[600],
@@ -1162,9 +1162,9 @@ class CommunicationFeedbackCard extends StatelessWidget {
                           color: Colors.deepPurple,
                         ),
                         const SizedBox(width: 8),
-                        const Text(
-                          'Feedback de Comunicación',
-                          style: TextStyle(
+                        Text(
+                          AppLocalizations.of(context)?.communicationFeedbackTitle ?? 'Communication Feedback',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -1180,8 +1180,8 @@ class CommunicationFeedbackCard extends StatelessWidget {
                               final success = await provider.regenerateCommunicationFeedback();
                               if (!success && context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('No se pudo regenerar el feedback'),
+                                  SnackBar(
+                                    content: Text(AppLocalizations.of(context)?.couldNotRegenerateFeedback ?? 'Could not regenerate feedback'),
                                   ),
                                 );
                               }
@@ -1224,7 +1224,8 @@ class CommunicationFeedbackCard extends StatelessWidget {
               // Strengths section
               if (feedback.strengths.isNotEmpty)
                 _buildSection(
-                  title: 'Fortalezas',
+                  context,
+                  title: AppLocalizations.of(context)?.strengths ?? 'Strengths',
                   icon: FontAwesomeIcons.check,
                   iconColor: Colors.green,
                   items: feedback.strengths,
@@ -1233,7 +1234,8 @@ class CommunicationFeedbackCard extends StatelessWidget {
               // Areas to improve section
               if (feedback.areasToImprove.isNotEmpty)
                 _buildSection(
-                  title: 'Áreas de Mejora',
+                  context,
+                  title: AppLocalizations.of(context)?.areasToImprove ?? 'Areas to Improve',
                   icon: FontAwesomeIcons.lightbulb,
                   iconColor: Colors.amber,
                   items: feedback.areasToImprove,
@@ -1241,11 +1243,11 @@ class CommunicationFeedbackCard extends StatelessWidget {
 
               // Observations section
               if (feedback.observations.hasContent)
-                _buildObservationsSection(feedback.observations),
+                _buildObservationsSection(context, feedback.observations),
 
               // Counters section
               if (feedback.counters != null && feedback.counters!.hasContent)
-                _buildCountersSection(feedback.counters!),
+                _buildCountersSection(context, feedback.counters!),
 
               const SizedBox(height: 8),
             ],
@@ -1281,8 +1283,8 @@ class CommunicationFeedbackCard extends StatelessWidget {
                 final success = await provider.regenerateCommunicationFeedback();
                 if (!success && context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('No se pudo generar el feedback'),
+                    SnackBar(
+                      content: Text(AppLocalizations.of(context)?.couldNotGenerateFeedback ?? 'Could not generate feedback'),
                     ),
                   );
                 }
@@ -1299,16 +1301,17 @@ class CommunicationFeedbackCard extends StatelessWidget {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-              : const Text(
-                  'Generar Feedback',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+              : Text(
+                  AppLocalizations.of(context)?.generateFeedback ?? 'Generate Feedback',
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
                 ),
         ),
       ),
     );
   }
 
-  Widget _buildSection({
+  Widget _buildSection(
+    BuildContext context, {
     required String title,
     required IconData icon,
     required Color iconColor,
@@ -1357,20 +1360,21 @@ class CommunicationFeedbackCard extends StatelessWidget {
     );
   }
 
-  Widget _buildObservationsSection(CommunicationObservations observations) {
+  Widget _buildObservationsSection(BuildContext context, CommunicationObservations observations) {
+    final l10n = AppLocalizations.of(context);
     final items = <MapEntry<String, String>>[];
 
     if (observations.clarity.isNotEmpty) {
-      items.add(MapEntry('Claridad', observations.clarity));
+      items.add(MapEntry(l10n?.clarity ?? 'Clarity', observations.clarity));
     }
     if (observations.structure.isNotEmpty) {
-      items.add(MapEntry('Estructura', observations.structure));
+      items.add(MapEntry(l10n?.structure ?? 'Structure', observations.structure));
     }
     if (observations.callsToAction.isNotEmpty) {
-      items.add(MapEntry('Llamados a Acción', observations.callsToAction));
+      items.add(MapEntry(l10n?.callsToAction ?? 'Calls to Action', observations.callsToAction));
     }
     if (observations.objections.isNotEmpty) {
-      items.add(MapEntry('Manejo de Objeciones', observations.objections));
+      items.add(MapEntry(l10n?.objectionHandling ?? 'Objection Handling', observations.objections));
     }
 
     if (items.isEmpty) return const SizedBox.shrink();
@@ -1380,13 +1384,13 @@ class CommunicationFeedbackCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              FaIcon(FontAwesomeIcons.eye, size: 12, color: Colors.blue),
-              SizedBox(width: 8),
+              const FaIcon(FontAwesomeIcons.eye, size: 12, color: Colors.blue),
+              const SizedBox(width: 8),
               Text(
-                'Observaciones',
-                style: TextStyle(
+                l10n?.observations ?? 'Observations',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -1421,20 +1425,21 @@ class CommunicationFeedbackCard extends StatelessWidget {
     );
   }
 
-  Widget _buildCountersSection(CommunicationCounters counters) {
+  Widget _buildCountersSection(BuildContext context, CommunicationCounters counters) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Section header
-          const Row(
+          Row(
             children: [
-              FaIcon(FontAwesomeIcons.chartBar, size: 12, color: Colors.teal),
-              SizedBox(width: 8),
+              const FaIcon(FontAwesomeIcons.chartBar, size: 12, color: Colors.teal),
+              const SizedBox(width: 8),
               Text(
-                'Métricas de Comunicación',
-                style: TextStyle(
+                l10n?.communicationMetrics ?? 'Communication Metrics',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -1451,19 +1456,19 @@ class CommunicationFeedbackCard extends StatelessWidget {
             children: [
               if (counters.peroCount > 0)
                 _buildCounterChip(
-                  label: '"Pero"',
+                  label: l10n?.butCounter ?? '"But"',
                   count: counters.peroCount,
                   color: Colors.orange,
                 ),
               if (counters.totalFillerWords > 0)
                 _buildCounterChip(
-                  label: 'Muletillas',
+                  label: l10n?.fillerWordsLabel ?? 'Filler Words',
                   count: counters.totalFillerWords,
                   color: Colors.purple,
                 ),
               if (counters.totalObjectionWords > 0)
                 _buildCounterChip(
-                  label: 'Objeciones',
+                  label: l10n?.objectionsLabel ?? 'Objections',
                   count: counters.totalObjectionWords,
                   color: Colors.red,
                 ),
@@ -1474,7 +1479,7 @@ class CommunicationFeedbackCard extends StatelessWidget {
           if (counters.fillerWords.isNotEmpty) ...[
             const SizedBox(height: 12),
             _buildWordFrequencySection(
-              title: 'Muletillas detectadas',
+              title: l10n?.detectedFillerWords ?? 'Detected filler words',
               words: counters.fillerWords,
               color: Colors.purple,
             ),
@@ -1485,7 +1490,7 @@ class CommunicationFeedbackCard extends StatelessWidget {
               counters.objectionWords.length > 1) ...[
             const SizedBox(height: 12),
             _buildWordFrequencySection(
-              title: 'Palabras de objeción',
+              title: l10n?.objectionWordsLabel ?? 'Objection words',
               words: counters.objectionWords,
               color: Colors.orange,
             ),
@@ -1495,7 +1500,7 @@ class CommunicationFeedbackCard extends StatelessWidget {
           if (counters.objectionsReceived.isNotEmpty) ...[
             const SizedBox(height: 12),
             _buildObjectionsList(
-              title: 'Objeciones recibidas',
+              title: l10n?.objectionsReceived ?? 'Objections received',
               items: counters.objectionsReceived,
               icon: FontAwesomeIcons.arrowLeft,
               color: Colors.red,
@@ -1506,7 +1511,7 @@ class CommunicationFeedbackCard extends StatelessWidget {
           if (counters.objectionsMade.isNotEmpty) ...[
             const SizedBox(height: 12),
             _buildObjectionsList(
-              title: 'Objeciones hechas',
+              title: l10n?.objectionsMade ?? 'Objections made',
               items: counters.objectionsMade,
               icon: FontAwesomeIcons.arrowRight,
               color: Colors.orange,

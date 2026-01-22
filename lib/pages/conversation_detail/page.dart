@@ -267,6 +267,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
   void _handleDelete(BuildContext context, ConversationDetailProvider provider) {
     HapticFeedback.mediumImpact();
     final connectivityProvider = Provider.of<ConnectivityProvider>(context, listen: false);
+    final l10n = AppLocalizations.of(context);
     if (connectivityProvider.isConnected) {
       showDialog(
         context: context,
@@ -278,9 +279,9 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
             Navigator.pop(context); // Close dialog
             Navigator.pop(context, {'deleted': true}); // Close detail page
           },
-          'Delete Conversation?',
-          'Are you sure you want to delete this conversation? This action cannot be undone.',
-          okButtonText: 'Confirm',
+          l10n?.deleteConversation ?? 'Delete Conversation?',
+          l10n?.deleteConversationConfirmation ?? 'Are you sure you want to delete this conversation? This action cannot be undone.',
+          okButtonText: l10n?.confirm ?? 'Confirm',
         ),
       );
     } else {
@@ -290,10 +291,10 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
           context,
           () => Navigator.pop(context),
           () => Navigator.pop(context),
-          'Unable to Delete Conversation',
-          'Please check your internet connection and try again.',
+          l10n?.unableToDeleteConversation ?? 'Unable to Delete Conversation',
+          l10n?.checkInternetAndRetry ?? 'Please check your internet connection and try again.',
           singleButton: true,
-          okButtonText: 'OK',
+          okButtonText: l10n?.ok ?? 'OK',
         ),
       );
     }
@@ -302,7 +303,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
   void _copyContent(BuildContext context, String content) {
     Clipboard.setData(ClipboardData(text: content));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Content copied to clipboard')),
+      SnackBar(content: Text(AppLocalizations.of(context)?.contentCopiedToClipboard ?? 'Content copied to clipboard')),
     );
     HapticFeedback.lightImpact();
   }

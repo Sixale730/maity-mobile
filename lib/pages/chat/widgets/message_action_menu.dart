@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omi/l10n/app_localizations.dart';
 
 import 'markdown_message_widget.dart';
 
@@ -48,29 +49,34 @@ class MessageActionMenu extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _buildActionButton(
-              title: 'Copy',
+              context: context,
+              title: AppLocalizations.of(context)?.copy ?? 'Copy',
               icon: Icons.copy,
               onTap: onCopy,
             ),
             _buildActionButton(
-              title: 'Select Text',
+              context: context,
+              title: AppLocalizations.of(context)?.selectText ?? 'Select Text',
               icon: Icons.description_outlined,
               onTap: onSelectText,
             ),
             _buildActionButton(
-              title: 'Share',
+              context: context,
+              title: AppLocalizations.of(context)?.share ?? 'Share',
               icon: Icons.share,
               onTap: onShare,
             ),
             if (onThumbsDown != null) ...[
               _buildActionButton(
-                title: 'Not Helpful',
+                context: context,
+                title: AppLocalizations.of(context)?.notHelpful ?? 'Not Helpful',
                 icon: Icons.thumb_down_alt_outlined,
                 onTap: onThumbsDown,
               ),
             ],
             _buildActionButton(
-              title: 'Report',
+              context: context,
+              title: AppLocalizations.of(context)?.report ?? 'Report',
               icon: Icons.report_gmailerrorred,
               onTap: onReport,
               isDestructive: true,
@@ -83,6 +89,7 @@ class MessageActionMenu extends StatelessWidget {
   }
 
   Widget _buildActionButton({
+    required BuildContext context,
     required String title,
     required IconData icon,
     required Function()? onTap,

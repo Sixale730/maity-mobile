@@ -2725,6 +2725,420 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'or'**
   String get orDivider;
+
+  /// No description provided for @communicationFeedbackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Communication Feedback'**
+  String get communicationFeedbackTitle;
+
+  /// No description provided for @analyzeCommunicationStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze your communication style in this conversation'**
+  String get analyzeCommunicationStyle;
+
+  /// No description provided for @generateFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate Feedback'**
+  String get generateFeedback;
+
+  /// No description provided for @couldNotRegenerateFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not regenerate feedback'**
+  String get couldNotRegenerateFeedback;
+
+  /// No description provided for @couldNotGenerateFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not generate feedback'**
+  String get couldNotGenerateFeedback;
+
+  /// No description provided for @strengths.
+  ///
+  /// In en, this message translates to:
+  /// **'Strengths'**
+  String get strengths;
+
+  /// No description provided for @fillerWordsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Filler Words'**
+  String get fillerWordsLabel;
+
+  /// No description provided for @objectionsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Objections'**
+  String get objectionsLabel;
+
+  /// No description provided for @detectedFillerWords.
+  ///
+  /// In en, this message translates to:
+  /// **'Detected filler words'**
+  String get detectedFillerWords;
+
+  /// No description provided for @objectionWordsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Objection words'**
+  String get objectionWordsLabel;
+
+  /// No description provided for @objectionsReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Objections received'**
+  String get objectionsReceived;
+
+  /// No description provided for @objectionsMade.
+  ///
+  /// In en, this message translates to:
+  /// **'Objections made'**
+  String get objectionsMade;
+
+  /// No description provided for @communicationMetrics.
+  ///
+  /// In en, this message translates to:
+  /// **'Communication Metrics'**
+  String get communicationMetrics;
+
+  /// No description provided for @butCounter.
+  ///
+  /// In en, this message translates to:
+  /// **'\"But\"'**
+  String get butCounter;
+
+  /// No description provided for @actionItemsCopiedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Action items copied to clipboard'**
+  String get actionItemsCopiedToClipboard;
+
+  /// No description provided for @deleteSelectedItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Selected Items'**
+  String get deleteSelectedItems;
+
+  /// No description provided for @deleteActionItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Action Item'**
+  String get deleteActionItem;
+
+  /// No description provided for @areYouSureDeleteActionItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete {count} selected action item{suffix}?'**
+  String areYouSureDeleteActionItems(int count, String suffix);
+
+  /// No description provided for @actionItemsDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} action item{suffix} deleted'**
+  String actionItemsDeleted(int count, String suffix);
+
+  /// No description provided for @failedToDeleteSomeItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete some items'**
+  String get failedToDeleteSomeItems;
+
+  /// No description provided for @failedToDeleteItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete items'**
+  String get failedToDeleteItems;
+
+  /// No description provided for @areYouSureDeleteActionItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this action item?'**
+  String get areYouSureDeleteActionItem;
+
+  /// No description provided for @actionItemDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Action item \"{description}\" deleted'**
+  String actionItemDeleted(String description);
+
+  /// No description provided for @failedToDeleteActionItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete action item'**
+  String get failedToDeleteActionItem;
+
+  /// No description provided for @actionItemMarkedIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Action item marked as incomplete'**
+  String get actionItemMarkedIncomplete;
+
+  /// No description provided for @actionItemCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Action item completed'**
+  String get actionItemCompleted;
+
+  /// No description provided for @nSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String nSelected(int count);
+
+  /// No description provided for @selectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get selectAll;
+
+  /// No description provided for @deleteSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete selected'**
+  String get deleteSelected;
+
+  /// No description provided for @toDos.
+  ///
+  /// In en, this message translates to:
+  /// **'To-Do\'s'**
+  String get toDos;
+
+  /// No description provided for @tapEditLongPressSwipe.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to edit • Long press to select • Swipe for actions'**
+  String get tapEditLongPressSwipe;
+
+  /// No description provided for @toDoTab.
+  ///
+  /// In en, this message translates to:
+  /// **'To Do'**
+  String get toDoTab;
+
+  /// No description provided for @doneTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get doneTab;
+
+  /// No description provided for @oldTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Old'**
+  String get oldTab;
+
+  /// No description provided for @allCaughtUp.
+  ///
+  /// In en, this message translates to:
+  /// **'🎉 All caught up!\nNo pending action items'**
+  String get allCaughtUp;
+
+  /// No description provided for @noCompletedItemsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No completed items yet'**
+  String get noCompletedItemsYet;
+
+  /// No description provided for @noOldTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ No old tasks'**
+  String get noOldTasks;
+
+  /// No description provided for @noItems.
+  ///
+  /// In en, this message translates to:
+  /// **'No items'**
+  String get noItems;
+
+  /// No description provided for @readyForActionItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready for Action Items'**
+  String get readyForActionItems;
+
+  /// No description provided for @aiExtractsTasksDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Your AI will automatically extract tasks and to-dos from your conversations. They\'ll appear here when created.'**
+  String get aiExtractsTasksDescription;
+
+  /// No description provided for @automaticallyExtracted.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically extracted from conversations'**
+  String get automaticallyExtracted;
+
+  /// No description provided for @tapToEditSwipe.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to edit, swipe to complete or delete'**
+  String get tapToEditSwipe;
+
+  /// No description provided for @filterByDateRanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter and organize by date ranges'**
+  String get filterByDateRanges;
+
+  /// No description provided for @actionItemDescriptionEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Action item description cannot be empty.'**
+  String get actionItemDescriptionEmpty;
+
+  /// No description provided for @actionItemUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Action item updated'**
+  String get actionItemUpdated;
+
+  /// No description provided for @failedToUpdateActionItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update action item'**
+  String get failedToUpdateActionItem;
+
+  /// No description provided for @actionItemCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Action item created'**
+  String get actionItemCreated;
+
+  /// No description provided for @failedToCreateActionItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to create action item'**
+  String get failedToCreateActionItem;
+
+  /// No description provided for @completed.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get completed;
+
+  /// No description provided for @markComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark complete'**
+  String get markComplete;
+
+  /// No description provided for @whatNeedsToBeDone.
+  ///
+  /// In en, this message translates to:
+  /// **'What needs to be done?'**
+  String get whatNeedsToBeDone;
+
+  /// No description provided for @addDueDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Add due date'**
+  String get addDueDate;
+
+  /// No description provided for @pressDoneToSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Press done to save'**
+  String get pressDoneToSave;
+
+  /// No description provided for @pressDoneToCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Press done to create'**
+  String get pressDoneToCreate;
+
+  /// No description provided for @contentCopiedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Content copied to clipboard'**
+  String get contentCopiedToClipboard;
+
+  /// No description provided for @transcriptCopiedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcript copied to clipboard'**
+  String get transcriptCopiedToClipboard;
+
+  /// No description provided for @errorProcessingConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Error while processing conversation. Please try again later.'**
+  String get errorProcessingConversation;
+
+  /// No description provided for @copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copy;
+
+  /// No description provided for @selectText.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Text'**
+  String get selectText;
+
+  /// No description provided for @share.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get share;
+
+  /// No description provided for @notHelpful.
+  ///
+  /// In en, this message translates to:
+  /// **'Not Helpful'**
+  String get notHelpful;
+
+  /// No description provided for @report.
+  ///
+  /// In en, this message translates to:
+  /// **'Report'**
+  String get report;
+
+  /// No description provided for @noPendingActionItems.
+  ///
+  /// In en, this message translates to:
+  /// **'No pending action items'**
+  String get noPendingActionItems;
+
+  /// No description provided for @noCompletedItemsYetDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'No completed items yet'**
+  String get noCompletedItemsYetDetail;
+
+  /// No description provided for @toDo.
+  ///
+  /// In en, this message translates to:
+  /// **'To-Do'**
+  String get toDo;
+
+  /// No description provided for @noActionItemsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No Action Items'**
+  String get noActionItemsTitle;
+
+  /// No description provided for @noActionItemsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks and to-dos from this conversation will appear here once they are created.'**
+  String get noActionItemsDescription;
+
+  /// No description provided for @deleteConversationConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this conversation? This action cannot be undone.'**
+  String get deleteConversationConfirmation;
+
+  /// No description provided for @checkInternetAndRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Please check your internet connection and try again.'**
+  String get checkInternetAndRetry;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
