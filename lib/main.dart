@@ -51,6 +51,7 @@ import 'package:omi/utils/platform/platform_manager.dart';
 import 'package:omi/utils/platform/platform_service.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/models/stt_provider.dart';
+import 'package:omi/pages/onboarding/find_device/page.dart';
 import 'package:opus_dart/opus_dart.dart';
 import 'package:opus_flutter/opus_flutter.dart' as opus_flutter;
 import 'package:provider/provider.dart';
@@ -192,7 +193,58 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       });
     }
 
+    // Listen for foreground notification button actions
+    _initForegroundTaskListener();
+
     super.initState();
+  }
+
+  void _initForegroundTaskListener() {
+    FlutterForegroundTask.addTaskDataCallback(_onReceiveTaskData);
+  }
+
+  void _onReceiveTaskData(Object data) {
+    debugPrint('[Foreground] Received data from task: $data');
+    if (data is Map && data['action'] != null) {
+      final action = data['action'];
+      _handleNotificationAction(action);
+    }
+  }
+
+  void _handleNotificationAction(String action) {
+    debugPrint('[Foreground] Handling notification action: $action');
+    final context = MyApp.navigatorKey.currentContext;
+    if (context == null) {
+      debugPrint('[Foreground] Navigator context is null, cannot navigate');
+      return;
+    }
+
+    if (action == 'connect_device' || action == 'use_phone_mic') {
+      // Navigate to FindDevicesPage where user can connect device or use phone mic
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => Scaffold(
+            backgroundColor: Colors.black,
+            appBar: AppBar(
+              backgroundColor: Colors.black,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+            body: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: FindDevicesPage(
+                goNext: () => Navigator.of(context).pop(),
+                includeSkip: true,
+                isFromOnboarding: false,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _autoStartMacOSRecording() async {
