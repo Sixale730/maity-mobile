@@ -528,6 +528,8 @@ async def send_message(
                 return
 
             # With user_id: Use function calling loop (max 5 iterations)
+            full_response = ""
+
             for iteration in range(5):
                 response = await client.chat.completions.create(
                     model="gpt-4o-mini",
@@ -539,7 +541,21 @@ async def send_message(
 
                 assistant_message = response.choices[0].message
 
-                # Add assistant message to conversation
+                # If no tool calls, we have the final response - stream it directly
+                if not assistant_message.tool_calls:
+                    # Stream the response content character by character (in chunks)
+                    content = assistant_message.content or ""
+                    full_response = content
+
+                    # Send in small chunks to simulate streaming
+                    chunk_size = 10
+                    for i in range(0, len(content), chunk_size):
+                        chunk = content[i:i+chunk_size]
+                        yield f"data: {chunk.replace(chr(10), '__CRLF__')}\n\n"
+
+                    break
+
+                # Add assistant message to conversation (with tool calls)
                 messages.append({
                     "role": "assistant",
                     "content": assistant_message.content,
@@ -552,13 +568,9 @@ async def send_message(
                                 "arguments": tc.function.arguments,
                             }
                         }
-                        for tc in (assistant_message.tool_calls or [])
-                    ] if assistant_message.tool_calls else None,
+                        for tc in assistant_message.tool_calls
+                    ],
                 })
-
-                # If no tool calls, we have the final response
-                if not assistant_message.tool_calls:
-                    break
 
                 # Execute each tool call
                 for tool_call in assistant_message.tool_calls:
@@ -585,19 +597,23 @@ async def send_message(
                         "content": result,
                     })
 
-            # Stream the final response
-            final_response = await client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=messages,
-                stream=True,
-            )
+            # If loop exhausted without final response (edge case), make one more call
+            # with tools included but tool_choice="none" to maintain context
+            if not full_response:
+                print("[Messages] Loop exhausted, making final call with tool_choice=none")
+                final_response = await client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=messages,
+                    tools=TOOLS,  # Include tools to maintain context
+                    tool_choice="none",  # Force response without tool calls
+                    stream=True,
+                )
 
-            full_response = ""
-            async for chunk in final_response:
-                if chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    full_response += content
-                    yield f"data: {content.replace(chr(10), '__CRLF__')}\n\n"
+                async for chunk in final_response:
+                    if chunk.choices[0].delta.content:
+                        content = chunk.choices[0].delta.content
+                        full_response += content
+                        yield f"data: {content.replace(chr(10), '__CRLF__')}\n\n"
 
             # Send done with base64 encoded message object
             message_obj = {

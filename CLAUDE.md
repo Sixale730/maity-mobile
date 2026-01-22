@@ -597,6 +597,38 @@ El chat agent usa un system prompt detallado que incluye:
 - Reglas de respuesta (español, conciso, formato claro)
 - Fecha actual para consultas relativas
 
+### Flujo del Function Calling Loop
+
+El endpoint `/v2/messages` implementa un loop de function calling correcto:
+
+```python
+# Flujo correcto (mantiene contexto de tools)
+for iteration in range(5):
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=messages,
+        tools=TOOLS,           # ← SIEMPRE incluye tools
+        tool_choice="auto",
+    )
+
+    if not assistant_message.tool_calls:
+        # Streaming directo del contenido (no llamada extra)
+        for chunk in content:
+            yield chunk
+        break
+
+    # Ejecutar tools y agregar resultados a messages...
+
+# Si loop se agota sin respuesta (edge case):
+# Llamada con tools=TOOLS + tool_choice="none" (mantiene contexto)
+```
+
+**Importante**: NO hacer llamada extra sin tools después del loop.
+Una llamada sin `tools=TOOLS` pierde el contexto de las herramientas ejecutadas
+y resulta en respuestas genéricas.
+
+**Ubicación**: `api/routers/messages.py:530-616`
+
 ### Patrón de Respuesta Estandarizado
 
 Todas las funciones de `supabase_client.py` usadas por el chat agent retornan un formato estandarizado:
