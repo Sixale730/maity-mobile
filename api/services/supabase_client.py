@@ -305,6 +305,39 @@ async def get_conversation_with_segments(
     }
 
 
+async def update_conversation_starred(
+    user_id: str,
+    conversation_id: str,
+    starred: bool,
+) -> bool:
+    """
+    Update the starred status of a conversation.
+
+    Args:
+        user_id: UUID de maity.users (for authorization)
+        conversation_id: UUID of the conversation
+        starred: New starred status
+
+    Returns:
+        True if conversation was found and updated, False otherwise
+    """
+    supabase = get_supabase()
+
+    try:
+        result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .update({"starred": starred})
+            .eq("id", conversation_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return len(result.data) > 0 if result.data else False
+    except Exception as e:
+        print(f"[Supabase Client] Failed to update starred status: {e}")
+        return False
+
+
 async def delete_conversation(user_id: str, conversation_id: str) -> bool:
     """
     Soft delete a conversation (set deleted=True).

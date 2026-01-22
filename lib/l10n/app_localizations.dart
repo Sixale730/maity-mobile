@@ -1730,6 +1730,30 @@ abstract class AppLocalizations {
   /// **'Search results'**
   String get searchResults;
 
+  /// No description provided for @starred.
+  ///
+  /// In en, this message translates to:
+  /// **'Starred'**
+  String get starred;
+
+  /// No description provided for @starConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Star conversation'**
+  String get starConversation;
+
+  /// No description provided for @unstarConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Unstar conversation'**
+  String get unstarConversation;
+
+  /// No description provided for @favorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite'**
+  String get favorite;
+
   /// No description provided for @categoryPersonal.
   ///
   /// In en, this message translates to:

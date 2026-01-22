@@ -408,6 +408,33 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Star button - toggle favorite status
+                      Container(
+                        width: 36,
+                        height: 36,
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: () async {
+                            HapticFeedback.mediumImpact();
+                            final conversationProvider = context.read<ConversationProvider>();
+                            await conversationProvider.toggleConversationStarred(provider.conversation);
+                            // Update the local provider to reflect the change
+                            setState(() {});
+                          },
+                          icon: FaIcon(
+                            provider.conversation.starred
+                                ? FontAwesomeIcons.solidStar
+                                : FontAwesomeIcons.star,
+                            size: 16.0,
+                            color: provider.conversation.starred ? Colors.amber : Colors.white,
+                          ),
+                        ),
+                      ),
                       // Search button - only show on transcript and summary tabs
                       if (_controller?.index != 2)
                         Container(

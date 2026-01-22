@@ -227,6 +227,7 @@ class ServerConversation {
   bool discarded;
   final bool deleted;
   final bool isLocked;
+  bool starred;
 
   // local label
   bool isNew = false;
@@ -249,6 +250,7 @@ class ServerConversation {
     this.externalIntegration,
     this.status = ConversationStatus.completed,
     this.isLocked = false,
+    this.starred = false,
   });
 
   factory ServerConversation.fromJson(Map<String, dynamic> json) {
@@ -279,6 +281,7 @@ class ServerConversation {
           ? ConversationStatus.values.asNameMap()[json['status']] ?? ConversationStatus.completed
           : ConversationStatus.completed,
       isLocked: json['is_locked'] ?? false,
+      starred: json['starred'] ?? false,
     );
   }
 
@@ -301,6 +304,7 @@ class ServerConversation {
       'external_data': externalIntegration?.toJson(),
       'status': status.toString().split('.').last,
       'is_locked': isLocked,
+      'starred': starred,
     };
   }
 

@@ -876,6 +876,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchResults => 'Search results';
 
   @override
+  String get starred => 'Starred';
+
+  @override
+  String get starConversation => 'Star conversation';
+
+  @override
+  String get unstarConversation => 'Unstar conversation';
+
+  @override
+  String get favorite => 'Favorite';
+
+  @override
   String get categoryPersonal => 'Personal';
 
   @override

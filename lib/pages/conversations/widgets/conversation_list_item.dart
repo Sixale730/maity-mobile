@@ -3,10 +3,10 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/backend/schema/conversation.dart';
-import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/pages/conversation_detail/conversation_detail_provider.dart';
 import 'package:omi/pages/conversation_detail/page.dart';
 import 'package:omi/pages/settings/usage_page.dart';
@@ -113,15 +113,15 @@ class _ConversationListItemState extends State<ConversationListItem> {
         },
         child: Padding(
           padding:
-              EdgeInsets.only(top: 12, left: widget.isFromOnboarding ? 0 : 16, right: widget.isFromOnboarding ? 0 : 16),
+              EdgeInsets.only(top: 8, left: widget.isFromOnboarding ? 0 : 16, right: widget.isFromOnboarding ? 0 : 16),
           child: Container(
             width: double.maxFinite,
             decoration: BoxDecoration(
               color: const Color(0xFF1F1F25),
-              borderRadius: BorderRadius.circular(24.0),
+              borderRadius: BorderRadius.circular(16.0),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(24.0),
+              borderRadius: BorderRadius.circular(16.0),
               child: Dismissible(
                 key: UniqueKey(),
                 direction: DismissDirection.endToStart,
@@ -165,16 +165,8 @@ class _ConversationListItemState extends State<ConversationListItem> {
                   provider.deleteConversationLocally(conversation, conversationIdx, widget.date);
                 },
                 child: Padding(
-                  padding: const EdgeInsetsDirectional.all(16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _getConversationHeader(),
-                      const SizedBox(height: 16),
-                      _buildConversationBody(context),
-                    ],
-                  ),
+                  padding: const EdgeInsetsDirectional.all(12),
+                  child: _buildOmiStyleLayout(context),
                 ),
               ),
             ),
@@ -184,63 +176,108 @@ class _ConversationListItemState extends State<ConversationListItem> {
     });
   }
 
-  Widget _buildConversationBody(BuildContext context) {
-    if (widget.conversation.discarded) {
-      return Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (widget.conversation.photos.isNotEmpty) ...[
-                Row(children: [
-                  Icon(
-                    Icons.photo_library,
-                    color: Colors.grey.shade400,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    "${widget.conversation.photos.length} photos",
-                    style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.grey.shade300, height: 1.3),
-                  )
-                ]),
-                const SizedBox(height: 4),
-              ],
-              Text(
-                widget.conversation.getTranscript(maxCount: 100),
-                style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.grey.shade300, height: 1.3),
-              ),
-            ],
-          ),
-          if (widget.conversation.isLocked) _buildLockedOverlay(),
-        ],
-      );
-    }
-
+  Widget _buildOmiStyleLayout(BuildContext context) {
     final structured = widget.conversation.structured;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final emoji = structured.getEmoji();
+    final title = widget.conversation.discarded
+        ? widget.conversation.getTranscript(maxCount: 100)
+        : structured.title.decodeString;
+
+    return Stack(
       children: [
-        Text(
-          structured.title.decodeString,
-          style: Theme.of(context).textTheme.titleLarge,
-          maxLines: 1,
-        ),
-        const SizedBox(height: 8),
-        Stack(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              structured.overview.decodeString,
-              style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.grey.shade300, height: 1.3),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            // Emoji container 40x40
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFF35343B),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: widget.conversation.discarded
+                  ? const Icon(Icons.delete_outline, color: Colors.grey, size: 20)
+                  : Text(
+                      emoji,
+                      style: const TextStyle(fontSize: 20),
+                    ),
             ),
-            if (widget.conversation.isLocked) _buildLockedOverlay(),
+            const SizedBox(width: 12),
+            // Title + Time row
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title (max 2 lines)
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                          height: 1.3,
+                        ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  // Time + Duration + Star row
+                  Row(
+                    children: [
+                      // Time + Duration
+                      Expanded(
+                        child: isNew
+                            ? ConversationNewStatusIndicator(text: AppLocalizations.of(context)!.newBadge)
+                            : Text(
+                                _getTimeAndDuration(),
+                                style: const TextStyle(
+                                  color: Color(0xFF9A9BA1),
+                                  fontSize: 13,
+                                ),
+                              ),
+                      ),
+                      // Star icon (only if starred)
+                      if (widget.conversation.starred)
+                        const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: FaIcon(
+                            FontAwesomeIcons.solidStar,
+                            size: 12,
+                            color: Colors.amber,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 8),
+        // Locked overlay
+        if (widget.conversation.isLocked) _buildLockedOverlay(),
       ],
     );
+  }
+
+  String _getTimeAndDuration() {
+    final time = dateTimeFormat(
+      'h:mm a',
+      widget.conversation.startedAt ?? widget.conversation.createdAt,
+    );
+
+    final durationStr = _getConversationDuration();
+    if (durationStr.isNotEmpty) {
+      return '$time • $durationStr';
+    }
+    return time;
+  }
+
+  String _getConversationDuration() {
+    int durationSeconds = widget.conversation.getDurationInSeconds();
+    if (durationSeconds <= 0) return '';
+
+    return secondsToCompactDuration(durationSeconds);
   }
 
   Widget _buildLockedOverlay() {
@@ -267,97 +304,6 @@ class _ConversationListItemState extends State<ConversationListItem> {
         ),
       ),
     );
-  }
-
-  _getConversationHeader() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4.0, right: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // 🧠 Emoji + Tag
-          Flexible(
-            fit: FlexFit.tight,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!widget.conversation.discarded)
-                  Text(
-                    widget.conversation.structured.getEmoji(),
-                    style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w500),
-                  ),
-                if (widget.conversation.structured.category.isNotEmpty && !widget.conversation.discarded)
-                  const SizedBox(width: 8),
-                if (widget.conversation.structured.category.isNotEmpty)
-                  Flexible(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: widget.conversation.getTagColor(),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: Text(
-                        widget.conversation.getTag(context),
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium!
-                            .copyWith(color: widget.conversation.getTagTextColor()),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // 🕒 Timestamp + Duration or New
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: isNew
-                ? ConversationNewStatusIndicator(text: AppLocalizations.of(context)!.newBadge)
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        dateTimeFormat(
-                          'h:mm a',
-                          widget.conversation.startedAt ?? widget.conversation.createdAt,
-                        ),
-                        style: const TextStyle(color: Color(0xFF6A6B71), fontSize: 14),
-                        maxLines: 1,
-                      ),
-                      if (_getConversationDuration().isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF35343B),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              _getConversationDuration(),
-                              style: const TextStyle(color: Colors.white, fontSize: 11),
-                              maxLines: 1,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getConversationDuration() {
-    int durationSeconds = widget.conversation.getDurationInSeconds();
-    if (durationSeconds <= 0) return '';
-
-    return secondsToCompactDuration(durationSeconds);
   }
 }
 
@@ -395,7 +341,13 @@ class _ConversationNewStatusIndicatorState extends State<ConversationNewStatusIn
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: _opacityAnim,
-      child: Text(widget.text),
+      child: Text(
+        widget.text,
+        style: const TextStyle(
+          color: Color(0xFF9A9BA1),
+          fontSize: 13,
+        ),
+      ),
     );
   }
 }

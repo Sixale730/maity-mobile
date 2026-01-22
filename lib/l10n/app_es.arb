@@ -316,6 +316,11 @@
   "searchingConversations": "Buscando en tus conversaciones",
   "searchResults": "Resultados de búsqueda",
 
+  "starred": "Favoritos",
+  "starConversation": "Marcar como favorito",
+  "unstarConversation": "Quitar de favoritos",
+  "favorite": "Favorito",
+
   "categoryPersonal": "Personal",
   "categoryEducation": "Educación",
   "categoryHealth": "Salud",

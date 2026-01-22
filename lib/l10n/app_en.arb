@@ -422,6 +422,11 @@
   "searchingConversations": "Searching your conversations",
   "searchResults": "Search results",
 
+  "starred": "Starred",
+  "starConversation": "Star conversation",
+  "unstarConversation": "Unstar conversation",
+  "favorite": "Favorite",
+
   "categoryPersonal": "Personal",
   "categoryEducation": "Education",
   "categoryHealth": "Health",

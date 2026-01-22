@@ -879,6 +879,18 @@ class AppLocalizationsEs extends AppLocalizations {
   String get searchResults => 'Resultados de búsqueda';
 
   @override
+  String get starred => 'Favoritos';
+
+  @override
+  String get starConversation => 'Marcar como favorito';
+
+  @override
+  String get unstarConversation => 'Quitar de favoritos';
+
+  @override
+  String get favorite => 'Favorito';
+
+  @override
   String get categoryPersonal => 'Personal';
 
   @override

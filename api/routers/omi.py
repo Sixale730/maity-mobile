@@ -13,6 +13,7 @@ from ..services.supabase_client import (
     get_conversations,
     get_conversation_with_segments,
     update_conversation_feedback,
+    update_conversation_starred,
     delete_conversation,
 )
 from ..services.embeddings import generate_embedding, generate_embeddings_batch
@@ -367,3 +368,37 @@ async def delete_conversation_endpoint(
     except Exception as e:
         print(f"[OMI Router] Delete conversation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete conversation: {str(e)}")
+
+
+@router.patch("/conversations/{conversation_id}/starred")
+async def set_conversation_starred(
+    conversation_id: str,
+    starred: bool = Query(..., description="New starred status"),
+    user_id: str = Query(..., description="User ID (maity.users UUID)"),
+    auth_user_id: Optional[str] = Depends(optional_auth_user_id),
+):
+    """
+    Set the starred (favorite) status of a conversation.
+
+    Args:
+        conversation_id: UUID of the conversation
+        starred: True to mark as favorite, False to unmark
+        user_id: UUID de maity.users (for authorization)
+    """
+    try:
+        success = await update_conversation_starred(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            starred=starred,
+        )
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        return {"success": True, "starred": starred}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[OMI Router] Set conversation starred failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update starred status: {str(e)}")

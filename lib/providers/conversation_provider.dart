@@ -6,6 +6,7 @@ import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/services/local_conversations_service.dart';
+import 'package:omi/services/maity_api_service.dart';
 import 'package:omi/services/omi_supabase_service.dart';
 import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
@@ -656,6 +657,35 @@ class ConversationProvider extends ChangeNotifier {
     conversations.sort((a, b) => (b.startedAt ?? b.createdAt).compareTo(a.startedAt ?? a.createdAt));
     _groupConversationsByDateWithoutNotify();
     notifyListeners();
+  }
+
+  /// Toggle the starred (favorite) status of a conversation
+  Future<void> toggleConversationStarred(ServerConversation conversation) async {
+    final newState = !conversation.starred;
+    final userId = SharedPreferencesUtil().maityUserId;
+
+    if (userId.isEmpty) {
+      debugPrint('[ConversationProvider] No user ID for starring conversation');
+      return;
+    }
+
+    // Optimistically update UI
+    conversation.starred = newState;
+    updateConversationInSortedList(conversation);
+
+    // Update on server
+    final success = await MaityApiService.setConversationStarred(
+      conversation.id,
+      userId,
+      newState,
+    );
+
+    if (!success) {
+      // Revert on failure
+      conversation.starred = !newState;
+      updateConversationInSortedList(conversation);
+      debugPrint('[ConversationProvider] Failed to update starred status');
+    }
   }
 
   // _handleCalendarCreation(ServerMemory memory) {

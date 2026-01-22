@@ -206,6 +206,34 @@ class MaityApiService {
       return false;
     }
   }
+
+  /// Set the starred (favorite) status of a conversation
+  static Future<bool> setConversationStarred(
+    String conversationId,
+    String userId,
+    bool starred,
+  ) async {
+    try {
+      final authHeader = await getAuthHeader();
+      final response = await http
+          .patch(
+            Uri.parse('$_baseUrl/v1/omi/conversations/$conversationId/starred?starred=$starred&user_id=$userId'),
+            headers: {'Authorization': authHeader},
+          )
+          .timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        debugPrint('[MaityApiService] Successfully set starred=$starred for conversation $conversationId');
+        return true;
+      } else {
+        debugPrint('[MaityApiService] Set starred error: ${response.statusCode} - ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[MaityApiService] Error setting starred: $e');
+      return false;
+    }
+  }
 }
 
 /// Response from processing a conversation
