@@ -1,4 +1,5 @@
 /// Models for communication feedback analysis
+library;
 
 /// Observations about different aspects of communication
 class CommunicationObservations {

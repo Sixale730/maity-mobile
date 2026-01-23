@@ -191,11 +191,12 @@ class _MemoryDialogState extends State<MemoryDialog> {
           MixpanelManager().memoriesPageEditedMemory();
         }
       } else {
-        success = await widget.provider.createMemory(
+        final memory = await widget.provider.createMemory(
           contentController.text,
           MemoryVisibility.private,
           MemoryCategory.manual,
         );
+        success = memory != null;
         if (success) {
           MixpanelManager().memoriesPageCreatedMemory(MemoryCategory.manual);
         }

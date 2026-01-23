@@ -578,7 +578,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                             height: 80,
                                             decoration: BoxDecoration(
                                               shape: BoxShape.circle,
-                                              color: isRecording ? Colors.red : Colors.deepPurple,
+                                              color: isRecording ? Colors.red : const Color(0xFF485DF4),
                                               border: Border.all(
                                                 color: Colors.black,
                                                 width: 5,
@@ -710,11 +710,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                     borderRadius: BorderRadius.circular(18),
                     gradient: LinearGradient(
                       colors: [
-                        Colors.deepPurpleAccent.withValues(alpha: 0.3),
-                        Colors.purpleAccent.withValues(alpha: 0.2),
-                        Colors.deepPurpleAccent.withValues(alpha: 0.3),
-                        Colors.purpleAccent.withValues(alpha: 0.2),
-                        Colors.deepPurpleAccent.withValues(alpha: 0.3),
+                        const Color(0xFF485DF4).withValues(alpha: 0.3),
+                        const Color(0xFF6B7BF7).withValues(alpha: 0.2),
+                        const Color(0xFF485DF4).withValues(alpha: 0.3),
+                        const Color(0xFF6B7BF7).withValues(alpha: 0.2),
+                        const Color(0xFF485DF4).withValues(alpha: 0.3),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -724,10 +724,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                     margin: const EdgeInsets.all(0.5),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.deepPurpleAccent.withValues(alpha: 0.3),
+                      color: const Color(0xFF485DF4).withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(17.5),
                       border: Border.all(
-                        color: Colors.pink.withValues(alpha: 0.3),
+                        color: const Color(0xFF485DF4).withValues(alpha: 0.3),
                         width: 0.5,
                       ),
                     ),

@@ -570,7 +570,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
       ),
       child: Text(
         _formatToolName(tool.name),
-        style: TextStyle(
+        style: const TextStyle(
           color: color,
           fontSize: 13,
           fontWeight: FontWeight.w500,

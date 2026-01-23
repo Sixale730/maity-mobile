@@ -292,7 +292,8 @@ class _DesktopMemoryDialogState extends State<DesktopMemoryDialog> {
         }
       } else {
         // Create new memory
-        success = await widget.provider.createMemory(content, _selectedVisibility, _selectedCategory);
+        final result = await widget.provider.createMemory(content, _selectedVisibility, _selectedCategory);
+        success = result != null;
         if (success) {
           MixpanelManager().memoriesPageCreatedMemory(_selectedCategory);
         }

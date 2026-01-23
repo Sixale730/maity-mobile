@@ -48,7 +48,7 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
   bool isScrollingDown = false;
 
   bool _showVoiceRecorder = false;
-  bool _isInitialLoad = true;
+  final bool _isInitialLoad = true;
 
   var prefs = SharedPreferencesUtil();
   late List<App> apps;

@@ -80,7 +80,12 @@ class AppReviewService {
   }
 
   // Shows the review prompt if conditions are met
+  // TODO: Temporarily disabled - uncomment to re-enable the "Loving Omi?" modal
   Future<bool> showReviewPromptIfNeeded(BuildContext context, {bool isProcessingFirstConversation = false}) async {
+    // Disabled: never show the review prompt
+    return false;
+
+    /*
     final hasCompleted = await hasCompletedFirstActionItem();
     final isFirst = await isFirstConversation();
 
@@ -107,6 +112,7 @@ class AppReviewService {
       return true;
     }
     return false;
+    */
   }
 
   // Shows a dialog asking the user to review the app

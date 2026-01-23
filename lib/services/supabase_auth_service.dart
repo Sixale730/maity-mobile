@@ -118,7 +118,7 @@ class SupabaseAuthService {
     if (expiresAt != null) {
       final expiryTime = DateTime.fromMillisecondsSinceEpoch(expiresAt * 1000);
       final now = DateTime.now();
-      final buffer = const Duration(minutes: 5);
+      const buffer = Duration(minutes: 5);
 
       if (expiryTime.isBefore(now.add(buffer))) {
         debugPrint('[SupabaseAuth] Token por expirar, renovando...');
@@ -264,8 +264,8 @@ class SupabaseAuthService {
   Future<bool> restoreSession() async {
     try {
       final session = _supabase.auth.currentSession;
-      if (session != null && session.user != null) {
-        debugPrint('[SupabaseAuth] Sesión restaurada: ${session.user!.email}');
+      if (session != null) {
+        debugPrint('[SupabaseAuth] Sesión restaurada: ${session.user.email}');
         await _updateLocalPreferences(AuthResponse(session: session, user: session.user));
         await _fetchMaityUserId();
         return true;
