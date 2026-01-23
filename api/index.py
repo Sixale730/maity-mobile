@@ -192,5 +192,142 @@ async def privacy_policy():
 """
 
 
+@app.get("/delete-account", response_class=HTMLResponse)
+async def delete_account():
+    """Account deletion request page for Google Play Store"""
+    return """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eliminar Cuenta - Maity</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f9f9f9;
+        }
+        h1 { color: #485DF4; margin-bottom: 10px; }
+        h2 { color: #333; margin: 25px 0 15px; }
+        p { margin-bottom: 15px; }
+        ul { margin: 10px 0 20px 20px; }
+        li { margin-bottom: 8px; }
+        .logo { font-size: 48px; margin-bottom: 10px; }
+        .warning { background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .warning-title { color: #856404; font-weight: bold; margin-bottom: 5px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        textarea { resize: vertical; min-height: 100px; }
+        button {
+            background: #dc3545;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover { background: #c82333; }
+        .contact { background: #485DF4; color: white; padding: 20px; border-radius: 8px; margin-top: 30px; }
+        .contact a { color: white; }
+        .success { display: none; background: #d4edda; border: 1px solid #28a745; padding: 20px; border-radius: 8px; text-align: center; }
+        .success h2 { color: #155724; }
+    </style>
+</head>
+<body>
+    <div class="logo">🎙️</div>
+    <h1>Solicitar Eliminación de Cuenta</h1>
+    <p>Usa este formulario para solicitar la eliminación de tu cuenta de Maity y todos los datos asociados.</p>
+
+    <div class="warning">
+        <div class="warning-title">⚠️ Importante</div>
+        <p>Al eliminar tu cuenta, se borrarán permanentemente:</p>
+        <ul>
+            <li>Tu perfil y datos de cuenta</li>
+            <li>Todas tus conversaciones y transcripciones</li>
+            <li>Tus memorias y action items</li>
+            <li>Tu perfil de voz (si lo creaste)</li>
+            <li>Historial de uso y métricas</li>
+        </ul>
+        <p><strong>Esta acción no se puede deshacer.</strong></p>
+    </div>
+
+    <div id="form-container">
+        <h2>Formulario de Solicitud</h2>
+
+        <form id="deleteForm">
+            <div class="form-group">
+                <label for="email">Correo electrónico de tu cuenta *</label>
+                <input type="email" id="email" name="email" required placeholder="tu@email.com">
+            </div>
+
+            <div class="form-group">
+                <label for="reason">Motivo de eliminación (opcional)</label>
+                <textarea id="reason" name="reason" placeholder="Cuéntanos por qué deseas eliminar tu cuenta..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="confirm" required>
+                    Entiendo que esta acción es permanente y todos mis datos serán eliminados.
+                </label>
+            </div>
+
+            <button type="submit">Solicitar Eliminación de Cuenta</button>
+        </form>
+    </div>
+
+    <div id="success" class="success">
+        <h2>✅ Solicitud Enviada</h2>
+        <p>Hemos recibido tu solicitud de eliminación de cuenta.</p>
+        <p>Procesaremos tu solicitud en un plazo de <strong>7 días hábiles</strong>.</p>
+        <p>Recibirás un correo de confirmación cuando se complete.</p>
+    </div>
+
+    <div class="contact">
+        <p>¿Tienes preguntas? Contáctanos directamente:</p>
+        <p><strong>Email:</strong> <a href="mailto:julio.gonzalez@maity.com.mx">julio.gonzalez@maity.com.mx</a></p>
+    </div>
+
+    <script>
+        document.getElementById('deleteForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const reason = document.getElementById('reason').value;
+
+            // Send email request
+            const subject = encodeURIComponent('Solicitud de eliminación de cuenta - Maity');
+            const body = encodeURIComponent(
+                'Solicitud de eliminación de cuenta\\n\\n' +
+                'Email: ' + email + '\\n' +
+                'Motivo: ' + (reason || 'No especificado') + '\\n\\n' +
+                'Por favor eliminar mi cuenta y todos los datos asociados.'
+            );
+
+            window.location.href = 'mailto:julio.gonzalez@maity.com.mx?subject=' + subject + '&body=' + body;
+
+            document.getElementById('form-container').style.display = 'none';
+            document.getElementById('success').style.display = 'block';
+        });
+    </script>
+</body>
+</html>
+"""
+
+
 # Vercel requires the app to be exposed at module level
 # The handler is automatically picked up by Vercel
