@@ -16,6 +16,9 @@
 *.jks
 key.properties
 
+# Private documentation (contains credentials)
+docs/ANDROID_RELEASE_SETUP.md
+
 # Firebase config (may contain sensitive project info)
 # Uncomment if these contain sensitive data you don't want public
 # google-services.json
