@@ -22,6 +22,10 @@ class ConversationProvider extends ChangeNotifier {
   bool showShortConversations = true; // show all conversations by default
   DateTime? selectedDate;
 
+  // Category filter state
+  String? selectedCategory; // null = All categories
+  bool showStarredOnly = false;
+
   String previousQuery = '';
   int totalSearchPages = 1;
   int currentSearchPage = 1;
@@ -402,6 +406,20 @@ class ConversationProvider extends ChangeNotifier {
           return false;
         }
       }
+
+      // Apply starred filter
+      if (showStarredOnly && !convo.starred) {
+        return false;
+      }
+
+      // Apply category filter
+      if (selectedCategory != null) {
+        final convoCategory = convo.structured.category.toLowerCase();
+        if (convoCategory != selectedCategory!.toLowerCase()) {
+          return false;
+        }
+      }
+
       return true;
     }).toList();
   }
@@ -432,6 +450,37 @@ class ConversationProvider extends ChangeNotifier {
     searchedConversations = [];
 
     // Re-apply grouping without date filter
+    groupConversationsByDate();
+    notifyListeners();
+  }
+
+  /// Set category filter
+  void setCategoryFilter(String? category) {
+    selectedCategory = category;
+    // Clear starred filter when selecting a category
+    if (category != null) {
+      showStarredOnly = false;
+    }
+    groupConversationsByDate();
+    notifyListeners();
+  }
+
+  /// Toggle starred filter
+  void toggleStarredFilter() {
+    showStarredOnly = !showStarredOnly;
+    // Clear category filter when toggling starred
+    if (showStarredOnly) {
+      selectedCategory = null;
+    }
+    groupConversationsByDate();
+    notifyListeners();
+  }
+
+  /// Clear all filters (category, starred, date)
+  void clearAllFilters() {
+    selectedCategory = null;
+    showStarredOnly = false;
+    selectedDate = null;
     groupConversationsByDate();
     notifyListeners();
   }
@@ -662,9 +711,9 @@ class ConversationProvider extends ChangeNotifier {
   /// Toggle the starred (favorite) status of a conversation
   Future<void> toggleConversationStarred(ServerConversation conversation) async {
     final newState = !conversation.starred;
-    final userId = SharedPreferencesUtil().maityUserId;
+    final userId = SupabaseAuthService.instance.maityUserId;
 
-    if (userId.isEmpty) {
+    if (userId == null || userId.isEmpty) {
       debugPrint('[ConversationProvider] No user ID for starring conversation');
       return;
     }
@@ -676,7 +725,7 @@ class ConversationProvider extends ChangeNotifier {
     // Update on server
     final success = await MaityApiService.setConversationStarred(
       conversation.id,
-      userId,
+      userId,  // Now guaranteed non-null after the check above
       newState,
     );
 

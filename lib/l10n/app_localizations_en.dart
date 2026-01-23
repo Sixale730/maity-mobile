@@ -888,6 +888,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get favorite => 'Favorite';
 
   @override
+  String get filterAll => 'All';
+
+  @override
+  String get filterStarred => 'Starred';
+
+  @override
   String get categoryPersonal => 'Personal';
 
   @override

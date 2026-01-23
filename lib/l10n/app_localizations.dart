@@ -1754,6 +1754,18 @@ abstract class AppLocalizations {
   /// **'Favorite'**
   String get favorite;
 
+  /// No description provided for @filterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get filterAll;
+
+  /// No description provided for @filterStarred.
+  ///
+  /// In en, this message translates to:
+  /// **'Starred'**
+  String get filterStarred;
+
   /// No description provided for @categoryPersonal.
   ///
   /// In en, this message translates to:

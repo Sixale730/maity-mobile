@@ -5,6 +5,7 @@ import 'package:omi/pages/capture/widgets/widgets.dart';
 import 'package:omi/pages/conversation_detail/page.dart';
 import 'package:omi/pages/conversations/widgets/processing_capture.dart';
 import 'package:omi/pages/conversations/widgets/search_result_header_widget.dart';
+import 'package:omi/pages/conversations/widgets/category_filter_bar.dart';
 import 'package:omi/pages/conversations/widgets/search_widget.dart';
 import 'package:omi/pages/conversations/widgets/semantic_search_result_card.dart';
 import 'package:omi/providers/capture_provider.dart';
@@ -160,6 +161,8 @@ class _ConversationsPageState extends State<ConversationsPage> with AutomaticKee
             const SliverToBoxAdapter(child: ConversationCaptureWidget()),
             const SliverToBoxAdapter(child: SizedBox(height: 12)), // above search widget
             const SliverToBoxAdapter(child: SearchWidget()),
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            const SliverToBoxAdapter(child: CategoryFilterBar()),
             const SliverToBoxAdapter(child: SizedBox(height: 0)), //below search widget
             const SliverToBoxAdapter(child: SearchResultHeaderWidget()),
             getProcessingConversationsWidget(convoProvider.processingConversations),

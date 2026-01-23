@@ -891,6 +891,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get favorite => 'Favorito';
 
   @override
+  String get filterAll => 'Todos';
+
+  @override
+  String get filterStarred => 'Favoritos';
+
+  @override
   String get categoryPersonal => 'Personal';
 
   @override

@@ -427,6 +427,9 @@
   "unstarConversation": "Unstar conversation",
   "favorite": "Favorite",
 
+  "filterAll": "All",
+  "filterStarred": "Starred",
+
   "categoryPersonal": "Personal",
   "categoryEducation": "Education",
   "categoryHealth": "Health",

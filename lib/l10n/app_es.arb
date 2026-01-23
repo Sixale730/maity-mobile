@@ -321,6 +321,9 @@
   "unstarConversation": "Quitar de favoritos",
   "favorite": "Favorito",
 
+  "filterAll": "Todos",
+  "filterStarred": "Favoritos",
+
   "categoryPersonal": "Personal",
   "categoryEducation": "Educación",
   "categoryHealth": "Salud",
