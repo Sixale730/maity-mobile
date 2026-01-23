@@ -41,7 +41,7 @@ class OutOfCreditsWidget extends StatelessWidget {
                 },
                 child: const Text(
                   'Check Usage',
-                  style: TextStyle(color: Color(0xFFC4B5FD), fontWeight: FontWeight.bold, fontSize: 13),
+                  style: TextStyle(color: Color(0xFF8B9DF7), fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ),
             ],

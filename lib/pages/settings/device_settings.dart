@@ -304,7 +304,7 @@ class _DeviceSettingsState extends State<DeviceSettings> {
               Switch(
                 value: SharedPreferencesUtil().doubleTapPausesMuting,
                 activeThumbColor: Colors.white,
-                activeTrackColor: const Color(0xFF7C3AED),
+                activeTrackColor: const Color(0xFF485DF4),
                 inactiveThumbColor: Colors.grey.shade400,
                 inactiveTrackColor: Colors.grey.shade700,
                 onChanged: (bool value) {

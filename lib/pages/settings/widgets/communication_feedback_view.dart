@@ -26,7 +26,7 @@ class CommunicationFeedbackView extends StatelessWidget {
 
     if (isLoading && feedback == null) {
       return const Center(
-        child: CircularProgressIndicator(color: Colors.deepPurple),
+        child: CircularProgressIndicator(color: const Color(0xFF485DF4)),
       );
     }
 
@@ -48,7 +48,7 @@ class CommunicationFeedbackView extends StatelessWidget {
               ElevatedButton(
                 onPressed: onRefresh,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
+                  backgroundColor: const Color(0xFF485DF4),
                 ),
                 child: Text(l10n.retry),
               ),
@@ -64,7 +64,7 @@ class CommunicationFeedbackView extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: () async => onRefresh(),
-      color: Colors.deepPurple,
+      color: const Color(0xFF485DF4),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
         children: [
@@ -126,10 +126,10 @@ class CommunicationFeedbackView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.deepPurple.withValues(alpha: 0.2),
+        color: const Color(0xFF485DF4).withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.deepPurple.withValues(alpha: 0.3),
+          color: const Color(0xFF485DF4).withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -137,7 +137,7 @@ class CommunicationFeedbackView extends StatelessWidget {
         children: [
           const FaIcon(
             FontAwesomeIcons.chartBar,
-            color: Colors.deepPurple,
+            color: const Color(0xFF485DF4),
             size: 16,
           ),
           const SizedBox(width: 8),
@@ -374,7 +374,7 @@ class CommunicationFeedbackView extends StatelessWidget {
                 icon: FontAwesomeIcons.sitemap,
                 title: l10n.structure,
                 content: obs.structure,
-                color: Colors.purple,
+                color: const Color(0xFF485DF4),
               ),
 
             // Calls to Action

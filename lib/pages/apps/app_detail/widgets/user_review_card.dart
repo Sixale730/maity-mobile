@@ -35,7 +35,7 @@ class UserReviewCard extends StatelessWidget {
                 itemSize: 20,
                 tapOnlyMode: false,
                 itemPadding: const EdgeInsets.symmetric(horizontal: 0),
-                itemBuilder: (context, _) => const Icon(Icons.star, color: Colors.deepPurple),
+                itemBuilder: (context, _) => const Icon(Icons.star, color: Color(0xFF485DF4)),
                 maxRating: 5.0,
                 onRatingUpdate: (rating) {},
               ),

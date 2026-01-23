@@ -105,7 +105,7 @@ class _FirmwareUpdateDialogState extends State<FirmwareUpdateDialog> {
                         fillColor: WidgetStateProperty.resolveWith<Color>(
                           (Set<WidgetState> states) {
                             if (states.contains(WidgetState.selected)) {
-                              return Colors.deepPurple;
+                              return const Color(0xFF485DF4);
                             }
                             return Colors.grey.shade700;
                           },
@@ -158,7 +158,7 @@ class _FirmwareUpdateDialogState extends State<FirmwareUpdateDialog> {
                     : null,
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.white,
-                  backgroundColor: isConfirmed ? Colors.deepPurple : const Color(0xFF35343B),
+                  backgroundColor: isConfirmed ? const Color(0xFF485DF4) : const Color(0xFF35343B),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),

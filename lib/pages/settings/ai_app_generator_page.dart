@@ -299,7 +299,7 @@ class _AiAppGeneratorPageState extends State<AiAppGeneratorPage> {
                         child: Text(
                           provider.getCategoryDisplayName(),
                           style: const TextStyle(
-                            color: Color(0xFF8B5CF6),
+                            color: Color(0xFF485DF4),
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -926,14 +926,14 @@ class _AiAppGeneratorPageState extends State<AiAppGeneratorPage> {
                               children: [
                                 FaIcon(
                                   provider.makePublic ? FontAwesomeIcons.globe : FontAwesomeIcons.lock,
-                                  color: const Color(0xFF8B5CF6),
+                                  color: const Color(0xFF485DF4),
                                   size: 12,
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
                                   provider.makePublic ? 'Public' : 'Private',
                                   style: const TextStyle(
-                                    color: Color(0xFF8B5CF6),
+                                    color: Color(0xFF485DF4),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                   ),

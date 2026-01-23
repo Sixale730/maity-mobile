@@ -108,7 +108,7 @@ extension TaskIntegrationAppExtension on TaskIntegrationApp {
       case TaskIntegrationApp.googleTasks:
         return const Color(0xFF4285F4);
       case TaskIntegrationApp.clickup:
-        return const Color(0xFF7B68EE);
+        return const Color(0xFF485DF4);
       case TaskIntegrationApp.asana:
         return const Color(0xFFF06A6A);
       case TaskIntegrationApp.trello:

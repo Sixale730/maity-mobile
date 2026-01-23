@@ -18,7 +18,7 @@ class ExpandableTextWidget extends StatefulWidget {
     this.maxLines = 3,
     this.expandText = 'show more ↓',
     this.collapseText = 'show less ↑',
-    this.linkColor = Colors.deepPurple,
+    this.linkColor = const Color(0xFF485DF4),
     required this.isExpanded,
     required this.toggleExpand,
   });
@@ -85,7 +85,7 @@ class _ExpandableTextWidgetState extends State<ExpandableTextWidget> {
                 child: Text(
                   widget.isExpanded ? widget.collapseText : widget.expandText,
                   style: TextStyle(
-                    color: Colors.deepPurple,
+                    color: const Color(0xFF485DF4),
                     fontWeight: FontWeight.w500,
                     fontSize: widget.style.fontSize,
                   ),

@@ -162,7 +162,7 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
       decoration: BoxDecoration(
         color: const Color(0xFF35343B).withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.deepPurple.shade300),
+        border: Border.all(color: const Color(0xFF8B9DF7)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,7 +193,7 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
                       ? provider.migrationProcessedCount / provider.migrationTotalCount
                       : 0.0,
                   backgroundColor: Colors.grey.shade700,
-                  color: Colors.deepPurple,
+                  color: const Color(0xFF485DF4),
                   minHeight: 6,
                   borderRadius: BorderRadius.circular(3),
                 ),
@@ -231,7 +231,7 @@ class _DataProtectionSectionState extends State<DataProtectionSection> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.deepPurple.withValues(alpha: 0.15),
+        color: const Color(0xFF485DF4).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: Theme.of(context).colorScheme.secondary,

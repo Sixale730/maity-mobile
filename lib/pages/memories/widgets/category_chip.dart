@@ -26,7 +26,7 @@ class CategoryChip extends StatelessWidget {
       case MemoryCategory.system:
         return Colors.grey;
       case MemoryCategory.manual:
-        return Colors.purple;
+        return const Color(0xFF485DF4);
     }
   }
 

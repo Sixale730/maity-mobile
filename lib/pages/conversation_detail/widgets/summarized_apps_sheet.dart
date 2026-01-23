@@ -571,7 +571,7 @@ class _AppListItemState extends State<_AppListItem> {
           begin: isLeft ? Alignment.centerLeft : Alignment.centerRight,
           end: isLeft ? Alignment.centerRight : Alignment.centerLeft,
           colors: [
-            Colors.deepPurple.withValues(alpha: 0.7),
+            const Color(0xFF485DF4).withValues(alpha: 0.7),
             Colors.transparent,
           ],
         ),

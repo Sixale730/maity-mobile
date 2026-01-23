@@ -149,7 +149,7 @@ class _ConversationsPageState extends State<ConversationsPage> with AutomaticKee
           await convoProvider.getInitialConversations();
           return;
         },
-        color: Colors.deepPurpleAccent,
+        color: const Color(0xFF485DF4),
         backgroundColor: Colors.white,
         child: CustomScrollView(
           controller: _scrollController,

@@ -550,12 +550,12 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.purple.withValues(alpha: 0.2),
+                color: const Color(0xFF485DF4).withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
                 Icons.add_circle_outline,
-                color: Colors.purple,
+                color: const Color(0xFF485DF4),
                 size: 24,
               ),
             ),
@@ -575,12 +575,12 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.purple.withValues(alpha: 0.2),
+                color: const Color(0xFF485DF4).withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(
                 Icons.arrow_forward_ios,
-                color: Colors.purple,
+                color: const Color(0xFF485DF4),
                 size: 12,
               ),
             ),

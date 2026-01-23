@@ -164,7 +164,7 @@ class _PrivateCloudSyncPageState extends State<PrivateCloudSyncPage> {
                                 CupertinoSwitch(
                                   value: isEnabled,
                                   onChanged: _isSaving ? null : _togglePrivateCloudSync,
-                                  activeTrackColor: Colors.deepPurpleAccent,
+                                  activeTrackColor: const Color(0xFF485DF4),
                                 ),
                               ],
                             ),

@@ -43,7 +43,7 @@ class _ProgressBarWithPercentageState extends State<ProgressBarWithPercentage> {
               child: LinearProgressIndicator(
                 value: double.parse(widget.progressValue.toStringAsFixed(2)),
                 backgroundColor: Colors.grey.shade300,
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.deepPurple),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF485DF4)),
               ),
             ),
           ),

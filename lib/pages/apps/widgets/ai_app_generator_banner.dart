@@ -29,14 +29,14 @@ class AiAppGeneratorBanner extends StatelessWidget {
           gradient: LinearGradient(
             colors: [
               const Color(0xFF6366F1).withValues(alpha: 0.3),
-              const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+              const Color(0xFF485DF4).withValues(alpha: 0.3),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+            color: const Color(0xFF485DF4).withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -48,7 +48,7 @@ class AiAppGeneratorBanner extends StatelessWidget {
               height: 36,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  colors: [Color(0xFF6366F1), Color(0xFF485DF4)],
                 ),
                 borderRadius: BorderRadius.circular(10),
               ),

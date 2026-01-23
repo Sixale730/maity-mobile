@@ -301,7 +301,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
         automaticallyImplyLeading: false,
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: Colors.deepPurple,
+          indicatorColor: const Color(0xFF485DF4),
           isScrollable: true,
           indicatorWeight: 3,
           labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -322,7 +322,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
               provider.allTimeUsage != null;
 
           if (provider.isLoading && !hasAnyData) {
-            return const Center(child: CircularProgressIndicator(color: Colors.deepPurple));
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF485DF4)));
           }
 
           if (provider.error != null && !hasAnyData) {
@@ -395,7 +395,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 2.0),
-            child: FaIcon(_getIconForFeature(featureText), color: Colors.deepPurple.shade200, size: 16),
+            child: FaIcon(_getIconForFeature(featureText), color: const Color(0xFF8B9DF7), size: 16),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -456,7 +456,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
               ElevatedButton(
                 onPressed: _isCancelling || _isUpgrading ? null : _showPlansSheet,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
+                  backgroundColor: const Color(0xFF485DF4),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 ),
@@ -523,7 +523,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
                   ElevatedButton(
                     onPressed: _isUpgrading ? null : _showPlansSheet,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
+                      backgroundColor: const Color(0xFF485DF4),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     ),
@@ -546,7 +546,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
             LinearProgressIndicator(
               value: percentage,
               backgroundColor: Colors.grey.shade700,
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.deepPurple),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF485DF4)),
               minHeight: 6,
               borderRadius: BorderRadius.circular(3),
             ),
@@ -564,7 +564,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
               ElevatedButton(
                 onPressed: _isUpgrading ? null : _showPlansSheet,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
+                  backgroundColor: const Color(0xFF485DF4),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 ),
@@ -585,7 +585,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
             LinearProgressIndicator(
               value: percentage,
               backgroundColor: Colors.grey.shade700,
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.deepPurple),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF485DF4)),
               minHeight: 6,
               borderRadius: BorderRadius.circular(3),
             ),
@@ -668,7 +668,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: !_showCommunication ? Colors.deepPurple : Colors.transparent,
+                  color: !_showCommunication ? const Color(0xFF485DF4) : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -698,7 +698,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: _showCommunication ? Colors.deepPurple : Colors.transparent,
+                  color: _showCommunication ? const Color(0xFF485DF4) : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -790,7 +790,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
     }
 
     if (stats == null) {
-      return const Center(child: CircularProgressIndicator(color: Colors.deepPurple));
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF485DF4)));
     }
 
     if (stats.transcriptionSeconds == 0 &&
@@ -800,7 +800,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
         stats.memoriesCreated == 0) {
       return RefreshIndicator(
         onRefresh: onRefresh,
-        color: Colors.deepPurple,
+        color: const Color(0xFF485DF4),
         child: RepaintBoundary(
           key: key,
           child: Container(
@@ -825,7 +825,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      color: Colors.deepPurple,
+      color: const Color(0xFF485DF4),
       child: RepaintBoundary(
         key: key,
         child: Container(
@@ -876,7 +876,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
                 title: l10n.conversations,
                 value: l10n.nConversations(numberFormatter.format(stats.conversationsCreated)),
                 subtitle: l10n.conversationsDesc,
-                color: Colors.purple.shade300,
+                color: const Color(0xFF485DF4),
                 metricType: 'conversations',
                 subscription: provider.subscription,
               ),
@@ -984,7 +984,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
       Colors.blue.shade300,
       Colors.green.shade300,
       Colors.orange.shade300,
-      Colors.purple.shade300,
+      const Color(0xFF485DF4),
       Colors.pink.shade300,
     ];
 
@@ -1194,7 +1194,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
       {'color': Colors.blue.shade300, 'text': l10n.listeningMins},
       {'color': Colors.green.shade300, 'text': l10n.understandingWords},
       {'color': Colors.orange.shade300, 'text': l10n.insightsLabel},
-      {'color': Colors.purple.shade300, 'text': l10n.conversationsLabel},
+      {'color': const Color(0xFF485DF4), 'text': l10n.conversationsLabel},
       {'color': Colors.pink.shade300, 'text': l10n.memoriesLabel},
     ];
 

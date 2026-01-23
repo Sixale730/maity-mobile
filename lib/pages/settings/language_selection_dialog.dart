@@ -119,7 +119,7 @@ class LanguageSelectionDialog {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Colors.deepPurple),
+                          borderSide: const BorderSide(color: const Color(0xFF485DF4)),
                         ),
                       ),
                     ),
@@ -145,9 +145,9 @@ class LanguageSelectionDialog {
                                     style: const TextStyle(color: Colors.white),
                                   ),
                                   trailing:
-                                      isSelected ? const Icon(Icons.check_circle, color: Colors.deepPurple) : null,
+                                      isSelected ? const Icon(Icons.check_circle, color: const Color(0xFF485DF4)) : null,
                                   selected: isSelected,
-                                  selectedTileColor: Colors.deepPurple.withValues(alpha: 0.2),
+                                  selectedTileColor: const Color(0xFF485DF4).withValues(alpha: 0.2),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -210,8 +210,8 @@ class LanguageSelectionDialog {
                           }
                         },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    disabledBackgroundColor: Colors.deepPurple.withValues(alpha: 0.3),
+                    backgroundColor: const Color(0xFF485DF4),
+                    disabledBackgroundColor: const Color(0xFF485DF4).withValues(alpha: 0.3),
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('Confirm'),

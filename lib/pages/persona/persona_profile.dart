@@ -316,7 +316,7 @@ class _PersonaProfilePageState extends State<PersonaProfilePage> {
                                           onChanged: (value) {
                                             provider.setPersonaPublic(value);
                                           },
-                                          activeThumbColor: Colors.deepPurple,
+                                          activeThumbColor: const Color(0xFF485DF4),
                                         );
                                       },
                                     ),

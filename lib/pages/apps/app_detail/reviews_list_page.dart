@@ -135,7 +135,7 @@ class _ReviewsListPageState extends State<ReviewsListPage> {
                         }
                       },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
+                  backgroundColor: const Color(0xFF485DF4),
                   foregroundColor: Colors.white,
                 ),
                 child: submitting
@@ -291,10 +291,10 @@ class _ReviewsListPageState extends State<ReviewsListPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? Colors.deepPurple : Colors.grey.shade800.withValues(alpha: 0.5),
+          color: selected ? const Color(0xFF485DF4) : Colors.grey.shade800.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? Colors.deepPurple : Colors.grey.shade700,
+            color: selected ? const Color(0xFF485DF4) : Colors.grey.shade700,
             width: 1,
           ),
         ),
@@ -397,7 +397,7 @@ class _ReviewsListPageState extends State<ReviewsListPage> {
                           child: Icon(
                             FontAwesomeIcons.solidStar,
                             size: 14,
-                            color: index < review.score.round() ? Colors.deepPurple : Colors.grey.shade700,
+                            color: index < review.score.round() ? const Color(0xFF485DF4) : Colors.grey.shade700,
                           ),
                         );
                       }),
@@ -476,11 +476,11 @@ class _ReviewsListPageState extends State<ReviewsListPage> {
                 icon: Icon(
                   review.response.isNotEmpty ? FontAwesomeIcons.pencil : FontAwesomeIcons.reply,
                   size: 12,
-                  color: Colors.deepPurple,
+                  color: const Color(0xFF485DF4),
                 ),
                 label: Text(
                   review.response.isNotEmpty ? 'Edit Reply' : 'Reply',
-                  style: const TextStyle(color: Colors.deepPurple, fontSize: 13),
+                  style: const TextStyle(color: const Color(0xFF485DF4), fontSize: 13),
                 ),
               ),
             ),

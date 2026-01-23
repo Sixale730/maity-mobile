@@ -138,8 +138,8 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
       textColor = Colors.green.shade300;
       dueDateText = _formatDueDate(dueDate);
     } else {
-      chipColor = Colors.purple.withValues(alpha: 0.15);
-      textColor = Colors.purple.shade300;
+      chipColor = const Color(0xFF485DF4).withValues(alpha: 0.15);
+      textColor = const Color(0xFF8B9DF7);
       dueDateText = _formatDueDate(dueDate);
     }
 
@@ -945,10 +945,10 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: widget.isSelected ? Colors.deepPurpleAccent : Colors.grey.shade600,
+                            color: widget.isSelected ? const Color(0xFF485DF4) : Colors.grey.shade600,
                             width: 2,
                           ),
-                          color: widget.isSelected ? Colors.deepPurpleAccent : Colors.transparent,
+                          color: widget.isSelected ? const Color(0xFF485DF4) : Colors.transparent,
                         ),
                         child: widget.isSelected
                             ? const Icon(
@@ -972,12 +972,12 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: (widget.actionItem.completed || _isAnimating)
-                                  ? Colors.deepPurpleAccent
+                                  ? const Color(0xFF485DF4)
                                   : Colors.grey.shade600,
                               width: 2,
                             ),
                             color: (widget.actionItem.completed || _isAnimating)
-                                ? Colors.deepPurpleAccent
+                                ? const Color(0xFF485DF4)
                                 : Colors.transparent,
                           ),
                           child: (widget.actionItem.completed || _isAnimating)

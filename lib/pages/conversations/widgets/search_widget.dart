@@ -89,7 +89,7 @@ class _SearchWidgetState extends State<SearchWidget> {
                         child: Text(
                           AppLocalizations.of(context)?.done ?? 'Done',
                           style: const TextStyle(
-                            color: Colors.deepPurple,
+                            color: const Color(0xFF485DF4),
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -203,7 +203,7 @@ class _SearchWidgetState extends State<SearchWidget> {
               return Container(
                 decoration: BoxDecoration(
                   color: convoProvider.useSemanticSearch
-                      ? Colors.deepPurple.withValues(alpha: 0.5)
+                      ? const Color(0xFF485DF4).withValues(alpha: 0.5)
                       : const Color(0xFF1F1F25),
                   borderRadius: const BorderRadius.all(Radius.circular(16)),
                 ),
@@ -233,7 +233,7 @@ class _SearchWidgetState extends State<SearchWidget> {
               return Container(
                 decoration: BoxDecoration(
                   color:
-                      convoProvider.selectedDate != null ? Colors.deepPurple.withValues(alpha: 0.5) : const Color(0xFF1F1F25),
+                      convoProvider.selectedDate != null ? const Color(0xFF485DF4).withValues(alpha: 0.5) : const Color(0xFF1F1F25),
                   borderRadius: const BorderRadius.all(Radius.circular(16)),
                 ),
                 child: IconButton(

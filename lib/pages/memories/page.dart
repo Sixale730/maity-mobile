@@ -241,7 +241,7 @@ class MemoriesPageState extends State<MemoriesPage> with AutomaticKeepAliveClien
                   showMemoryDialog(context, provider);
                   MixpanelManager().memoriesPageCreateMemoryBtn();
                 },
-                backgroundColor: Colors.deepPurpleAccent,
+                backgroundColor: const Color(0xFF485DF4),
                 child: const Icon(
                   Icons.add,
                   color: Colors.white,
@@ -253,7 +253,7 @@ class MemoriesPageState extends State<MemoriesPage> with AutomaticKeepAliveClien
                 HapticFeedback.mediumImpact();
                 await provider.init();
               },
-              color: Colors.deepPurpleAccent,
+              color: const Color(0xFF485DF4),
               backgroundColor: Colors.white,
               child: provider.loading && _isInitialLoad
                   ? CustomScrollView(

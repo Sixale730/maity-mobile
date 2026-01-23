@@ -117,7 +117,7 @@ class AppListItem extends StatelessWidget {
                           children: [
                             const Icon(
                               Icons.star_rounded,
-                              color: Color(0xFF8B5CF6),
+                              color: Color(0xFF485DF4),
                               size: 14,
                             ),
                             const SizedBox(width: 4),
@@ -201,7 +201,7 @@ class AppListItem extends StatelessWidget {
                           width: 72,
                           height: 32,
                           decoration: BoxDecoration(
-                            color: state.enabled ? Colors.grey.shade700 : const Color(0xFF8B5CF6),
+                            color: state.enabled ? Colors.grey.shade700 : const Color(0xFF485DF4),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Center(

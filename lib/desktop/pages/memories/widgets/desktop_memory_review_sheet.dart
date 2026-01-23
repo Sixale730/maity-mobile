@@ -506,7 +506,7 @@ class _DesktopMemoryReviewSheetState extends State<DesktopMemoryReviewSheet> wit
       case MemoryCategory.system:
         return Colors.orange;
       case MemoryCategory.manual:
-        return Colors.purple;
+        return const Color(0xFF485DF4);
     }
   }
 

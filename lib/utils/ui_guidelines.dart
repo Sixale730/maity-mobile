@@ -51,6 +51,11 @@ class AppStyles {
   static final Color error = Colors.red.shade800;
   static final Color success = Colors.green.shade600;
 
+  // Official Brand Colors
+  static const Color officialBlue = Color(0xFF485DF4);
+  static const Color officialBlueLight = Color(0xFF8B9DF7);
+  static const Color officialBlueDark = Color(0xFF0D1A4A);
+
   // Spacing
   static const double spacingXS = 4.0;
   static const double spacingS = 8.0;

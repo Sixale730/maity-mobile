@@ -442,7 +442,7 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
                           height: 36,
                           margin: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
-                            color: _isSearching ? Colors.deepPurple.withValues(alpha: 0.8) : Colors.grey.withValues(alpha: 0.3),
+                            color: _isSearching ? const Color(0xFF485DF4).withValues(alpha: 0.8) : Colors.grey.withValues(alpha: 0.3),
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(

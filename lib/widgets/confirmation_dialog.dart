@@ -94,7 +94,7 @@ class _ConfirmationDialogState extends State<ConfirmationDialog> {
                         fillColor: WidgetStateProperty.resolveWith<Color>(
                           (Set<WidgetState> states) {
                             if (states.contains(WidgetState.selected)) {
-                              return Colors.deepPurple;
+                              return const Color(0xFF485DF4);
                             }
                             return Colors.grey.shade700;
                           },
@@ -136,7 +136,7 @@ class _ConfirmationDialogState extends State<ConfirmationDialog> {
             onPressed: widget.onConfirm,
             style: TextButton.styleFrom(
               foregroundColor: Colors.white,
-              backgroundColor: Colors.deepPurple,
+              backgroundColor: const Color(0xFF485DF4),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -178,7 +178,7 @@ class _ConfirmationDialogState extends State<ConfirmationDialog> {
                   CupertinoCheckbox(
                     value: _checkboxValue,
                     onChanged: _updateCheckboxValue,
-                    activeColor: Colors.deepPurple,
+                    activeColor: const Color(0xFF485DF4),
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -213,7 +213,7 @@ class _ConfirmationDialogState extends State<ConfirmationDialog> {
               widget.confirmText ?? "Confirm",
               style: const TextStyle(
                 fontSize: 16,
-                color: Colors.deepPurple,
+                color: const Color(0xFF485DF4),
                 fontWeight: FontWeight.w600,
               ),
             ),

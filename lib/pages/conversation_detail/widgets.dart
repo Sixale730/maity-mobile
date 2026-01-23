@@ -55,7 +55,7 @@ List<TextSpan> highlightSearchMatches(String text, String searchQuery, {int curr
       text: text.substring(index, index + searchQuery.length),
       style: TextStyle(
         backgroundColor:
-            isCurrentResult ? Colors.orange.withValues(alpha: 0.9) : Colors.deepPurple.withValues(alpha: 0.6),
+            isCurrentResult ? Colors.orange.withValues(alpha: 0.9) : const Color(0xFF485DF4).withValues(alpha: 0.6),
         color: Colors.white,
         fontWeight: FontWeight.bold,
       ),
@@ -1159,7 +1159,7 @@ class CommunicationFeedbackCard extends StatelessWidget {
                         const FaIcon(
                           FontAwesomeIcons.commentDots,
                           size: 16,
-                          color: Colors.deepPurple,
+                          color: const Color(0xFF485DF4),
                         ),
                         const SizedBox(width: 8),
                         Text(
@@ -1464,7 +1464,7 @@ class CommunicationFeedbackCard extends StatelessWidget {
                 _buildCounterChip(
                   label: l10n?.fillerWordsLabel ?? 'Filler Words',
                   count: counters.totalFillerWords,
-                  color: Colors.purple,
+                  color: const Color(0xFF485DF4),
                 ),
               if (counters.totalObjectionWords > 0)
                 _buildCounterChip(
@@ -1481,7 +1481,7 @@ class CommunicationFeedbackCard extends StatelessWidget {
             _buildWordFrequencySection(
               title: l10n?.detectedFillerWords ?? 'Detected filler words',
               words: counters.fillerWords,
-              color: Colors.purple,
+              color: const Color(0xFF485DF4),
             ),
           ],
 

@@ -113,12 +113,12 @@ class _UserReviewPageState extends State<UserReviewPage> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _requestReview,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
+                      backgroundColor: const Color(0xFF485DF4),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28),
                       ),
-                      disabledBackgroundColor: Colors.deepPurple.withValues(alpha: 0.5),
+                      disabledBackgroundColor: const Color(0xFF485DF4).withValues(alpha: 0.5),
                     ),
                     child: _isLoading
                         ? const SizedBox(

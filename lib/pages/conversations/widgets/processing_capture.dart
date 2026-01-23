@@ -376,7 +376,7 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
                           color: isPaused
                               ? isDeviceRecording
                                   ? const Color(0xFFFE5D50)
-                                  : const Color(0xFF7C3AED)
+                                  : const Color(0xFF485DF4)
                               : isDeviceRecording
                                   ? const Color(0xFF35343B)
                                   : const Color(0xFFFF9500),
@@ -570,7 +570,7 @@ getPhoneMicRecordingButton(BuildContext context, VoidCallback toggleRecordingCb,
         width: 24,
         height: 24,
         decoration: const BoxDecoration(
-          color: Color(0xFF7C3AED), // Deep purple
+          color: Color(0xFF485DF4), // Deep purple
           shape: BoxShape.circle,
         ),
         child: const Center(

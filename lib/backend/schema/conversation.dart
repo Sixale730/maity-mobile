@@ -336,7 +336,7 @@ class ServerConversation {
   }
 
   Color getTagTextColor() {
-    if (source == ConversationSource.screenpipe) return Colors.deepPurple;
+    if (source == ConversationSource.screenpipe) return const Color(0xFF485DF4);
     return Colors.white;
   }
 

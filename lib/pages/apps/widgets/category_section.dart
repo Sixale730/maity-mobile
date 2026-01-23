@@ -233,7 +233,7 @@ class SectionAppItemCard extends StatelessWidget {
                           children: [
                             const FaIcon(
                               FontAwesomeIcons.solidStar,
-                              color: Color(0xFF8B5CF6),
+                              color: Color(0xFF485DF4),
                               size: 9,
                             ),
                             const SizedBox(width: 4),

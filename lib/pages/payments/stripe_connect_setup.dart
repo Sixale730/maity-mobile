@@ -357,7 +357,7 @@ class _StripeConnectSetupState extends State<StripeConnectSetup> with SingleTick
                               gradient: LinearGradient(
                                 colors: [
                                   const Color(0xFF635BFF).withValues(alpha: 0.15),
-                                  Colors.purple.shade900.withValues(alpha: 0.1),
+                                  const Color(0xFF0D1A4A).withValues(alpha: 0.1),
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,

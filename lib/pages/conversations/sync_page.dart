@@ -371,7 +371,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                     context.read<SyncProvider>().refreshWals();
                   }
                 },
-                activeTrackColor: Colors.deepPurpleAccent,
+                activeTrackColor: const Color(0xFF485DF4),
               ),
             ],
           ),
@@ -579,7 +579,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                           consentConfirmed = value ?? false;
                         });
                       },
-                      activeColor: Colors.deepPurple,
+                      activeColor: const Color(0xFF485DF4),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -607,7 +607,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                 child: Text(
                   l10n?.enableStorage ?? 'Enable Storage',
                   style: TextStyle(
-                    color: consentConfirmed ? Colors.deepPurple : Colors.grey,
+                    color: consentConfirmed ? const Color(0xFF485DF4) : Colors.grey,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1071,12 +1071,12 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.deepPurple.withValues(alpha: 0.1),
+                                color: const Color(0xFF485DF4).withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
                                 Icons.mic_none,
-                                color: Colors.deepPurple,
+                                color: const Color(0xFF485DF4),
                                 size: 48,
                               ),
                             ),
