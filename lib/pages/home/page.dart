@@ -540,6 +540,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                             ),
                                           ),
                                         ),
+                                        // Center space for record button - only when no OMI device is connected
+                                        if (!isOmiDeviceConnected) const SizedBox(width: 80),
                                         // Memories tab
                                         Expanded(
                                           child: InkWell(
@@ -565,8 +567,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                             ),
                                           ),
                                         ),
-                                        // Center space for record button - only when no OMI device is connected
-                                        if (!isOmiDeviceConnected) const SizedBox(width: 80),
                                         // Usage Insights tab
                                         Expanded(
                                           child: InkWell(
