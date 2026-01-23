@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/schema/schema.dart';
 import 'package:omi/env/env.dart';
+import 'package:omi/services/supabase_auth_service.dart';
 
 Future<ActionItemsResponse> getActionItems({
   int limit = 50,
@@ -13,14 +14,51 @@ Future<ActionItemsResponse> getActionItems({
   DateTime? startDate,
   DateTime? endDate,
 }) async {
-  // Disabled: api.omi.me doesn't accept our Firebase tokens
-  debugPrint('[API Disabled] getActionItems skipped');
-  return ActionItemsResponse(actionItems: [], hasMore: false);
+  final userId = SupabaseAuthService.instance.maityUserId;
+  if (userId == null) {
+    debugPrint('[getActionItems] No maityUserId available');
+    return ActionItemsResponse(actionItems: [], hasMore: false);
+  }
+
+  // Build query parameters
+  var params = 'user_id=$userId&limit=$limit&offset=$offset';
+  if (completed != null) {
+    params += '&completed=$completed';
+  }
+
+  var response = await makeApiCall(
+    url: '${Env.maityBackendUrl}v1/action-items/from-conversations?$params',
+    headers: {},
+    method: 'GET',
+    body: '',
+  );
+
+  if (response == null) {
+    debugPrint('[getActionItems] No response from API');
+    return ActionItemsResponse(actionItems: [], hasMore: false);
+  }
+
+  if (response.statusCode == 200) {
+    var body = utf8.decode(response.bodyBytes);
+    var data = jsonDecode(body);
+    return ActionItemsResponse(
+      actionItems: (data['action_items'] as List<dynamic>)
+          .map((item) => ActionItemWithMetadata.fromJson(item))
+          .toList(),
+      hasMore: data['has_more'] ?? false,
+    );
+  } else {
+    debugPrint('[getActionItems] Error ${response.statusCode}: ${response.body}');
+    return ActionItemsResponse(actionItems: [], hasMore: false);
+  }
 }
 
 Future<ActionItemWithMetadata?> getActionItem(String actionItemId) async {
+  final userId = SupabaseAuthService.instance.maityUserId;
+  if (userId == null) return null;
+
   var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/action-items/$actionItemId',
+    url: '${Env.maityBackendUrl}v1/action-items/$actionItemId?user_id=$userId',
     headers: {},
     method: 'GET',
     body: '',
@@ -43,6 +81,9 @@ Future<ActionItemWithMetadata?> createActionItem({
   String? conversationId,
   bool completed = false,
 }) async {
+  final userId = SupabaseAuthService.instance.maityUserId;
+  if (userId == null) return null;
+
   var requestBody = {
     'description': description,
     'completed': completed,
@@ -56,7 +97,7 @@ Future<ActionItemWithMetadata?> createActionItem({
   }
 
   var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/action-items',
+    url: '${Env.maityBackendUrl}v1/action-items?user_id=$userId',
     headers: {},
     method: 'POST',
     body: jsonEncode(requestBody),
@@ -82,6 +123,9 @@ Future<ActionItemWithMetadata?> updateActionItem(
   DateTime? exportDate,
   String? exportPlatform,
 }) async {
+  final userId = SupabaseAuthService.instance.maityUserId;
+  if (userId == null) return null;
+
   var requestBody = <String, dynamic>{};
 
   if (description != null) {
@@ -93,18 +137,9 @@ Future<ActionItemWithMetadata?> updateActionItem(
   if (dueAt != null) {
     requestBody['due_at'] = dueAt.toUtc().toIso8601String();
   }
-  if (exported != null) {
-    requestBody['exported'] = exported;
-  }
-  if (exportDate != null) {
-    requestBody['export_date'] = exportDate.toUtc().toIso8601String();
-  }
-  if (exportPlatform != null) {
-    requestBody['export_platform'] = exportPlatform;
-  }
 
   var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/action-items/$actionItemId',
+    url: '${Env.maityBackendUrl}v1/action-items/$actionItemId?user_id=$userId',
     headers: {},
     method: 'PATCH',
     body: jsonEncode(requestBody),
@@ -125,27 +160,15 @@ Future<ActionItemWithMetadata?> toggleActionItemCompletion(
   String actionItemId,
   bool completed,
 ) async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/action-items/$actionItemId/completed?completed=$completed',
-    headers: {},
-    method: 'PATCH',
-    body: '',
-  );
-
-  if (response == null) return null;
-
-  if (response.statusCode == 200) {
-    var body = utf8.decode(response.bodyBytes);
-    return ActionItemWithMetadata.fromJson(jsonDecode(body));
-  } else {
-    debugPrint('toggleActionItemCompletion error ${response.statusCode}');
-    return null;
-  }
+  return updateActionItem(actionItemId, completed: completed);
 }
 
 Future<bool> deleteActionItem(String actionItemId) async {
+  final userId = SupabaseAuthService.instance.maityUserId;
+  if (userId == null) return false;
+
   var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/action-items/$actionItemId',
+    url: '${Env.maityBackendUrl}v1/action-items/$actionItemId?user_id=$userId',
     headers: {},
     method: 'DELETE',
     body: '',
@@ -153,13 +176,17 @@ Future<bool> deleteActionItem(String actionItemId) async {
 
   if (response == null) return false;
 
-  return response.statusCode == 204;
+  return response.statusCode == 200;
 }
 
 // Conversation-specific action items
 Future<ActionItemsResponse> getConversationActionItems(String conversationId) async {
+  final userId = SupabaseAuthService.instance.maityUserId;
+  if (userId == null) return ActionItemsResponse(actionItems: [], hasMore: false);
+
+  // Use the from-conversations endpoint with all items, then filter by conversationId
   var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/conversations/$conversationId/action-items',
+    url: '${Env.maityBackendUrl}v1/action-items/from-conversations?user_id=$userId&limit=500',
     headers: {},
     method: 'GET',
     body: '',
@@ -170,10 +197,14 @@ Future<ActionItemsResponse> getConversationActionItems(String conversationId) as
   if (response.statusCode == 200) {
     var body = utf8.decode(response.bodyBytes);
     var data = jsonDecode(body);
+    var allItems = (data['action_items'] as List<dynamic>)
+        .map((item) => ActionItemWithMetadata.fromJson(item))
+        .where((item) => item.conversationId == conversationId)
+        .toList();
+
     return ActionItemsResponse(
-      actionItems:
-          (data['action_items'] as List<dynamic>).map((item) => ActionItemWithMetadata.fromJson(item)).toList(),
-      hasMore: false, // Conversation-specific calls don't have pagination
+      actionItems: allItems,
+      hasMore: false,
     );
   } else {
     debugPrint('getConversationActionItems error ${response.statusCode}');
@@ -182,37 +213,17 @@ Future<ActionItemsResponse> getConversationActionItems(String conversationId) as
 }
 
 Future<bool> deleteConversationActionItems(String conversationId) async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/conversations/$conversationId/action-items',
-    headers: {},
-    method: 'DELETE',
-    body: '',
-  );
-
-  if (response == null) return false;
-
-  return response.statusCode == 204;
+  // This would need to delete all action items for a conversation
+  // For now, not implemented as it requires backend support
+  debugPrint('[deleteConversationActionItems] Not implemented');
+  return false;
 }
 
 // Batch operations
 Future<List<ActionItemWithMetadata>> createActionItemsBatch(
   List<Map<String, dynamic>> actionItems,
 ) async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/action-items/batch',
-    headers: {},
-    method: 'POST',
-    body: jsonEncode(actionItems),
-  );
-
-  if (response == null) return [];
-
-  if (response.statusCode == 200) {
-    var body = utf8.decode(response.bodyBytes);
-    var data = jsonDecode(body);
-    return (data['action_items'] as List<dynamic>).map((item) => ActionItemWithMetadata.fromJson(item)).toList();
-  } else {
-    debugPrint('createActionItemsBatch error ${response.statusCode}');
-    return [];
-  }
+  // Batch creation not yet implemented for Supabase backend
+  debugPrint('[createActionItemsBatch] Not implemented');
+  return [];
 }

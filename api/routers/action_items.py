@@ -1,22 +1,38 @@
-"""Action items router - CRUD for tasks extracted from conversations"""
-from datetime import datetime
+"""Action items router - Extract action items from conversations stored in Supabase"""
+from datetime import datetime, timedelta
 from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query, Path
 from pydantic import BaseModel
 
-from ..services.firebase_client import get_db
+from ..services.supabase_client import get_supabase
 
 
 router = APIRouter(prefix="/v1/action-items", tags=["action_items"])
 
 
-class ActionItemCreate(BaseModel):
-    """Create action item request"""
+class ActionItemResponse(BaseModel):
+    """Action item response with full metadata"""
+    id: str
     description: str
+    completed: bool
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     due_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
     conversation_id: Optional[str] = None
+    is_locked: bool = False
+    exported: bool = False
+    export_date: Optional[datetime] = None
+    export_platform: Optional[str] = None
+
+
+class ActionItemsListResponse(BaseModel):
+    """Response for list of action items"""
+    action_items: List[ActionItemResponse]
+    has_more: bool
+    total: int
 
 
 class ActionItemUpdate(BaseModel):
@@ -26,144 +42,215 @@ class ActionItemUpdate(BaseModel):
     due_at: Optional[datetime] = None
 
 
-class ActionItemResponse(BaseModel):
-    """Action item response"""
-    id: str
-    description: str
-    completed: bool
-    due_at: Optional[datetime]
-    conversation_id: Optional[str]
-    created_at: datetime
-
-
-@router.get("/", response_model=List[ActionItemResponse])
-async def list_action_items(
-    user_id: str = Query(..., description="Firebase user ID"),
+@router.get("/from-conversations", response_model=ActionItemsListResponse)
+async def get_action_items_from_conversations(
+    user_id: str = Query(..., description="User ID (maity.users.id)"),
     completed: Optional[bool] = Query(None, description="Filter by completion status"),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
 ):
-    """List user's action items"""
+    """
+    Extract action items from all user conversations stored in Supabase.
+
+    Action items are stored in the structured.action_items field of omi_conversations.
+    This endpoint flattens all action items across conversations with their metadata.
+    """
+    supabase = get_supabase()
+
     try:
-        db = get_db()
-        query = db.collection("users").document(user_id).collection("action_items")
-
-        if completed is not None:
-            query = query.where("completed", "==", completed)
-
-        docs = query.order_by("created_at", direction="DESCENDING").limit(limit).stream()
-
-        items = []
-        for doc in docs:
-            data = doc.to_dict()
-            items.append(ActionItemResponse(
-                id=doc.id,
-                description=data.get("description", ""),
-                completed=data.get("completed", False),
-                due_at=data.get("due_at"),
-                conversation_id=data.get("conversation_id"),
-                created_at=data.get("created_at", datetime.now()),
-            ))
-
-        return items
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch action items: {e}")
-
-
-@router.post("/", response_model=ActionItemResponse)
-async def create_action_item(
-    user_id: str = Query(..., description="Firebase user ID"),
-    item: ActionItemCreate = ...,
-):
-    """Create a new action item"""
-    try:
-        db = get_db()
-        item_id = str(uuid4())
-        now = datetime.now()
-
-        data = {
-            "description": item.description,
-            "completed": False,
-            "due_at": item.due_at,
-            "conversation_id": item.conversation_id,
-            "created_at": now,
-        }
-
-        db.collection("users").document(user_id)\
-          .collection("action_items").document(item_id).set(data)
-
-        return ActionItemResponse(
-            id=item_id,
-            **data,
+        # Query all conversations with action_items
+        result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .select("id, title, emoji, action_items, created_at")
+            .eq("user_id", user_id)
+            .eq("deleted", False)
+            .eq("discarded", False)
+            .order("created_at", desc=True)
+            .execute()
         )
+
+        conversations = result.data if result.data else []
+
+        # Extract and flatten all action items with context
+        all_items: List[ActionItemResponse] = []
+        item_index = 0
+
+        for conv in conversations:
+            conv_id = conv.get("id")
+            conv_created_at = conv.get("created_at")
+            action_items_raw = conv.get("action_items") or []
+
+            for idx, item in enumerate(action_items_raw):
+                item_completed = item.get("completed", False)
+
+                # Filter by completed status if specified
+                if completed is not None and item_completed != completed:
+                    continue
+
+                # Generate unique ID: conversation_id + index
+                item_id = f"{conv_id}_{idx}"
+
+                all_items.append(ActionItemResponse(
+                    id=item_id,
+                    description=item.get("description", ""),
+                    completed=item_completed,
+                    created_at=datetime.fromisoformat(conv_created_at.replace("Z", "+00:00")) if conv_created_at else None,
+                    conversation_id=conv_id,
+                    is_locked=False,
+                    exported=False,
+                ))
+                item_index += 1
+
+        # Apply pagination
+        total = len(all_items)
+        paginated_items = all_items[offset:offset + limit]
+        has_more = (offset + limit) < total
+
+        return ActionItemsListResponse(
+            action_items=paginated_items,
+            has_more=has_more,
+            total=total,
+        )
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create action item: {e}")
+        print(f"[Action Items] Error fetching action items: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch action items: {e}")
 
 
 @router.patch("/{item_id}", response_model=ActionItemResponse)
 async def update_action_item(
-    item_id: str = Path(..., description="Action item ID"),
-    user_id: str = Query(..., description="Firebase user ID"),
+    item_id: str = Path(..., description="Action item ID (format: conversation_id_index)"),
+    user_id: str = Query(..., description="User ID (maity.users.id)"),
     update: ActionItemUpdate = ...,
 ):
-    """Update an action item"""
-    try:
-        db = get_db()
-        doc_ref = db.collection("users").document(user_id)\
-                    .collection("action_items").document(item_id)
+    """
+    Update an action item in a conversation.
 
-        doc = doc_ref.get()
-        if not doc.exists:
+    The item_id format is: conversation_id_index (e.g., "abc-123_0")
+    """
+    supabase = get_supabase()
+
+    try:
+        # Parse item_id to get conversation_id and index
+        parts = item_id.rsplit("_", 1)
+        if len(parts) != 2:
+            raise HTTPException(status_code=400, detail="Invalid action item ID format")
+
+        conversation_id, idx_str = parts
+        try:
+            item_idx = int(idx_str)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid action item index")
+
+        # Get the conversation
+        result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .select("id, action_items, created_at")
+            .eq("id", conversation_id)
+            .eq("user_id", user_id)
+            .single()
+            .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        conv = result.data
+        action_items = conv.get("action_items") or []
+
+        if item_idx < 0 or item_idx >= len(action_items):
             raise HTTPException(status_code=404, detail="Action item not found")
 
-        # Build update dict
-        update_data = {}
+        # Update the action item
         if update.description is not None:
-            update_data["description"] = update.description
+            action_items[item_idx]["description"] = update.description
         if update.completed is not None:
-            update_data["completed"] = update.completed
-        if update.due_at is not None:
-            update_data["due_at"] = update.due_at
+            action_items[item_idx]["completed"] = update.completed
 
-        if update_data:
-            doc_ref.update(update_data)
+        # Save back to database
+        supabase.schema("maity").table("omi_conversations").update({
+            "action_items": action_items
+        }).eq("id", conversation_id).eq("user_id", user_id).execute()
 
-        # Get updated document
-        updated_doc = doc_ref.get()
-        data = updated_doc.to_dict()
+        # Return updated item
+        updated_item = action_items[item_idx]
+        conv_created_at = conv.get("created_at")
 
         return ActionItemResponse(
             id=item_id,
-            description=data.get("description", ""),
-            completed=data.get("completed", False),
-            due_at=data.get("due_at"),
-            conversation_id=data.get("conversation_id"),
-            created_at=data.get("created_at", datetime.now()),
+            description=updated_item.get("description", ""),
+            completed=updated_item.get("completed", False),
+            created_at=datetime.fromisoformat(conv_created_at.replace("Z", "+00:00")) if conv_created_at else None,
+            conversation_id=conversation_id,
+            is_locked=False,
+            exported=False,
         )
+
     except HTTPException:
         raise
     except Exception as e:
+        print(f"[Action Items] Error updating action item: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to update action item: {e}")
 
 
 @router.delete("/{item_id}")
 async def delete_action_item(
-    item_id: str = Path(..., description="Action item ID"),
-    user_id: str = Query(..., description="Firebase user ID"),
+    item_id: str = Path(..., description="Action item ID (format: conversation_id_index)"),
+    user_id: str = Query(..., description="User ID (maity.users.id)"),
 ):
-    """Delete an action item"""
-    try:
-        db = get_db()
-        doc_ref = db.collection("users").document(user_id)\
-                    .collection("action_items").document(item_id)
+    """
+    Delete an action item from a conversation.
 
-        doc = doc_ref.get()
-        if not doc.exists:
+    The item_id format is: conversation_id_index (e.g., "abc-123_0")
+    """
+    supabase = get_supabase()
+
+    try:
+        # Parse item_id to get conversation_id and index
+        parts = item_id.rsplit("_", 1)
+        if len(parts) != 2:
+            raise HTTPException(status_code=400, detail="Invalid action item ID format")
+
+        conversation_id, idx_str = parts
+        try:
+            item_idx = int(idx_str)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid action item index")
+
+        # Get the conversation
+        result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .select("id, action_items")
+            .eq("id", conversation_id)
+            .eq("user_id", user_id)
+            .single()
+            .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        conv = result.data
+        action_items = conv.get("action_items") or []
+
+        if item_idx < 0 or item_idx >= len(action_items):
             raise HTTPException(status_code=404, detail="Action item not found")
 
-        doc_ref.delete()
+        # Remove the action item
+        action_items.pop(item_idx)
+
+        # Save back to database
+        supabase.schema("maity").table("omi_conversations").update({
+            "action_items": action_items
+        }).eq("id", conversation_id).eq("user_id", user_id).execute()
 
         return {"success": True, "message": "Action item deleted"}
+
     except HTTPException:
         raise
     except Exception as e:
+        print(f"[Action Items] Error deleting action item: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete action item: {e}")

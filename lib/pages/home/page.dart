@@ -14,6 +14,7 @@ import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/main.dart';
 import 'package:omi/pages/apps/app_detail/app_detail.dart';
 import 'package:omi/pages/chat/page.dart';
+import 'package:omi/pages/action_items/action_items_page.dart';
 import 'package:omi/pages/conversations/conversations_page.dart';
 import 'package:omi/pages/memories/page.dart';
 import 'package:omi/pages/settings/data_privacy_page.dart';
@@ -88,6 +89,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   bool scriptsInProgress = false;
 
   final GlobalKey<State<ConversationsPage>> _conversationsPageKey = GlobalKey<State<ConversationsPage>>();
+  final GlobalKey<State<ActionItemsPage>> _actionItemsPageKey = GlobalKey<State<ActionItemsPage>>();
   final GlobalKey<State<MemoriesPage>> _memoriesPageKey = GlobalKey<State<MemoriesPage>>();
   final GlobalKey<State<UsagePage>> _usagePageKey = GlobalKey<State<UsagePage>>();
   late final List<Widget> _pages;
@@ -106,9 +108,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         }
         break;
       case 1:
-        // MemoriesPage - could add scroll controller if needed
+        final actionItemsState = _actionItemsPageKey.currentState;
+        if (actionItemsState != null) {
+          (actionItemsState as dynamic).scrollToTop();
+        }
         break;
       case 2:
+        // MemoriesPage - could add scroll controller if needed
+        break;
+      case 3:
         // UsagePage doesn't have a scroll controller
         break;
     }
@@ -163,6 +171,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   void initState() {
     _pages = [
       ConversationsPage(key: _conversationsPageKey),
+      ActionItemsPage(key: _actionItemsPageKey),
       MemoriesPage(key: _memoriesPageKey),
       UsagePage(key: _usagePageKey),
     ];
@@ -186,16 +195,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       }
 
       switch (pageAlias) {
+        case "action-items":
+        case "tasks":
+        case "todos":
+          homePageIdx = 1;
+          break;
         case "memories":
         case "facts":
-          homePageIdx = 1;
+          homePageIdx = 2;
           break;
         case "insights":
         case "usage":
-          homePageIdx = 2;
+          homePageIdx = 3;
           break;
         case "apps":
-          homePageIdx = 3;
+          homePageIdx = 4;
           break;
       }
     }
@@ -421,9 +435,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
           builder: (context, homeProvider, _) {
             return Scaffold(
               backgroundColor: Theme.of(context).colorScheme.primary,
-              appBar: homeProvider.selectedIndex == 3 ? null : _buildAppBar(context),
+              appBar: homeProvider.selectedIndex == 4 ? null : _buildAppBar(context),
               body: DefaultTabController(
-                length: 3,
+                length: 4,
                 initialIndex: homeProvider.selectedIndex,
                 child: GestureDetector(
                   onTap: () {
@@ -495,7 +509,32 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                                 child: Icon(
                                                   FontAwesomeIcons.house,
                                                   color: home.selectedIndex == 0 ? Colors.white : Colors.grey,
-                                                  size: 26,
+                                                  size: 22,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        // To-Do's tab
+                                        Expanded(
+                                          child: InkWell(
+                                            onTap: () {
+                                              HapticFeedback.mediumImpact();
+                                              MixpanelManager().bottomNavigationTabClicked('ToDos');
+                                              primaryFocus?.unfocus();
+                                              if (home.selectedIndex == 1) {
+                                                _scrollToTop(1);
+                                                return;
+                                              }
+                                              home.setIndex(1);
+                                            },
+                                            child: SizedBox(
+                                              height: 90,
+                                              child: Center(
+                                                child: Icon(
+                                                  FontAwesomeIcons.listCheck,
+                                                  color: home.selectedIndex == 1 ? Colors.white : Colors.grey,
+                                                  size: 22,
                                                 ),
                                               ),
                                             ),
@@ -508,19 +547,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                               HapticFeedback.mediumImpact();
                                               MixpanelManager().bottomNavigationTabClicked('Memories');
                                               primaryFocus?.unfocus();
-                                              if (home.selectedIndex == 1) {
-                                                _scrollToTop(1);
+                                              if (home.selectedIndex == 2) {
+                                                _scrollToTop(2);
                                                 return;
                                               }
-                                              home.setIndex(1);
+                                              home.setIndex(2);
                                             },
                                             child: SizedBox(
                                               height: 90,
                                               child: Center(
                                                 child: Icon(
                                                   FontAwesomeIcons.lightbulb,
-                                                  color: home.selectedIndex == 1 ? Colors.white : Colors.grey,
-                                                  size: 26,
+                                                  color: home.selectedIndex == 2 ? Colors.white : Colors.grey,
+                                                  size: 22,
                                                 ),
                                               ),
                                             ),
@@ -535,19 +574,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                               HapticFeedback.mediumImpact();
                                               MixpanelManager().bottomNavigationTabClicked('Insights');
                                               primaryFocus?.unfocus();
-                                              if (home.selectedIndex == 2) {
-                                                _scrollToTop(2);
+                                              if (home.selectedIndex == 3) {
+                                                _scrollToTop(3);
                                                 return;
                                               }
-                                              home.setIndex(2);
+                                              home.setIndex(3);
                                             },
                                             child: SizedBox(
                                               height: 90,
                                               child: Center(
                                                 child: Icon(
                                                   FontAwesomeIcons.chartLine,
-                                                  color: home.selectedIndex == 2 ? Colors.white : Colors.grey,
-                                                  size: 26,
+                                                  color: home.selectedIndex == 3 ? Colors.white : Colors.grey,
+                                                  size: 22,
                                                 ),
                                               ),
                                             ),

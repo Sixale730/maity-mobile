@@ -87,8 +87,47 @@ Conversaciones con embedding vectorial:
 | Índice | Página | Icono | Descripción |
 |--------|--------|-------|-------------|
 | 0 | ConversationsPage | House | Lista de conversaciones |
-| 1 | MemoriesPage | Lightbulb | Memorias extraídas |
-| 2 | UsagePage | ChartLine | Estadísticas (Insights) |
+| 1 | ActionItemsPage | ListCheck | Tareas / To-Do's |
+| 2 | MemoriesPage | Lightbulb | Memorias extraídas |
+| 3 | UsagePage | ChartLine | Estadísticas (Insights) |
+
+## Página de Tareas (ActionItemsPage)
+`lib/pages/action_items/action_items_page.dart`
+
+### Arquitectura
+Action items se extraen automáticamente de conversaciones por OpenAI y se guardan en `omi_conversations.action_items` (JSONB).
+
+```
+Conversación → OpenAI extrae → action_items[] en omi_conversations
+                                       ↓
+Backend: GET /v1/action-items/from-conversations → Flatten + metadata
+                                       ↓
+Flutter: ActionItemsProvider → ActionItemsPage
+```
+
+### Tabs
+| Tab | Descripción |
+|-----|-------------|
+| To Do | Items no completados (últimos 3 días) |
+| Done | Items completados |
+| Old | Items no completados (más de 3 días) |
+
+### ID Format
+`{conversation_id}_{index}` - Ejemplo: `abc-123_0`
+
+### Endpoints Backend
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/v1/action-items/from-conversations` | GET | Lista todos los action items |
+| `/v1/action-items/{id}` | PATCH | Actualizar (completed, description) |
+| `/v1/action-items/{id}` | DELETE | Eliminar action item |
+
+### Archivos
+- **Backend**: `api/routers/action_items.py`
+- **Flutter API**: `lib/backend/http/api/action_items.dart`
+- **Provider**: `lib/providers/action_items_provider.dart`
+- **Page**: `lib/pages/action_items/action_items_page.dart`
+- **Schema**: `lib/backend/schema/action_item.dart`
 
 ## Página de Insights (UsagePage)
 `lib/pages/settings/usage_page.dart`
