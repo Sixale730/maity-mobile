@@ -50,7 +50,7 @@ class SemanticSearchResultCard extends StatelessWidget {
       case 'health':
         return Colors.red.shade300;
       case 'finance':
-        return const Color(0xFF485DF4).shade300;
+        return const Color(0xFF8A9AF7); // Lighter shade of #485DF4
       case 'travel':
         return Colors.teal.shade300;
       case 'entertainment':
