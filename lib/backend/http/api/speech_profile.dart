@@ -4,12 +4,25 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:omi/backend/http/shared.dart';
 import 'package:omi/env/env.dart';
+import 'package:omi/services/supabase_auth_service.dart';
+import 'package:omi/services/voice_profile_service.dart';
 
 Future<bool> userHasSpeakerProfile() async {
-  // Disabled: api.omi.me doesn't accept our Firebase tokens
-  // Return true to avoid showing the "setup speaker profile" banner
-  debugPrint('[API Disabled] userHasSpeakerProfile skipped');
-  return true;
+  // Check voice profile status from our Supabase backend
+  final userId = SupabaseAuthService.instance.maityUserId;
+  if (userId == null) {
+    debugPrint('[userHasSpeakerProfile] No maityUserId - user not authenticated');
+    return false;
+  }
+
+  try {
+    final status = await VoiceProfileService.getProfileStatus(userId);
+    debugPrint('[userHasSpeakerProfile] User $userId hasProfile: ${status.hasProfile}');
+    return status.hasProfile;
+  } catch (e) {
+    debugPrint('[userHasSpeakerProfile] Error checking profile status: $e');
+    return false;
+  }
 }
 
 Future<String?> getUserSpeechProfile() async {
