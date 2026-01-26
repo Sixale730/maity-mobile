@@ -48,6 +48,20 @@
 
 # You might not be using firebase
 -keep class com.google.firebase.** { *; }
+
+# Firebase Analytics
+-keep class com.google.android.gms.measurement.** { *; }
+-keep class com.google.android.gms.analytics.** { *; }
+
+# Firebase Crashlytics
+-keepattributes SourceFile,LineNumberTable
+-keep public class * extends java.lang.Exception
+-keep class com.google.firebase.crashlytics.** { *; }
+-dontwarn com.google.firebase.crashlytics.**
+
+# Google Play Services
+-keep class com.google.android.gms.** { *; }
+-keep interface com.google.android.gms.** { *; }
 -keep class com.builttoroam.devicecalendar.** { *; }
 
 -keep class com.pravera.flutter_foreground_task.service.** { *; }

@@ -44,6 +44,11 @@ dependencies:
   google_sign_in: 6.2.2
   sign_in_with_apple: ^6.1.1  # TODO: agregar soporte Apple después
 
+  # Firebase - FlutterFire BoM 4.8.0 (compatible con AGP 8.10+)
+  firebase_core: ^4.4.0
+  firebase_analytics: ^12.1.1
+  firebase_crashlytics: ^5.0.7
+
   # Analytics and Support (Intercom disabled - causes build issues)
   # intercom_flutter: 9.3.3
   mixpanel_flutter:
