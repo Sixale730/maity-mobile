@@ -1,8 +1,5 @@
 import 'dart:async';
 
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:omi/firebase_options.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,7 +9,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/preferences.dart';
-import 'package:omi/services/firebase_analytics_service.dart';
 import 'package:omi/core/app_shell.dart';
 import 'package:omi/env/env.dart';
 import 'package:omi/env/prod_env.dart';
@@ -91,18 +87,6 @@ Future _init() async {
 
   // Service manager
   await ServiceManager.init();
-
-  // Firebase - Initialize with generated options
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    // Pass all uncaught errors to Crashlytics
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-    debugPrint('[Maity] Firebase inicializado correctamente');
-  } catch (e) {
-    debugPrint('[Maity] Firebase no inicializado: $e');
-  }
 
   // Supabase
   if (Env.supabaseUrl != null && Env.supabaseAnonKey != null) {
@@ -385,7 +369,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   debugShowCheckedModeBanner: false,
                   title: 'Maity',
                   navigatorKey: MyApp.navigatorKey,
-                  navigatorObservers: [FirebaseAnalyticsService.observer],
                   localizationsDelegates: const [
                     AppLocalizations.delegate,
                     GlobalMaterialLocalizations.delegate,

@@ -30,7 +30,6 @@ import 'package:omi/services/voice_profile_service.dart';
 import 'package:omi/utils/alerts/app_snackbar.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
-import 'package:omi/services/firebase_analytics_service.dart';
 import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/image/image_utils.dart';
 import 'package:omi/utils/logger.dart';
@@ -1574,14 +1573,6 @@ class CaptureProvider extends ChangeNotifier
 
       debugPrint('[Maity] Local conversation saved: ${conversation.id}');
       debugPrint('[Maity] Title: ${structured?.title}, Category: ${structured?.category}, Emoji: ${structured?.emoji}');
-
-      // Track conversation completed event
-      final durationSeconds = _recordingDuration;
-      FirebaseAnalyticsService.logConversationCompleted(
-        durationSeconds: durationSeconds,
-        segmentsCount: segments.length,
-        category: structured?.category,
-      );
 
       // Notify the conversation provider to add it to the list
       conversationProvider?.addLocalConversation(conversation);
