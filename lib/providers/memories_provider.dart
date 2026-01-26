@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:omi/widgets/extensions/string.dart';
 import 'package:omi/backend/http/api/memories.dart';
 import 'package:omi/backend/schema/memory.dart';
+import 'package:omi/services/firebase_analytics_service.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:tuple/tuple.dart';
 import 'package:flutter/foundation.dart';
@@ -125,6 +126,9 @@ class MemoriesProvider extends ChangeNotifier {
     _setCategories();
     notifyListeners();
 
+    // Track memory deleted
+    FirebaseAnalyticsService.logMemoryDeleted();
+
     _startDeletionTimer();
   }
 
@@ -191,6 +195,8 @@ class MemoriesProvider extends ChangeNotifier {
     if (newMemory != null) {
       _memories.add(newMemory);
       _setCategories();
+      // Track memory created
+      FirebaseAnalyticsService.logMemoryCreated(category: category.name);
     }
 
     return newMemory;
@@ -240,6 +246,8 @@ class MemoriesProvider extends ChangeNotifier {
 
   Future<void> reviewMemory(Memory memory, bool approved, String source) async {
     MixpanelManager().memoryReviewed(memory, approved, source);
+    // Track memory reviewed
+    FirebaseAnalyticsService.logMemoryReviewed(approved: approved);
 
     final reviewedMemory = await reviewMemoryServer(memory.id, approved);
 
@@ -304,6 +312,8 @@ class MemoriesProvider extends ChangeNotifier {
       _unreviewed.addAll(response.memories.where((m) => !m.reviewed));
       _pendingReviewCount += response.memories.where((m) => !m.reviewed).length;
       _setCategories();
+      // Track memories extracted
+      FirebaseAnalyticsService.logMemoriesExtracted(count: response.memoriesCreated);
     }
 
     return response;

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/http/api/action_items.dart' as api;
 import 'package:omi/backend/schema/schema.dart';
+import 'package:omi/services/firebase_analytics_service.dart';
 import 'package:omi/services/notifications/action_item_notification_handler.dart';
 
 class ActionItemsProvider extends ChangeNotifier {
@@ -187,6 +188,8 @@ class ActionItemsProvider extends ChangeNotifier {
         // Cancel notification if the action item is marked as completed
         if (newState == true) {
           await ActionItemNotificationHandler.cancelNotification(item.id);
+          // Track action item completed
+          FirebaseAnalyticsService.logActionItemCompleted(source: 'action_items_page');
         }
       }
     } catch (e) {
@@ -259,6 +262,8 @@ class ActionItemsProvider extends ChangeNotifier {
       if (success) {
         _actionItems.removeWhere((actionItem) => actionItem.id == item.id);
         notifyListeners();
+        // Track action item deleted
+        FirebaseAnalyticsService.logActionItemDeleted();
         return true;
       } else {
         debugPrint('Failed to delete action item on server');
@@ -303,6 +308,10 @@ class ActionItemsProvider extends ChangeNotifier {
           _actionItems[index] = newItem;
           notifyListeners();
         }
+        // Track action item created
+        FirebaseAnalyticsService.logActionItemCreated(
+          fromConversation: conversationId != null,
+        );
         return newItem;
       } else {
         _actionItems.removeWhere((item) => item.id == optimisticItem.id);
