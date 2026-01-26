@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:omi/firebase_options.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -91,14 +92,16 @@ Future _init() async {
   // Service manager
   await ServiceManager.init();
 
-  // Firebase - Initialize if firebase_options.dart exists
+  // Firebase - Initialize with generated options
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     // Pass all uncaught errors to Crashlytics
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-    debugPrint('[Maity] Firebase inicializado');
+    debugPrint('[Maity] Firebase inicializado correctamente');
   } catch (e) {
-    debugPrint('[Maity] Firebase no inicializado (configura firebase_options.dart): $e');
+    debugPrint('[Maity] Firebase no inicializado: $e');
   }
 
   // Supabase

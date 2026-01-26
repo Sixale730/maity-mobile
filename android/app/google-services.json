@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1042014349988",
+    "project_id": "maity-730",
+    "storage_bucket": "maity-730.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1042014349988:android:8ce52924385018000fd431",
+        "android_client_info": {
+          "package_name": "com.maity.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArHW38Sgnb9Uk4nJZeB8e0kr-NZK0QKJ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
