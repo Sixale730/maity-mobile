@@ -3193,6 +3193,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please check your internet connection and try again.'**
   String get checkInternetAndRetry;
+
+  /// No description provided for @shortConversationFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Short Conversation Filter'**
+  String get shortConversationFilter;
+
+  /// No description provided for @shortConversationFilterDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the minimum duration for conversations to be displayed:'**
+  String get shortConversationFilterDescription;
+
+  /// No description provided for @showAllConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all'**
+  String get showAllConversations;
+
+  /// No description provided for @showAllConversationsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Display all conversations regardless of duration'**
+  String get showAllConversationsDesc;
+
+  /// No description provided for @hideConversationsShorterThan.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide conversations shorter than {seconds} seconds'**
+  String hideConversationsShorterThan(int seconds);
+
+  /// No description provided for @nSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} seconds'**
+  String nSeconds(int count);
+
+  /// No description provided for @nMinute.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} minute'**
+  String nMinute(int count);
+
+  /// No description provided for @nMinutesPlural.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} minutes'**
+  String nMinutesPlural(int count);
+
+  /// No description provided for @allConversationsShown.
+  ///
+  /// In en, this message translates to:
+  /// **'All conversations are now shown'**
+  String get allConversationsShown;
+
+  /// No description provided for @conversationsHiddenMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations shorter than {minutes} minute(s) are now hidden'**
+  String conversationsHiddenMinutes(int minutes);
+
+  /// No description provided for @conversationsHiddenSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations shorter than {seconds} seconds are now hidden'**
+  String conversationsHiddenSeconds(int seconds);
+
+  /// No description provided for @filterShortConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter short conversations'**
+  String get filterShortConversations;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

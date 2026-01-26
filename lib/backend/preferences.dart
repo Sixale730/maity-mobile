@@ -251,6 +251,15 @@ class SharedPreferencesUtil {
 
   set showDiscardedMemories(bool value) => saveBool('showDiscardedMemories', value);
 
+  // Short conversation filtering
+  bool get showShortConversations => getBool('showShortConversations', defaultValue: true);
+
+  set showShortConversations(bool value) => saveBool('showShortConversations', value);
+
+  int get shortConversationThreshold => getInt('shortConversationThreshold', defaultValue: 60);
+
+  set shortConversationThreshold(int value) => saveInt('shortConversationThreshold', value);
+
   // User primary language preferences (for transcription)
   String get userPrimaryLanguage => getString('userPrimaryLanguage');
 

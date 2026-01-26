@@ -91,6 +91,38 @@ Conversaciones con embedding vectorial:
 | 2 | MemoriesPage | Lightbulb | Memorias extraídas |
 | 3 | UsagePage | ChartLine | Estadísticas (Insights) |
 
+## Filtros de Conversaciones (ConversationsPage)
+`lib/pages/conversations/conversations_page.dart`
+
+### SearchWidget Filtros
+La barra de búsqueda incluye varios filtros (iconos a la derecha):
+
+| Filtro | Icono | Descripción |
+|--------|-------|-------------|
+| Búsqueda semántica | psychology/text_fields | Toggle entre búsqueda semántica (AI) y texto |
+| Filtro por fecha | calendarDays | Seleccionar fecha específica |
+| Filtro conversaciones cortas | clock | Filtrar por duración mínima |
+
+### Short Conversation Filter
+Permite ocultar conversaciones cortas según un umbral configurable.
+
+**Archivos**:
+- `lib/pages/settings/short_conversation_dialog.dart` - Dialog de configuración
+- `lib/pages/conversations/widgets/search_widget.dart` - Botón de filtro
+- `lib/providers/conversation_provider.dart` - Lógica de filtrado
+- `lib/backend/preferences.dart` - Persistencia del setting
+
+**Opciones de umbral**:
+- 0 segundos (mostrar todas)
+- 30 segundos
+- 60 segundos (default)
+- 120 segundos (2 min)
+- 300 segundos (5 min)
+
+**Settings persistidos**:
+- `showShortConversations` (bool) - Si mostrar conversaciones cortas
+- `shortConversationThreshold` (int) - Umbral en segundos
+
 ## Página de Tareas (ActionItemsPage)
 `lib/pages/action_items/action_items_page.dart`
 

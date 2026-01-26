@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/l10n/app_localizations.dart';
+import 'package:omi/pages/settings/short_conversation_dialog.dart';
 import 'package:omi/providers/conversation_provider.dart';
 import 'package:omi/providers/home_provider.dart';
 import 'package:omi/services/supabase_auth_service.dart';
@@ -256,6 +257,31 @@ class _SearchWidgetState extends State<SearchWidget> {
                   tooltip: convoProvider.selectedDate != null
                       ? AppLocalizations.of(context)?.filteredByDate(DateFormat('MMM d, yyyy').format(convoProvider.selectedDate!)) ?? 'Filtered by ${DateFormat('MMM d, yyyy').format(convoProvider.selectedDate!)} - Tap to clear'
                       : AppLocalizations.of(context)?.filterByDate ?? 'Filter by date',
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+          // Short conversation filter button
+          Consumer<ConversationProvider>(
+            builder: (BuildContext context, ConversationProvider convoProvider, Widget? child) {
+              final isFiltering = convoProvider.shortConversationThreshold > 0 && !convoProvider.showShortConversations;
+              return Container(
+                decoration: BoxDecoration(
+                  color: isFiltering ? const Color(0xFF485DF4).withValues(alpha: 0.5) : const Color(0xFF1F1F25),
+                  borderRadius: const BorderRadius.all(Radius.circular(16)),
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    ShortConversationDialog.show(context);
+                  },
+                  icon: Icon(
+                    isFiltering ? FontAwesomeIcons.clock : FontAwesomeIcons.clockRotateLeft,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  tooltip: AppLocalizations.of(context)?.filterShortConversations ?? 'Filter short conversations',
                 ),
               );
             },

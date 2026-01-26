@@ -1657,4 +1657,52 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get checkInternetAndRetry => 'Por favor verifica tu conexión a internet e intenta de nuevo.';
+
+  @override
+  String get shortConversationFilter => 'Filtro de Conversaciones Cortas';
+
+  @override
+  String get shortConversationFilterDescription => 'Elige la duración mínima para mostrar conversaciones:';
+
+  @override
+  String get showAllConversations => 'Mostrar todas';
+
+  @override
+  String get showAllConversationsDesc => 'Mostrar todas las conversaciones sin importar la duración';
+
+  @override
+  String hideConversationsShorterThan(int seconds) {
+    return 'Ocultar conversaciones menores a $seconds segundos';
+  }
+
+  @override
+  String nSeconds(int count) {
+    return '$count segundos';
+  }
+
+  @override
+  String nMinute(int count) {
+    return '$count minuto';
+  }
+
+  @override
+  String nMinutesPlural(int count) {
+    return '$count minutos';
+  }
+
+  @override
+  String get allConversationsShown => 'Ahora se muestran todas las conversaciones';
+
+  @override
+  String conversationsHiddenMinutes(int minutes) {
+    return 'Conversaciones menores a $minutes minuto(s) están ocultas';
+  }
+
+  @override
+  String conversationsHiddenSeconds(int seconds) {
+    return 'Conversaciones menores a $seconds segundos están ocultas';
+  }
+
+  @override
+  String get filterShortConversations => 'Filtrar conversaciones cortas';
 }

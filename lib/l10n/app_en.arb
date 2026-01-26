@@ -741,5 +741,48 @@
   "confirm": "Confirm",
   "unableToDeleteConversation": "Unable to Delete Conversation",
   "checkInternetAndRetry": "Please check your internet connection and try again.",
-  "ok": "OK"
+  "ok": "OK",
+
+  "shortConversationFilter": "Short Conversation Filter",
+  "shortConversationFilterDescription": "Choose the minimum duration for conversations to be displayed:",
+  "showAllConversations": "Show all",
+  "showAllConversationsDesc": "Display all conversations regardless of duration",
+  "hideConversationsShorterThan": "Hide conversations shorter than {seconds} seconds",
+  "@hideConversationsShorterThan": {
+    "placeholders": {
+      "seconds": {"type": "int"}
+    }
+  },
+  "nSeconds": "{count} seconds",
+  "@nSeconds": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "nMinute": "{count} minute",
+  "@nMinute": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "nMinutesPlural": "{count} minutes",
+  "@nMinutesPlural": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "allConversationsShown": "All conversations are now shown",
+  "conversationsHiddenMinutes": "Conversations shorter than {minutes} minute(s) are now hidden",
+  "@conversationsHiddenMinutes": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "conversationsHiddenSeconds": "Conversations shorter than {seconds} seconds are now hidden",
+  "@conversationsHiddenSeconds": {
+    "placeholders": {
+      "seconds": {"type": "int"}
+    }
+  },
+  "filterShortConversations": "Filter short conversations"
 }

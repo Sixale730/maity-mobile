@@ -19,7 +19,8 @@ class ConversationProvider extends ChangeNotifier {
 
   bool isLoadingConversations = false;
   bool showDiscardedConversations = false;
-  bool showShortConversations = true; // show all conversations by default
+  bool showShortConversations = SharedPreferencesUtil().showShortConversations;
+  int shortConversationThreshold = SharedPreferencesUtil().shortConversationThreshold;
   DateTime? selectedDate;
 
   // Category filter state
@@ -267,6 +268,16 @@ class ConversationProvider extends ChangeNotifier {
 
   void toggleShortConversations() {
     showShortConversations = !showShortConversations;
+    SharedPreferencesUtil().showShortConversations = showShortConversations;
+    groupConversationsByDate();
+  }
+
+  void setShortConversationThreshold(int seconds) {
+    shortConversationThreshold = seconds;
+    SharedPreferencesUtil().shortConversationThreshold = seconds;
+    // If threshold is 0, show all conversations; otherwise filter by threshold
+    showShortConversations = seconds == 0;
+    SharedPreferencesUtil().showShortConversations = showShortConversations;
     groupConversationsByDate();
   }
 
@@ -389,10 +400,10 @@ class ConversationProvider extends ChangeNotifier {
         }
       }
 
-      // Filter out short conversations (< 2 minutes) unless explicitly showing them
-      if (!showShortConversations) {
+      // Filter out short conversations unless explicitly showing them
+      if (!showShortConversations && shortConversationThreshold > 0) {
         final durationSeconds = convo.getDurationInSeconds();
-        if (durationSeconds < 60) {
+        if (durationSeconds < shortConversationThreshold) {
           return false;
         }
       }

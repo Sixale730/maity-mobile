@@ -593,5 +593,18 @@
   "confirm": "Confirmar",
   "unableToDeleteConversation": "No se Puede Eliminar la Conversación",
   "checkInternetAndRetry": "Por favor verifica tu conexión a internet e intenta de nuevo.",
-  "ok": "OK"
+  "ok": "OK",
+
+  "shortConversationFilter": "Filtro de Conversaciones Cortas",
+  "shortConversationFilterDescription": "Elige la duración mínima para mostrar conversaciones:",
+  "showAllConversations": "Mostrar todas",
+  "showAllConversationsDesc": "Mostrar todas las conversaciones sin importar la duración",
+  "hideConversationsShorterThan": "Ocultar conversaciones menores a {seconds} segundos",
+  "nSeconds": "{count} segundos",
+  "nMinute": "{count} minuto",
+  "nMinutesPlural": "{count} minutos",
+  "allConversationsShown": "Ahora se muestran todas las conversaciones",
+  "conversationsHiddenMinutes": "Conversaciones menores a {minutes} minuto(s) están ocultas",
+  "conversationsHiddenSeconds": "Conversaciones menores a {seconds} segundos están ocultas",
+  "filterShortConversations": "Filtrar conversaciones cortas"
 }
