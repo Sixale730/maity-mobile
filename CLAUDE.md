@@ -404,6 +404,22 @@ Patrón de reintentos con incremento exponencial para reconexión eficiente:
 
 **Secuencia de delays**: 2s → 3s → 4.5s → 6.75s → 10.1s → 15.2s → 22.8s → 34.2s
 
+#### Notificaciones de Conexión/Desconexión
+El sistema notifica al usuario sobre cambios de estado de conexión:
+
+**Conexión (`_onDeviceConnected`)**:
+- Muestra notificación "Maity Connected" con el nombre del dispositivo
+- Dispara analytics `MixpanelManager().deviceConnected()` en TODAS las conexiones (inicial y reconexiones)
+- Notificación ID: 2
+
+**Desconexión (`onDeviceDisconnected`)**:
+- Timer de 5 segundos antes de mostrar notificación (permite reconexión rápida sin notificar)
+- Mensaje indica que está intentando reconectar automáticamente
+- Notificación ID: 1 (se limpia al reconectar)
+- Analytics `MixpanelManager().deviceDisconnected()` inmediato
+
+**Strings localizados**: `deviceConnectedTitle`, `deviceConnectedBody`, `deviceDisconnectedTitle`, `deviceDisconnectedBody`
+
 ## Speaker Verification
 
 **Arquitectura**:

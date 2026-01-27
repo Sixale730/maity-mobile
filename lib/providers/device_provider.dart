@@ -343,10 +343,11 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
 
     PlatformManager.instance.crashReporter.logInfo('Maity Device Disconnected');
     _disconnectNotificationTimer?.cancel();
-    _disconnectNotificationTimer = Timer(const Duration(seconds: 30), () {
+    _disconnectNotificationTimer = Timer(const Duration(seconds: 5), () {
       NotificationService.instance.createNotification(
-        title: 'Your Maity Device Disconnected',
-        body: 'Please reconnect to continue using your Maity.',
+        title: 'Maity Disconnected',
+        body: 'Your device has disconnected. Attempting to reconnect...',
+        notificationId: 1,
       );
     });
     MixpanelManager().deviceDisconnected();
@@ -378,6 +379,17 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
     Logger.debug('_onConnected inside: $connectedDevice');
     _disconnectNotificationTimer?.cancel();
     NotificationService.instance.clearNotification(1);
+
+    // Connection notification
+    NotificationService.instance.createNotification(
+      title: 'Maity Connected',
+      body: 'Your device ${device.name} is now connected.',
+      notificationId: 2,
+    );
+
+    // Analytics for device connection
+    MixpanelManager().deviceConnected();
+
     setConnectedDevice(device);
 
     if (captureProvider != null) {

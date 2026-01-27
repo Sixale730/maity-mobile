@@ -627,5 +627,15 @@
   "vadEnabledMessage": "VAD habilitado. Se filtrarán los silencios.",
   "vadDisabledMessage": "VAD deshabilitado. Se enviará todo el audio.",
   "vadExperimental": "Detección de Actividad de Voz (Experimental)",
-  "vadExperimentalDesc": "Filtrar silencios para reducir costos"
+  "vadExperimentalDesc": "Filtrar silencios para reducir costos",
+
+  "deviceConnectedTitle": "Maity Conectado",
+  "deviceConnectedBody": "Tu dispositivo {deviceName} está conectado.",
+  "@deviceConnectedBody": {
+    "placeholders": {
+      "deviceName": {"type": "String"}
+    }
+  },
+  "deviceDisconnectedTitle": "Maity Desconectado",
+  "deviceDisconnectedBody": "Tu dispositivo se desconectó. Intentando reconectar..."
 }
