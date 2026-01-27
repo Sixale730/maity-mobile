@@ -47,6 +47,7 @@ class StructuredInput(BaseModel):
     category: str = "other"
     action_items: List[dict] = Field(default_factory=list)
     events: List[dict] = Field(default_factory=list)
+    discarded: bool = False  # True if AI marked conversation as banal/irrelevant
 
 
 class StoreConversationRequest(BaseModel):
@@ -120,6 +121,32 @@ async def store_conversation(
         if last.end > 0:
             duration_seconds = int(last.end - first.start)
 
+    # ============ Pre-filter: Auto-discard trivial conversations ============
+    # This avoids wasting OpenAI tokens on obviously banal content
+    auto_discard = False
+
+    # Rule 1: Less than 5 words total
+    if words_count < 5:
+        auto_discard = True
+        print(f"[OMI Router] Auto-discard: < 5 words ({words_count} words)")
+
+    # Rule 2: Less than 10 seconds AND less than 10 words
+    elif duration_seconds < 10 and words_count < 10:
+        auto_discard = True
+        print(f"[OMI Router] Auto-discard: short duration ({duration_seconds}s) and few words ({words_count})")
+
+    # Rule 3: Single segment with less than 3 words
+    elif len(request.transcript_segments) == 1 and words_count < 3:
+        auto_discard = True
+        print(f"[OMI Router] Auto-discard: single segment with < 3 words")
+
+    # Combine auto-discard with AI's discarded flag
+    # If AI marked it as discarded OR pre-filter caught it
+    is_discarded = auto_discard or request.structured.discarded
+
+    if is_discarded:
+        print(f"[OMI Router] Conversation will be marked as discarded (auto={auto_discard}, ai={request.structured.discarded})")
+
     # Generate embeddings if requested
     conversation_embedding = None
     segment_embeddings = None
@@ -155,6 +182,7 @@ async def store_conversation(
             finished_at=request.finished_at,
             source=request.source,
             language=request.language,
+            discarded=is_discarded,
         )
 
         conversation_id = result["id"]

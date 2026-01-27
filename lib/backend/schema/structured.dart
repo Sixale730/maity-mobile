@@ -9,11 +9,14 @@ class Structured {
   String emoji;
   String category;
 
+  /// True if the conversation is banal/irrelevant (e.g., just greetings, noise)
+  bool discarded;
+
   List<ActionItem> actionItems = [];
 
   List<Event> events = [];
 
-  Structured(this.title, this.overview, {this.id = 0, this.emoji = '', this.category = 'other'});
+  Structured(this.title, this.overview, {this.id = 0, this.emoji = '', this.category = 'other', this.discarded = false});
 
   getEmoji() {
     try {
@@ -31,6 +34,7 @@ class Structured {
       json['overview'],
       emoji: json['emoji'],
       category: json['category'],
+      discarded: json['discarded'] ?? false,
     );
     var aItems = json['actionItems'] ?? json['action_items'];
     if (aItems != null) {
@@ -86,6 +90,7 @@ class Structured {
       'overview': overview,
       'emoji': emoji,
       'category': category,
+      'discarded': discarded,
       'actionItems': actionItems.map((item) => item.description).toList(),
       'events': events.map((event) => event.toJson()).toList(),
     };

@@ -39,12 +39,14 @@ async def insert_conversation(
     finished_at: datetime,
     source: str = "omi",
     language: Optional[str] = None,
+    discarded: bool = False,
 ) -> Dict[str, Any]:
     """
     Insert a conversation into maity.omi_conversations.
 
     Args:
         user_id: UUID de maity.users (no auth.users.id)
+        discarded: If True, the conversation is marked as banal/irrelevant
     """
     supabase = get_supabase()
 
@@ -67,7 +69,7 @@ async def insert_conversation(
         "source": source,
         "language": language,
         "status": "completed",
-        "discarded": False,
+        "discarded": discarded,
         "deleted": False,
     }
 
