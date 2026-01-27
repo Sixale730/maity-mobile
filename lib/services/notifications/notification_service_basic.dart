@@ -123,8 +123,15 @@ class _BasicNotificationService implements NotificationInterface {
     Map<String, String?>? payload,
   }) async {
     var allowed = await _awesomeNotifications.isNotificationAllowed();
-    debugPrint('createNotification: $allowed');
-    if (!allowed) return;
+    debugPrint('createNotification: allowed=$allowed');
+    if (!allowed) {
+      // Request permissions if not granted
+      allowed = await requestNotificationPermissions();
+      if (!allowed) {
+        debugPrint('createNotification: Permission denied, notification skipped');
+        return;
+      }
+    }
     debugPrint('createNotification ~ Creating notification: $title');
     showNotification(id: notificationId, title: title, body: body, wakeUpScreen: true, payload: payload);
   }

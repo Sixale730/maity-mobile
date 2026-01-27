@@ -229,6 +229,28 @@ Botones en estado `waiting`: Connect, Use Mic → navegan a FindDevicesPage
 
 **Flujo**: CaptureProvider → `_updateForegroundNotification()` → FlutterForegroundTask → TaskHandler actualiza notificación
 
+## Sistema de Notificaciones
+
+**Arquitectura**: `NotificationService` singleton usa `awesome_notifications` para notificaciones locales.
+
+**Archivos**:
+- `lib/services/notifications/notification_service.dart` - Factory singleton
+- `lib/services/notifications/notification_service_basic.dart` - Implementación
+- `lib/services/notifications/notification_interface.dart` - Interface
+
+### Permisos Automáticos
+El método `createNotification()` solicita permisos automáticamente si no están otorgados:
+1. Verifica `isNotificationAllowed()`
+2. Si no permitido → llama `requestNotificationPermissions()`
+3. Si usuario rechaza → log y retorna sin mostrar notificación
+4. Si acepta → muestra notificación normalmente
+
+### Notificaciones del Sistema
+| ID | Uso | Origen |
+|----|-----|--------|
+| 1 | Dispositivo desconectado | `device_provider.dart` |
+| 2 | Dispositivo conectado | `device_provider.dart` |
+
 ## Autenticacion (Supabase Auth)
 
 ### Flujo
