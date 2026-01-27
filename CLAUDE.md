@@ -18,6 +18,7 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
 - Database: Supabase PostgreSQL + pgvector
 - AI: OpenAI (GPT-4o-mini, text-embedding-3-small)
 - Audio: Deepgram (transcripcion), Opus codec
+- Analytics: Mixpanel, Firebase Analytics/Crashlytics
 
 ## Supabase Configuration
 - URL: `https://nhlrtflkxoojvhbyocet.supabase.co`
@@ -334,6 +335,38 @@ Resumen de hoy, Mis pendientes, Mis estadísticas, Cómo me comunico
 
 **Archivos**: `api/routers/messages.py`, `api/services/supabase_client.py`, `lib/pages/chat/page.dart`
 
+## Analytics (Mixpanel)
+
+**Configuración**: Token en `.env` → `MIXPANEL_PROJECT_TOKEN=<token>`
+
+### Archivos
+- `lib/utils/analytics/mixpanel.dart` - MixpanelManager singleton
+- `lib/env/env.dart` - Variables de entorno (envied)
+
+### Inicialización
+Se inicializa en `main.dart` via `MixpanelManager.init()`. Solo se activa si el token está configurado.
+
+### Plataformas
+- **Mobile (iOS/Android)**: usa `mixpanel_flutter` (nativo)
+- **Desktop**: usa `mixpanel_analytics` (HTTP)
+
+### Uso
+```dart
+MixpanelManager().track('Event Name', properties: {'key': 'value'});
+MixpanelManager().setUserProperty('Property', value);
+```
+
+### Métodos principales
+| Método | Descripción |
+|--------|-------------|
+| `track(event, properties)` | Envía evento |
+| `identify()` | Identifica usuario |
+| `setUserProperty(key, value)` | Propiedad de usuario |
+| `trackTestEvent()` | Evento de prueba (Debug) |
+
+### Testing
+En Developer Settings > Debug & Diagnostics hay un botón "Test Mixpanel" que envía un evento de prueba para verificar la conexión.
+
 ## Speaker Verification
 
 **Arquitectura**:
@@ -403,6 +436,12 @@ Código en `C:\OMI\api\`:
 - `OPENAI_API_KEY`
 - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_JWT_SECRET`
 - `MODAL_VOICE_ENDPOINT_URL`
+
+### Variables de Entorno (Flutter .env)
+- `MIXPANEL_PROJECT_TOKEN` - Token de Mixpanel para analytics
+- `DEEPGRAM_API_KEY` - STT Deepgram
+- `GOOGLE_CLIENT_ID` - Google Sign-In
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY` - Supabase client
 
 ## Patrón BuildContext Async
 

@@ -557,6 +557,75 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                           ],
                         ),
 
+                        const SizedBox(height: 16),
+                        const Divider(height: 1, color: Color(0xFF3C3C43)),
+                        const SizedBox(height: 16),
+                        // Test Mixpanel Connection
+                        GestureDetector(
+                          onTap: () {
+                            MixpanelManager().trackTestEvent();
+                            AppSnackbar.showSnackbar('Mixpanel test event sent');
+                          },
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2A2A2E),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: FaIcon(
+                                    FontAwesomeIcons.chartLine,
+                                    color: Colors.grey.shade400,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Test Mixpanel',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Send test event to verify connection',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade500,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2A2A2E),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Send',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade300,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
                         // Action buttons when enabled
                         if (SharedPreferencesUtil().devLogsToFileEnabled) ...[
                           const SizedBox(height: 16),

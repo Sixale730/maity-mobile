@@ -1238,4 +1238,12 @@ class MixpanelManager {
       'app_name': appName,
     });
   }
+
+  /// Test event to verify Mixpanel connection is working
+  void trackTestEvent() {
+    track('Mixpanel Connection Test', properties: {
+      'timestamp': DateTime.now().toIso8601String(),
+      'platform': PlatformService.isMixpanelNativelySupported ? 'mobile' : 'desktop',
+    });
+  }
 }
