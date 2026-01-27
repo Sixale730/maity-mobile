@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:omi/gen/assets.gen.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/settings/task_integrations_page.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 
@@ -88,10 +89,10 @@ class TaskIntegrationsBanner extends StatelessWidget {
             // const SizedBox(width: 20),
 
             // Message
-            const Expanded(
+            Expanded(
               child: Text(
-                'Export tasks with one tap!',
-                style: TextStyle(
+                AppLocalizations.of(context)!.exportTasksOneTap,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
@@ -106,9 +107,9 @@ class TaskIntegrationsBanner extends StatelessWidget {
                 color: Colors.green.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Text(
-                'NEW',
-                style: TextStyle(
+              child: Text(
+                AppLocalizations.of(context)!.new_,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 9,
                   fontWeight: FontWeight.w700,

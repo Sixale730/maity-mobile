@@ -828,5 +828,80 @@
   "recoveryInProgress": "Recovering conversation...",
   "recoverySuccess": "Conversation recovered successfully",
   "recoveryFailed": "Failed to recover conversation",
-  "justNow": "Just now"
+  "justNow": "Just now",
+
+  "pleaseAuthenticateWith": "Please authenticate with {service} in Settings > Task Integrations",
+  "@pleaseAuthenticateWith": {
+    "placeholders": {
+      "service": {"type": "String"}
+    }
+  },
+  "addingToService": "Adding to {service}...",
+  "@addingToService": {
+    "placeholders": {
+      "service": {"type": "String"}
+    }
+  },
+  "addedToService": "Added to {service}",
+  "@addedToService": {
+    "placeholders": {
+      "service": {"type": "String"}
+    }
+  },
+  "failedToAddToService": "Failed to add to {service}",
+  "@failedToAddToService": {
+    "placeholders": {
+      "service": {"type": "String"}
+    }
+  },
+  "alreadyExportedTo": "Already exported to {platform}",
+  "@alreadyExportedTo": {
+    "placeholders": {
+      "platform": {"type": "String"}
+    }
+  },
+  "integrationComingSoon": "{service} integration coming soon",
+  "@integrationComingSoon": {
+    "placeholders": {
+      "service": {"type": "String"}
+    }
+  },
+  "permissionDeniedAppleReminders": "Permission denied for Apple Reminders",
+
+  "taskIntegrations": "Task Integrations",
+  "connectToService": "Connect to {service}",
+  "@connectToService": {
+    "placeholders": {
+      "service": {"type": "String"}
+    }
+  },
+  "authorizeMaityDescription": "You'll need to authorize Maity to create tasks in your {service} account. This will open your browser for authentication.",
+  "@authorizeMaityDescription": {
+    "placeholders": {
+      "service": {"type": "String"}
+    }
+  },
+  "serviceIntegration": "{service} Integration",
+  "@serviceIntegration": {
+    "placeholders": {
+      "service": {"type": "String"}
+    }
+  },
+  "integrationComingSoonDescription": "Integration with {service} is coming soon! We're working hard to bring you more task management options.",
+  "@integrationComingSoonDescription": {
+    "placeholders": {
+      "service": {"type": "String"}
+    }
+  },
+  "linked": "Linked",
+  "configureSettings": "Configure Settings",
+  "tasksExportedOneAppNote": "Tasks can be exported to one app at a time.",
+  "completeAuthInBrowser": "Please complete authentication in your browser. Once done, return to the app.",
+  "failedToStartServiceAuth": "Failed to start {service} authentication",
+  "@failedToStartServiceAuth": {
+    "placeholders": {
+      "service": {"type": "String"}
+    }
+  },
+  "exportTasksOneTap": "Export tasks with one tap!"
 }

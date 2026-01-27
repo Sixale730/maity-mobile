@@ -265,9 +265,33 @@ El procesamiento local en `ConversationProcessor.processLocally()` extrae action
 - **Agregar**: Editar .arb → `flutter gen-l10n`
 - **Cambiar idioma runtime**: `MyApp.changeLocale('es')` (usa ValueNotifier)
 
-**Páginas localizadas**: UsagePage, Onboarding, Settings, FindDevices, DataPrivacy, About, Storage, ConversationDetail, ActionItems, Chat, Memories, CommunicationFeedback.
+**Páginas localizadas**: UsagePage, Onboarding, Settings, FindDevices, DataPrivacy, About, Storage, ConversationDetail, ActionItems, Chat, Memories, CommunicationFeedback, TaskIntegrations (export messages).
 
 **Fechas localizadas**: Usar `dateTimeFormat('MMM dd', date, locale: SharedPreferencesUtil().appLanguage)`
+
+### Strings de Integraciones de Tareas
+Los mensajes de exportación a Google Tasks, Todoist, Asana, ClickUp y Apple Reminders están localizados:
+
+| Key | EN | ES |
+|-----|----|----|
+| `pleaseAuthenticateWith` | Please authenticate with {service} in Settings > Task Integrations | Por favor autentícate con {service} en Ajustes > Integraciones de Tareas |
+| `addingToService` | Adding to {service}... | Agregando a {service}... |
+| `addedToService` | Added to {service} | Agregado a {service} |
+| `failedToAddToService` | Failed to add to {service} | Error al agregar a {service} |
+| `alreadyExportedTo` | Already exported to {platform} | Ya exportado a {platform} |
+| `integrationComingSoon` | {service} integration coming soon | Integración con {service} próximamente |
+| `permissionDeniedAppleReminders` | Permission denied for Apple Reminders | Permiso denegado para Apple Reminders |
+| `taskIntegrations` | Task Integrations | Integraciones de Tareas |
+| `connectToService` | Connect to {service} | Conectar a {service} |
+| `authorizeMaityDescription` | You'll need to authorize Maity to create tasks... | Necesitarás autorizar a Maity para crear tareas... |
+| `serviceIntegration` | {service} Integration | Integración de {service} |
+| `integrationComingSoonDescription` | Integration with {service} is coming soon!... | ¡La integración con {service} estará disponible pronto!... |
+| `linked` | Linked | Vinculado |
+| `configureSettings` | Configure Settings | Configurar Ajustes |
+| `tasksExportedOneAppNote` | Tasks can be exported to one app at a time. | Las tareas se pueden exportar a una app a la vez. |
+| `completeAuthInBrowser` | Please complete authentication in your browser... | Por favor completa la autenticación en tu navegador... |
+| `failedToStartServiceAuth` | Failed to start {service} authentication | Error al iniciar autenticación con {service} |
+| `exportTasksOneTap` | Export tasks with one tap! | ¡Exporta tareas con un toque! |
 
 ## Transcript Recovery System
 

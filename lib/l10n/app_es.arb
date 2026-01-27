@@ -650,5 +650,25 @@
   "recoveryInProgress": "Recuperando conversación...",
   "recoverySuccess": "Conversación recuperada exitosamente",
   "recoveryFailed": "Error al recuperar la conversación",
-  "justNow": "Ahora mismo"
+  "justNow": "Ahora mismo",
+
+  "pleaseAuthenticateWith": "Por favor autentícate con {service} en Ajustes > Integraciones de Tareas",
+  "addingToService": "Agregando a {service}...",
+  "addedToService": "Agregado a {service}",
+  "failedToAddToService": "Error al agregar a {service}",
+  "alreadyExportedTo": "Ya exportado a {platform}",
+  "integrationComingSoon": "Integración con {service} próximamente",
+  "permissionDeniedAppleReminders": "Permiso denegado para Apple Reminders",
+
+  "taskIntegrations": "Integraciones de Tareas",
+  "connectToService": "Conectar a {service}",
+  "authorizeMaityDescription": "Necesitarás autorizar a Maity para crear tareas en tu cuenta de {service}. Esto abrirá tu navegador para autenticación.",
+  "serviceIntegration": "Integración de {service}",
+  "integrationComingSoonDescription": "¡La integración con {service} estará disponible pronto! Estamos trabajando para traerte más opciones de gestión de tareas.",
+  "linked": "Vinculado",
+  "configureSettings": "Configurar Ajustes",
+  "tasksExportedOneAppNote": "Las tareas se pueden exportar a una app a la vez.",
+  "completeAuthInBrowser": "Por favor completa la autenticación en tu navegador. Una vez hecho, regresa a la app.",
+  "failedToStartServiceAuth": "Error al iniciar autenticación con {service}",
+  "exportTasksOneTap": "¡Exporta tareas con un toque!"
 }

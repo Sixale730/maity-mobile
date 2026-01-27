@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/http/api/action_items.dart';
 import 'package:omi/backend/schema/schema.dart';
@@ -324,7 +325,7 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
               children: [
                 const Icon(Icons.info, color: Colors.white, size: 20),
                 const SizedBox(width: 8),
-                Text('${taskApp.displayName} integration coming soon'),
+                Text(AppLocalizations.of(context)!.integrationComingSoon(taskApp.displayName)),
               ],
             ),
             backgroundColor: Colors.orange,
@@ -349,7 +350,7 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white, size: 20),
                 const SizedBox(width: 8),
-                Text('Already exported to ${widget.actionItem.exportPlatform ?? "another platform"}'),
+                Text(AppLocalizations.of(context)!.alreadyExportedTo(widget.actionItem.exportPlatform ?? "another platform")),
               ],
             ),
             backgroundColor: Colors.orange,
@@ -364,16 +365,16 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
     if (!service.isAuthenticated) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
-                Icon(Icons.error, color: Colors.white, size: 20),
-                SizedBox(width: 8),
-                Text('Please authenticate with Todoist in Settings > Task Integrations'),
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text(AppLocalizations.of(context)!.pleaseAuthenticateWith('Todoist')),
               ],
             ),
             backgroundColor: Colors.orange,
-            duration: Duration(seconds: 4),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -383,10 +384,10 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
     // Show loading state
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
@@ -394,12 +395,12 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
-              SizedBox(width: 12),
-              Text('Adding to Todoist...'),
+              const SizedBox(width: 12),
+              Text(AppLocalizations.of(context)!.addingToService('Todoist')),
             ],
           ),
           backgroundColor: Colors.blue,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -422,7 +423,7 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
             children: [
               Icon(success ? Icons.check_circle : Icons.error, color: Colors.white, size: 20),
               const SizedBox(width: 8),
-              Text(success ? 'Added to Todoist' : 'Failed to add to Todoist'),
+              Text(success ? AppLocalizations.of(context)!.addedToService('Todoist') : AppLocalizations.of(context)!.failedToAddToService('Todoist')),
             ],
           ),
           backgroundColor: success ? Colors.green : Colors.red,
@@ -466,7 +467,7 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white, size: 20),
                 const SizedBox(width: 8),
-                Text('Already exported to ${widget.actionItem.exportPlatform ?? "another platform"}'),
+                Text(AppLocalizations.of(context)!.alreadyExportedTo(widget.actionItem.exportPlatform ?? "another platform")),
               ],
             ),
             backgroundColor: Colors.orange,
@@ -481,16 +482,16 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
     if (!service.isAuthenticated) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
-                Icon(Icons.error, color: Colors.white, size: 20),
-                SizedBox(width: 8),
-                Text('Please authenticate with Asana in Settings > Task Integrations'),
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text(AppLocalizations.of(context)!.pleaseAuthenticateWith('Asana')),
               ],
             ),
             backgroundColor: Colors.orange,
-            duration: Duration(seconds: 4),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -500,10 +501,10 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
     // Show loading state
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
@@ -511,12 +512,12 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
-              SizedBox(width: 12),
-              Text('Adding to Asana...'),
+              const SizedBox(width: 12),
+              Text(AppLocalizations.of(context)!.addingToService('Asana')),
             ],
           ),
           backgroundColor: Colors.blue,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -539,7 +540,7 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
             children: [
               Icon(success ? Icons.check_circle : Icons.error, color: Colors.white, size: 20),
               const SizedBox(width: 8),
-              Text(success ? 'Added to Asana' : 'Failed to add to Asana'),
+              Text(success ? AppLocalizations.of(context)!.addedToService('Asana') : AppLocalizations.of(context)!.failedToAddToService('Asana')),
             ],
           ),
           backgroundColor: success ? Colors.green : Colors.red,
@@ -583,7 +584,7 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white, size: 20),
                 const SizedBox(width: 8),
-                Text('Already exported to ${widget.actionItem.exportPlatform ?? "another platform"}'),
+                Text(AppLocalizations.of(context)!.alreadyExportedTo(widget.actionItem.exportPlatform ?? "another platform")),
               ],
             ),
             backgroundColor: Colors.orange,
@@ -598,16 +599,16 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
     if (!service.isAuthenticated) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
-                Icon(Icons.error, color: Colors.white, size: 20),
-                SizedBox(width: 8),
-                Text('Please authenticate with Google Tasks in Settings > Task Integrations'),
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text(AppLocalizations.of(context)!.pleaseAuthenticateWith('Google Tasks')),
               ],
             ),
             backgroundColor: Colors.orange,
-            duration: Duration(seconds: 4),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -617,10 +618,10 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
     // Show loading state
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
@@ -628,12 +629,12 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
-              SizedBox(width: 12),
-              Text('Adding to Google Tasks...'),
+              const SizedBox(width: 12),
+              Text(AppLocalizations.of(context)!.addingToService('Google Tasks')),
             ],
           ),
           backgroundColor: Colors.blue,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -656,7 +657,7 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
             children: [
               Icon(success ? Icons.check_circle : Icons.error, color: Colors.white, size: 20),
               const SizedBox(width: 8),
-              Text(success ? 'Added to Google Tasks' : 'Failed to add to Google Tasks'),
+              Text(success ? AppLocalizations.of(context)!.addedToService('Google Tasks') : AppLocalizations.of(context)!.failedToAddToService('Google Tasks')),
             ],
           ),
           backgroundColor: success ? Colors.green : Colors.red,
@@ -695,16 +696,16 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
     if (!service.isAuthenticated) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
-                Icon(Icons.error, color: Colors.white, size: 20),
-                SizedBox(width: 8),
-                Text('Please authenticate with ClickUp in Settings > Task Integrations'),
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text(AppLocalizations.of(context)!.pleaseAuthenticateWith('ClickUp')),
               ],
             ),
             backgroundColor: Colors.orange,
-            duration: Duration(seconds: 4),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -714,10 +715,10 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
     // Show loading state
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
@@ -725,12 +726,12 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
-              SizedBox(width: 12),
-              Text('Adding to ClickUp...'),
+              const SizedBox(width: 12),
+              Text(AppLocalizations.of(context)!.addingToService('ClickUp')),
             ],
           ),
           backgroundColor: Colors.blue,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -753,7 +754,7 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
             children: [
               Icon(success ? Icons.check_circle : Icons.error, color: Colors.white, size: 20),
               const SizedBox(width: 8),
-              Text(success ? 'Added to ClickUp' : 'Failed to add to ClickUp'),
+              Text(success ? AppLocalizations.of(context)!.addedToService('ClickUp') : AppLocalizations.of(context)!.failedToAddToService('ClickUp')),
             ],
           ),
           backgroundColor: success ? Colors.green : Colors.red,
@@ -799,7 +800,7 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white, size: 20),
                 const SizedBox(width: 8),
-                Text('Already exported to ${widget.actionItem.exportPlatform ?? "another platform"}'),
+                Text(AppLocalizations.of(context)!.alreadyExportedTo(widget.actionItem.exportPlatform ?? "another platform")),
               ],
             ),
             backgroundColor: Colors.orange,
@@ -820,16 +821,16 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
       if (!hasPermission) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Row(
                 children: [
-                  Icon(Icons.error, color: Colors.white, size: 20),
-                  SizedBox(width: 8),
-                  Text('Permission denied for Apple Reminders'),
+                  const Icon(Icons.error, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Text(AppLocalizations.of(context)!.permissionDeniedAppleReminders),
                 ],
               ),
               backgroundColor: Colors.red,
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -840,10 +841,10 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
     // Show loading state
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
@@ -851,12 +852,12 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
-              SizedBox(width: 12),
-              Text('Adding to Apple Reminders...'),
+              const SizedBox(width: 12),
+              Text(AppLocalizations.of(context)!.addingToService('Apple Reminders')),
             ],
           ),
           backgroundColor: Colors.blue,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -880,7 +881,7 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
             children: [
               Icon(success ? Icons.check_circle : Icons.error, color: Colors.white, size: 20),
               const SizedBox(width: 8),
-              Text(success ? 'Added to Apple Reminders' : 'Failed to add to Reminders'),
+              Text(success ? AppLocalizations.of(context)!.addedToService('Apple Reminders') : AppLocalizations.of(context)!.failedToAddToService('Reminders')),
             ],
           ),
           backgroundColor: success ? Colors.green : Colors.red,
