@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:omi/backend/http/api/speech_profile.dart';
 import 'package:omi/backend/http/api/users.dart';
 import 'package:omi/backend/preferences.dart';
-import 'package:omi/main.dart';
-import 'package:omi/pages/settings/language_selection_dialog.dart';
 import 'package:omi/utils/analytics/analytics_manager.dart';
 
 class HomeProvider extends ChangeNotifier {
@@ -121,25 +119,16 @@ class HomeProvider extends ChangeNotifier {
       return;
     }
 
-    // User hasn't set a primary language yet - show dialog
-    userPrimaryLanguage = '';
-    hasSetPrimaryLanguage = false;
+    // User hasn't set a primary language yet - use 'multi' (auto-detect) as default
+    // User can change this manually in Settings → Profile → Primary Language
+    userPrimaryLanguage = 'multi';
+    hasSetPrimaryLanguage = true;
+    SharedPreferencesUtil().userPrimaryLanguage = 'multi';
+    SharedPreferencesUtil().hasSetPrimaryLanguage = true;
+    AnalyticsManager().setUserAttribute('Primary Language', 'multi');
 
-    // Show language dialog after a short delay to ensure UI is ready
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (MyApp.navigatorKey.currentContext != null) {
-        showLanguageDialogIfNeeded(MyApp.navigatorKey.currentContext!);
-      }
-    });
-
-    debugPrint('setupUserPrimaryLanguage: no language set, showing dialog');
+    debugPrint('setupUserPrimaryLanguage: no language set, using multi (auto-detect) as default');
     notifyListeners();
-  }
-
-  void showLanguageDialogIfNeeded(BuildContext context) {
-    if (!hasSetPrimaryLanguage) {
-      LanguageSelectionDialog.show(context, isRequired: true);
-    }
   }
 
   Future<bool> updateUserPrimaryLanguage(String languageCode) async {
