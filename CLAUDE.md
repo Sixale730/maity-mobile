@@ -361,6 +361,50 @@ Timer de silencio (`conversationSilenceDuration`, default 120s) → `_onSilenceT
 | `/v1/memories/*` | * | CRUD, extract, search, review |
 | `/v1/voice/*` | * | Enroll, verify-speakers, status, delete |
 
+## API Legacy (api.omi.me) - Deshabilitadas
+
+Las funciones en `lib/backend/http/api/` fueron diseñadas para api.omi.me (OMI original).
+Muchas están **deshabilitadas** porque Maity usa Supabase directamente.
+
+### Funciones Deshabilitadas (`users.dart`)
+| Función | Estado | Razón |
+|---------|--------|-------|
+| `setConversationSummaryRating` | Disabled | Endpoint no existe en backend Maity |
+| `getHasConversationSummaryRating` | Disabled | Endpoint no existe en backend Maity |
+| `updateUserGeolocation` | Disabled | No acepta tokens Supabase |
+| `getPrivateCloudSyncEnabled` | Disabled | No acepta tokens Supabase |
+| `getAllPeople` | Disabled | No acepta tokens Supabase |
+| `getUserUsage` | Disabled | Usa Maity backend en su lugar |
+| `getTrainingDataOptIn` | Disabled | No acepta tokens Supabase |
+| `getUserSubscription` | Disabled | No acepta tokens Supabase |
+
+### Funciones Redirigidas (`conversations.dart`)
+| Función | Redirección | Descripción |
+|---------|-------------|-------------|
+| `getConversationById` | `OmiSupabaseService.getConversation()` | Obtiene conversación con segmentos |
+| `getConversations` | `OmiSupabaseService.getConversations()` | Lista conversaciones |
+
+### Patrón de Deshabilitación
+```dart
+Future<bool> disabledFunction() async {
+  debugPrint('[API Disabled] functionName skipped');
+  return false; // o valor default apropiado
+}
+```
+
+### Patrón de Redirección
+```dart
+Future<ServerConversation?> getConversationById(String id) async {
+  final userId = SupabaseAuthService.instance.maityUserId;
+  if (userId == null) return null;
+  final detail = await OmiSupabaseService.getConversation(
+    userId: userId,
+    conversationId: id,
+  );
+  return detail?.toServerConversation();
+}
+```
+
 ## User Feedback System
 
 **Arquitectura**: Flutter → Vercel `/v1/feedback/*` → Supabase `user_feedback`

@@ -6,6 +6,8 @@ import 'package:omi/backend/http/shared.dart';
 import 'package:omi/utils/platform/platform_manager.dart';
 import 'package:omi/backend/schema/schema.dart';
 import 'package:omi/env/env.dart';
+import 'package:omi/services/omi_supabase_service.dart';
+import 'package:omi/services/supabase_auth_service.dart';
 
 Future<CreateConversationResponse?> processInProgressConversation() async {
   var response = await makeApiCall(
@@ -64,20 +66,18 @@ Future<bool> deleteConversationServer(String conversationId) async {
 }
 
 Future<ServerConversation?> getConversationById(String conversationId) async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/conversations/$conversationId',
-    headers: {},
-    method: 'GET',
-    body: '',
-  );
-  if (response == null) return null;
-  if (response.statusCode == 200) {
-    return ServerConversation.fromJson(jsonDecode(response.body));
-  } else if (response.statusCode == 402) {
-    debugPrint('Unlimited Plan Required for conversation: $conversationId');
+  // Use Supabase service instead of disabled api.omi.me
+  final userId = SupabaseAuthService.instance.maityUserId;
+  if (userId == null) {
+    debugPrint('[API Redirect] getConversationById: No user ID available');
     return null;
   }
-  return null;
+  debugPrint('[API Redirect] getConversationById using Supabase for $conversationId');
+  final detail = await OmiSupabaseService.getConversation(
+    userId: userId,
+    conversationId: conversationId,
+  );
+  return detail?.toServerConversation();
 }
 
 Future<bool> updateConversationTitle(String conversationId, String title) async {

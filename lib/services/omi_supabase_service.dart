@@ -466,6 +466,15 @@ class OmiConversationDetail {
       segments: segsJson.map((s) => OmiSegment.fromJson(s)).toList(),
     );
   }
+
+  /// Convert to ServerConversation for compatibility with existing UI
+  ServerConversation toServerConversation() {
+    final serverConv = conversation.toServerConversation();
+    serverConv.transcriptSegments.addAll(
+      segments.map((s) => s.toTranscriptSegment()).toList(),
+    );
+    return serverConv;
+  }
 }
 
 /// Transcript segment from Supabase

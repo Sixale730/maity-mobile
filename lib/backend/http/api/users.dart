@@ -231,15 +231,9 @@ Future<String> getFollowUpQuestion({String conversationId = '0'}) async {
 /*Analytics*/
 
 Future<bool> setConversationSummaryRating(String conversationId, int value, {String? reason}) async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/users/analytics/memory_summary?memory_id=$conversationId&value=$value&reason=$reason',
-    headers: {},
-    method: 'POST',
-    body: '',
-  );
-  if (response == null) return false;
-  debugPrint('setConversationSummaryRating response: ${response.body}');
-  return response.statusCode == 200;
+  // Disabled: endpoint doesn't exist in Maity backend
+  debugPrint('[API Disabled] setConversationSummaryRating skipped');
+  return false;
 }
 
 Future<bool> setMessageResponseRating(String messageId, int value) async {
@@ -255,21 +249,9 @@ Future<bool> setMessageResponseRating(String messageId, int value) async {
 }
 
 Future<bool> getHasConversationSummaryRating(String conversationId) async {
-  var response = await makeApiCall(
-    url: '${Env.apiBaseUrl}v1/users/analytics/memory_summary?memory_id=$conversationId',
-    headers: {},
-    method: 'GET',
-    body: '',
-  );
-  if (response == null) return false;
-  debugPrint('getHasConversationSummaryRating response: ${response.body}');
-
-  try {
-    var jsonResponse = jsonDecode(response.body);
-    return jsonResponse['has_rating'] as bool? ?? false;
-  } catch (e) {
-    return false;
-  }
+  // Disabled: endpoint doesn't exist in Maity backend
+  debugPrint('[API Disabled] getHasConversationSummaryRating skipped');
+  return false;
 }
 
 // User language preference API calls
