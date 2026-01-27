@@ -27,7 +27,7 @@ Future<ActionItemsResponse> getActionItems({
   }
 
   var response = await makeApiCall(
-    url: '${Env.maityBackendUrl}v1/action-items/from-conversations?$params',
+    url: '${Env.maityBackendUrl}/v1/action-items/from-conversations?$params',
     headers: {},
     method: 'GET',
     body: '',
@@ -58,7 +58,7 @@ Future<ActionItemWithMetadata?> getActionItem(String actionItemId) async {
   if (userId == null) return null;
 
   var response = await makeApiCall(
-    url: '${Env.maityBackendUrl}v1/action-items/$actionItemId?user_id=$userId',
+    url: '${Env.maityBackendUrl}/v1/action-items/$actionItemId?user_id=$userId',
     headers: {},
     method: 'GET',
     body: '',
@@ -97,7 +97,7 @@ Future<ActionItemWithMetadata?> createActionItem({
   }
 
   var response = await makeApiCall(
-    url: '${Env.maityBackendUrl}v1/action-items?user_id=$userId',
+    url: '${Env.maityBackendUrl}/v1/action-items?user_id=$userId',
     headers: {},
     method: 'POST',
     body: jsonEncode(requestBody),
@@ -139,7 +139,7 @@ Future<ActionItemWithMetadata?> updateActionItem(
   }
 
   var response = await makeApiCall(
-    url: '${Env.maityBackendUrl}v1/action-items/$actionItemId?user_id=$userId',
+    url: '${Env.maityBackendUrl}/v1/action-items/$actionItemId?user_id=$userId',
     headers: {},
     method: 'PATCH',
     body: jsonEncode(requestBody),
@@ -168,7 +168,7 @@ Future<bool> deleteActionItem(String actionItemId) async {
   if (userId == null) return false;
 
   var response = await makeApiCall(
-    url: '${Env.maityBackendUrl}v1/action-items/$actionItemId?user_id=$userId',
+    url: '${Env.maityBackendUrl}/v1/action-items/$actionItemId?user_id=$userId',
     headers: {},
     method: 'DELETE',
     body: '',
@@ -186,7 +186,7 @@ Future<ActionItemsResponse> getConversationActionItems(String conversationId) as
 
   // Use the from-conversations endpoint with all items, then filter by conversationId
   var response = await makeApiCall(
-    url: '${Env.maityBackendUrl}v1/action-items/from-conversations?user_id=$userId&limit=500',
+    url: '${Env.maityBackendUrl}/v1/action-items/from-conversations?user_id=$userId&limit=500',
     headers: {},
     method: 'GET',
     body: '',

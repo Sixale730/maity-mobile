@@ -6,7 +6,7 @@ import 'package:omi/backend/schema/memory.dart';
 import 'package:omi/env/env.dart';
 
 /// Base URL for memories API
-String get _memoriesBaseUrl => '${Env.maityBackendUrl}v1/memories';
+String get _memoriesBaseUrl => '${Env.maityBackendUrl}/v1/memories';
 
 /// List memories with optional filters
 Future<MemoryListResponse> getMemories({
