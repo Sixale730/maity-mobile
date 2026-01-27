@@ -536,3 +536,4 @@ Future<void> myAsyncMethod() async {
 
 - `docs/CHAT_AGENT_DIFFERENCES.md` - Comparación chat agent
 - `docs/google-sign-in-setup.md` - Google Sign-In setup
+- `docs/MIXPANEL_GUIDE.md` - Guía de uso del dashboard de Mixpanel
