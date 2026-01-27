@@ -18,6 +18,22 @@ import 'package:omi/utils/other/debouncer.dart';
 import 'package:omi/utils/platform/platform_manager.dart';
 import 'package:omi/widgets/confirmation_dialog.dart';
 
+/// Localized notification messages for device connection/disconnection.
+const _deviceNotificationMessages = {
+  'en': {
+    'connected_title': 'Maity Connected',
+    'connected_body': 'Your device {deviceName} is now connected.',
+    'disconnected_title': 'Maity Disconnected',
+    'disconnected_body': 'Your device has disconnected. Attempting to reconnect...',
+  },
+  'es': {
+    'connected_title': 'Maity Conectado',
+    'connected_body': 'Tu dispositivo {deviceName} está conectado.',
+    'disconnected_title': 'Maity Desconectado',
+    'disconnected_body': 'Tu dispositivo se desconectó. Intentando reconectar...',
+  }
+};
+
 class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption {
   CaptureProvider? captureProvider;
 
@@ -344,9 +360,11 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
     PlatformManager.instance.crashReporter.logInfo('Maity Device Disconnected');
     _disconnectNotificationTimer?.cancel();
     _disconnectNotificationTimer = Timer(const Duration(seconds: 5), () {
+      final lang = SharedPreferencesUtil().appLanguage;
+      final messages = _deviceNotificationMessages[lang] ?? _deviceNotificationMessages['en']!;
       NotificationService.instance.createNotification(
-        title: 'Maity Disconnected',
-        body: 'Your device has disconnected. Attempting to reconnect...',
+        title: messages['disconnected_title']!,
+        body: messages['disconnected_body']!,
         notificationId: 1,
       );
     });
@@ -380,10 +398,12 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
     _disconnectNotificationTimer?.cancel();
     NotificationService.instance.clearNotification(1);
 
-    // Connection notification
+    // Connection notification (localized)
+    final lang = SharedPreferencesUtil().appLanguage;
+    final messages = _deviceNotificationMessages[lang] ?? _deviceNotificationMessages['en']!;
     NotificationService.instance.createNotification(
-      title: 'Maity Connected',
-      body: 'Your device ${device.name} is now connected.',
+      title: messages['connected_title']!,
+      body: messages['connected_body']!.replaceAll('{deviceName}', device.name),
       notificationId: 2,
     );
 

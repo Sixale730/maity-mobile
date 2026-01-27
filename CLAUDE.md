@@ -251,6 +251,8 @@ El método `createNotification()` solicita permisos automáticamente si no está
 | 1 | Dispositivo desconectado | `device_provider.dart` |
 | 2 | Dispositivo conectado | `device_provider.dart` |
 
+**Localización**: Las notificaciones de conexión/desconexión usan el mapa `_deviceNotificationMessages` en `device_provider.dart` con soporte para `en` y `es`. Los strings se seleccionan según `SharedPreferencesUtil().appLanguage`.
+
 ## Autenticacion (Supabase Auth)
 
 ### Flujo

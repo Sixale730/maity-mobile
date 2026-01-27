@@ -112,7 +112,8 @@ class _ForegroundFirstTaskHandler extends TaskHandler {
     debugPrint('Updating notification: state=$state, lang=$lang, text=$notificationText');
 
     // Only show action buttons when in 'waiting' state (no device connected, not recording)
-    List<NotificationButton>? buttons;
+    // Use empty list to clear buttons for other states (null doesn't remove existing buttons)
+    List<NotificationButton> buttons = [];
     if (state == 'waiting') {
       final btnTexts = _buttonTexts[lang] ?? _buttonTexts['en']!;
       buttons = [

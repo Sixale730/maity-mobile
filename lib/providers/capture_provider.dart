@@ -1593,9 +1593,9 @@ class CaptureProvider extends ChangeNotifier
 
   /// Determines the appropriate notification state based on current provider state
   String _getNotificationState() {
-    // Recording states take priority
+    // Recording states take priority - but verify device exists for deviceRecord
     if (recordingState == RecordingState.record ||
-        recordingState == RecordingState.deviceRecord ||
+        (recordingState == RecordingState.deviceRecord && _recordingDevice != null) ||
         recordingState == RecordingState.systemAudioRecord) {
       return 'recording';
     }
