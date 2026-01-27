@@ -13,8 +13,10 @@ import 'package:omi/pages/settings/widgets/developer_api_keys_section.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/pages/settings/transcription_settings_page.dart';
 import 'package:omi/pages/settings/vad_settings_dialog.dart';
+import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/developer_mode_provider.dart';
 import 'package:omi/providers/mcp_provider.dart';
+import 'package:omi/services/vad/vad_state.dart';
 import 'package:omi/utils/alerts/app_snackbar.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/utils/debug_log_manager.dart';
@@ -258,6 +260,53 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Helper to get color for VAD state indicator
+  Color _getVadStateColor(VadState? state) {
+    switch (state) {
+      case VadState.silence:
+        return Colors.grey;
+      case VadState.preRoll:
+        return Colors.blue;
+      case VadState.speech:
+        return Colors.green;
+      case VadState.hangOver:
+        return Colors.orange;
+      default:
+        return Colors.grey.shade600;
+    }
+  }
+
+  /// Helper to build a VAD metric row
+  Widget _buildVadMetricRow({
+    required IconData icon,
+    required String label,
+    String? value,
+    Widget? valueWidget,
+    Color? valueColor,
+  }) {
+    return Row(
+      children: [
+        FaIcon(icon, size: 14, color: Colors.grey.shade500),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+          ),
+        ),
+        valueWidget ??
+            Text(
+              value ?? '',
+              style: TextStyle(
+                color: valueColor ?? Colors.white,
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+      ],
     );
   }
 
@@ -555,6 +604,131 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                               activeThumbColor: const Color(0xFF22C55E),
                             ),
                           ],
+                        ),
+
+                        const SizedBox(height: 16),
+                        const Divider(height: 1, color: Color(0xFF3C3C43)),
+                        const SizedBox(height: 16),
+
+                        // VAD Metrics Section
+                        Consumer<CaptureProvider>(
+                          builder: (context, captureProvider, child) {
+                            final isActive = captureProvider.isVadActive;
+                            final metrics = captureProvider.vadMetrics;
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2A2A2E),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Center(
+                                        child: FaIcon(
+                                          FontAwesomeIcons.waveSquare,
+                                          color: Colors.grey.shade400,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'VAD Metrics',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            isActive ? 'Active' : 'Inactive',
+                                            style: TextStyle(
+                                              color: isActive ? Colors.green : Colors.grey.shade500,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                if (isActive && metrics != null) ...[
+                                  const SizedBox(height: 16),
+                                  // Current State
+                                  _buildVadMetricRow(
+                                    icon: FontAwesomeIcons.circlePlay,
+                                    label: 'Current State',
+                                    valueWidget: ValueListenableBuilder<VadState?>(
+                                      valueListenable: captureProvider.vadStateNotifier,
+                                      builder: (_, state, __) => Text(
+                                        state?.displayName ?? 'N/A',
+                                        style: TextStyle(
+                                          color: _getVadStateColor(state),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Total Audio
+                                  _buildVadMetricRow(
+                                    icon: FontAwesomeIcons.clock,
+                                    label: 'Total Audio',
+                                    value: '${metrics.totalSeconds.toStringAsFixed(1)}s',
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Sent to STT
+                                  _buildVadMetricRow(
+                                    icon: FontAwesomeIcons.paperPlane,
+                                    label: 'Sent to STT',
+                                    value: '${metrics.sentSeconds.toStringAsFixed(1)}s',
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Filtered (silence)
+                                  _buildVadMetricRow(
+                                    icon: FontAwesomeIcons.volumeXmark,
+                                    label: 'Filtered (silence)',
+                                    value: '${metrics.filteredSeconds.toStringAsFixed(1)}s',
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Est. Savings
+                                  _buildVadMetricRow(
+                                    icon: FontAwesomeIcons.piggyBank,
+                                    label: 'Est. Savings',
+                                    value: '${metrics.savingsPercent.toStringAsFixed(0)}%',
+                                    valueColor: Colors.green,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Speech Segments
+                                  _buildVadMetricRow(
+                                    icon: FontAwesomeIcons.comments,
+                                    label: 'Speech Segments',
+                                    value: '${metrics.speechSegments}',
+                                  ),
+                                ],
+
+                                if (!isActive)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 12),
+                                    child: Text(
+                                      'VAD requires Custom STT + PCM16 codec',
+                                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
                         ),
 
                         const SizedBox(height: 16),

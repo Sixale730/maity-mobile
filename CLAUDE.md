@@ -391,6 +391,38 @@ MixpanelManager().setUserProperty('Property', value);
 ### Testing
 En Developer Settings > Debug & Diagnostics hay un botón "Test Mixpanel" que envía un evento de prueba para verificar la conexión.
 
+## VAD Metrics (Developer Settings)
+
+Panel de métricas en tiempo real para Voice Activity Detection en Developer Settings > Debug & Diagnostics.
+
+### Requisitos
+VAD solo se activa cuando:
+1. VAD habilitado en Experimental settings
+2. Custom STT habilitado (Deepgram)
+3. Codec PCM16 (phone mic o desktop)
+
+### Métricas Mostradas
+| Métrica | Descripción | Fuente |
+|---------|-------------|--------|
+| Current State | Estado actual (Silence/Pre-Roll/Speech/Hang-Over) | `vadStateNotifier` |
+| Total Audio | Segundos totales procesados | `metrics.totalSeconds` |
+| Sent to STT | Segundos enviados a transcripción | `metrics.sentSeconds` |
+| Filtered (silence) | Segundos filtrados como silencio | `metrics.filteredSeconds` |
+| Est. Savings | Porcentaje de ahorro estimado | `metrics.savingsPercent` |
+| Speech Segments | Número de segmentos de voz detectados | `metrics.speechSegments` |
+
+### Estados VAD
+- **Silence** (gris): No hay voz, audio filtrado
+- **Pre-Roll** (azul): Voz detectada, enviando buffer
+- **Speech** (verde): Voz activa, enviando todo
+- **Hang-Over** (naranja): Voz terminada, esperando timeout
+
+### Archivos
+- `lib/providers/capture_provider.dart` - `vadStateNotifier`, `vadMetrics`, `isVadActive`
+- `lib/pages/settings/developer.dart` - Widget de métricas VAD
+- `lib/services/vad/vad_metrics.dart` - Clase VadMetrics
+- `lib/services/vad/vad_state.dart` - Enum VadState
+
 ## Conexión Bluetooth (BLE)
 
 ### Archivos Clave

@@ -116,6 +116,9 @@ class CaptureProvider extends ChangeNotifier
   VadMetrics? get vadMetrics => _vadService?.getMetricsSnapshot();
   bool get isVadActive => _vadService != null && _vadService!.isInitialized;
 
+  // ValueNotifier for real-time VAD state updates (used by Developer Settings)
+  final ValueNotifier<VadState?> vadStateNotifier = ValueNotifier(null);
+
   CaptureProvider() {
     _connectionStateListener = ConnectivityService().onConnectionChange.listen((bool isConnected) {
       onConnectionStateChanged(isConnected);
@@ -428,6 +431,7 @@ class CaptureProvider extends ChangeNotifier
     // Dispose any existing VAD service
     await _vadService?.dispose();
     _vadService = null;
+    vadStateNotifier.value = null;
 
     final vadConfig = SharedPreferencesUtil().vadConfig;
 
@@ -465,6 +469,7 @@ class CaptureProvider extends ChangeNotifier
 
       _vadService!.onStateChanged = (state) {
         debugPrint('[VAD] State changed: ${state.displayName}');
+        vadStateNotifier.value = state;
       };
 
       debugPrint('[VAD] Service initialized successfully');
@@ -663,6 +668,7 @@ class CaptureProvider extends ChangeNotifier
     }
     await _vadService?.dispose();
     _vadService = null;
+    vadStateNotifier.value = null;
 
     notifyListeners();
   }
@@ -899,6 +905,7 @@ class CaptureProvider extends ChangeNotifier
     // Dispose VAD service
     _vadService?.dispose();
     _vadService = null;
+    vadStateNotifier.value = null;
 
     // Remove lifecycle observer
     if (PlatformService.isDesktop) {
