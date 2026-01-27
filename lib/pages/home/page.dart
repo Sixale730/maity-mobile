@@ -38,6 +38,8 @@ import 'package:omi/utils/platform/platform_manager.dart';
 import 'package:omi/utils/enums.dart';
 
 import 'package:omi/pages/conversation_capturing/page.dart';
+import 'package:omi/services/transcript_recovery_service.dart';
+import 'package:omi/widgets/recovery_dialog.dart';
 
 import 'widgets/battery_info_widget.dart';
 
@@ -318,6 +320,82 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
 
     // After init
     FlutterForegroundTask.addTaskDataCallback(_onReceiveTaskData);
+
+    // Check for interrupted recording sessions after a short delay
+    // to allow providers to initialize
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          _checkForInterruptedSession();
+        }
+      });
+    });
+  }
+
+  /// Check for interrupted recording sessions and offer recovery
+  Future<void> _checkForInterruptedSession() async {
+    try {
+      final interruptedSession = await TranscriptRecoveryService.checkForInterruptedSession();
+
+      if (interruptedSession != null && mounted) {
+        debugPrint('[HomePage] Found interrupted session: ${interruptedSession.segmentCount} segments');
+
+        RecoveryDialog.show(
+          context: context,
+          session: interruptedSession,
+          onRecover: () async {
+            if (!mounted) return;
+
+            // Show loading indicator
+            final l10n = AppLocalizations.of(context);
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Text(l10n?.recoveryInProgress ?? 'Recovering conversation...'),
+                duration: const Duration(seconds: 30),
+              ),
+            );
+
+            // Recover the session
+            final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+            final success = await captureProvider.recoverInterruptedSession(
+              interruptedSession.segments,
+              interruptedSession.startedAt,
+            );
+
+            if (!mounted) return;
+
+            scaffoldMessenger.hideCurrentSnackBar();
+
+            if (success) {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: Text(l10n?.recoverySuccess ?? 'Conversation recovered successfully'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+              // Refresh conversations list
+              Provider.of<ConversationProvider>(context, listen: false).refreshConversations();
+            } else {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: Text(l10n?.recoveryFailed ?? 'Failed to recover conversation'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          },
+          onDiscard: () async {
+            // Clear the recovery data
+            await TranscriptRecoveryService.clearRecoveryData();
+            debugPrint('[HomePage] User discarded interrupted session');
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('[HomePage] Error checking for interrupted session: $e');
+    }
   }
 
   void _listenToMessagesFromNotification() {

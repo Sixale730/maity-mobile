@@ -637,5 +637,18 @@
     }
   },
   "deviceDisconnectedTitle": "Maity Desconectado",
-  "deviceDisconnectedBody": "Tu dispositivo se desconectó. Intentando reconectar..."
+  "deviceDisconnectedBody": "Tu dispositivo se desconectó. Intentando reconectar...",
+
+  "recoveryDialogTitle": "Grabación Interrumpida Encontrada",
+  "recoveryDialogDescription": "Se encontró una grabación que fue interrumpida inesperadamente. ¿Te gustaría recuperarla?",
+  "recoveryDialogRecordedAt": "Grabada",
+  "recoveryDialogDuration": "Duración",
+  "recoveryDialogSegments": "Segmentos",
+  "recoveryDialogWords": "Palabras",
+  "recoveryDialogDiscard": "Descartar",
+  "recoveryDialogRecover": "Recuperar",
+  "recoveryInProgress": "Recuperando conversación...",
+  "recoverySuccess": "Conversación recuperada exitosamente",
+  "recoveryFailed": "Error al recuperar la conversación",
+  "justNow": "Ahora mismo"
 }

@@ -78,6 +78,7 @@ Conversaciones con embedding vectorial:
 - `voice_profile_service.dart` - Enrollment y verificación de voz
 - `feedback_service.dart` - Feedback de usuarios
 - `conversation_processor.dart` - Procesamiento local de conversaciones con OpenAI
+- `transcript_recovery_service.dart` - Recuperación de conversaciones interrumpidas
 
 ### Otros
 - `lib/backend/http/shared.dart` - Cliente HTTP con auth centralizada
@@ -267,6 +268,66 @@ El procesamiento local en `ConversationProcessor.processLocally()` extrae action
 **Páginas localizadas**: UsagePage, Onboarding, Settings, FindDevices, DataPrivacy, About, Storage, ConversationDetail, ActionItems, Chat, Memories, CommunicationFeedback.
 
 **Fechas localizadas**: Usar `dateTimeFormat('MMM dd', date, locale: SharedPreferencesUtil().appLanguage)`
+
+## Transcript Recovery System
+
+Sistema para recuperar grabaciones interrumpidas cuando la app crashea o el OS la mata.
+
+### Problema Resuelto
+Los segmentos de transcripción solo existían en RAM. Si la app crasheaba o el OS la mataba en background, toda la conversación se perdía.
+
+### Arquitectura
+```
+Grabación activa
+       ↓
+Segmentos llegan → RAM + Archivo JSON (debounced cada 5s)
+       ↓
+App va a background
+       ↓
+[CRASH o KILL]
+       ↓
+Al reiniciar: Detectar archivo → Ofrecer recovery dialog
+```
+
+### Archivos
+| Archivo | Descripción |
+|---------|-------------|
+| `lib/services/transcript_recovery_service.dart` | Persistencia incremental de segmentos |
+| `lib/models/recovery_session.dart` | Modelo de sesión recuperable |
+| `lib/widgets/recovery_dialog.dart` | UI para ofrecer recuperación |
+| `lib/providers/capture_provider.dart` | Integración: debounced save + reintentos |
+| `lib/pages/home/page.dart` | Verifica sesiones interrumpidas al iniciar |
+
+### Flujo de Recovery
+1. **Durante grabación**: Segmentos se guardan cada 5 segundos (o después de 5 nuevos segmentos)
+2. **Al finalizar**: Si save exitoso → limpia archivo; si falla → mantiene para recovery
+3. **Al iniciar app**: Verifica si hay sesión interrumpida → muestra `RecoveryDialog`
+4. **Usuario decide**: Recuperar (procesa con OpenAI) o Descartar (limpia archivo)
+
+### Métodos Clave (CaptureProvider)
+- `_scheduleRecoverySave()` - Agenda guardado debounced
+- `_saveRecoveryData()` - Guarda segmentos a archivo
+- `_clearRecoveryState()` - Limpia después de save exitoso
+- `recoverInterruptedSession()` - Recupera sesión desde archivo
+
+### Configuración
+- **Debounce**: 5 segundos entre guardados
+- **Threshold**: 5 segmentos nuevos fuerza guardado inmediato
+- **Reintentos**: 3 intentos con exponential backoff al guardar
+- **Expiración**: Sesiones > 24 horas se descartan automáticamente
+- **Mínimo recuperable**: 5 palabras
+
+### RecoveryDialog (UI)
+Muestra al usuario:
+- Fecha/hora de la grabación
+- Duración estimada
+- Número de segmentos
+- Cantidad de palabras
+
+**Botones**: Recuperar | Descartar
+
+### Strings i18n
+`recoveryDialogTitle`, `recoveryDialogDescription`, `recoveryDialogRecordedAt`, `recoveryDialogDuration`, `recoveryDialogSegments`, `recoveryDialogWords`, `recoveryDialogDiscard`, `recoveryDialogRecover`, `recoveryInProgress`, `recoverySuccess`, `recoveryFailed`
 
 ## Foreground Service Notification
 Estados: waiting, device_connected, phone_mic, recording, processing, ready
