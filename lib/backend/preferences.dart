@@ -9,6 +9,7 @@ import 'package:omi/backend/schema/message.dart';
 import 'package:omi/backend/schema/person.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/models/stt_provider.dart';
+import 'package:omi/services/vad/vad_config.dart';
 import 'package:omi/utils/platform/platform_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -104,6 +105,25 @@ class SharedPreferencesUtil {
   }
 
   bool get useCustomStt => customSttConfig.isEnabled;
+
+  // VAD (Voice Activity Detection) configuration
+  VadConfig get vadConfig {
+    final configJson = getString('vadConfig');
+    if (configJson.isEmpty) return VadConfig.defaultConfig;
+    try {
+      return VadConfig.fromJson(jsonDecode(configJson));
+    } catch (e, stack) {
+      debugPrint('Error parsing vadConfig: $e');
+      debugPrint('Stack: $stack');
+      return VadConfig.defaultConfig;
+    }
+  }
+
+  Future<bool> saveVadConfig(VadConfig value) async {
+    return await saveString('vadConfig', jsonEncode(value.toJson()));
+  }
+
+  bool get vadEnabled => vadConfig.enabled;
 
   // Per-provider config storage
   CustomSttConfig? getConfigForProvider(SttProvider provider) {

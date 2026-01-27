@@ -12,6 +12,7 @@ import 'package:omi/pages/settings/widgets/mcp_api_key_list_item.dart';
 import 'package:omi/pages/settings/widgets/developer_api_keys_section.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/pages/settings/transcription_settings_page.dart';
+import 'package:omi/pages/settings/vad_settings_dialog.dart';
 import 'package:omi/providers/developer_mode_provider.dart';
 import 'package:omi/providers/mcp_provider.dart';
 import 'package:omi/utils/alerts/app_snackbar.dart';
@@ -1080,6 +1081,84 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                     ),
                     child: Column(
                       children: [
+                        // Voice Activity Detection (VAD)
+                        Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2A2A2E),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Center(
+                                child: FaIcon(FontAwesomeIcons.waveSquare, color: Colors.grey.shade400, size: 16),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Voice Activity Detection',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Filter silence to reduce costs',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: SharedPreferencesUtil().vadEnabled,
+                              onChanged: (v) async {
+                                final config = SharedPreferencesUtil().vadConfig.copyWith(enabled: v);
+                                await SharedPreferencesUtil().saveVadConfig(config);
+                                setState(() {});
+                              },
+                              activeThumbColor: const Color(0xFF22C55E),
+                            ),
+                          ],
+                        ),
+                        // VAD Settings button (only show when enabled)
+                        if (SharedPreferencesUtil().vadEnabled) ...[
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: () => VadSettingsDialog.show(context),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2A2A2E),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Configure VAD Settings',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade300,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Divider(color: Colors.grey.shade800, height: 1),
+                        ),
                         // Transcription Diagnostics
                         _buildExperimentalItem(
                           title: 'Transcription Diagnostics',

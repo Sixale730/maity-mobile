@@ -27,6 +27,9 @@ import 'package:omi/services/local_conversations_service.dart';
 import 'package:omi/services/conversation_processor.dart';
 import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/services/voice_profile_service.dart';
+import 'package:omi/services/vad/vad_service.dart';
+import 'package:omi/services/vad/vad_state.dart';
+import 'package:omi/services/vad/vad_metrics.dart';
 import 'package:omi/utils/alerts/app_snackbar.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
@@ -107,6 +110,11 @@ class CaptureProvider extends ChangeNotifier
 
   // Audio buffer for speaker verification (stores audio during recording)
   WavBytesUtil? _audioBuffer;
+
+  // Voice Activity Detection (VAD) service
+  VadService? _vadService;
+  VadMetrics? get vadMetrics => _vadService?.getMetricsSnapshot();
+  bool get isVadActive => _vadService != null && _vadService!.isInitialized;
 
   CaptureProvider() {
     _connectionStateListener = ConnectivityService().onConnectionChange.listen((bool isConnected) {
@@ -333,6 +341,20 @@ class CaptureProvider extends ChangeNotifier
     }
   }
 
+  /// Called when VAD settings are changed
+  /// This re-initializes the VAD service with new configuration
+  Future<void> onVadSettingsChanged() async {
+    debugPrint("VAD settings changed, reinitializing VAD service...");
+
+    // Only reinitialize if currently recording with PCM16
+    if (recordingState == RecordingState.record || recordingState == RecordingState.systemAudioRecord) {
+      final customSttConfig = SharedPreferencesUtil().customSttConfig;
+      final effectiveConfig = customSttConfig.isEnabled ? customSttConfig : null;
+      await _initializeVadService(BleAudioCodec.pcm16, effectiveConfig);
+      notifyListeners();
+    }
+  }
+
   Future<void> changeAudioRecordProfile({
     required BleAudioCodec audioCodec,
     int? sampleRate,
@@ -393,9 +415,64 @@ class CaptureProvider extends ChangeNotifier
     _socket?.subscribe(this, this);
     _transcriptServiceReady = true;
 
+    // Initialize VAD if enabled and using custom STT with PCM16 codec
+    await _initializeVadService(codec, effectiveConfig);
+
     _loadInProgressConversation();
 
     notifyListeners();
+  }
+
+  /// Initialize VAD service if enabled and compatible
+  Future<void> _initializeVadService(BleAudioCodec codec, CustomSttConfig? customSttConfig) async {
+    // Dispose any existing VAD service
+    await _vadService?.dispose();
+    _vadService = null;
+
+    final vadConfig = SharedPreferencesUtil().vadConfig;
+
+    // VAD only works with:
+    // 1. VAD enabled in settings
+    // 2. Custom STT enabled (direct Deepgram connection)
+    // 3. PCM16 codec (VAD expects 16kHz PCM16 audio)
+    if (!vadConfig.enabled) {
+      debugPrint('[VAD] Disabled in settings');
+      return;
+    }
+
+    if (customSttConfig == null || !customSttConfig.isEnabled) {
+      debugPrint('[VAD] Custom STT not enabled, VAD requires direct transcription');
+      return;
+    }
+
+    if (codec != BleAudioCodec.pcm16) {
+      debugPrint('[VAD] Codec $codec not supported, VAD requires PCM16');
+      return;
+    }
+
+    try {
+      debugPrint('[VAD] Initializing VAD service...');
+      _vadService = VadService(config: vadConfig);
+      await _vadService!.initialize();
+
+      // Set up callback to send filtered audio to socket
+      _vadService!.onAudioToSend = (bytes) {
+        if (_socket?.state == SocketServiceState.connected) {
+          _socket?.send(bytes);
+          _wsSocketBytesSent += bytes.length;
+        }
+      };
+
+      _vadService!.onStateChanged = (state) {
+        debugPrint('[VAD] State changed: ${state.displayName}');
+      };
+
+      debugPrint('[VAD] Service initialized successfully');
+    } catch (e) {
+      debugPrint('[VAD] Failed to initialize: $e');
+      // Continue without VAD on failure
+      _vadService = null;
+    }
   }
 
   void _processVoiceCommandBytes(String deviceId, List<List<int>> data) async {
@@ -578,6 +655,15 @@ class CaptureProvider extends ChangeNotifier
   Future _cleanupCurrentState() async {
     _cancelSilenceTimer();
     await _closeBleStream();
+
+    // Flush and dispose VAD service
+    _vadService?.flush();
+    if (_vadService != null) {
+      debugPrint('[VAD] Final metrics: ${_vadService!.metrics}');
+    }
+    await _vadService?.dispose();
+    _vadService = null;
+
     notifyListeners();
   }
 
@@ -810,6 +896,10 @@ class CaptureProvider extends ChangeNotifier
     _recordingTimer?.cancel();
     _metricsTimer?.cancel();
 
+    // Dispose VAD service
+    _vadService?.dispose();
+    _vadService = null;
+
     // Remove lifecycle observer
     if (PlatformService.isDesktop) {
       WidgetsBinding.instance.removeObserver(this);
@@ -840,7 +930,14 @@ class CaptureProvider extends ChangeNotifier
     // record
     await ServiceManager.instance().mic.start(onByteReceived: (bytes) {
       if (_socket?.state == SocketServiceState.connected) {
-        _socket?.send(bytes);
+        // Use VAD to filter silence if available
+        if (_vadService != null && _vadService!.isInitialized) {
+          // VAD will call onAudioToSend callback when speech detected
+          _vadService!.processAudioFrame(Uint8List.fromList(bytes));
+        } else {
+          // No VAD - send all audio directly
+          _socket?.send(bytes);
+        }
       }
     }, onRecording: () {
       updateRecordingState(RecordingState.record);
@@ -1055,10 +1152,22 @@ class CaptureProvider extends ChangeNotifier
 
   void _flushSystemAudioBuffer() {
     if (_socket?.state == SocketServiceState.connected) {
-      while (_systemAudioBuffer.length >= 320) {
-        final chunk = _systemAudioBuffer.sublist(0, 320);
-        _socket?.send(chunk);
-        _systemAudioBuffer.removeRange(0, 320);
+      // VAD expects 512 samples (1024 bytes) at 16kHz
+      // System audio comes in smaller chunks, so we accumulate
+      const frameSize = 1024; // 512 samples * 2 bytes per sample (PCM16)
+      while (_systemAudioBuffer.length >= frameSize) {
+        final chunk = _systemAudioBuffer.sublist(0, frameSize);
+
+        // Use VAD to filter silence if available
+        if (_vadService != null && _vadService!.isInitialized) {
+          // VAD will call onAudioToSend callback when speech detected
+          _vadService!.processAudioFrame(Uint8List.fromList(chunk));
+        } else {
+          // No VAD - send all audio directly
+          _socket?.send(chunk);
+        }
+
+        _systemAudioBuffer.removeRange(0, frameSize);
       }
     }
   }

@@ -784,5 +784,26 @@
       "seconds": {"type": "int"}
     }
   },
-  "filterShortConversations": "Filter short conversations"
+  "filterShortConversations": "Filter short conversations",
+
+  "vadSettings": "Voice Activity Detection",
+  "vadDescription": "Filter silence to reduce transcription costs. Only send audio when speech is detected.",
+  "vadEnabled": "Enable VAD",
+  "vadEnabledDesc": "Filter silence before transcription",
+  "vadThreshold": "Speech Threshold",
+  "vadThresholdDesc": "Higher = more strict detection",
+  "vadPreRoll": "Pre-roll Buffer",
+  "vadPreRollDesc": "Buffer before speech detection",
+  "vadHangOver": "Hang-over Time",
+  "vadHangOverDesc": "Continue after speech ends",
+  "vadSessionStats": "Session Stats",
+  "vadTotalAudio": "Total Audio",
+  "vadSentAudio": "Sent",
+  "vadFilteredAudio": "Filtered",
+  "vadEstimatedSavings": "Est. Savings",
+  "vadInfoBanner": "VAD works best with Custom STT (Deepgram). Typical savings: 40-70%.",
+  "vadEnabledMessage": "VAD enabled. Silence will be filtered.",
+  "vadDisabledMessage": "VAD disabled. All audio will be sent.",
+  "vadExperimental": "Voice Activity Detection (Experimental)",
+  "vadExperimentalDesc": "Filter silence to reduce costs"
 }

@@ -606,5 +606,26 @@
   "allConversationsShown": "Ahora se muestran todas las conversaciones",
   "conversationsHiddenMinutes": "Conversaciones menores a {minutes} minuto(s) están ocultas",
   "conversationsHiddenSeconds": "Conversaciones menores a {seconds} segundos están ocultas",
-  "filterShortConversations": "Filtrar conversaciones cortas"
+  "filterShortConversations": "Filtrar conversaciones cortas",
+
+  "vadSettings": "Detección de Actividad de Voz",
+  "vadDescription": "Filtra silencios para reducir costos de transcripción. Solo envía audio cuando se detecta voz.",
+  "vadEnabled": "Habilitar VAD",
+  "vadEnabledDesc": "Filtrar silencios antes de transcribir",
+  "vadThreshold": "Umbral de Voz",
+  "vadThresholdDesc": "Mayor = detección más estricta",
+  "vadPreRoll": "Buffer Pre-roll",
+  "vadPreRollDesc": "Buffer antes de detectar voz",
+  "vadHangOver": "Tiempo Hang-over",
+  "vadHangOverDesc": "Continuar después de que termina la voz",
+  "vadSessionStats": "Estadísticas de Sesión",
+  "vadTotalAudio": "Audio Total",
+  "vadSentAudio": "Enviado",
+  "vadFilteredAudio": "Filtrado",
+  "vadEstimatedSavings": "Ahorro Est.",
+  "vadInfoBanner": "VAD funciona mejor con STT Personalizado (Deepgram). Ahorro típico: 40-70%.",
+  "vadEnabledMessage": "VAD habilitado. Se filtrarán los silencios.",
+  "vadDisabledMessage": "VAD deshabilitado. Se enviará todo el audio.",
+  "vadExperimental": "Detección de Actividad de Voz (Experimental)",
+  "vadExperimentalDesc": "Filtrar silencios para reducir costos"
 }
