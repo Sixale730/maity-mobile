@@ -101,12 +101,19 @@ entrepreneurship, parenting, romantic, travel, inspiration, technology, business
 social, work, sports, politics, literature, history, architecture, music, weather,
 news, entertainment, psychology, design, family, economics, environment, other
 
+IMPORTANTE - Marca "discarded": true si la conversación es IRRELEVANTE:
+- Solo saludos casuales sin contenido sustancial ("Hola", "¿Cómo estás?", "Adiós")
+- Fragmentos incoherentes o ruido
+- No contiene información útil o accionable
+- Es muy corta y sin contexto significativo
+
 Responde ÚNICAMENTE en formato JSON:
 {
   "title": "Título corto (max 50 chars)",
   "emoji": "Un emoji representativo",
   "overview": "Resumen de 2-3 oraciones",
-  "category": "categoria_de_la_lista"
+  "category": "categoria_de_la_lista",
+  "discarded": true/false
 }'''
                 },
                 {
@@ -227,6 +234,7 @@ El emoji debe representar el tema o tono de la conversación.'''
       final emoji = parsed['emoji']?.toString() ?? '🎤';
       final overview = parsed['overview']?.toString() ?? transcript.substring(0, min(300, transcript.length));
       String category = parsed['category']?.toString().toLowerCase() ?? 'other';
+      final discarded = parsed['discarded'] == true;
 
       // Validate category
       if (!categories.contains(category)) {
@@ -238,6 +246,7 @@ El emoji debe representar el tema o tono de la conversación.'''
         overview,
         emoji: emoji,
         category: category,
+        discarded: discarded,
       );
     } catch (e) {
       debugPrint('[ConversationProcessor] Error parsing structured response: $e');

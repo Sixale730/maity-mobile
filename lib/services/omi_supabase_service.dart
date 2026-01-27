@@ -51,6 +51,7 @@ class OmiSupabaseService {
                 'overview': structured.overview,
                 'emoji': structured.emoji,
                 'category': structured.category,
+                'discarded': structured.discarded,
                 'action_items': structured.actionItems.map((a) => a.toJson()).toList(),
                 'events': structured.events.map((e) => e.toJson()).toList(),
               },

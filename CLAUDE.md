@@ -124,6 +124,44 @@ Permite ocultar conversaciones cortas según un umbral configurable.
 - `showShortConversations` (bool) - Si mostrar conversaciones cortas
 - `shortConversationThreshold` (int) - Umbral en segundos
 
+### Banal Conversation Filter (Discarded)
+Sistema automático para detectar y descartar conversaciones banales/irrelevantes (similar a OMI original).
+
+**Arquitectura de dos niveles**:
+
+1. **Pre-filtro con métricas** (sin IA, ahorra tokens):
+   - Menos de 5 palabras → `discarded: true`
+   - Duración < 10s Y < 10 palabras → `discarded: true`
+   - Un solo segmento con < 3 palabras → `discarded: true`
+
+2. **Análisis con IA**:
+   - OpenAI evalúa si el contenido es banal
+   - Marca `discarded: true` para: saludos casuales, ruido, fragmentos sin contexto
+
+**Flujo**:
+```
+Grabación finaliza
+       ↓
+[Pre-filtro métricas] ← Backend (api/routers/omi.py)
+       ↓
+[Análisis IA] ← Flutter (conversation_processor.dart) + Backend
+       ↓
+[Guardar en Supabase con discarded=true/false]
+       ↓
+[UI muestra solo no-descartadas por defecto]
+```
+
+**Archivos**:
+- `api/routers/omi.py` - Pre-filtro en `store_conversation()`
+- `api/services/supabase_client.py` - `insert_conversation()` acepta param `discarded`
+- `lib/services/conversation_processor.dart` - Prompt incluye campo `discarded`
+- `lib/backend/schema/structured.dart` - Modelo `Structured` con campo `discarded`
+- `lib/services/omi_supabase_service.dart` - Pasa `discarded` al backend
+
+**Campos en BD**: `omi_conversations.discarded` (boolean, default false)
+
+**Toggle en UI**: Ya existe soporte para `include_discarded` en listado y búsqueda.
+
 ## Página de Tareas (ActionItemsPage)
 `lib/pages/action_items/action_items_page.dart`
 
