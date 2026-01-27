@@ -77,6 +77,7 @@ Conversaciones con embedding vectorial:
 - `omi_supabase_service.dart` - Operaciones Supabase
 - `voice_profile_service.dart` - Enrollment y verificación de voz
 - `feedback_service.dart` - Feedback de usuarios
+- `conversation_processor.dart` - Procesamiento local de conversaciones con OpenAI
 
 ### Otros
 - `lib/backend/http/shared.dart` - Cliente HTTP con auth centralizada
@@ -175,6 +176,13 @@ Backend: GET /v1/action-items/from-conversations → Flatten + metadata
                                        ↓
 Flutter: ActionItemsProvider → ActionItemsPage
 ```
+
+### Extracción de Action Items (Local)
+El procesamiento local en `ConversationProcessor.processLocally()` extrae action_items y events directamente desde Flutter:
+- Prompt incluye instrucciones para extraer tareas, pendientes y compromisos
+- `max_tokens: 500` para acomodar action_items en la respuesta
+- Parsing robusto: soporta strings y objetos con `description`
+- Events: citas/reuniones con fecha/hora específica (si las hay)
 
 ### Tabs
 | Tab | Descripción |

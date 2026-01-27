@@ -113,15 +113,24 @@ Responde ÚNICAMENTE en formato JSON:
   "emoji": "Un emoji representativo",
   "overview": "Resumen de 2-3 oraciones",
   "category": "categoria_de_la_lista",
-  "discarded": true/false
-}'''
+  "discarded": true/false,
+  "action_items": [
+    {"description": "Tarea específica mencionada"}
+  ],
+  "events": []
+}
+
+NOTAS:
+- action_items: tareas, pendientes, compromisos o cosas por hacer mencionadas en la conversación
+- events: citas o reuniones con fecha/hora específica (si no hay, array vacío)
+- Si no hay action_items, devuelve array vacío []'''
                 },
                 {
                   'role': 'user',
                   'content': transcript.substring(0, min(2000, transcript.length))
                 }
               ],
-              'max_tokens': 300,
+              'max_tokens': 500,
               'temperature': 0.7,
             }),
           )
@@ -241,13 +250,55 @@ El emoji debe representar el tema o tono de la conversación.'''
         category = 'other';
       }
 
-      return Structured(
+      // Parse action_items
+      final actionItemsList = parsed['action_items'] as List? ?? [];
+      final actionItems = actionItemsList.map((item) {
+        if (item is String) {
+          return item.isNotEmpty ? ActionItem(item) : null;
+        } else if (item is Map) {
+          final desc = item['description']?.toString() ?? '';
+          return desc.isNotEmpty ? ActionItem(desc) : null;
+        }
+        return null;
+      }).whereType<ActionItem>().toList();
+
+      // Parse events
+      final eventsList = parsed['events'] as List? ?? [];
+      final events = eventsList.map((event) {
+        if (event is Map) {
+          final eventTitle = event['title']?.toString();
+          final startStr = event['start']?.toString() ?? event['startsAt']?.toString();
+          final duration = event['duration'] ?? event['duration_minutes'] ?? 30;
+
+          if (eventTitle != null && eventTitle.isNotEmpty && startStr != null) {
+            try {
+              final startsAt = DateTime.parse(startStr);
+              return Event(
+                eventTitle,
+                startsAt,
+                duration is int ? duration : int.tryParse(duration.toString()) ?? 30,
+                description: event['description']?.toString() ?? '',
+              );
+            } catch (e) {
+              debugPrint('[ConversationProcessor] Error parsing event date: $e');
+            }
+          }
+        }
+        return null;
+      }).whereType<Event>().toList();
+
+      final result = Structured(
         title.length > 60 ? '${title.substring(0, 57)}...' : title,
         overview,
         emoji: emoji,
         category: category,
         discarded: discarded,
       );
+      result.actionItems = actionItems;
+      result.events = events;
+
+      debugPrint('[ConversationProcessor] Parsed ${actionItems.length} action items, ${events.length} events');
+      return result;
     } catch (e) {
       debugPrint('[ConversationProcessor] Error parsing structured response: $e');
     }
