@@ -15,8 +15,6 @@ import 'package:omi/providers/home_provider.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/utils/other/temp.dart';
 import 'package:provider/provider.dart';
-import 'package:omi/pages/persona/persona_profile.dart';
-
 import 'delete_account.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -344,23 +342,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         setState(() {});
                       },
                     );
-                  },
-                ),
-                const Divider(height: 1, color: Color(0xFF3C3C43)),
-                _buildProfileItem(
-                  title: AppLocalizations.of(context)?.persona ?? 'Persona',
-                  icon: const FaIcon(FontAwesomeIcons.solidCircleUser, color: Color(0xFF8E8E93), size: 20),
-                  showBetaTag: true,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const PersonaProfilePage(),
-                        settings: const RouteSettings(
-                          arguments: 'from_settings',
-                        ),
-                      ),
-                    );
-                    MixpanelManager().pageOpened('Profile Persona Settings');
                   },
                 ),
               ],
