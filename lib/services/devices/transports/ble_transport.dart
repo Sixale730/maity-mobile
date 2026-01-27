@@ -59,8 +59,17 @@ class BleTransport extends DeviceTransport {
     _updateState(DeviceTransportState.connecting);
 
     try {
-      // Wait for Bluetooth adapter to be ready
-      await BluetoothAdapter.adapterState.where((val) => val == BluetoothAdapterStateHelper.on).first;
+      // Wait for Bluetooth adapter to be ready with timeout
+      try {
+        await BluetoothAdapter.adapterState
+            .where((val) => val == BluetoothAdapterStateHelper.on)
+            .first
+            .timeout(const Duration(seconds: 10));
+      } on TimeoutException {
+        debugPrint('BLE Transport: Bluetooth adapter timeout - adapter may be off');
+        _updateState(DeviceTransportState.disconnected);
+        throw Exception('Bluetooth adapter not ready');
+      }
 
       // Connect to device
       await _bleDevice.connect();
@@ -188,7 +197,10 @@ class BleTransport extends DeviceTransport {
     }
 
     try {
-      await characteristic.write(data);
+      // Use allowLongWrite when data exceeds the current MTU size
+      // MTU includes 3 bytes overhead for ATT protocol, so usable payload is MTU - 3
+      final useAllowLongWrite = data.length > (_bleDevice.mtuNow - 3);
+      await characteristic.write(data, allowLongWrite: useAllowLongWrite);
     } catch (e) {
       debugPrint('BLE Transport: Failed to write characteristic: $e');
       rethrow;

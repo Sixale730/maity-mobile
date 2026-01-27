@@ -367,6 +367,43 @@ MixpanelManager().setUserProperty('Property', value);
 ### Testing
 En Developer Settings > Debug & Diagnostics hay un botón "Test Mixpanel" que envía un evento de prueba para verificar la conexión.
 
+## Conexión Bluetooth (BLE)
+
+### Archivos Clave
+- `lib/services/devices/transports/ble_transport.dart` - Transporte BLE, conexión y escritura
+- `lib/services/devices/discovery/bluetooth_discoverer.dart` - Escaneo y descubrimiento de dispositivos
+- `lib/providers/device_provider.dart` - Estado de conexión y reconexión
+
+### Mejoras Implementadas
+
+#### allowLongWrite para datos grandes
+Cuando los datos exceden el tamaño MTU (Maximum Transmission Unit), se usa `allowLongWrite: true` automáticamente:
+```dart
+final useAllowLongWrite = data.length > (_bleDevice.mtuNow - 3);
+await characteristic.write(data, allowLongWrite: useAllowLongWrite);
+```
+- MTU incluye 3 bytes de overhead del protocolo ATT
+- Crítico para firmware updates y transferencias de datos grandes
+
+#### Timeout en espera de Bluetooth
+Evita bloqueos indefinidos si Bluetooth está desactivado:
+- Timeout de 10 segundos esperando que el adaptador se active
+- Retorna gracefully si el timeout se alcanza
+
+#### Delay de permisos en Android
+Agrega un delay de 2 segundos después de que Bluetooth se activa en Android:
+- Permite que los permisos se establezcan completamente
+- Soluciona problema donde dispositivos no aparecían en primer escaneo
+
+#### Exponential Backoff en Reconexión
+Patrón de reintentos con incremento exponencial para reconexión eficiente:
+- Delay inicial: 2 segundos
+- Multiplicador: 1.5x
+- Máximo delay: 60 segundos
+- Límite de reintentos: 8
+
+**Secuencia de delays**: 2s → 3s → 4.5s → 6.75s → 10.1s → 15.2s → 22.8s → 34.2s
+
 ## Speaker Verification
 
 **Arquitectura**:

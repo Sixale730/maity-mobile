@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:omi/backend/preferences.dart';
@@ -30,7 +31,13 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
   bool _hasLowBatteryAlerted = false;
   Timer? _reconnectionTimer;
   DateTime? _reconnectAt;
-  final int _connectionCheckSeconds = 15; // 10s periods, 5s for each scan
+
+  // Exponential backoff for reconnection
+  int _reconnectRetries = 0;
+  static const int _initialBackoffMs = 2000; // 2 seconds
+  static const double _backoffMultiplier = 1.5;
+  static const int _maxBackoffMs = 60000; // 60 seconds
+  static const int _maxReconnectRetries = 8;
 
   bool _havingNewFirmware = false;
   bool get havingNewFirmware => _havingNewFirmware && pairedDevice != null && isConnected;
@@ -161,28 +168,70 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
 
   Future periodicConnect(String printer, {bool boundDeviceOnly = false}) async {
     _reconnectionTimer?.cancel();
-    scan(t) async {
-      debugPrint("Period connect seconds: $_connectionCheckSeconds, triggered timer at ${DateTime.now()}");
+    _reconnectRetries = 0; // Reset retries on new connection attempt
+
+    Future<void> attemptReconnect() async {
+      debugPrint("Reconnect attempt ${_reconnectRetries + 1}/$_maxReconnectRetries at ${DateTime.now()}");
+
       if (_reconnectAt != null && _reconnectAt!.isAfter(DateTime.now())) {
+        // Schedule next attempt with backoff
+        _scheduleNextReconnect(boundDeviceOnly);
         return;
       }
+
       if (boundDeviceOnly && SharedPreferencesUtil().btDevice.id.isEmpty) {
-        t.cancel();
+        debugPrint("No bound device, stopping reconnection");
         return;
       }
+
       Logger.debug("isConnected: $isConnected, isConnecting: $isConnecting, connectedDevice: $connectedDevice");
-      if ((!isConnected && connectedDevice == null)) {
+
+      if (!isConnected && connectedDevice == null) {
         if (isConnecting) {
+          // Already connecting, schedule next check
+          _scheduleNextReconnect(boundDeviceOnly);
           return;
         }
+
         await scanAndConnectToDevice();
+
+        // Check if connection succeeded
+        if (isConnected && connectedDevice != null) {
+          debugPrint("Reconnection successful, resetting retries");
+          _reconnectRetries = 0;
+          return;
+        }
+
+        // Connection failed, increment retries and schedule next attempt
+        _reconnectRetries++;
+        if (_reconnectRetries >= _maxReconnectRetries) {
+          debugPrint("Max reconnect retries reached ($_maxReconnectRetries)");
+          _reconnectRetries = 0; // Reset for future attempts
+          return;
+        }
+
+        _scheduleNextReconnect(boundDeviceOnly);
       } else {
-        t.cancel();
+        // Already connected
+        _reconnectRetries = 0;
       }
     }
 
-    _reconnectionTimer = Timer.periodic(Duration(seconds: _connectionCheckSeconds), scan);
-    scan(_reconnectionTimer);
+    attemptReconnect();
+  }
+
+  void _scheduleNextReconnect(bool boundDeviceOnly) {
+    _reconnectionTimer?.cancel();
+
+    // Calculate backoff delay with exponential increase
+    int delayMs = (pow(_backoffMultiplier, _reconnectRetries) * _initialBackoffMs).toInt();
+    delayMs = delayMs.clamp(0, _maxBackoffMs);
+
+    debugPrint("Scheduling next reconnect in ${delayMs}ms (retry ${_reconnectRetries + 1}/$_maxReconnectRetries)");
+
+    _reconnectionTimer = Timer(Duration(milliseconds: delayMs), () {
+      periodicConnect('exponential backoff retry', boundDeviceOnly: boundDeviceOnly);
+    });
   }
 
   Future<BtDevice?> _scanConnectDevice() async {
@@ -283,6 +332,9 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
     setisDeviceStorageSupport();
     setIsConnected(false);
     updateConnectingStatus(false);
+
+    // Reset reconnection retries on disconnect to start fresh
+    _reconnectRetries = 0;
 
     captureProvider?.updateRecordingDevice(null);
 

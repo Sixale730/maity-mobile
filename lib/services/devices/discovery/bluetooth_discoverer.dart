@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
@@ -35,7 +36,22 @@ class BluetoothDeviceDiscoverer extends DeviceDiscoverer {
     });
 
     try {
-      await BluetoothAdapter.adapterState.where((v) => v == BluetoothAdapterStateHelper.on).first;
+      // Wait for Bluetooth adapter to be ready with timeout
+      try {
+        await BluetoothAdapter.adapterState
+            .where((v) => v == BluetoothAdapterStateHelper.on)
+            .first
+            .timeout(const Duration(seconds: 10));
+      } on TimeoutException {
+        debugPrint('Bluetooth discovery: adapter timeout - Bluetooth may be off');
+        return const DeviceDiscoveryResult(devices: []);
+      }
+
+      // On Android, add a delay to ensure permissions are fully settled
+      // This fixes issues where devices don't appear on first scan
+      if (Platform.isAndroid) {
+        await Future.delayed(const Duration(seconds: 2));
+      }
 
       await BluetoothAdapter.startScan(
         timeout: Duration(seconds: timeout),
