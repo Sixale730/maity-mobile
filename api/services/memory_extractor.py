@@ -1,4 +1,5 @@
 """Memory extraction service using OpenAI"""
+import asyncio
 import json
 import os
 from typing import List, Optional
@@ -65,26 +66,32 @@ async def extract_memories_from_transcript(
     try:
         client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Eres un asistente que analiza conversaciones y extrae hechos e insights importantes para recordar. Responde SOLO con JSON válido, sin markdown ni explicaciones."
-                },
-                {
-                    "role": "user",
-                    "content": EXTRACT_MEMORIES_PROMPT.format(transcript=truncated)
-                }
-            ],
-            max_tokens=600,
-            temperature=0.7,
+        # Add timeout to prevent indefinite blocking
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Eres un asistente que analiza conversaciones y extrae hechos e insights importantes para recordar. Responde SOLO con JSON válido, sin markdown ni explicaciones."
+                    },
+                    {
+                        "role": "user",
+                        "content": EXTRACT_MEMORIES_PROMPT.format(transcript=truncated)
+                    }
+                ],
+                max_tokens=600,
+                temperature=0.7,
+            ),
+            timeout=20.0  # 20 seconds max
         )
 
         content = response.choices[0].message.content
         if content:
             return _parse_memories_response(content, conversation_id)
 
+    except asyncio.TimeoutError:
+        print("[Memory Extractor] OpenAI timeout after 20s")
     except Exception as e:
         print(f"[Memory Extractor] OpenAI error: {e}")
 

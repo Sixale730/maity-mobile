@@ -692,20 +692,50 @@ Threshold similitud: 0.75-0.80 (balanceado)
 
 ## Sistema de Memorias
 
-**Arquitectura**: Conversación → `/v1/memories/extract` → OpenAI extrae 2-5 memorias → embeddings → Supabase
+**Arquitectura**: Conversación guardada → Backend extrae automáticamente → OpenAI (2-5 memorias) → embeddings → Supabase
+
+### Extracción Automática
+Las memorias se extraen automáticamente al guardar cada conversación en `store_conversation()`:
+
+```
+Conversación finaliza
+       ↓
+[store_conversation()] en api/routers/omi.py
+       ↓
+[Verificar condiciones: no discarded, transcript >= 50 chars]
+       ↓
+[extract_memories_from_transcript()] → OpenAI gpt-4o-mini
+       ↓
+[Generar embeddings para cada memoria]
+       ↓
+[Insertar en omi_memories con reviewed=false]
+       ↓
+[Usuario ve banner "X memorias para revisar"]
+```
+
+**Condiciones para extracción**:
+- Conversación NO marcada como `discarded`
+- Transcript con al menos 50 caracteres
+- Timeout de 20 segundos (evita bloqueos)
+- Máximo 4000 caracteres de transcript procesados
 
 ### Categorías
-- `interesting`: Extraídas por IA
+- `interesting`: Extraídas por IA (automático)
 - `system`: Del sistema
 - `manual`: Creadas por usuario
 
 ### Flujo Revisión
-1. IA extrae memorias (`reviewed=false`)
-2. Usuario ve banner en MemoriesPage
+1. IA extrae memorias automáticamente (`reviewed=false`)
+2. Usuario ve banner en MemoriesPage con count de pendientes
 3. Swipe para aprobar/rechazar
 
 ### Archivos
-**Backend**: `api/routers/memories.py`, `api/services/memory_extractor.py`, `api/models/memory.py`
+**Backend**:
+- `api/routers/omi.py` - Llamada automática en `store_conversation()` (línea ~254)
+- `api/routers/memories.py` - CRUD endpoints y extracción manual
+- `api/services/memory_extractor.py` - OpenAI extraction con timeout 20s
+- `api/models/memory.py` - Modelos Pydantic
+
 **Flutter**: `lib/backend/http/api/memories.dart`, `lib/providers/memories_provider.dart`, `lib/pages/memories/`
 
 ## Backend (Monorepo)

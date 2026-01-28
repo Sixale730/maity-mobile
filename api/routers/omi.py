@@ -15,10 +15,12 @@ from ..services.supabase_client import (
     update_conversation_feedback,
     update_conversation_starred,
     delete_conversation,
+    get_supabase,
 )
 from ..services.embeddings import generate_embedding, generate_embeddings_batch
 from ..services.supabase_auth import get_auth_user_id, optional_auth_user_id
 from ..services.communication_analyzer import analyze_communication
+from ..services.memory_extractor import extract_memories_from_transcript
 from ..models.conversation import TranscriptSegment
 
 
@@ -248,6 +250,55 @@ async def store_conversation(
         except Exception as e:
             # Don't fail the request if communication analysis fails
             print(f"[OMI Router] Communication analysis failed (non-blocking): {e}")
+
+        # Extract memories automatically (non-blocking)
+        # Only extract for non-discarded conversations with substantial content
+        if not is_discarded and transcript_text and len(transcript_text.strip()) >= 50:
+            try:
+                extracted = await extract_memories_from_transcript(
+                    transcript=transcript_text,
+                    conversation_id=conversation_id,
+                )
+
+                if extracted:
+                    # Get auth_id from maity.users to associate with memories
+                    supabase = get_supabase()
+                    user_result = (
+                        supabase.schema("maity")
+                        .table("users")
+                        .select("auth_id")
+                        .eq("id", request.user_id)
+                        .single()
+                        .execute()
+                    )
+                    auth_id = user_result.data.get("auth_id") if user_result.data else None
+
+                    for mem_data in extracted:
+                        # Generate embedding for semantic search
+                        embedding = await generate_embedding(mem_data.get("content", ""))
+
+                        insert_data = {
+                            "user_id": request.user_id,
+                            "content": mem_data.get("content"),
+                            "category": "interesting",
+                            "conversation_id": conversation_id,
+                            "reviewed": False,
+                            "deleted": False,
+                        }
+
+                        if auth_id:
+                            insert_data["auth_id"] = auth_id
+
+                        if embedding:
+                            insert_data["embedding"] = embedding
+
+                        supabase.schema("maity").table("omi_memories").insert(insert_data).execute()
+
+                    print(f"[OMI Router] Extracted {len(extracted)} memories for conversation {conversation_id}")
+
+            except Exception as e:
+                # Don't fail the request if memory extraction fails
+                print(f"[OMI Router] Memory extraction failed (non-blocking): {e}")
 
         return StoreConversationResponse(
             id=conversation_id,
