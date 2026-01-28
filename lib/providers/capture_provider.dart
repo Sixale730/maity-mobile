@@ -26,6 +26,8 @@ import 'package:omi/services/wals.dart';
 import 'package:omi/services/local_conversations_service.dart';
 import 'package:omi/services/conversation_processor.dart';
 import 'package:omi/services/transcript_recovery_service.dart';
+import 'package:omi/services/incremental_save_service.dart';
+import 'package:omi/services/notifications/notification_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/services/voice_profile_service.dart';
@@ -89,6 +91,13 @@ class CaptureProvider extends ChangeNotifier
   Timer? _recoveryTimer;
   int _unsavedSegmentCount = 0;
   String? _currentSessionId;
+
+  // Incremental save service for saving segments to Supabase during recording
+  final IncrementalSaveService _incrementalSave = IncrementalSaveService();
+
+  // Health monitor for detecting stalled transcription
+  Timer? _socketHealthTimer;
+  DateTime? _lastSegmentReceivedAt;
 
   Timer? _recordingTimer;
   int _recordingDuration = 0; // in seconds
@@ -307,6 +316,12 @@ class CaptureProvider extends ChangeNotifier
     _recoveryTimer = null;
     _unsavedSegmentCount = 0;
     _currentSessionId = null;
+    // Reset incremental save state
+    _incrementalSave.reset();
+    // Reset health monitor
+    _socketHealthTimer?.cancel();
+    _socketHealthTimer = null;
+    _lastSegmentReceivedAt = null;
     notifyListeners();
   }
 
@@ -946,6 +961,8 @@ class CaptureProvider extends ChangeNotifier
     _recordingStartTime = DateTime.now();
     // Generate session ID for recovery
     _currentSessionId = const Uuid().v4();
+    // Start health monitor for transcription stall detection
+    _startSocketHealthMonitor();
 
     // prepare
     await changeAudioRecordProfile(audioCodec: BleAudioCodec.pcm16, sampleRate: 16000);
@@ -972,6 +989,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   stopStreamRecording() async {
+    _stopSocketHealthMonitor();
     // Finalize local conversation before stopping (for custom STT mode)
     await _finalizeLocalConversation();
 
@@ -989,6 +1007,8 @@ class CaptureProvider extends ChangeNotifier
     _recordingStartTime = DateTime.now();
     // Generate session ID for recovery
     _currentSessionId = const Uuid().v4();
+    // Start health monitor for transcription stall detection
+    _startSocketHealthMonitor();
 
     bool wasPaused = _isPaused;
 
@@ -1001,6 +1021,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   Future stopStreamDeviceRecording({bool cleanDevice = false}) async {
+    _stopSocketHealthMonitor();
     // Finalize local conversation before stopping (for custom STT mode)
     await _finalizeLocalConversation();
 
@@ -1022,6 +1043,8 @@ class CaptureProvider extends ChangeNotifier
     _recordingStartTime = DateTime.now();
     // Generate session ID for recovery
     _currentSessionId = const Uuid().v4();
+    // Start health monitor for transcription stall detection
+    _startSocketHealthMonitor();
 
     // User wants to record - enable auto-resume after wake
     _shouldAutoResumeAfterWake = true;
@@ -1202,6 +1225,7 @@ class CaptureProvider extends ChangeNotifier
   Future<void> stopSystemAudioRecording() async {
     if (!PlatformService.isDesktop) return;
 
+    _stopSocketHealthMonitor();
     // Finalize local conversation before stopping (for custom STT mode)
     await _finalizeLocalConversation();
 
@@ -1567,11 +1591,17 @@ class CaptureProvider extends ChangeNotifier
     debugPrint('[CaptureProvider] After update: ${segments.length} total segments');
     hasTranscripts = true;
 
+    // Update health monitor timestamp
+    _lastSegmentReceivedAt = DateTime.now();
+
     // Reset silence timer (auto-save after N seconds of no speech)
     _resetSilenceTimer();
 
     // Schedule recovery save (debounced)
     _scheduleRecoverySave();
+
+    // Schedule incremental save to Supabase (debounced)
+    _scheduleIncrementalSave();
 
     notifyListeners();
   }
@@ -1707,33 +1737,88 @@ class CaptureProvider extends ChangeNotifier
           await _verifySpeakersWithVoiceProfile(userId);
         }
 
-        // Process conversation with OpenAI to get structured data (title, emoji, category, etc.)
-        final structured = await ConversationProcessor.processLocally(segments);
+        // Check if we have a draft conversation (incremental save path)
+        if (_incrementalSave.draftId != null && userId != null) {
+          debugPrint('[Maity] Using incremental finalize path (draft: ${_incrementalSave.draftId})');
 
-        // Save the conversation locally with full structured data
-        final conversation = await LocalConversationsService.saveConversation(
-          segments: List.from(segments), // Copy segments
-          startedAt: _recordingStartTime ?? DateTime.now(),
-          structured: structured,
-          // Fallback values if structured is null
-          title: structured?.title ?? 'Conversación',
-          emoji: structured?.emoji ?? '🎤',
-          category: structured?.category ?? 'personal',
-        );
+          // Flush any pending segments first
+          await _incrementalSave.flushPendingSegments(segments);
 
-        debugPrint('[Maity] Local conversation saved: ${conversation.id}');
-        debugPrint('[Maity] Title: ${structured?.title}, Category: ${structured?.category}, Emoji: ${structured?.emoji}');
+          // Build transcript for local processing
+          final transcript = segments.map((s) => s.text).join('\n').trim();
 
-        // Notify the conversation provider to add it to the list
-        conversationProvider?.addLocalConversation(conversation);
+          // For long transcripts (>6000 chars), let backend handle processing
+          Map<String, dynamic>? structuredData;
+          if (transcript.length <= 6000) {
+            // Process locally with OpenAI for short transcripts
+            final structured = await ConversationProcessor.processLocally(segments);
+            if (structured != null) {
+              structuredData = {
+                'title': structured.title,
+                'overview': structured.overview,
+                'emoji': structured.emoji,
+                'category': structured.category,
+                'discarded': structured.discarded,
+                'action_items': structured.actionItems.map((a) => a.toJson()).toList(),
+                'events': structured.events.map((e) => e.toJson()).toList(),
+              };
+            }
+          } else {
+            debugPrint('[Maity] Long transcript (${transcript.length} chars), backend will process with chunking');
+          }
 
-        // Reset recording start time
-        _recordingStartTime = null;
+          // Finalize via backend (rebuilds transcript from segments in DB)
+          final finalized = await _incrementalSave.finalize(
+            userId: userId,
+            finishedAt: DateTime.now(),
+            structured: structuredData,
+          );
 
-        // Clear recovery data only after successful save
-        _clearRecoveryState();
+          if (finalized) {
+            debugPrint('[Maity] Incremental finalize successful');
 
-        success = true;
+            // Notify conversation provider to refresh the list
+            conversationProvider?.refreshConversations();
+
+            _recordingStartTime = null;
+            _clearRecoveryState();
+            success = true;
+          } else {
+            debugPrint('[Maity] Incremental finalize failed, falling back to monolithic save');
+            // Fall through to monolithic save below
+          }
+        }
+
+        // Monolithic save (fallback or when no draft exists)
+        if (!success) {
+          // Process conversation with OpenAI to get structured data (title, emoji, category, etc.)
+          final structured = await ConversationProcessor.processLocally(segments);
+
+          // Save the conversation locally with full structured data
+          final conversation = await LocalConversationsService.saveConversation(
+            segments: List.from(segments), // Copy segments
+            startedAt: _recordingStartTime ?? DateTime.now(),
+            structured: structured,
+            // Fallback values if structured is null
+            title: structured?.title ?? 'Conversación',
+            emoji: structured?.emoji ?? '🎤',
+            category: structured?.category ?? 'personal',
+          );
+
+          debugPrint('[Maity] Local conversation saved: ${conversation.id}');
+          debugPrint('[Maity] Title: ${structured?.title}, Category: ${structured?.category}, Emoji: ${structured?.emoji}');
+
+          // Notify the conversation provider to add it to the list
+          conversationProvider?.addLocalConversation(conversation);
+
+          // Reset recording start time
+          _recordingStartTime = null;
+
+          // Clear recovery data only after successful save
+          _clearRecoveryState();
+
+          success = true;
+        }
       } catch (e) {
         retryCount++;
         debugPrint('[Maity] Error saving local conversation (attempt $retryCount/$maxRetries): $e');
@@ -1918,6 +2003,7 @@ class CaptureProvider extends ChangeNotifier
       sessionId: _currentSessionId!,
       startedAt: _recordingStartTime ?? DateTime.now(),
       segments: List.from(segments),
+      draftConversationId: _incrementalSave.draftId,
     );
 
     _unsavedSegmentCount = 0;
@@ -1932,16 +2018,117 @@ class CaptureProvider extends ChangeNotifier
     await TranscriptRecoveryService.clearRecoveryData();
   }
 
+  /// Schedules incremental save of segments to Supabase
+  void _scheduleIncrementalSave() {
+    final customSttConfig = SharedPreferencesUtil().customSttConfig;
+    if (!customSttConfig.isEnabled) return;
+    if (_isSpeechProfileMode) return;
+
+    final userId = SupabaseAuthService.instance.maityUserId;
+    if (userId == null) return;
+
+    // Ensure draft is created on first segment
+    if (_incrementalSave.draftId == null && segments.isNotEmpty) {
+      _incrementalSave.ensureDraftCreated(
+        userId: userId,
+        startedAt: _recordingStartTime ?? DateTime.now(),
+      ).then((_) {
+        // After draft is created, start saving segments
+        if (_incrementalSave.draftId != null) {
+          _incrementalSave.saveNewSegments(segments);
+        }
+      });
+      return;
+    }
+
+    // Save segments (debounced internally by IncrementalSaveService)
+    _incrementalSave.saveNewSegments(segments);
+  }
+
+  /// Starts the socket health monitor to detect stalled transcription
+  void _startSocketHealthMonitor() {
+    _socketHealthTimer?.cancel();
+    _lastSegmentReceivedAt = null;
+
+    _socketHealthTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _checkSocketHealth();
+    });
+  }
+
+  /// Stops the socket health monitor
+  void _stopSocketHealthMonitor() {
+    _socketHealthTimer?.cancel();
+    _socketHealthTimer = null;
+    _lastSegmentReceivedAt = null;
+  }
+
+  /// Check if transcription has stalled
+  void _checkSocketHealth() {
+    // Only check when actively recording
+    if (recordingState != RecordingState.record &&
+        recordingState != RecordingState.deviceRecord &&
+        recordingState != RecordingState.systemAudioRecord) {
+      return;
+    }
+
+    // Only for custom STT mode
+    final customSttConfig = SharedPreferencesUtil().customSttConfig;
+    if (!customSttConfig.isEnabled) return;
+
+    // Check if socket is disconnected
+    if (_socket?.state != SocketServiceState.connected) {
+      debugPrint('[Maity] Health monitor: socket disconnected during recording');
+      return;
+    }
+
+    // Check if segments have stopped arriving (>60s gap)
+    if (_lastSegmentReceivedAt != null && segments.isNotEmpty) {
+      final gap = DateTime.now().difference(_lastSegmentReceivedAt!);
+      if (gap.inSeconds > 60) {
+        debugPrint('[Maity] Health monitor: no segments for ${gap.inSeconds}s');
+        _onTranscriptionStalled();
+      }
+    }
+  }
+
+  /// Called when transcription appears to have stalled (no segments for >60s)
+  void _onTranscriptionStalled() {
+    // Only warn once until new segments arrive
+    if (_lastSegmentReceivedAt == null) return;
+
+    debugPrint('[Maity] Transcription stalled - notifying user');
+
+    // Show notification
+    final lang = SharedPreferencesUtil().appLanguage;
+    final title = lang == 'es' ? 'Transcripción interrumpida' : 'Transcription Lost';
+    final body = lang == 'es'
+        ? 'No se han recibido segmentos de transcripción en más de 60 segundos.'
+        : 'No transcription segments received for over 60 seconds.';
+
+    NotificationService.instance.createNotification(
+      title: title,
+      body: body,
+      notificationId: 3,
+    );
+
+    // Clear timestamp to avoid repeated warnings
+    _lastSegmentReceivedAt = null;
+  }
+
   /// Recovers an interrupted session from the recovery file
   /// Returns true if recovery was successful
-  Future<bool> recoverInterruptedSession(List<TranscriptSegment> recoverySegments, DateTime startedAt) async {
+  Future<bool> recoverInterruptedSession(
+    List<TranscriptSegment> recoverySegments,
+    DateTime startedAt, {
+    String? draftConversationId,
+  }) async {
     if (recoverySegments.isEmpty) {
       debugPrint('[Maity] No segments to recover');
       await TranscriptRecoveryService.clearRecoveryData();
       return false;
     }
 
-    debugPrint('[Maity] Recovering session with ${recoverySegments.length} segments');
+    debugPrint('[Maity] Recovering session with ${recoverySegments.length} segments (draft: $draftConversationId)');
 
     try {
       // Get user ID
@@ -1951,10 +2138,49 @@ class CaptureProvider extends ChangeNotifier
         return false;
       }
 
-      // Process conversation with OpenAI to get structured data
+      // If we have a draft conversation, finalize it via backend
+      if (draftConversationId != null) {
+        debugPrint('[Maity] Finalizing draft $draftConversationId from recovery');
+
+        final transcript = recoverySegments.map((s) => s.text).join('\n').trim();
+
+        // Build structured data for short transcripts
+        Map<String, dynamic>? structuredData;
+        if (transcript.length <= 6000) {
+          final structured = await ConversationProcessor.processLocally(recoverySegments);
+          if (structured != null) {
+            structuredData = {
+              'title': structured.title,
+              'overview': structured.overview,
+              'emoji': structured.emoji,
+              'category': structured.category,
+              'discarded': structured.discarded,
+              'action_items': structured.actionItems.map((a) => a.toJson()).toList(),
+              'events': structured.events.map((e) => e.toJson()).toList(),
+            };
+          }
+        }
+
+        final finalized = await OmiSupabaseService.finalizeConversation(
+          conversationId: draftConversationId,
+          userId: userId,
+          finishedAt: DateTime.now(),
+          structured: structuredData,
+        );
+
+        if (finalized) {
+          debugPrint('[Maity] Draft finalized from recovery');
+          conversationProvider?.refreshConversations();
+          await TranscriptRecoveryService.clearRecoveryData();
+          return true;
+        }
+
+        debugPrint('[Maity] Draft finalize failed, falling back to monolithic save');
+      }
+
+      // Fallback: monolithic save
       final structured = await ConversationProcessor.processLocally(recoverySegments);
 
-      // Save the conversation
       final conversation = await LocalConversationsService.saveConversation(
         segments: List.from(recoverySegments),
         startedAt: startedAt,

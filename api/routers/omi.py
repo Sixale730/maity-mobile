@@ -8,6 +8,9 @@ from fastapi import APIRouter, HTTPException, Query, Depends, Header, Response
 from ..services.supabase_client import (
     insert_conversation,
     insert_segments,
+    insert_draft_conversation,
+    append_segments,
+    finalize_conversation,
     search_conversations_by_embedding,
     search_segments_by_embedding,
     get_conversations,
@@ -21,6 +24,7 @@ from ..services.embeddings import generate_embedding, generate_embeddings_batch
 from ..services.supabase_auth import get_auth_user_id, optional_auth_user_id
 from ..services.communication_analyzer import analyze_communication
 from ..services.memory_extractor import extract_memories_from_transcript
+from ..services.chunked_processor import process_long_transcript
 from ..models.conversation import TranscriptSegment
 
 
@@ -88,7 +92,339 @@ class SearchResponse(BaseModel):
     count: int
 
 
+class DraftConversationRequest(BaseModel):
+    """Request to create a draft conversation (recording in progress)"""
+    user_id: str
+    started_at: datetime
+    source: str = "omi"
+
+
+class DraftConversationResponse(BaseModel):
+    """Response from creating a draft conversation"""
+    id: str
+    created_at: str
+
+
+class AppendSegmentsRequest(BaseModel):
+    """Request to append segments to a draft conversation"""
+    user_id: str
+    segments: List[SegmentInput]
+    segment_offset: int = 0
+
+
+class AppendSegmentsResponse(BaseModel):
+    """Response from appending segments"""
+    inserted: int
+    total_segments: int
+
+
+class FinalizeConversationRequest(BaseModel):
+    """Request to finalize a draft conversation"""
+    user_id: str
+    finished_at: datetime
+    structured: Optional[StructuredInput] = None
+    generate_embeddings: bool = True
+
+
+class FinalizeConversationResponse(BaseModel):
+    """Response from finalizing a conversation"""
+    id: str
+    transcript_rebuilt: bool
+    words_count: int
+    duration_seconds: int
+    segment_count: int
+    embedding_generated: bool
+    chunked_processing: bool = False
+
+
 # ============ Endpoints ============
+
+
+@router.post("/conversations/draft", response_model=DraftConversationResponse)
+async def create_draft_conversation(
+    request: DraftConversationRequest,
+    auth_user_id: Optional[str] = Depends(optional_auth_user_id),
+):
+    """
+    Create a draft conversation with status='recording'.
+
+    Called when recording starts to get a conversation UUID for
+    incremental segment saving.
+    """
+    try:
+        result = await insert_draft_conversation(
+            user_id=request.user_id,
+            started_at=request.started_at,
+            source=request.source,
+        )
+
+        print(f"[OMI Router] Draft conversation created: {result['id']}")
+
+        return DraftConversationResponse(
+            id=result["id"],
+            created_at=result["created_at"],
+        )
+
+    except Exception as e:
+        print(f"[OMI Router] Failed to create draft: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create draft: {str(e)}")
+
+
+@router.post("/conversations/{conversation_id}/segments", response_model=AppendSegmentsResponse)
+async def append_conversation_segments(
+    conversation_id: str,
+    request: AppendSegmentsRequest,
+    auth_user_id: Optional[str] = Depends(optional_auth_user_id),
+):
+    """
+    Append segments to a draft conversation.
+
+    Idempotent: uses ON CONFLICT DO NOTHING on (conversation_id, segment_index).
+    Safe to retry on network errors.
+    """
+    if not request.segments:
+        return AppendSegmentsResponse(inserted=0, total_segments=request.segment_offset)
+
+    try:
+        segments_data = [
+            {
+                "text": s.text,
+                "speaker": s.speaker,
+                "speaker_id": s.speaker_id,
+                "is_user": s.is_user,
+                "person_id": s.person_id,
+                "start": s.start,
+                "end": s.end,
+            }
+            for s in request.segments
+        ]
+
+        inserted = await append_segments(
+            conversation_id=conversation_id,
+            user_id=request.user_id,
+            segments=segments_data,
+            segment_offset=request.segment_offset,
+        )
+
+        total = request.segment_offset + inserted
+
+        print(f"[OMI Router] Appended {inserted} segments to {conversation_id} (total: {total})")
+
+        return AppendSegmentsResponse(inserted=inserted, total_segments=total)
+
+    except Exception as e:
+        print(f"[OMI Router] Failed to append segments: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to append segments: {str(e)}")
+
+
+@router.post("/conversations/{conversation_id}/finalize", response_model=FinalizeConversationResponse)
+async def finalize_conversation_endpoint(
+    conversation_id: str,
+    request: FinalizeConversationRequest,
+    auth_user_id: Optional[str] = Depends(optional_auth_user_id),
+):
+    """
+    Finalize a draft conversation.
+
+    1. Rebuilds transcript_text from segments in DB
+    2. If transcript >6000 chars and no structured data: uses chunked processing
+    3. Updates structured data, generates embeddings
+    4. Sets status to 'completed'
+    5. Extracts memories and communication feedback
+    """
+    try:
+        # Prepare structured data
+        structured_dict = None
+        if request.structured:
+            structured_dict = {
+                "title": request.structured.title,
+                "overview": request.structured.overview,
+                "emoji": request.structured.emoji,
+                "category": request.structured.category,
+                "action_items": request.structured.action_items,
+                "events": request.structured.events,
+                "discarded": request.structured.discarded,
+            }
+
+        # Finalize in DB (rebuilds transcript from segments)
+        result = await finalize_conversation(
+            conversation_id=conversation_id,
+            user_id=request.user_id,
+            structured=structured_dict,
+            finished_at=request.finished_at,
+        )
+
+        if not result:
+            raise HTTPException(status_code=404, detail="Conversation not found or no segments")
+
+        transcript_text = result["transcript_text"]
+        words_count = result["words_count"]
+        duration_seconds = result["duration_seconds"]
+        segment_count = result["segment_count"]
+        used_chunked = False
+
+        # For long transcripts without structured data, use chunked processing
+        if len(transcript_text) > 6000 and (not request.structured or not request.structured.title):
+            print(f"[OMI Router] Long transcript ({len(transcript_text)} chars), using chunked processing")
+            try:
+                chunked_result = await process_long_transcript(transcript_text)
+                if chunked_result:
+                    used_chunked = True
+                    # Update conversation with chunked results
+                    supabase = get_supabase()
+                    supabase.schema("maity").table("omi_conversations").update({
+                        "title": chunked_result.get("title", "Conversation"),
+                        "overview": chunked_result.get("overview", ""),
+                        "emoji": chunked_result.get("emoji", "🎤"),
+                        "category": chunked_result.get("category", "other"),
+                        "action_items": chunked_result.get("action_items", []),
+                        "events": chunked_result.get("events", []),
+                        "discarded": chunked_result.get("discarded", False),
+                    }).eq("id", conversation_id).eq("user_id", request.user_id).execute()
+
+                    print(f"[OMI Router] Chunked processing result: {chunked_result.get('title')}")
+            except Exception as e:
+                print(f"[OMI Router] Chunked processing failed (non-blocking): {e}")
+
+        # Generate embeddings
+        conversation_embedding = None
+        if request.generate_embeddings and transcript_text:
+            try:
+                conversation_embedding = await generate_embedding(transcript_text)
+                if conversation_embedding:
+                    supabase = get_supabase()
+                    supabase.schema("maity").table("omi_conversations").update({
+                        "embedding": conversation_embedding,
+                    }).eq("id", conversation_id).execute()
+
+                # Generate segment embeddings in batch
+                segments_in_db = result.get("segments", [])
+                if segments_in_db:
+                    segment_texts = [s.get("text", "") for s in segments_in_db]
+                    segment_embeddings = await generate_embeddings_batch(segment_texts)
+                    if segment_embeddings:
+                        # Update segments with embeddings
+                        seg_result = (
+                            supabase.schema("maity")
+                            .table("omi_transcript_segments")
+                            .select("id, segment_index")
+                            .eq("conversation_id", conversation_id)
+                            .order("segment_index")
+                            .execute()
+                        )
+                        if seg_result.data:
+                            for j, seg_row in enumerate(seg_result.data):
+                                if j < len(segment_embeddings) and segment_embeddings[j]:
+                                    supabase.schema("maity").table("omi_transcript_segments").update({
+                                        "embedding": segment_embeddings[j],
+                                    }).eq("id", seg_row["id"]).execute()
+
+            except Exception as e:
+                print(f"[OMI Router] Embedding generation failed (non-blocking): {e}")
+
+        # Pre-filter for auto-discard
+        is_discarded = False
+        if words_count < 5:
+            is_discarded = True
+        elif duration_seconds < 10 and words_count < 10:
+            is_discarded = True
+
+        if is_discarded:
+            supabase = get_supabase()
+            supabase.schema("maity").table("omi_conversations").update({
+                "discarded": True,
+            }).eq("id", conversation_id).execute()
+
+        # Communication analysis (non-blocking)
+        if not is_discarded:
+            try:
+                segments_data = result.get("segments", [])
+                transcript_segments = [
+                    TranscriptSegment(
+                        text=s.get("text", ""),
+                        speaker=s.get("speaker"),
+                        speaker_id=s.get("speaker_id", 0),
+                        is_user=s.get("is_user", False),
+                        start=s.get("start_time", 0),
+                        end=s.get("end_time", 0),
+                    )
+                    for s in segments_data
+                ]
+                communication_feedback = await analyze_communication(transcript_segments)
+                if communication_feedback:
+                    feedback_dict = {
+                        "strengths": communication_feedback.strengths,
+                        "areas_to_improve": communication_feedback.areas_to_improve,
+                        "observations": {
+                            "clarity": communication_feedback.observations.clarity,
+                            "structure": communication_feedback.observations.structure,
+                            "calls_to_action": communication_feedback.observations.calls_to_action,
+                            "objections": communication_feedback.observations.objections,
+                        },
+                        "summary": communication_feedback.summary,
+                    }
+                    await update_conversation_feedback(
+                        conversation_id=conversation_id,
+                        user_id=request.user_id,
+                        communication_feedback=feedback_dict,
+                    )
+            except Exception as e:
+                print(f"[OMI Router] Communication analysis failed (non-blocking): {e}")
+
+        # Memory extraction (non-blocking)
+        if not is_discarded and transcript_text and len(transcript_text.strip()) >= 50:
+            try:
+                extracted = await extract_memories_from_transcript(
+                    transcript=transcript_text,
+                    conversation_id=conversation_id,
+                )
+                if extracted:
+                    supabase = get_supabase()
+                    user_result = (
+                        supabase.schema("maity")
+                        .table("users")
+                        .select("auth_id")
+                        .eq("id", request.user_id)
+                        .single()
+                        .execute()
+                    )
+                    auth_id = user_result.data.get("auth_id") if user_result.data else None
+
+                    for mem_data in extracted:
+                        embedding = await generate_embedding(mem_data.get("content", ""))
+                        insert_data = {
+                            "user_id": request.user_id,
+                            "content": mem_data.get("content"),
+                            "category": "interesting",
+                            "conversation_id": conversation_id,
+                            "reviewed": False,
+                            "deleted": False,
+                        }
+                        if auth_id:
+                            insert_data["auth_id"] = auth_id
+                        if embedding:
+                            insert_data["embedding"] = embedding
+                        supabase.schema("maity").table("omi_memories").insert(insert_data).execute()
+
+                    print(f"[OMI Router] Extracted {len(extracted)} memories for {conversation_id}")
+            except Exception as e:
+                print(f"[OMI Router] Memory extraction failed (non-blocking): {e}")
+
+        return FinalizeConversationResponse(
+            id=conversation_id,
+            transcript_rebuilt=True,
+            words_count=words_count,
+            duration_seconds=duration_seconds,
+            segment_count=segment_count,
+            embedding_generated=conversation_embedding is not None,
+            chunked_processing=used_chunked,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[OMI Router] Failed to finalize conversation: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to finalize: {str(e)}")
 
 
 @router.post("/conversations/store", response_model=StoreConversationResponse)
@@ -481,3 +817,149 @@ async def set_conversation_starred(
     except Exception as e:
         print(f"[OMI Router] Set conversation starred failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to update starred status: {str(e)}")
+
+
+@router.post("/conversations/{conversation_id}/reprocess")
+async def reprocess_conversation(
+    conversation_id: str,
+    user_id: str = Query(..., description="User ID (maity.users UUID)"),
+    auth_user_id: Optional[str] = Depends(optional_auth_user_id),
+):
+    """
+    Reprocess a conversation: rebuild transcript from segments in DB,
+    re-analyze with chunked processor, regenerate embeddings.
+
+    Useful for re-analyzing conversations that were originally processed
+    with truncated transcripts.
+    """
+    try:
+        supabase = get_supabase()
+
+        # Read all segments from DB
+        seg_result = (
+            supabase.schema("maity")
+            .table("omi_transcript_segments")
+            .select("text, speaker_id, is_user, start_time, end_time")
+            .eq("conversation_id", conversation_id)
+            .order("segment_index")
+            .execute()
+        )
+
+        segments_in_db = seg_result.data if seg_result.data else []
+
+        if not segments_in_db:
+            # Fallback: use transcript_text from conversation
+            conv_result = (
+                supabase.schema("maity")
+                .table("omi_conversations")
+                .select("transcript_text")
+                .eq("id", conversation_id)
+                .eq("user_id", user_id)
+                .single()
+                .execute()
+            )
+
+            if not conv_result.data or not conv_result.data.get("transcript_text"):
+                raise HTTPException(status_code=404, detail="No segments or transcript found")
+
+            transcript_text = conv_result.data["transcript_text"]
+        else:
+            transcript_text = "\n".join([s.get("text", "") for s in segments_in_db])
+
+        words_count = len(transcript_text.split())
+
+        print(f"[OMI Router] Reprocessing conversation {conversation_id}: {len(transcript_text)} chars, {words_count} words")
+
+        # Process with chunked processor (works for any length)
+        structured = await process_long_transcript(transcript_text)
+
+        if not structured:
+            raise HTTPException(status_code=500, detail="Processing failed")
+
+        # Generate new embedding
+        embedding = await generate_embedding(transcript_text)
+
+        # Calculate duration
+        duration_seconds = 0
+        if segments_in_db:
+            first = segments_in_db[0]
+            last = segments_in_db[-1]
+            end_time = last.get("end_time", 0)
+            start_time = first.get("start_time", 0)
+            if end_time > 0:
+                duration_seconds = int(end_time - start_time)
+
+        # Update conversation
+        update_data = {
+            "title": structured.get("title", "Conversation"),
+            "overview": structured.get("overview", ""),
+            "emoji": structured.get("emoji", "🎤"),
+            "category": structured.get("category", "other"),
+            "action_items": structured.get("action_items", []),
+            "events": structured.get("events", []),
+            "discarded": structured.get("discarded", False),
+            "transcript_text": transcript_text,
+            "words_count": words_count,
+            "duration_seconds": duration_seconds,
+        }
+
+        if embedding:
+            update_data["embedding"] = embedding
+
+        supabase.schema("maity").table("omi_conversations").update(
+            update_data
+        ).eq("id", conversation_id).eq("user_id", user_id).execute()
+
+        # Re-extract memories
+        try:
+            if len(transcript_text.strip()) >= 50:
+                extracted = await extract_memories_from_transcript(
+                    transcript=transcript_text,
+                    conversation_id=conversation_id,
+                )
+                if extracted:
+                    user_result = (
+                        supabase.schema("maity")
+                        .table("users")
+                        .select("auth_id")
+                        .eq("id", user_id)
+                        .single()
+                        .execute()
+                    )
+                    auth_id = user_result.data.get("auth_id") if user_result.data else None
+
+                    for mem_data in extracted:
+                        mem_embedding = await generate_embedding(mem_data.get("content", ""))
+                        insert_data = {
+                            "user_id": user_id,
+                            "content": mem_data.get("content"),
+                            "category": "interesting",
+                            "conversation_id": conversation_id,
+                            "reviewed": False,
+                            "deleted": False,
+                        }
+                        if auth_id:
+                            insert_data["auth_id"] = auth_id
+                        if mem_embedding:
+                            insert_data["embedding"] = mem_embedding
+                        supabase.schema("maity").table("omi_memories").insert(insert_data).execute()
+
+                    print(f"[OMI Router] Re-extracted {len(extracted)} memories")
+        except Exception as e:
+            print(f"[OMI Router] Memory re-extraction failed (non-blocking): {e}")
+
+        return {
+            "success": True,
+            "id": conversation_id,
+            "title": structured.get("title"),
+            "overview": structured.get("overview"),
+            "words_count": words_count,
+            "duration_seconds": duration_seconds,
+            "embedding_generated": embedding is not None,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[OMI Router] Reprocess failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to reprocess: {str(e)}")

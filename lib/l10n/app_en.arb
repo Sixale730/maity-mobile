@@ -903,5 +903,11 @@
       "service": {"type": "String"}
     }
   },
-  "exportTasksOneTap": "Export tasks with one tap!"
+  "exportTasksOneTap": "Export tasks with one tap!",
+
+  "transcriptionLostTitle": "Transcription Lost",
+  "transcriptionLostBody": "The transcription connection was interrupted. Your conversation has been saved.",
+  "transcriptionReconnecting": "Reconnecting transcription...",
+  "transcriptionAutoSaved": "Conversation auto-saved due to connection loss.",
+  "noSegmentsWarning": "No transcription segments were captured."
 }

@@ -124,6 +124,213 @@ async def insert_segments(
     return len(rows)
 
 
+async def insert_draft_conversation(
+    user_id: str,
+    started_at: datetime,
+    source: str = "omi",
+) -> Dict[str, Any]:
+    """
+    Insert a draft conversation with status='recording'.
+
+    This creates a placeholder row that segments will be appended to
+    during incremental saving.
+
+    Args:
+        user_id: UUID de maity.users (no auth.users.id)
+        started_at: When recording started
+        source: Conversation source (omi, phone, desktop)
+
+    Returns:
+        Dict with id and created_at
+    """
+    supabase = get_supabase()
+
+    conversation_id = str(uuid4())
+
+    data = {
+        "id": conversation_id,
+        "user_id": user_id,
+        "title": "Recording...",
+        "overview": "",
+        "emoji": "🎙️",
+        "category": "other",
+        "action_items": [],
+        "events": [],
+        "transcript_text": "",
+        "words_count": 0,
+        "duration_seconds": 0,
+        "started_at": started_at.isoformat(),
+        "finished_at": started_at.isoformat(),
+        "source": source,
+        "status": "recording",
+        "discarded": False,
+        "deleted": False,
+        "segment_count": 0,
+    }
+
+    supabase.schema("maity").table("omi_conversations").insert(data).execute()
+
+    return {"id": conversation_id, "created_at": datetime.utcnow().isoformat()}
+
+
+async def append_segments(
+    conversation_id: str,
+    user_id: str,
+    segments: List[Dict],
+    segment_offset: int = 0,
+) -> int:
+    """
+    Append segments to a draft conversation using upsert (ON CONFLICT DO NOTHING).
+
+    Idempotent: re-sending the same segments is safe thanks to unique index
+    on (conversation_id, segment_index).
+
+    Args:
+        conversation_id: UUID of the draft conversation
+        user_id: UUID de maity.users
+        segments: List of segment dicts with text, speaker, etc.
+        segment_offset: Starting index for segment_index
+
+    Returns:
+        Number of segments inserted
+    """
+    supabase = get_supabase()
+
+    rows = []
+    for i, segment in enumerate(segments):
+        row = {
+            "id": str(uuid4()),
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+            "segment_index": segment_offset + i,
+            "text": segment.get("text", ""),
+            "speaker": segment.get("speaker"),
+            "speaker_id": segment.get("speaker_id", 0),
+            "is_user": segment.get("is_user", False),
+            "person_id": segment.get("person_id"),
+            "start_time": segment.get("start", 0.0),
+            "end_time": segment.get("end", 0.0),
+        }
+        rows.append(row)
+
+    if rows:
+        # Upsert with ON CONFLICT DO NOTHING on (conversation_id, segment_index)
+        supabase.schema("maity").table("omi_transcript_segments").upsert(
+            rows,
+            on_conflict="conversation_id,segment_index",
+            ignore_duplicates=True,
+        ).execute()
+
+        # Update conversation metadata
+        now = datetime.utcnow()
+        supabase.schema("maity").table("omi_conversations").update({
+            "last_segment_at": now.isoformat(),
+            "segment_count": segment_offset + len(rows),
+        }).eq("id", conversation_id).eq("user_id", user_id).execute()
+
+    return len(rows)
+
+
+async def finalize_conversation(
+    conversation_id: str,
+    user_id: str,
+    structured: Optional[Dict] = None,
+    finished_at: Optional[datetime] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Finalize a draft conversation: rebuild transcript from segments in DB,
+    update structured data, generate embeddings, and set status to 'completed'.
+
+    The transcript is rebuilt from segments stored in the DB (not from client)
+    to ensure we have all incrementally saved segments even if the client
+    lost some in RAM.
+
+    Args:
+        conversation_id: UUID of the draft conversation
+        user_id: UUID de maity.users
+        structured: Optional structured data (title, overview, etc.)
+        finished_at: When recording ended
+
+    Returns:
+        Dict with conversation data or None if not found
+    """
+    supabase = get_supabase()
+
+    # Step 1: Read all segments from DB to rebuild transcript
+    seg_result = (
+        supabase.schema("maity")
+        .table("omi_transcript_segments")
+        .select("text, speaker_id, is_user, start_time, end_time")
+        .eq("conversation_id", conversation_id)
+        .order("segment_index")
+        .execute()
+    )
+
+    segments_in_db = seg_result.data if seg_result.data else []
+
+    if not segments_in_db:
+        print(f"[Supabase Client] No segments found for conversation {conversation_id}")
+        return None
+
+    # Rebuild transcript_text from segments in DB
+    transcript_text = "\n".join([s.get("text", "") for s in segments_in_db])
+    words_count = sum(len(s.get("text", "").split()) for s in segments_in_db)
+
+    # Calculate duration from segment timestamps
+    duration_seconds = 0
+    if segments_in_db:
+        first = segments_in_db[0]
+        last = segments_in_db[-1]
+        end_time = last.get("end_time", 0)
+        start_time = first.get("start_time", 0)
+        if end_time > 0:
+            duration_seconds = int(end_time - start_time)
+
+    # Build update data
+    update_data = {
+        "status": "completed",
+        "transcript_text": transcript_text,
+        "words_count": words_count,
+        "duration_seconds": duration_seconds,
+        "segment_count": len(segments_in_db),
+    }
+
+    if finished_at:
+        update_data["finished_at"] = finished_at.isoformat()
+
+    if structured:
+        update_data["title"] = structured.get("title", "Conversation")
+        update_data["overview"] = structured.get("overview", "")
+        update_data["emoji"] = structured.get("emoji", "🎤")
+        update_data["category"] = structured.get("category", "other")
+        update_data["action_items"] = structured.get("action_items", [])
+        update_data["events"] = structured.get("events", [])
+        update_data["discarded"] = structured.get("discarded", False)
+
+    # Step 2: Update the conversation row
+    result = (
+        supabase.schema("maity")
+        .table("omi_conversations")
+        .update(update_data)
+        .eq("id", conversation_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+    if not result.data:
+        print(f"[Supabase Client] Conversation {conversation_id} not found for user {user_id}")
+        return None
+
+    return {
+        "id": conversation_id,
+        "transcript_text": transcript_text,
+        "words_count": words_count,
+        "duration_seconds": duration_seconds,
+        "segment_count": len(segments_in_db),
+        "segments": segments_in_db,
+    }
+
+
 async def search_conversations_by_embedding(
     user_id: str,
     query_embedding: List[float],
@@ -220,6 +427,7 @@ async def get_conversations(
         .select("*")
         .eq("user_id", user_id)
         .eq("deleted", False)
+        .eq("status", "completed")
     )
 
     if not include_discarded:

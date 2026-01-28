@@ -6,12 +6,14 @@ class RecoverySession {
   final DateTime startedAt;
   final DateTime lastUpdatedAt;
   final List<TranscriptSegment> segments;
+  final String? draftConversationId;
 
   RecoverySession({
     required this.sessionId,
     required this.startedAt,
     required this.lastUpdatedAt,
     required this.segments,
+    this.draftConversationId,
   });
 
   /// Total word count across all segments
@@ -46,6 +48,7 @@ class RecoverySession {
       segments: (json['segments'] as List<dynamic>)
           .map((s) => TranscriptSegment.fromJson(s as Map<String, dynamic>))
           .toList(),
+      draftConversationId: json['draft_conversation_id'] as String?,
     );
   }
 
@@ -56,6 +59,7 @@ class RecoverySession {
       'started_at': startedAt.toIso8601String(),
       'last_updated_at': lastUpdatedAt.toIso8601String(),
       'segments': segments.map((s) => s.toJson()).toList(),
+      if (draftConversationId != null) 'draft_conversation_id': draftConversationId,
     };
   }
 

@@ -27,6 +27,7 @@ class TranscriptRecoveryService {
     required String sessionId,
     required DateTime startedAt,
     required List<TranscriptSegment> segments,
+    String? draftConversationId,
   }) async {
     if (segments.isEmpty) {
       debugPrint('[TranscriptRecovery] No segments to save');
@@ -40,10 +41,11 @@ class TranscriptRecoveryService {
         startedAt: startedAt,
         lastUpdatedAt: DateTime.now(),
         segments: segments,
+        draftConversationId: draftConversationId,
       );
 
       await file.writeAsString(jsonEncode(session.toJson()));
-      debugPrint('[TranscriptRecovery] Saved ${segments.length} segments for session $sessionId');
+      debugPrint('[TranscriptRecovery] Saved ${segments.length} segments for session $sessionId (draft: $draftConversationId)');
     } catch (e) {
       debugPrint('[TranscriptRecovery] Error saving segments: $e');
     }

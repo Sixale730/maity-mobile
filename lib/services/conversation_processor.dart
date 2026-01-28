@@ -127,7 +127,7 @@ NOTAS:
                 },
                 {
                   'role': 'user',
-                  'content': transcript.substring(0, min(2000, transcript.length))
+                  'content': transcript.substring(0, min(6000, transcript.length))
                 }
               ],
               'max_tokens': 500,
@@ -438,7 +438,7 @@ El emoji debe representar el tema o tono de la conversación.'''
                 },
                 {
                   'role': 'user',
-                  'content': transcript.substring(0, min(2000, transcript.length))
+                  'content': transcript.substring(0, min(6000, transcript.length))
                 }
               ],
               'max_tokens': 200,

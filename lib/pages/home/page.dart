@@ -362,6 +362,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
             final success = await captureProvider.recoverInterruptedSession(
               interruptedSession.segments,
               interruptedSession.startedAt,
+              draftConversationId: interruptedSession.draftConversationId,
             );
 
             if (!mounted) return;

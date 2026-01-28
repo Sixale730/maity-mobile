@@ -353,6 +353,97 @@ Muestra al usuario:
 ### Strings i18n
 `recoveryDialogTitle`, `recoveryDialogDescription`, `recoveryDialogRecordedAt`, `recoveryDialogDuration`, `recoveryDialogSegments`, `recoveryDialogWords`, `recoveryDialogDiscard`, `recoveryDialogRecover`, `recoveryInProgress`, `recoverySuccess`, `recoveryFailed`
 
+## Incremental Save System
+
+Sistema para guardar segmentos de transcripción incrementalmente a Supabase durante la grabación, protegiendo contra pérdida de datos en conversaciones largas.
+
+### Problema Resuelto
+- Los segmentos solo existían en RAM durante la grabación
+- Si la app crasheaba o el backend fallaba al guardar, se perdían todos los segmentos
+- El procesamiento truncaba transcripts largos a 2,000 chars (ahora 6,000 local, chunked en backend)
+- No había detección de transcripción detenida
+
+### Arquitectura
+```
+Segmento llega
+       ↓
+RAM + Recovery File (cada 5s) + Supabase (cada 30s)
+       ↓
+Al finalizar: Backend reconstruye transcript desde segmentos en DB
+       ↓
+Backend genera embeddings, extrae memorias, analiza comunicación
+```
+
+### Flujo de 3 Fases
+
+**1. Draft Creation** (primer segmento):
+- `POST /v1/omi/conversations/draft` → crea row con `status='recording'`
+- Retorna UUID del draft
+
+**2. Incremental Segments** (cada 30s o 20 segmentos):
+- `POST /v1/omi/conversations/{id}/segments` → upsert idempotente
+- ON CONFLICT DO NOTHING por `(conversation_id, segment_index)`
+- Seguro de reintentar en caso de error de red
+
+**3. Finalize** (al detener grabación):
+- `POST /v1/omi/conversations/{id}/finalize`
+- Backend lee segmentos de DB, reconstruye `transcript_text`
+- Para transcripts >6,000 chars: usa chunked processing (divide, procesa, merge)
+- Genera embeddings, extrae memorias, analiza comunicación
+- Cambia status a 'completed'
+
+### Endpoints Backend
+
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/v1/omi/conversations/draft` | POST | Crea draft con `status='recording'` |
+| `/v1/omi/conversations/{id}/segments` | POST | Upsert batch de segmentos |
+| `/v1/omi/conversations/{id}/finalize` | POST | Finaliza: rebuild transcript, embeddings, memorias |
+| `/v1/omi/conversations/{id}/reprocess` | POST | Re-analiza conversación existente con chunked processor |
+
+### Archivos
+
+| Archivo | Descripción |
+|---------|-------------|
+| `api/routers/omi.py` | 4 endpoints nuevos (draft, segments, finalize, reprocess) |
+| `api/services/supabase_client.py` | 3 funciones DB (insert_draft, append_segments, finalize_conversation) |
+| `api/services/chunked_processor.py` | Procesador chunked para transcripts largos |
+| `lib/services/incremental_save_service.dart` | Servicio Flutter de guardado incremental |
+| `lib/services/omi_supabase_service.dart` | 3 métodos (createDraft, appendSegments, finalize) |
+| `lib/providers/capture_provider.dart` | Integración + health monitor |
+
+### Columnas BD Nuevas
+- `omi_conversations.last_segment_at` (timestamptz) - Último segmento guardado
+- `omi_conversations.segment_count` (integer) - Conteo de segmentos
+- Índice único: `omi_transcript_segments(conversation_id, segment_index)`
+
+### Health Monitor (Detección de Transcripción Detenida)
+- Timer cada 10 segundos verifica si llegan segmentos
+- Si no llegan segmentos por >60s con grabación activa → notificación al usuario
+- Notificación ID: 3
+
+### Chunked Processing (Conversaciones Largas)
+Para transcripts >6,000 chars:
+1. Divide en chunks de ~5,000 chars en límites de oración
+2. Procesa cada chunk con OpenAI (máx 3 concurrentes)
+3. Merge de resultados parciales en un solo análisis
+4. Endpoint `reprocess` permite re-analizar conversaciones existentes
+
+### Procesamiento Local vs Backend
+| Transcript Length | Procesamiento |
+|-------------------|---------------|
+| ≤6,000 chars | Flutter procesa localmente con OpenAI |
+| >6,000 chars | Backend procesa con chunked processor |
+
+### Compatibilidad
+- `store_conversation` (endpoint actual) sigue funcionando para conversaciones cortas
+- `get_conversations` filtra `status='completed'` — drafts no aparecen en lista
+- Recovery file incluye `draftConversationId` para recovery de drafts
+- Si guardado incremental falla, flow monolítico funciona como fallback
+
+### Strings i18n
+`transcriptionLostTitle`, `transcriptionLostBody`, `transcriptionReconnecting`, `transcriptionAutoSaved`, `noSegmentsWarning`
+
 ## Foreground Service Notification
 Estados: waiting, device_connected, phone_mic, recording, processing, ready
 
