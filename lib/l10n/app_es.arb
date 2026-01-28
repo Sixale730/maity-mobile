@@ -672,6 +672,9 @@
   "failedToStartServiceAuth": "Error al iniciar autenticación con {service}",
   "exportTasksOneTap": "¡Exporta tareas con un toque!",
 
+  "usePhoneMic": "Usar micrófono del teléfono",
+  "speakClearlyIntoPhone": "Habla claramente hacia tu teléfono",
+
   "transcriptionLostTitle": "Transcripción interrumpida",
   "transcriptionLostBody": "La conexión de transcripción se perdió. Tu conversación fue guardada.",
   "transcriptionReconnecting": "Reconectando transcripción...",

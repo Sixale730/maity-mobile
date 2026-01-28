@@ -905,6 +905,9 @@
   },
   "exportTasksOneTap": "Export tasks with one tap!",
 
+  "usePhoneMic": "Use phone microphone",
+  "speakClearlyIntoPhone": "Speak clearly into your phone",
+
   "transcriptionLostTitle": "Transcription Lost",
   "transcriptionLostBody": "The transcription connection was interrupted. Your conversation has been saved.",
   "transcriptionReconnecting": "Reconnecting transcription...",

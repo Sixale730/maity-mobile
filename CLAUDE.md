@@ -763,6 +763,37 @@ El sistema notifica al usuario sobre cambios de estado de conexión:
 2. Validar: auth, duración 10-155s, mínimo 25 palabras
 3. Enviar a Modal.com → guardar embedding
 
+### Soporte de Micrófono del Teléfono
+El enrollment soporta grabación con el micrófono del teléfono además del dispositivo BLE:
+
+**UI comportamiento**:
+- Sin dispositivo BLE: Botón principal muestra "Usar micrófono del teléfono"
+- Con dispositivo BLE: Botón principal usa BLE + link secundario "Usar micrófono del teléfono"
+- Onboarding: Auto-detecta si hay dispositivo; si no, usa phone mic automáticamente
+
+**Flujo técnico**:
+```
+SpeechProfileProvider.initialise(usePhoneMic: true)
+       ↓
+_initialiseWithPhoneMic() → WavBytesUtil(codec: pcm16, framesPerSecond: 100)
+       ↓
+_startPhoneMicStreaming() → ServiceManager.mic.start()
+       ↓
+onByteReceived → storeRawAudioBytes() (sin header BLE) + socket.send()
+       ↓
+Transcripción STT → progress bar → 70 palabras → finalize()
+       ↓
+createWavFile() → /v1/voice/enroll → ECAPA-TDNN
+```
+
+**Archivos modificados**:
+- `lib/utils/audio/wav_bytes.dart` - `storeRawAudioBytes()` divide en frames de 320 bytes
+- `lib/providers/speech_profile_provider.dart` - `_usePhoneMic`, `_initialiseWithPhoneMic()`, `_startPhoneMicStreaming()`
+- `lib/pages/speech_profile/page.dart` - `_startWithBleDevice()`, `_startWithPhoneMic()`, UI condicional
+- `lib/pages/onboarding/speech_profile_widget.dart` - Auto phone mic si no hay dispositivo
+
+**Strings i18n**: `usePhoneMic`, `speakClearlyIntoPhone`
+
 ### Códigos Error
 `AUTH_REQUIRED`, `ENROLLMENT_FAILED`, `ENROLLMENT_VERIFICATION_FAILED`, `TOO_SHORT`, `NO_SPEECH`, `MULTIPLE_SPEAKERS`
 

@@ -99,6 +99,28 @@ class WavBytesUtil {
   List<int> pending = [];
   int lost = 0;
 
+  /// Stores raw audio bytes without BLE 3-byte header.
+  /// For phone microphone: PCM16 @ 16kHz.
+  /// Splits into frames of 320 bytes for compatibility with framesPerSecond=100.
+  void storeRawAudioBytes(List<int> bytes) {
+    if (bytes.isEmpty) return;
+    const frameSize = 320; // 160 samples * 2 bytes (PCM16)
+    int offset = 0;
+    while (offset + frameSize <= bytes.length) {
+      frames.add(bytes.sublist(offset, offset + frameSize));
+      if (frames.length > _maxFrames) {
+        frames.removeAt(0);
+      }
+      offset += frameSize;
+    }
+    if (offset < bytes.length) {
+      frames.add(bytes.sublist(offset));
+      if (frames.length > _maxFrames) {
+        frames.removeAt(0);
+      }
+    }
+  }
+
   void storeFramePacket(value) {
     rawPackets.add(value);
     int index = value[0] + (value[1] << 8);

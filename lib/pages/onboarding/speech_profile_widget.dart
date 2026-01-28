@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_provider_utilities/flutter_provider_utilities.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/settings/language_selection_dialog.dart';
 import 'package:omi/pages/speech_profile/percentage_bar_progress.dart';
 import 'package:omi/providers/capture_provider.dart';
@@ -312,16 +313,32 @@ class _SpeechProfileWidgetState extends State<SpeechProfileWidget> with TickerPr
                                       }
 
                                       await stopDeviceRecording();
-                                      await provider.initialise(finalizedCallback: restartDeviceRecording);
+
+                                      final hasDevice = provider.device != null;
+
+                                      // Block conversation saves during speech profile training
+                                      Provider.of<CaptureProvider>(context, listen: false).enterSpeechProfileMode();
+
+                                      try {
+                                        await provider.initialise(
+                                          finalizedCallback: restartDeviceRecording,
+                                          usePhoneMic: !hasDevice,
+                                        );
+                                      } catch (e) {
+                                        debugPrint('Onboarding speech profile init error: $e');
+                                        return;
+                                      }
                                       provider.forceCompletionTimer =
                                           Timer(Duration(seconds: provider.maxDuration), () async {
                                         provider.finalize();
                                       });
                                       provider.updateStartedRecording(true);
                                     },
-                                    child: const Text(
-                                      'Get Started',
-                                      style: TextStyle(color: Colors.white, fontSize: 16),
+                                    child: Text(
+                                      provider.device != null
+                                          ? 'Get Started'
+                                          : (AppLocalizations.of(context)?.usePhoneMic ?? 'Use phone microphone'),
+                                      style: const TextStyle(color: Colors.white, fontSize: 16),
                                     ),
                                   ),
                                 ),

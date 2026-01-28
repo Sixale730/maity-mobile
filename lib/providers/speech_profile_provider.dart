@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -25,6 +26,9 @@ class SpeechProfileProvider extends ChangeNotifier
   bool? permissionEnabled;
   bool loading = false;
   BtDevice? device;
+
+  bool _usePhoneMic = false;
+  bool get usePhoneMic => _usePhoneMic;
 
   final targetWordsCount = 70;
   final maxDuration = 150;
@@ -85,7 +89,10 @@ class SpeechProfileProvider extends ChangeNotifier
     notifyListeners();
   }
 
-  Future<void> initialise({Function? finalizedCallback}) async {
+  Future<void> initialise({Function? finalizedCallback, bool usePhoneMic = false}) async {
+    if (usePhoneMic) {
+      return _initialiseWithPhoneMic(finalizedCallback: finalizedCallback);
+    }
     _finalizedCallback = finalizedCallback;
     setInitialising(true);
     device = deviceProvider?.connectedDevice;
@@ -106,6 +113,43 @@ class SpeechProfileProvider extends ChangeNotifier
     notifyListeners();
   }
 
+  Future<void> _initialiseWithPhoneMic({Function? finalizedCallback}) async {
+    _finalizedCallback = finalizedCallback;
+    setInitialising(true);
+    _usePhoneMic = true;
+
+    const codec = BleAudioCodec.pcm16;
+    audioStorage = WavBytesUtil(codec: codec, framesPerSecond: 100);
+    await _initiateWebsocket(codec: codec, force: true, sampleRate: 16000);
+    await _startPhoneMicStreaming();
+
+    if (_socket?.state != SocketServiceState.connected) {
+      await Future.delayed(const Duration(seconds: 2));
+    }
+
+    setInitialising(false);
+    setInitialised(true);
+    notifyListeners();
+  }
+
+  Future<void> _startPhoneMicStreaming() async {
+    await ServiceManager.instance().mic.start(
+      onByteReceived: (Uint8List bytes) {
+        if (bytes.isEmpty) return;
+        audioStorage.storeRawAudioBytes(bytes);
+        if (_socket?.state == SocketServiceState.connected) {
+          _socket?.send(bytes);
+        }
+      },
+      onRecording: () {
+        debugPrint('[SpeechProfile] Phone mic recording started');
+      },
+      onStop: () {
+        debugPrint('[SpeechProfile] Phone mic recording stopped');
+      },
+    );
+  }
+
   void updateStartedRecording(bool value) {
     startedRecording = value;
     notifyListeners();
@@ -121,11 +165,11 @@ class SpeechProfileProvider extends ChangeNotifier
     ServiceManager.instance().device.subscribe(this, this);
   }
 
-  Future<void> _initiateWebsocket({required BleAudioCodec codec, bool force = false}) async {
+  Future<void> _initiateWebsocket({required BleAudioCodec codec, bool force = false, int? sampleRate}) async {
     // Connect to the transcript socket
     String language =
         SharedPreferencesUtil().hasSetPrimaryLanguage ? SharedPreferencesUtil().userPrimaryLanguage : "multi";
-    int sampleRate = (codec.isOpusSupported() ? 16000 : 8000);
+    sampleRate ??= (codec.isOpusSupported() ? 16000 : 8000);
 
     _socket = await ServiceManager.instance()
         .socket
@@ -180,6 +224,9 @@ class SpeechProfileProvider extends ChangeNotifier
       forceCompletionTimer?.cancel();
       connectionStateListener?.cancel();
       _bleBytesStream?.cancel();
+      if (_usePhoneMic) {
+        ServiceManager.instance().mic.stop();
+      }
 
       updateLoadingText('Memorizing your voice...');
       var data = await audioStorage.createWavFile(filename: 'speaker_profile.wav');
@@ -322,6 +369,10 @@ class SpeechProfileProvider extends ChangeNotifier
   Future close() async {
     connectionStateListener?.cancel();
     _bleBytesStream?.cancel();
+    if (_usePhoneMic) {
+      ServiceManager.instance().mic.stop();
+      _usePhoneMic = false;
+    }
     forceCompletionTimer?.cancel();
     segments.clear();
     text = '';
@@ -338,6 +389,9 @@ class SpeechProfileProvider extends ChangeNotifier
     // This won't be called unless the provider is removed from the widget tree. So we need to manually call this in the widget's dispose method.
     connectionStateListener?.cancel();
     _bleBytesStream?.cancel();
+    if (_usePhoneMic) {
+      ServiceManager.instance().mic.stop();
+    }
     forceCompletionTimer?.cancel();
     _finalizedCallback = null;
     _socket?.unsubscribe(this);

@@ -82,6 +82,138 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
     }
   }
 
+  Future<void> _startWithBleDevice(
+    SpeechProfileProvider provider,
+    Future Function() stopDeviceRecording,
+    Future Function() restartDeviceRecording,
+  ) async {
+    if (!context.read<HomeProvider>().hasSetPrimaryLanguage) {
+      await LanguageSelectionDialog.show(context);
+    }
+
+    BleAudioCodec codec;
+    try {
+      codec = await _getAudioCodec(provider.device!.id);
+    } catch (e) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (c) => getDialog(
+          context,
+          () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pop();
+          },
+          () => {},
+          l10n?.deviceDisconnected ?? 'Device Disconnected',
+          l10n?.deviceDisconnectedDesc ?? 'Please make sure your device is turned on and nearby, and try again.',
+          singleButton: true,
+        ),
+      );
+      return;
+    }
+
+    if (!codec.isOpusSupported()) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
+      showDialog(
+        context: context,
+        builder: (c) => getDialog(
+          context,
+          () => Navigator.pop(context),
+          () async {
+            await IntercomManager.instance.displayFirmwareUpdateArticle();
+          },
+          l10n?.deviceUpdateRequired ?? 'Device Update Required',
+          l10n?.deviceUpdateRequiredDesc ?? 'Your current device has an old firmware version (1.0.2). Please check our guide on how to update it.',
+          okButtonText: l10n?.viewGuide ?? 'View Guide',
+        ),
+        barrierDismissible: false,
+      );
+      return;
+    }
+
+    await stopDeviceRecording();
+    if (!mounted) return;
+    Provider.of<CaptureProvider>(context, listen: false).enterSpeechProfileMode();
+    try {
+      await provider.initialise(finalizedCallback: restartDeviceRecording);
+    } catch (e) {
+      debugPrint('Speech profile initialise error: $e');
+      if (context.mounted) {
+        final l10n = AppLocalizations.of(context);
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (c) => getDialog(
+            context,
+            () {
+              Navigator.of(context).pop();
+            },
+            () => {},
+            l10n?.connectionError ?? 'Connection Error',
+            '${l10n?.connectionErrorDesc ?? 'Failed to start speech profile recording. Please check your internet connection and try again.'}\n\nError: ${e.toString().replaceAll('Exception:', '').trim()}',
+            singleButton: true,
+          ),
+        );
+        await restartDeviceRecording();
+      }
+      return;
+    }
+    provider.forceCompletionTimer = Timer(Duration(seconds: provider.maxDuration), () {
+      provider.finalize();
+    });
+    provider.updateStartedRecording(true);
+  }
+
+  Future<void> _startWithPhoneMic(
+    SpeechProfileProvider provider,
+    Future Function() stopDeviceRecording,
+    Future Function() restartDeviceRecording,
+  ) async {
+    if (!context.read<HomeProvider>().hasSetPrimaryLanguage) {
+      await LanguageSelectionDialog.show(context);
+    }
+
+    await stopDeviceRecording();
+    if (!mounted) return;
+
+    // Stop any active phone mic recording from CaptureProvider
+    final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+    captureProvider.enterSpeechProfileMode();
+
+    try {
+      await provider.initialise(finalizedCallback: restartDeviceRecording, usePhoneMic: true);
+    } catch (e) {
+      debugPrint('Speech profile phone mic initialise error: $e');
+      if (context.mounted) {
+        final l10n = AppLocalizations.of(context);
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (c) => getDialog(
+            context,
+            () {
+              Navigator.of(context).pop();
+            },
+            () => {},
+            l10n?.connectionError ?? 'Connection Error',
+            '${l10n?.connectionErrorDesc ?? 'Failed to start speech profile recording. Please check your internet connection and try again.'}\n\nError: ${e.toString().replaceAll('Exception:', '').trim()}',
+            singleButton: true,
+          ),
+        );
+        await restartDeviceRecording();
+      }
+      return;
+    }
+    provider.forceCompletionTimer = Timer(Duration(seconds: provider.maxDuration), () {
+      provider.finalize();
+    });
+    provider.updateStartedRecording(true);
+  }
+
   @override
   Widget build(BuildContext context) {
     Future restartDeviceRecording() async {
@@ -285,13 +417,15 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
             ),
             body: Stack(
               children: [
-                const Align(
+                Align(
                   alignment: Alignment.topCenter,
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(24, 8, 24, 0),
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
                     child: Column(
                       children: [
-                        DeviceAnimationWidget(animatedBackground: true),
+                        provider.usePhoneMic && provider.startedRecording
+                            ? const Icon(Icons.mic, color: Colors.white, size: 64)
+                            : const DeviceAnimationWidget(animatedBackground: true),
                       ],
                     ),
                   ),
@@ -382,99 +516,54 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                   ? const CircularProgressIndicator(
                                       color: Colors.white,
                                     )
-                                  : MaterialButton(
-                                      onPressed: () async {
-                                        // Check if user has set primary language, if not, show dialog
-                                        if (!context.read<HomeProvider>().hasSetPrimaryLanguage) {
-                                          await LanguageSelectionDialog.show(context);
-                                        }
-
-                                        BleAudioCodec codec;
-                                        try {
-                                          codec = await _getAudioCodec(provider.device!.id);
-                                        } catch (e) {
-                                          final l10n = AppLocalizations.of(context);
-                                        showDialog(
-                                            context: context,
-                                            barrierDismissible: false,
-                                            builder: (c) => getDialog(
-                                              context,
-                                              () {
-                                                Navigator.of(context).pop();
-                                                Navigator.of(context).pop();
-                                              },
-                                              () => {},
-                                              l10n?.deviceDisconnected ?? 'Device Disconnected',
-                                              l10n?.deviceDisconnectedDesc ?? 'Please make sure your device is turned on and nearby, and try again.',
-                                              singleButton: true,
-                                            ),
-                                          );
-                                          return;
-                                        }
-
-                                        if (!codec.isOpusSupported()) {
-                                          final l10n = AppLocalizations.of(context);
-                                          showDialog(
-                                            context: context,
-                                            builder: (c) => getDialog(
-                                              context,
-                                              () => Navigator.pop(context),
-                                              () async {
-                                                await IntercomManager.instance.displayFirmwareUpdateArticle();
-                                              },
-                                              l10n?.deviceUpdateRequired ?? 'Device Update Required',
-                                              l10n?.deviceUpdateRequiredDesc ?? 'Your current device has an old firmware version (1.0.2). Please check our guide on how to update it.',
-                                              okButtonText: l10n?.viewGuide ?? 'View Guide',
-                                            ),
-                                            barrierDismissible: false,
-                                          );
-                                          return;
-                                        }
-
-                                        await stopDeviceRecording();
-                                        // Block conversation saves during speech profile training
-                                        Provider.of<CaptureProvider>(context, listen: false).enterSpeechProfileMode();
-                                        try {
-                                          await provider.initialise(finalizedCallback: restartDeviceRecording);
-                                        } catch (e) {
-                                          debugPrint('Speech profile initialise error: $e');
-                                          if (context.mounted) {
-                                            final l10n = AppLocalizations.of(context);
-                                            showDialog(
-                                              context: context,
-                                              barrierDismissible: false,
-                                              builder: (c) => getDialog(
-                                                context,
-                                                () {
-                                                  Navigator.of(context).pop();
-                                                },
-                                                () => {},
-                                                l10n?.connectionError ?? 'Connection Error',
-                                                '${l10n?.connectionErrorDesc ?? 'Failed to start speech profile recording. Please check your internet connection and try again.'}\n\nError: ${e.toString().replaceAll('Exception:', '').trim()}',
-                                                singleButton: true,
-                                              ),
-                                            );
-                                            await restartDeviceRecording();
+                                  : Column(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      // Primary button: BLE device or phone mic
+                                      MaterialButton(
+                                        onPressed: () async {
+                                          if (provider.device != null) {
+                                            await _startWithBleDevice(provider, stopDeviceRecording, restartDeviceRecording);
+                                          } else {
+                                            await _startWithPhoneMic(provider, stopDeviceRecording, restartDeviceRecording);
                                           }
-                                          return;
-                                        }
-                                        // 1.5 minutes seems reasonable
-                                        provider.forceCompletionTimer =
-                                            Timer(Duration(seconds: provider.maxDuration), () {
-                                          provider.finalize();
-                                        });
-                                        provider.updateStartedRecording(true);
-                                      },
-                                      color: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                                      child: Text(
-                                        SharedPreferencesUtil().hasSpeakerProfile
-                                            ? (AppLocalizations.of(context)?.doItAgain ?? 'Do it again')
-                                            : (AppLocalizations.of(context)?.getStarted ?? 'Get Started'),
-                                        style: const TextStyle(color: Colors.black),
+                                        },
+                                        color: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (provider.device == null)
+                                              const Padding(
+                                                padding: EdgeInsets.only(right: 8),
+                                                child: Icon(Icons.mic, color: Colors.black, size: 20),
+                                              ),
+                                            Text(
+                                              provider.device == null
+                                                  ? (AppLocalizations.of(context)?.usePhoneMic ?? 'Use phone microphone')
+                                                  : SharedPreferencesUtil().hasSpeakerProfile
+                                                      ? (AppLocalizations.of(context)?.doItAgain ?? 'Do it again')
+                                                      : (AppLocalizations.of(context)?.getStarted ?? 'Get Started'),
+                                              style: const TextStyle(color: Colors.black),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
+                                      // Secondary option: phone mic when device is connected
+                                      if (provider.device != null) ...[
+                                        const SizedBox(height: 12),
+                                        TextButton.icon(
+                                          onPressed: () async => _startWithPhoneMic(provider, stopDeviceRecording, restartDeviceRecording),
+                                          icon: const Icon(Icons.mic, color: Colors.white70, size: 18),
+                                          label: Text(
+                                            AppLocalizations.of(context)?.usePhoneMic ?? 'Use phone microphone',
+                                            style: const TextStyle(color: Colors.white70, fontSize: 14),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                               const SizedBox(height: 24),
                               SharedPreferencesUtil().hasSpeakerProfile
                                   ? TextButton(
