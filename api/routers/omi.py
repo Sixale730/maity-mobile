@@ -31,6 +31,23 @@ from ..models.conversation import TranscriptSegment
 router = APIRouter(prefix="/v1/omi", tags=["omi"])
 
 
+def should_auto_discard(words_count: int, duration_seconds: int, segment_count: int) -> bool:
+    """Check if a conversation should be automatically discarded as trivial.
+
+    Rules:
+    1. Less than 5 words total
+    2. Less than 10 seconds AND less than 10 words
+    3. Single segment with less than 3 words
+    """
+    if words_count < 5:
+        return True
+    if duration_seconds < 10 and words_count < 10:
+        return True
+    if segment_count == 1 and words_count < 3:
+        return True
+    return False
+
+
 # ============ Request/Response Models ============
 
 
@@ -323,11 +340,7 @@ async def finalize_conversation_endpoint(
                 print(f"[OMI Router] Embedding generation failed (non-blocking): {e}")
 
         # Pre-filter for auto-discard
-        is_discarded = False
-        if words_count < 5:
-            is_discarded = True
-        elif duration_seconds < 10 and words_count < 10:
-            is_discarded = True
+        is_discarded = should_auto_discard(words_count, duration_seconds, segment_count)
 
         if is_discarded:
             supabase = get_supabase()
@@ -461,22 +474,9 @@ async def store_conversation(
 
     # ============ Pre-filter: Auto-discard trivial conversations ============
     # This avoids wasting OpenAI tokens on obviously banal content
-    auto_discard = False
-
-    # Rule 1: Less than 5 words total
-    if words_count < 5:
-        auto_discard = True
-        print(f"[OMI Router] Auto-discard: < 5 words ({words_count} words)")
-
-    # Rule 2: Less than 10 seconds AND less than 10 words
-    elif duration_seconds < 10 and words_count < 10:
-        auto_discard = True
-        print(f"[OMI Router] Auto-discard: short duration ({duration_seconds}s) and few words ({words_count})")
-
-    # Rule 3: Single segment with less than 3 words
-    elif len(request.transcript_segments) == 1 and words_count < 3:
-        auto_discard = True
-        print(f"[OMI Router] Auto-discard: single segment with < 3 words")
+    auto_discard = should_auto_discard(words_count, duration_seconds, len(request.transcript_segments))
+    if auto_discard:
+        print(f"[OMI Router] Auto-discard: words={words_count}, duration={duration_seconds}s, segments={len(request.transcript_segments)}")
 
     # Combine auto-discard with AI's discarded flag
     # If AI marked it as discarded OR pre-filter caught it

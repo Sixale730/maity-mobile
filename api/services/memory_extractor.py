@@ -7,6 +7,7 @@ from datetime import datetime
 import openai
 
 from ..models.memory import Memory, MemoryCategory
+from .utils import parse_json_from_llm
 
 
 # Initialize OpenAI client
@@ -104,15 +105,7 @@ def _parse_memories_response(
 ) -> List[dict]:
     """Parse OpenAI JSON response into memory dicts"""
     try:
-        # Clean potential markdown
-        json_str = content.strip()
-        if json_str.startswith("```"):
-            json_str = json_str.split("```")[1]
-            if json_str.startswith("json"):
-                json_str = json_str[4:]
-            json_str = json_str.strip()
-
-        data = json.loads(json_str)
+        data = parse_json_from_llm(content)
         memories = []
 
         for item in data.get("memories", []):

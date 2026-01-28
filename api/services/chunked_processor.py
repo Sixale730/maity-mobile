@@ -5,12 +5,13 @@ processes each with OpenAI, then merges results into a single
 structured output.
 """
 import asyncio
-import json
 import os
 import re
 from typing import List, Dict, Optional
 
 import openai
+
+from .utils import parse_json_from_llm
 
 
 CHUNK_PROCESS_PROMPT = """Analiza este fragmento de conversación y extrae información estructurada.
@@ -140,13 +141,7 @@ async def _process_chunk(
 
         content = response.choices[0].message.content
         if content:
-            json_str = content.strip()
-            if json_str.startswith("```"):
-                json_str = json_str.split("```")[1]
-                if json_str.startswith("json"):
-                    json_str = json_str[4:]
-                json_str = json_str.strip()
-            return json.loads(json_str)
+            return parse_json_from_llm(content)
 
     except asyncio.TimeoutError:
         print(f"[ChunkedProcessor] Chunk {chunk_number} timed out")
@@ -217,13 +212,7 @@ async def _merge_results(
 
         content = response.choices[0].message.content
         if content:
-            json_str = content.strip()
-            if json_str.startswith("```"):
-                json_str = json_str.split("```")[1]
-                if json_str.startswith("json"):
-                    json_str = json_str[4:]
-                json_str = json_str.strip()
-            return json.loads(json_str)
+            return parse_json_from_llm(content)
 
     except asyncio.TimeoutError:
         print("[ChunkedProcessor] Merge timed out")
@@ -284,9 +273,12 @@ async def process_long_transcript(
     # If only one chunk succeeded, use it directly with some formatting
     if len(valid_results) == 1:
         result = valid_results[0]
+        # Use partial_summary truncated as title (more descriptive than key_topics)
+        summary = result.get("partial_summary", "Conversation")
+        title = summary[:50].rsplit(' ', 1)[0] if len(summary) > 50 else summary
         return {
-            "title": result.get("key_topics", ["Conversation"])[0][:50] if result.get("key_topics") else "Conversation",
-            "overview": result.get("partial_summary", ""),
+            "title": title or "Conversation",
+            "overview": summary,
             "emoji": "🎤",
             "category": result.get("category", "other"),
             "action_items": result.get("action_items", []),

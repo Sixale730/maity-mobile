@@ -221,11 +221,21 @@ async def append_segments(
             ignore_duplicates=True,
         ).execute()
 
+        # Query actual segment count (ignore_duplicates means len(rows) may overcount)
+        count_result = (
+            supabase.schema("maity")
+            .table("omi_transcript_segments")
+            .select("id", count="exact")
+            .eq("conversation_id", conversation_id)
+            .execute()
+        )
+        actual_count = count_result.count if count_result.count is not None else (segment_offset + len(rows))
+
         # Update conversation metadata
         now = datetime.utcnow()
         supabase.schema("maity").table("omi_conversations").update({
             "last_segment_at": now.isoformat(),
-            "segment_count": segment_offset + len(rows),
+            "segment_count": actual_count,
         }).eq("id", conversation_id).eq("user_id", user_id).execute()
 
     return len(rows)

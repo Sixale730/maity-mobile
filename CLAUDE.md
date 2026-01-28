@@ -154,7 +154,7 @@ Grabación finaliza
 ```
 
 **Archivos**:
-- `api/routers/omi.py` - Pre-filtro en `store_conversation()`
+- `api/routers/omi.py` - Función `should_auto_discard()` compartida entre `store_conversation()` y `finalize_conversation()`
 - `api/services/supabase_client.py` - `insert_conversation()` acepta param `discarded`
 - `lib/services/conversation_processor.dart` - Prompt incluye campo `discarded`
 - `lib/backend/schema/structured.dart` - Modelo `Structured` con campo `discarded`
@@ -405,9 +405,10 @@ Backend genera embeddings, extrae memorias, analiza comunicación
 
 | Archivo | Descripción |
 |---------|-------------|
-| `api/routers/omi.py` | 4 endpoints nuevos (draft, segments, finalize, reprocess) |
+| `api/routers/omi.py` | 4 endpoints nuevos (draft, segments, finalize, reprocess) + `should_auto_discard()` |
 | `api/services/supabase_client.py` | 3 funciones DB (insert_draft, append_segments, finalize_conversation) |
 | `api/services/chunked_processor.py` | Procesador chunked para transcripts largos |
+| `api/services/utils.py` | Utilidades compartidas: `parse_json_from_llm()` |
 | `lib/services/incremental_save_service.dart` | Servicio Flutter de guardado incremental |
 | `lib/services/omi_supabase_service.dart` | 3 métodos (createDraft, appendSegments, finalize) |
 | `lib/providers/capture_provider.dart` | Integración + health monitor |
@@ -421,6 +422,7 @@ Backend genera embeddings, extrae memorias, analiza comunicación
 - Timer cada 10 segundos verifica si llegan segmentos
 - Si no llegan segmentos por >60s con grabación activa → notificación al usuario
 - Notificación ID: 3
+- Try-catch envuelve el body para evitar spam de excepciones en el timer periódico
 
 ### Chunked Processing (Conversaciones Largas)
 Para transcripts >6,000 chars:
@@ -434,6 +436,14 @@ Para transcripts >6,000 chars:
 |-------------------|---------------|
 | ≤6,000 chars | Flutter procesa localmente con OpenAI |
 | >6,000 chars | Backend procesa con chunked processor |
+
+### Robustez
+- `_scheduleIncrementalSave()` es async y awaita `ensureDraftCreated()` antes de guardar segmentos
+- `saveNewSegments()` guarda referencia en `_lastKnownSegments` para evitar stale closures en el timer debounce
+- `flushPendingSegments()` tiene max 5 retries con backoff para evitar loops infinitos
+- Timer chain de batches valida `_draftId != null && _isActive` antes de programar siguiente batch
+- `appendSegments()` valida userId no-null antes de enviar al backend
+- `append_segments()` en backend query conteo real de segmentos después del upsert (evita conteo incorrecto por duplicates)
 
 ### Compatibilidad
 - `store_conversation` (endpoint actual) sigue funcionando para conversaciones cortas
@@ -769,7 +779,7 @@ Threshold similitud: 0.75-0.80 (balanceado)
 
 ## Feedback de Comunicación
 
-**Arquitectura**: Conversación → Vercel `/v1/communication/analyze` → OpenAI → CommunicationFeedback
+**Arquitectura**: Conversación → Vercel `/v1/communication/analyze` → OpenAI (timeout 20s) → CommunicationFeedback
 
 ### Modelo
 - `strengths`, `areas_to_improve` (máx 5 cada uno)
@@ -834,7 +844,7 @@ Conversación finaliza
 Código en `C:\OMI\api\`:
 - `index.py` - FastAPI entry point
 - `routers/` - omi, metrics, feedback, memories, voice_profiles, messages
-- `services/` - supabase_client, embeddings, memory_extractor, communication_analyzer
+- `services/` - supabase_client, embeddings, memory_extractor, communication_analyzer, chunked_processor, utils
 - `models/` - memory, communication
 
 ### Variables de Entorno (Vercel)

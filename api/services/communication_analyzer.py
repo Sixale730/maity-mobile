@@ -1,4 +1,5 @@
 """Communication feedback analyzer service using OpenAI"""
+import asyncio
 import json
 import os
 from typing import List, Optional
@@ -9,6 +10,7 @@ from ..models.communication import (
     CommunicationObservations,
     CommunicationCounters,
 )
+from .utils import parse_json_from_llm
 
 
 # Initialize OpenAI client
@@ -112,26 +114,31 @@ async def analyze_communication(
     try:
         client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Eres un coach de comunicación que analiza conversaciones y proporciona feedback constructivo y específico. Responde SOLO con JSON válido, sin markdown ni explicaciones."
-                },
-                {
-                    "role": "user",
-                    "content": COMMUNICATION_ANALYSIS_PROMPT.format(transcript=transcript)
-                }
-            ],
-            max_tokens=800,
-            temperature=0.7,
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Eres un coach de comunicación que analiza conversaciones y proporciona feedback constructivo y específico. Responde SOLO con JSON válido, sin markdown ni explicaciones."
+                    },
+                    {
+                        "role": "user",
+                        "content": COMMUNICATION_ANALYSIS_PROMPT.format(transcript=transcript)
+                    }
+                ],
+                max_tokens=800,
+                temperature=0.7,
+            ),
+            timeout=20.0,
         )
 
         content = response.choices[0].message.content
         if content:
             return _parse_communication_response(content)
 
+    except asyncio.TimeoutError:
+        print("[Communication Analyzer] OpenAI timeout after 20s")
     except Exception as e:
         print(f"[Communication Analyzer] Error: {e}")
 
@@ -141,15 +148,7 @@ async def analyze_communication(
 def _parse_communication_response(content: str) -> CommunicationFeedback:
     """Parse OpenAI JSON response into CommunicationFeedback"""
     try:
-        # Clean potential markdown
-        json_str = content.strip()
-        if json_str.startswith("```"):
-            json_str = json_str.split("```")[1]
-            if json_str.startswith("json"):
-                json_str = json_str[4:]
-            json_str = json_str.strip()
-
-        data = json.loads(json_str)
+        data = parse_json_from_llm(content)
 
         # Parse observations
         obs_data = data.get("observations", {})

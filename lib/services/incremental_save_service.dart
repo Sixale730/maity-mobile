@@ -29,6 +29,9 @@ class IncrementalSaveService {
   /// Whether the service has been initialized for this session
   bool _isActive = false;
 
+  /// Most recent segment list reference (avoids stale closure in debounce timer)
+  List<TranscriptSegment>? _lastKnownSegments;
+
   // Debounce configuration
   static const Duration _saveDebounce = Duration(seconds: 30);
   static const int _segmentThreshold = 20;
@@ -69,23 +72,27 @@ class IncrementalSaveService {
   void saveNewSegments(List<TranscriptSegment> allSegments) {
     if (!_isActive || _draftId == null) return;
 
+    // Always update the reference to avoid stale closures in the debounce timer
+    _lastKnownSegments = allSegments;
+
     final newSegmentCount = allSegments.length - _savedSegmentCount;
     if (newSegmentCount <= 0) return;
 
     // Save immediately if we have enough new segments
     if (newSegmentCount >= _segmentThreshold) {
-      _performSave(allSegments);
+      _performSave();
       return;
     }
 
-    // Otherwise, debounce
+    // Otherwise, debounce (timer uses _lastKnownSegments, not a captured reference)
     _saveTimer?.cancel();
-    _saveTimer = Timer(_saveDebounce, () => _performSave(allSegments));
+    _saveTimer = Timer(_saveDebounce, () => _performSave());
   }
 
-  /// Perform the actual save operation
-  Future<void> _performSave(List<TranscriptSegment> allSegments) async {
-    if (_isSaving || _draftId == null) return;
+  /// Perform the actual save operation using _lastKnownSegments
+  Future<void> _performSave() async {
+    final allSegments = _lastKnownSegments;
+    if (_isSaving || _draftId == null || !_isActive || allSegments == null) return;
 
     final newCount = allSegments.length - _savedSegmentCount;
     if (newCount <= 0) return;
@@ -118,8 +125,9 @@ class IncrementalSaveService {
         debugPrint('[IncrementalSave] Saved. Total confirmed: $_savedSegmentCount');
 
         // If there are more segments to save, schedule another batch
-        if (endIndex < allSegments.length) {
-          _saveTimer = Timer(const Duration(seconds: 2), () => _performSave(allSegments));
+        // Validate draftId and isActive to avoid orphaned timer chains
+        if (endIndex < allSegments.length && _draftId != null && _isActive) {
+          _saveTimer = Timer(const Duration(seconds: 2), () => _performSave());
         }
       } else {
         debugPrint('[IncrementalSave] Save failed, will retry on next trigger');
@@ -134,15 +142,29 @@ class IncrementalSaveService {
   /// Force save all pending segments immediately
   Future<void> flushPendingSegments(List<TranscriptSegment> allSegments) async {
     _saveTimer?.cancel();
+    _lastKnownSegments = allSegments;
     if (_draftId == null || allSegments.length <= _savedSegmentCount) return;
 
-    // Save all remaining segments in batches
-    while (_savedSegmentCount < allSegments.length) {
-      await _performSave(allSegments);
-      if (_isSaving) {
-        // Wait for current save to finish
-        await Future.delayed(const Duration(milliseconds: 500));
+    // Save all remaining segments in batches with retry protection
+    int maxRetries = 5;
+    int retries = 0;
+    int lastSaved = _savedSegmentCount;
+
+    while (_savedSegmentCount < allSegments.length && retries < maxRetries) {
+      await _performSave();
+      if (_savedSegmentCount == lastSaved) {
+        // No progress was made, increment retry counter
+        retries++;
+        await Future.delayed(Duration(seconds: retries));
+      } else {
+        // Progress was made, reset retry counter
+        retries = 0;
+        lastSaved = _savedSegmentCount;
       }
+    }
+
+    if (retries >= maxRetries) {
+      debugPrint('[IncrementalSave] Flush gave up after $maxRetries retries. Saved: $_savedSegmentCount/${allSegments.length}');
     }
   }
 
@@ -190,6 +212,7 @@ class IncrementalSaveService {
     _savedSegmentCount = 0;
     _isSaving = false;
     _isActive = false;
+    _lastKnownSegments = null;
   }
 
   /// Set draft ID from recovery (when recovering a session that had a draft)

@@ -301,6 +301,12 @@ class OmiSupabaseService {
   }) async {
     if (segments.isEmpty) return true;
 
+    final userId = SupabaseAuthService.instance.maityUserId;
+    if (userId == null || userId.isEmpty) {
+      debugPrint('[OmiSupabaseService] Cannot append segments: no user ID');
+      return false;
+    }
+
     try {
       final authHeader = await getAuthHeader();
       final response = await http
@@ -311,7 +317,7 @@ class OmiSupabaseService {
               'Authorization': authHeader,
             },
             body: jsonEncode({
-              'user_id': SupabaseAuthService.instance.maityUserId ?? '',
+              'user_id': userId,
               'segments': segments
                   .map((s) => {
                         'text': s.text,

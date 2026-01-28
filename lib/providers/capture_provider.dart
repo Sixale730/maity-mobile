@@ -2019,7 +2019,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   /// Schedules incremental save of segments to Supabase
-  void _scheduleIncrementalSave() {
+  Future<void> _scheduleIncrementalSave() async {
     final customSttConfig = SharedPreferencesUtil().customSttConfig;
     if (!customSttConfig.isEnabled) return;
     if (_isSpeechProfileMode) return;
@@ -2027,18 +2027,16 @@ class CaptureProvider extends ChangeNotifier
     final userId = SupabaseAuthService.instance.maityUserId;
     if (userId == null) return;
 
-    // Ensure draft is created on first segment
+    // Ensure draft is created on first segment (await to prevent saving without draft)
     if (_incrementalSave.draftId == null && segments.isNotEmpty) {
-      _incrementalSave.ensureDraftCreated(
+      await _incrementalSave.ensureDraftCreated(
         userId: userId,
         startedAt: _recordingStartTime ?? DateTime.now(),
-      ).then((_) {
-        // After draft is created, start saving segments
-        if (_incrementalSave.draftId != null) {
-          _incrementalSave.saveNewSegments(segments);
-        }
-      });
-      return;
+      );
+      if (_incrementalSave.draftId == null) {
+        debugPrint('[CaptureProvider] Draft creation failed, skipping incremental save');
+        return;
+      }
     }
 
     // Save segments (debounced internally by IncrementalSaveService)
@@ -2064,30 +2062,34 @@ class CaptureProvider extends ChangeNotifier
 
   /// Check if transcription has stalled
   void _checkSocketHealth() {
-    // Only check when actively recording
-    if (recordingState != RecordingState.record &&
-        recordingState != RecordingState.deviceRecord &&
-        recordingState != RecordingState.systemAudioRecord) {
-      return;
-    }
-
-    // Only for custom STT mode
-    final customSttConfig = SharedPreferencesUtil().customSttConfig;
-    if (!customSttConfig.isEnabled) return;
-
-    // Check if socket is disconnected
-    if (_socket?.state != SocketServiceState.connected) {
-      debugPrint('[Maity] Health monitor: socket disconnected during recording');
-      return;
-    }
-
-    // Check if segments have stopped arriving (>60s gap)
-    if (_lastSegmentReceivedAt != null && segments.isNotEmpty) {
-      final gap = DateTime.now().difference(_lastSegmentReceivedAt!);
-      if (gap.inSeconds > 60) {
-        debugPrint('[Maity] Health monitor: no segments for ${gap.inSeconds}s');
-        _onTranscriptionStalled();
+    try {
+      // Only check when actively recording
+      if (recordingState != RecordingState.record &&
+          recordingState != RecordingState.deviceRecord &&
+          recordingState != RecordingState.systemAudioRecord) {
+        return;
       }
+
+      // Only for custom STT mode
+      final customSttConfig = SharedPreferencesUtil().customSttConfig;
+      if (!customSttConfig.isEnabled) return;
+
+      // Check if socket is disconnected
+      if (_socket?.state != SocketServiceState.connected) {
+        debugPrint('[Maity] Health monitor: socket disconnected during recording');
+        return;
+      }
+
+      // Check if segments have stopped arriving (>60s gap)
+      if (_lastSegmentReceivedAt != null && segments.isNotEmpty) {
+        final gap = DateTime.now().difference(_lastSegmentReceivedAt!);
+        if (gap.inSeconds > 60) {
+          debugPrint('[Maity] Health monitor: no segments for ${gap.inSeconds}s');
+          _onTranscriptionStalled();
+        }
+      }
+    } catch (e) {
+      debugPrint('[CaptureProvider] Health check error: $e');
     }
   }
 
