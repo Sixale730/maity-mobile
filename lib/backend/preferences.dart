@@ -480,6 +480,10 @@ class SharedPreferencesUtil {
 
   bool get locationPermissionRequested => getBool('locationPermissionRequested');
 
+  // Daily report banner dismiss
+  String get lastDismissedDailyReport => getString('lastDismissedDailyReport');
+  set lastDismissedDailyReport(String value) => saveString('lastDismissedDailyReport', value);
+
   //--------------------------- Setters & Getters -----------------------------//
 
   String getString(String key, {String defaultValue = ''}) => _preferences?.getString(key) ?? defaultValue;

@@ -11,5 +11,11 @@
       "src": "/(.*)",
       "dest": "api/index.py"
     }
+  ],
+  "crons": [
+    {
+      "path": "/v1/daily-reports/generate",
+      "schedule": "0 0 * * *"
+    }
   ]
 }

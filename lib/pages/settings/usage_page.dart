@@ -12,6 +12,8 @@ import 'package:intl/intl.dart';
 import 'package:omi/models/subscription.dart';
 import 'package:omi/models/user_usage.dart';
 import 'package:omi/pages/settings/widgets/communication_feedback_view.dart';
+import 'package:omi/pages/settings/widgets/daily_report_card.dart';
+import 'package:omi/providers/daily_report_provider.dart';
 import 'package:omi/pages/settings/widgets/plans_sheet.dart';
 import 'package:omi/providers/communication_provider.dart';
 import 'package:omi/providers/usage_provider.dart';
@@ -272,6 +274,7 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<UsageProvider>().fetchUsageStats(period: 'today');
       context.read<UsageProvider>().fetchSubscription();
+      context.read<DailyReportProvider>().fetchLatestReport();
       _loadAvailablePlans();
       if (widget.showUpgradeDialog) {
         _showPlansSheet();
@@ -724,37 +727,80 @@ class _UsagePageState extends State<UsagePage> with TickerProviderStateMixin {
         return TabBarView(
           controller: _tabController,
           children: [
-            CommunicationFeedbackView(
+            _buildCommunicationTabContent(
               feedback: commProvider.todayFeedback,
               isLoading: commProvider.isLoading,
               error: commProvider.error,
               period: 'today',
               onRefresh: () => commProvider.fetchFeedback(period: 'today'),
+              showDailyReport: true,
             ),
-            CommunicationFeedbackView(
+            _buildCommunicationTabContent(
               feedback: commProvider.monthlyFeedback,
               isLoading: commProvider.isLoading,
               error: commProvider.error,
               period: 'monthly',
               onRefresh: () => commProvider.fetchFeedback(period: 'monthly'),
+              showDailyReport: false,
             ),
-            CommunicationFeedbackView(
+            _buildCommunicationTabContent(
               feedback: commProvider.yearlyFeedback,
               isLoading: commProvider.isLoading,
               error: commProvider.error,
               period: 'yearly',
               onRefresh: () => commProvider.fetchFeedback(period: 'yearly'),
+              showDailyReport: false,
             ),
-            CommunicationFeedbackView(
+            _buildCommunicationTabContent(
               feedback: commProvider.allTimeFeedback,
               isLoading: commProvider.isLoading,
               error: commProvider.error,
               period: 'all_time',
               onRefresh: () => commProvider.fetchFeedback(period: 'all_time'),
+              showDailyReport: false,
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildCommunicationTabContent({
+    required dynamic feedback,
+    required bool isLoading,
+    required String? error,
+    required String period,
+    required VoidCallback onRefresh,
+    required bool showDailyReport,
+  }) {
+    if (showDailyReport) {
+      // For the "Today" tab, show DailyReportCard above communication feedback
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+        children: [
+          const DailyReportCard(),
+          const SizedBox(height: 8),
+          // Embed the CommunicationFeedbackView content inline
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: CommunicationFeedbackView(
+              feedback: feedback,
+              isLoading: isLoading,
+              error: error,
+              period: period,
+              onRefresh: onRefresh,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return CommunicationFeedbackView(
+      feedback: feedback,
+      isLoading: isLoading,
+      error: error,
+      period: period,
+      onRefresh: onRefresh,
     );
   }
 

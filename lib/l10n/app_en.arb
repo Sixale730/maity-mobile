@@ -908,6 +908,50 @@
   "usePhoneMic": "Use phone microphone",
   "speakClearlyIntoPhone": "Speak clearly into your phone",
 
+  "dailyEvaluation": "Daily Evaluation",
+  "dailyReport": "Daily Report",
+  "overallScore": "Overall Score",
+  "scoreTrend": "Trend",
+  "trendImproving": "Improving",
+  "trendStable": "Stable",
+  "trendDeclining": "Declining",
+  "trendFirstReport": "First Report",
+  "dailyRecommendations": "Recommendations",
+  "dailySummary": "Daily Summary",
+  "conversationsAnalyzedCount": "Based on {count} conversations",
+  "@conversationsAnalyzedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "wordsAnalyzed": "{count} words analyzed",
+  "@wordsAnalyzed": {
+    "placeholders": {
+      "count": {"type": "String"}
+    }
+  },
+  "durationAnalyzed": "{minutes} min analyzed",
+  "@durationAnalyzed": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "fillerWordsCount": "{count} filler words",
+  "@fillerWordsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "noDailyReportYet": "No daily report yet. Reports are generated at 6 PM from your conversations of the day.",
+  "dailyReportAvailable": "Your daily communication evaluation is ready",
+  "viewDailyReport": "View Report",
+  "scoreDimension": "{score}/10",
+  "@scoreDimension": {
+    "placeholders": {
+      "score": {"type": "String"}
+    }
+  },
+
   "transcriptionLostTitle": "Transcription Lost",
   "transcriptionLostBody": "The transcription connection was interrupted. Your conversation has been saved.",
   "transcriptionReconnecting": "Reconnecting transcription...",

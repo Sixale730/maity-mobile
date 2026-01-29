@@ -25,6 +25,7 @@ import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/connectivity_provider.dart';
 import 'package:omi/providers/conversation_provider.dart';
 import 'package:omi/providers/device_provider.dart';
+import 'package:omi/providers/daily_report_provider.dart';
 import 'package:omi/providers/home_provider.dart';
 import 'package:omi/providers/message_provider.dart';
 import 'package:omi/services/notifications.dart';
@@ -329,6 +330,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
           _checkForInterruptedSession();
         }
       });
+      // Check for new daily report after 3s
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          _checkForDailyReport();
+        }
+      });
     });
   }
 
@@ -396,6 +403,56 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       }
     } catch (e) {
       debugPrint('[HomePage] Error checking for interrupted session: $e');
+    }
+  }
+
+  Future<void> _checkForDailyReport() async {
+    try {
+      final provider = context.read<DailyReportProvider>();
+      await provider.fetchLatestReport();
+      if (!mounted) return;
+
+      final report = provider.latestReport;
+      if (report != null && report.isToday) {
+        // Check if already dismissed today
+        final lastDismissed = SharedPreferencesUtil().lastDismissedDailyReport;
+        if (lastDismissed == report.reportDate) return;
+
+        final l10n = AppLocalizations.of(context);
+        final scaffoldMessenger = ScaffoldMessenger.of(context);
+        final homeProvider = context.read<HomeProvider>();
+
+        scaffoldMessenger.showMaterialBanner(
+          MaterialBanner(
+            content: Text(
+              l10n?.dailyReportAvailable ?? 'Your daily communication evaluation is ready',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: const Color(0xFF485DF4).withAlpha(200),
+            leading: const Icon(Icons.assessment, color: Colors.white),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  scaffoldMessenger.hideCurrentMaterialBanner();
+                  SharedPreferencesUtil().lastDismissedDailyReport = report.reportDate;
+                },
+                child: Text(l10n?.dismiss ?? 'Dismiss', style: const TextStyle(color: Colors.white70)),
+              ),
+              TextButton(
+                onPressed: () {
+                  scaffoldMessenger.hideCurrentMaterialBanner();
+                  SharedPreferencesUtil().lastDismissedDailyReport = report.reportDate;
+                  // Navigate to Insights tab (index 3)
+                  homeProvider.setIndex(3);
+                },
+                child: Text(l10n?.viewDailyReport ?? 'View Report', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[HomePage] Error checking daily report: $e');
     }
   }
 

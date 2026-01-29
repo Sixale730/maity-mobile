@@ -58,6 +58,13 @@ Conversaciones con embedding vectorial:
 - `id`, `user_id`, `auth_id`, `feedback_type` ('comment'|'bug'|'suggestion')
 - `message`, `app_version`, `device_info`, `status`, `created_at`
 
+### maity.daily_communication_reports
+- `id`, `user_id` (FK users), `auth_id`, `report_date` (UNIQUE con user_id)
+- Contadores: `total_filler_words`, `total_filler_count`, `total_pero_count`, `total_objection_words`
+- Scores: `score_clarity`, `score_structure`, `score_calls_to_action`, `score_objection_handling`, `score_overall`
+- `top_strengths`, `top_areas_to_improve`, `recommendations`, `daily_summary`
+- `trend` (improving|stable|declining|first_report), `trend_details`, `conversation_ids`
+
 ### RPC Functions
 - `search_omi_conversations`, `search_omi_segments`, `get_omi_conversation_with_segments`
 - `get_voice_profile`, `search_omi_memories`, `get_pending_memories`
@@ -554,6 +561,7 @@ Timer de silencio (`conversationSilenceDuration`, default 120s) → `_onSilenceT
 | `/v1/feedback/*` | * | Submit, list, my |
 | `/v1/memories/*` | * | CRUD, extract, search, review |
 | `/v1/voice/*` | * | Enroll, verify-speakers, status, delete |
+| `/v1/daily-reports/*` | GET/POST | Generate (cron), latest, by-date, history |
 
 ## API Legacy (api.omi.me) - Deshabilitadas
 
@@ -821,6 +829,90 @@ Threshold similitud: 0.75-0.80 (balanceado)
 "este", "o sea", "como que", "bueno", "entonces", "básicamente", "literalmente", "tipo", "digamos", "la verdad"
 
 **Archivos**: `api/models/communication.py`, `api/services/communication_analyzer.py`, `lib/pages/conversation_detail/widgets.dart`
+
+## Evaluación Diaria de Comunicación
+
+Sistema de reportes diarios automáticos que evalúa el desempeño comunicativo del usuario basándose en las conversaciones del día.
+
+### Arquitectura
+```
+Cron Job (00:00 UTC / 6 PM México CST)
+       ↓
+POST /v1/daily-reports/generate (CRON_SECRET)
+       ↓
+[Buscar usuarios con conversaciones hoy]
+       ↓
+[Agregar communication_feedback de cada conversación]
+       ↓
+[OpenAI gpt-4o-mini → scores + evaluación]
+       ↓
+[Upsert en daily_communication_reports]
+       ↓
+[Flutter: banner in-app + card en Insights]
+```
+
+### Tabla: `maity.daily_communication_reports`
+- `id` (UUID PK), `user_id` (FK users), `auth_id` (FK auth.users)
+- `report_date` (DATE, UNIQUE con user_id)
+- Contadores agregados: `total_filler_words`, `total_filler_count`, `total_pero_count`, `total_objection_words`
+- Scores (NUMERIC 3,1): `score_clarity`, `score_structure`, `score_calls_to_action`, `score_objection_handling`, `score_overall`
+- `top_strengths`, `top_areas_to_improve`, `recommendations` (JSONB arrays)
+- `daily_summary` (TEXT), `trend` (improving|stable|declining|first_report)
+- `trend_details` (JSONB: previous_overall, change)
+- RLS: `auth.uid() = auth_id` (solo lectura)
+
+### Endpoints Backend
+| Endpoint | Método | Auth | Descripción |
+|----------|--------|------|-------------|
+| `/v1/daily-reports/generate` | POST | CRON_SECRET | Genera reportes para todos los usuarios |
+| `/v1/daily-reports/latest` | GET | JWT | Último reporte del usuario |
+| `/v1/daily-reports/by-date` | GET | JWT | Reporte de fecha específica |
+| `/v1/daily-reports/history` | GET | JWT | Historial reciente (default 7) |
+
+### Cron Job (Vercel)
+- Schedule: `0 0 * * *` (00:00 UTC = 6 PM México CST)
+- Configurado en `vercel.json` → `crons`
+- Requiere variable de entorno `CRON_SECRET` en Vercel Dashboard
+- Idempotente: constraint UNIQUE + upsert permite re-ejecución sin duplicados
+
+### Tendencia
+- Compara `score_overall` con el reporte del día anterior
+- `|change| < 0.5` → stable, `change > 0` → improving, `change < 0` → declining
+- Primer reporte → `first_report`
+
+### Flutter UI
+- **DailyReportCard**: Card con score general, 4 barras de dimensiones, tendencia, resumen, fortalezas, recomendaciones
+- Aparece en la pestaña "Today" de la vista Communication en Insights (UsagePage)
+- **Banner in-app**: MaterialBanner dismissible al iniciar app cuando hay reporte nuevo de hoy
+- Dismiss guardado en SharedPreferences (`lastDismissedDailyReport`)
+- Tap "Ver Reporte" navega a Insights (index 3)
+
+### Archivos
+**Backend**:
+- `api/models/daily_report.py` - Modelos Pydantic
+- `api/services/daily_report_generator.py` - Generador (OpenAI + Supabase)
+- `api/routers/daily_reports.py` - 4 endpoints REST
+
+**Flutter**:
+- `lib/models/daily_communication_report.dart` - Modelo Dart
+- `lib/services/daily_report_service.dart` - Servicio HTTP
+- `lib/providers/daily_report_provider.dart` - ChangeNotifier
+- `lib/pages/settings/widgets/daily_report_card.dart` - Widget card
+
+**Modificados**:
+- `api/routers/__init__.py`, `api/index.py` - Registro del router
+- `vercel.json` - Cron job
+- `lib/main.dart` - DailyReportProvider
+- `lib/pages/settings/usage_page.dart` - Integración DailyReportCard
+- `lib/pages/home/page.dart` - Banner in-app
+- `lib/backend/preferences.dart` - Key para dismiss
+- `lib/l10n/app_en.arb`, `lib/l10n/app_es.arb` - Strings i18n
+
+### Strings i18n
+`dailyEvaluation`, `dailyReport`, `overallScore`, `scoreTrend`, `trendImproving`, `trendStable`, `trendDeclining`, `trendFirstReport`, `dailyRecommendations`, `dailySummary`, `conversationsAnalyzedCount`, `wordsAnalyzed`, `durationAnalyzed`, `fillerWordsCount`, `noDailyReportYet`, `dailyReportAvailable`, `viewDailyReport`, `scoreDimension`
+
+### Costo Estimado
+~$0.0003 por reporte (gpt-4o-mini). $0.90/mes para 100 usuarios.
 
 ## Sistema de Memorias
 

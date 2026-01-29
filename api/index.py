@@ -18,6 +18,7 @@ from .routers import (
     messages_router,
     feedback_router,
     memories_router,
+    daily_reports_router,
 )
 
 # Create FastAPI app
@@ -48,6 +49,7 @@ app.include_router(communication_router)
 app.include_router(messages_router)
 app.include_router(feedback_router)
 app.include_router(memories_router)
+app.include_router(daily_reports_router)
 
 
 @app.get("/")

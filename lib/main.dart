@@ -42,6 +42,7 @@ import 'package:omi/providers/sync_provider.dart';
 import 'package:omi/providers/usage_provider.dart';
 import 'package:omi/providers/user_provider.dart';
 import 'package:omi/providers/communication_provider.dart';
+import 'package:omi/providers/daily_report_provider.dart';
 import 'package:omi/services/auth_service.dart';
 import 'package:omi/services/desktop_update_service.dart';
 import 'package:omi/services/notifications.dart';
@@ -327,6 +328,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           ChangeNotifierProvider(create: (context) => PeopleProvider()),
           ChangeNotifierProvider(create: (context) => UsageProvider()),
           ChangeNotifierProvider(create: (context) => CommunicationProvider()),
+          ChangeNotifierProvider(create: (context) => DailyReportProvider()),
           ChangeNotifierProxyProvider<AppProvider, MessageProvider>(
             create: (context) => MessageProvider(),
             update: (BuildContext context, value, MessageProvider? previous) =>
