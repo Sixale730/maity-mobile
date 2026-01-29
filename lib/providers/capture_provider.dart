@@ -27,6 +27,7 @@ import 'package:omi/services/local_conversations_service.dart';
 import 'package:omi/services/conversation_processor.dart';
 import 'package:omi/services/transcript_recovery_service.dart';
 import 'package:omi/services/incremental_save_service.dart';
+import 'package:omi/services/omi_supabase_service.dart';
 import 'package:omi/services/notifications/notification_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:omi/services/supabase_auth_service.dart';
