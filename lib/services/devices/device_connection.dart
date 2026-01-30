@@ -47,7 +47,6 @@ class DeviceConnectionFactory {
     // Create device connection with transport
     switch (device.type) {
       case DeviceType.omi:
-      case DeviceType.openglass:
         return OmiDeviceConnection(device, transport);
       case DeviceType.bee:
         return BeeDeviceConnection(device, transport);

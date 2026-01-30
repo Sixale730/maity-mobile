@@ -109,7 +109,6 @@ enum ConversationSource {
   friend,
   omi,
   workflow,
-  openglass,
   screenpipe,
   sdcard,
   fieldy,
@@ -329,7 +328,6 @@ class ServerConversation {
 
   String getTag(BuildContext context) {
     if (source == ConversationSource.screenpipe) return 'Screenpipe';
-    if (source == ConversationSource.openglass) return 'MaityGlass';
     if (source == ConversationSource.sdcard) return 'SD Card';
     if (discarded) return 'Discarded';
     return getLocalizedCategory(context, structured.category);

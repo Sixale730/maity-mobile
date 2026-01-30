@@ -70,8 +70,6 @@ Future<List<BluetoothService>> getBleServices(String deviceId) async {
           message: 'Looks like the device is not connected. Please make sure the device is connected and try again.');
       return [];
     } else {
-      // TODO: need to be fixed for open glass
-      // if (Platform.isAndroid && device.servicesList.isNotEmpty) return device.servicesList;
       if (device.servicesList.isNotEmpty) return device.servicesList;
       return await device.discoverServices();
     }

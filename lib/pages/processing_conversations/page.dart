@@ -89,11 +89,9 @@ class _ProcessingConversationPageState extends State<ProcessingConversationPage>
                 labelStyle: Theme.of(context).textTheme.titleLarge!.copyWith(fontSize: 18),
                 tabs: [
                   Tab(
-                    text: convoSource == ConversationSource.openglass
-                        ? 'Photos'
-                        : convoSource == ConversationSource.screenpipe
-                            ? 'Raw Data'
-                            : 'Content',
+                    text: convoSource == ConversationSource.screenpipe
+                        ? 'Raw Data'
+                        : 'Content',
                   ),
                   const Tab(text: 'Summary')
                 ],

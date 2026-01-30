@@ -305,7 +305,7 @@ class OmiDeviceConnection extends DeviceConnection {
     if (!await hasPhotoStreamingCharacteristic()) {
       return null;
     }
-    debugPrint("OpenGlassDevice getImageListener called");
+    debugPrint("OmiDevice getImageListener called");
 
     var buffer = BytesBuilder();
     var nextExpectedFrame = 0;
@@ -595,15 +595,6 @@ class OmiDeviceConnection extends DeviceConnection {
         debugPrint('OmiDeviceConnection: Error reading manufacturer name: $e');
       }
 
-      // Check if device has image streaming capability (for OpenGlass/OmiGlass detection)
-      try {
-        final chars = await transport.readCharacteristic(omiServiceUuid, imageDataStreamCharacteristicUuid);
-        if (chars.isNotEmpty) {
-          deviceInfo['hasImageStream'] = 'true';
-        }
-      } catch (e) {
-        deviceInfo['hasImageStream'] = 'false';
-      }
     } catch (e) {
       debugPrint('OmiDeviceConnection: Error getting device info: $e');
     }
@@ -613,7 +604,6 @@ class OmiDeviceConnection extends DeviceConnection {
     deviceInfo['firmwareRevision'] ??= '1.0.2';
     deviceInfo['hardwareRevision'] ??= 'Seeed Xiao BLE Sense';
     deviceInfo['manufacturerName'] ??= 'Based Hardware';
-    deviceInfo['hasImageStream'] ??= 'false';
 
     return deviceInfo;
   }

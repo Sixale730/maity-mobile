@@ -59,8 +59,6 @@ class DeviceUtils {
           return Assets.images.limitless.path;
         case DeviceType.bee:
           return Assets.images.beeDevice.path;
-        case DeviceType.openglass:
-          return Assets.images.omiGlass.path;
         case DeviceType.frame:
           return Assets.images.omiDevkitWithoutRope.path;
         case DeviceType.appleWatch:
@@ -76,20 +74,12 @@ class DeviceUtils {
           if (modelNumber != null && modelNumber.isNotEmpty && modelNumber.toUpperCase() != 'UNKNOWN') {
             final upperModel = modelNumber.toUpperCase();
 
-            if (upperModel.contains('GLASS')) {
-              return Assets.images.omiGlass.path;
-            }
-
             if (upperModel.contains('DEVKIT') || (upperModel.contains('FRIEND'))) {
               return Assets.images.omiDevkitWithoutRope.path;
             }
           }
           if (deviceName != null && deviceName.isNotEmpty) {
             final upperName = deviceName.toUpperCase();
-
-            if (upperName.contains('GLASS')) {
-              return Assets.images.omiGlass.path;
-            }
 
             if (upperName.contains('DEVKIT') || upperName.contains('DEV') || (upperName.contains('FRIEND'))) {
               return Assets.images.omiDevkitWithoutRope.path;
@@ -113,9 +103,6 @@ class DeviceUtils {
       if (upperModel.contains('OMI DEVKIT 2') || upperModel.contains('FRIEND')) {
         return Assets.images.omiDevkitWithoutRope.path;
       }
-      if (upperModel.contains('GLASS')) {
-        return Assets.images.omiGlass.path;
-      }
       if (upperModel.contains('FRAME')) {
         return Assets.images.omiDevkitWithoutRope.path;
       }
@@ -136,9 +123,6 @@ class DeviceUtils {
 
       if (upperName.contains('PLAUD')) {
         return Assets.images.plaudNotePin.path;
-      }
-      if (upperName.contains('GLASS')) {
-        return Assets.images.omiGlass.path;
       }
       if (upperName.startsWith('FRIEND_')) {
         return Assets.images.friendPendant.path;

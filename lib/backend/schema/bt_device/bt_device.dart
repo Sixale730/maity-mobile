@@ -204,12 +204,7 @@ Future<DeviceType?> getTypeOfBluetoothDevice(BluetoothDevice device) async {
   } else if (BtDevice.isLimitlessDeviceFromDevice(device)) {
     deviceType = DeviceType.limitless;
   } else if (BtDevice.isOmiDeviceFromDevice(device)) {
-    // Check if the device has the image data stream characteristic
-    final hasImageStream = device.servicesList
-        .where((s) => s.uuid == Guid.fromString(omiServiceUuid))
-        .expand((s) => s.characteristics)
-        .any((c) => c.uuid.toString().toLowerCase() == imageDataStreamCharacteristicUuid.toLowerCase());
-    deviceType = hasImageStream ? DeviceType.openglass : DeviceType.omi;
+    deviceType = DeviceType.omi;
   } else if (BtDevice.isFrameDeviceFromDevice(device)) {
     deviceType = DeviceType.frame;
   }
@@ -221,7 +216,6 @@ Future<DeviceType?> getTypeOfBluetoothDevice(BluetoothDevice device) async {
 
 enum DeviceType {
   omi,
-  openglass,
   frame,
   appleWatch,
   plaud,
@@ -359,8 +353,6 @@ class BtDevice {
       return await _getDeviceInfoFromLimitless(conn as LimitlessDeviceConnection);
     } else if (type == DeviceType.omi) {
       return await _getDeviceInfoFromOmi(conn);
-    } else if (type == DeviceType.openglass) {
-      return await _getDeviceInfoFromOmi(conn);
     } else if (type == DeviceType.frame) {
       return await _getDeviceInfoFromFrame(conn as FrameDeviceConnection);
     } else if (type == DeviceType.appleWatch) {
@@ -375,7 +367,6 @@ class BtDevice {
     var firmwareRevision = '1.0.2';
     var hardwareRevision = 'Seeed Xiao BLE Sense';
     var manufacturerName = 'Based Hardware';
-    var t = DeviceType.omi;
 
     try {
       if (conn is OmiDeviceConnection) {
@@ -385,13 +376,6 @@ class BtDevice {
         firmwareRevision = deviceInfo['firmwareRevision'] ?? firmwareRevision;
         hardwareRevision = deviceInfo['hardwareRevision'] ?? hardwareRevision;
         manufacturerName = deviceInfo['manufacturerName'] ?? manufacturerName;
-
-        // Check if device has image streaming capability (OpenGlass detection)
-        if (type == DeviceType.openglass) {
-          t = DeviceType.openglass;
-        } else if (deviceInfo['hasImageStream'] == 'true') {
-          t = DeviceType.openglass;
-        }
       }
     } on PlatformException catch (e) {
       Logger.error('Device Disconnected while getting device info: $e');
@@ -404,7 +388,7 @@ class BtDevice {
       firmwareRevision: firmwareRevision,
       hardwareRevision: hardwareRevision,
       manufacturerName: manufacturerName,
-      type: t,
+      type: DeviceType.omi,
     );
   }
 
@@ -597,7 +581,6 @@ class BtDevice {
       case DeviceType.limitless:
         return 'Compatibility Note';
       case DeviceType.omi:
-      case DeviceType.openglass:
       case DeviceType.frame:
       case DeviceType.appleWatch:
         return ''; // No warning needed
@@ -630,7 +613,6 @@ class BtDevice {
             'We recommend keeping your current firmware and not updating through the Limitless app, as newer versions may affect compatibility.';
 
       case DeviceType.omi:
-      case DeviceType.openglass:
       case DeviceType.frame:
       case DeviceType.appleWatch:
         return ''; // No warning needed
@@ -794,12 +776,49 @@ class BtDevice {
     );
   }
 
+  /// Maps legacy integer type indices to DeviceType.
+  /// Handles migration from when openglass was at index 1.
+  static DeviceType _deviceTypeFromLegacyIndex(int index) {
+    // Old enum order: omi(0), openglass(1), frame(2), appleWatch(3), plaud(4), bee(5), fieldy(6), friendPendant(7), limitless(8)
+    const legacyMapping = {
+      0: DeviceType.omi,
+      1: DeviceType.omi, // openglass → omi
+      2: DeviceType.frame,
+      3: DeviceType.appleWatch,
+      4: DeviceType.plaud,
+      5: DeviceType.bee,
+      6: DeviceType.fieldy,
+      7: DeviceType.friendPendant,
+      8: DeviceType.limitless,
+    };
+    return legacyMapping[index] ?? DeviceType.omi;
+  }
+
   // from json
   static fromJson(Map<String, dynamic> json) {
+    DeviceType type;
+    final typeValue = json['type'];
+    if (typeValue is String) {
+      type = DeviceType.values.firstWhere(
+        (e) => e.name == typeValue,
+        orElse: () => DeviceType.omi,
+      );
+    } else if (typeValue is int) {
+      // Check if value exceeds current enum size → use legacy mapping
+      if (typeValue >= DeviceType.values.length) {
+        type = _deviceTypeFromLegacyIndex(typeValue);
+      } else {
+        // Use legacy mapping for safety since stored indices may be from old enum
+        type = _deviceTypeFromLegacyIndex(typeValue);
+      }
+    } else {
+      type = DeviceType.omi;
+    }
+
     return BtDevice(
       name: json['name'],
       id: json['id'],
-      type: DeviceType.values[json['type']],
+      type: type,
       rssi: json['rssi'],
       locator: json['locator'] != null ? DeviceLocator.fromJson(json['locator']) : null,
       modelNumber: json['modelNumber'],
@@ -814,7 +833,7 @@ class BtDevice {
     return {
       'name': name,
       'id': id,
-      'type': type.index,
+      'type': type.name,
       'rssi': rssi,
       'locator': locator?.toJson(),
       'modelNumber': modelNumber,

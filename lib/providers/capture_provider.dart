@@ -213,8 +213,6 @@ class CaptureProvider extends ChangeNotifier
         return 'friend_com';
       case DeviceType.omi:
         return 'omi';
-      case DeviceType.openglass:
-        return 'openglass';
       case DeviceType.fieldy:
         return 'fieldy';
       case DeviceType.bee:
@@ -629,7 +627,7 @@ class CaptureProvider extends ChangeNotifier
 
       // Command button triggered
       bool voiceCommandSupported = _recordingDevice != null
-          ? (_recordingDevice?.type == DeviceType.omi || _recordingDevice?.type == DeviceType.openglass)
+          ? (_recordingDevice?.type == DeviceType.omi)
           : false;
       if (_voiceCommandSession != null && voiceCommandSupported) {
         _commandBytes.add(snapshot.sublist(3));
@@ -637,7 +635,7 @@ class CaptureProvider extends ChangeNotifier
 
       // Local storage syncs
       var checkWalSupported =
-          (_recordingDevice?.type == DeviceType.omi || _recordingDevice?.type == DeviceType.openglass) &&
+          (_recordingDevice?.type == DeviceType.omi) &&
               codec.isOpusSupported() &&
               (_socket?.state != SocketServiceState.connected || SharedPreferencesUtil().unlimitedLocalStorageEnabled);
       if (checkWalSupported != _isWalSupported) {
@@ -650,7 +648,7 @@ class CaptureProvider extends ChangeNotifier
       // Send WS
       if (_socket?.state == SocketServiceState.connected) {
         final paddingLeft =
-            (_recordingDevice?.type == DeviceType.omi || _recordingDevice?.type == DeviceType.openglass) ? 3 : 0;
+            (_recordingDevice?.type == DeviceType.omi) ? 3 : 0;
         final trimmedValue = paddingLeft > 0 ? value.sublist(paddingLeft) : value;
         _socket?.send(trimmedValue);
 
