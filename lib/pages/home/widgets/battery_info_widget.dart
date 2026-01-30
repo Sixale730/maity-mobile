@@ -18,7 +18,7 @@ class BatteryInfoWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Selector<HomeProvider, bool>(
       selector: (context, state) => state.selectedIndex == 0,
-      builder: (context, isMemoriesPage, child) {
+      builder: (context, isDashboardPage, child) {
         return Consumer<DeviceProvider>(
           builder: (context, deviceProvider, child) {
             if (deviceProvider.connectedDevice != null) {
@@ -123,41 +123,40 @@ class BatteryInfoWidget extends StatelessWidget {
                 ),
               );
             } else {
-              return GestureDetector(
-                onTap: () async {
-                  if (SharedPreferencesUtil().btDevice.id.isEmpty) {
-                    routeToPage(context, const ConnectDevicePage());
-                    MixpanelManager().connectFriendClicked();
-                  } else {
-                    await routeToPage(context, const ConnectedDevice());
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1F1F25),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      Image.asset(
-                        Assets.images.logoTransparent.path,
-                        width: MediaQuery.sizeOf(context).width * 0.05,
-                        height: MediaQuery.sizeOf(context).width * 0.05,
-                      ),
-                      isMemoriesPage ? const SizedBox(width: 8) : const SizedBox.shrink(),
-                      deviceProvider.isConnecting && isMemoriesPage
-                          ? Text(
-                              AppLocalizations.of(context)?.searching ?? "Searching",
-                              style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white),
+              return Tooltip(
+                message: AppLocalizations.of(context)?.connectDevice ?? "Connect Device",
+                child: GestureDetector(
+                  onTap: () async {
+                    if (SharedPreferencesUtil().btDevice.id.isEmpty) {
+                      routeToPage(context, const ConnectDevicePage());
+                      MixpanelManager().connectFriendClicked();
+                    } else {
+                      await routeToPage(context, const ConnectedDevice());
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1F1F25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: deviceProvider.isConnecting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white70,
+                              ),
                             )
-                          : isMemoriesPage
-                              ? Text(
-                                  AppLocalizations.of(context)?.connectDevice ?? "Connect Device",
-                                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white),
-                                )
-                              : const SizedBox.shrink(),
-                    ],
+                          : Image.asset(
+                              Assets.images.logoTransparent.path,
+                              fit: BoxFit.contain,
+                            ),
+                    ),
                   ),
                 ),
               );

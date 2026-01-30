@@ -16,10 +16,12 @@ import 'package:omi/pages/apps/app_detail/app_detail.dart';
 import 'package:omi/pages/chat/page.dart';
 import 'package:omi/pages/action_items/action_items_page.dart';
 import 'package:omi/pages/conversations/conversations_page.dart';
+import 'package:omi/pages/dashboard/dashboard_page.dart';
 import 'package:omi/pages/memories/page.dart';
 import 'package:omi/pages/settings/data_privacy_page.dart';
 import 'package:omi/pages/settings/settings_drawer.dart';
 import 'package:omi/pages/settings/usage_page.dart';
+import 'package:omi/pages/home/widgets/app_navigation_drawer.dart';
 import 'package:omi/providers/app_provider.dart';
 import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/connectivity_provider.dart';
@@ -85,15 +87,16 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver, TickerProviderStateMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   ForegroundUtil foregroundUtil = ForegroundUtil();
   List<Widget> screens = [Container(), const SizedBox(), const SizedBox(), const SizedBox()];
 
   final _upgrader = MyUpgrader(debugLogging: false, debugDisplayOnce: false);
   bool scriptsInProgress = false;
 
+  final GlobalKey<State<DashboardPage>> _dashboardPageKey = GlobalKey<State<DashboardPage>>();
   final GlobalKey<State<ConversationsPage>> _conversationsPageKey = GlobalKey<State<ConversationsPage>>();
   final GlobalKey<State<ActionItemsPage>> _actionItemsPageKey = GlobalKey<State<ActionItemsPage>>();
-  final GlobalKey<State<MemoriesPage>> _memoriesPageKey = GlobalKey<State<MemoriesPage>>();
   final GlobalKey<State<UsagePage>> _usagePageKey = GlobalKey<State<UsagePage>>();
   late final List<Widget> _pages;
 
@@ -102,24 +105,27 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     context.read<AppProvider>().getPopularApps();
   }
 
-  void _scrollToTop(int pageIndex) {
-    switch (pageIndex) {
+  void _scrollToTop(int navIndex) {
+    switch (navIndex) {
       case 0:
+        final dashboardState = _dashboardPageKey.currentState;
+        if (dashboardState != null) {
+          (dashboardState as dynamic).scrollToTop();
+        }
+        break;
+      case 1:
         final conversationsState = _conversationsPageKey.currentState;
         if (conversationsState != null) {
           (conversationsState as dynamic).scrollToTop();
         }
         break;
-      case 1:
+      case 3:
         final actionItemsState = _actionItemsPageKey.currentState;
         if (actionItemsState != null) {
           (actionItemsState as dynamic).scrollToTop();
         }
         break;
-      case 2:
-        // MemoriesPage - could add scroll controller if needed
-        break;
-      case 3:
+      case 4:
         // UsagePage doesn't have a scroll controller
         break;
     }
@@ -173,9 +179,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   @override
   void initState() {
     _pages = [
+      DashboardPage(key: _dashboardPageKey),
       ConversationsPage(key: _conversationsPageKey),
       ActionItemsPage(key: _actionItemsPageKey),
-      MemoriesPage(key: _memoriesPageKey),
       UsagePage(key: _usagePageKey),
     ];
     SharedPreferencesUtil().onboardingCompleted = true;
@@ -198,21 +204,25 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       }
 
       switch (pageAlias) {
+        case "conversations":
+          homePageIdx = 1;
+          break;
         case "action-items":
         case "tasks":
         case "todos":
-          homePageIdx = 1;
-          break;
-        case "memories":
-        case "facts":
-          homePageIdx = 2;
+          homePageIdx = 3;
           break;
         case "insights":
         case "usage":
-          homePageIdx = 3;
+          homePageIdx = 4;
           break;
         case "apps":
           homePageIdx = 4;
+          break;
+        case "memories":
+        case "facts":
+          // Memories is accessed via drawer push, default to home
+          homePageIdx = 0;
           break;
       }
     }
@@ -309,8 +319,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
             );
           }
           break;
+        case "memories":
         case "facts":
-          // Memories is now tab index 1, already handled by homePageIdx
+          // Memories is no longer in the tab bar, push it
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const MemoriesPage()));
+            }
+          });
           break;
         default:
       }
@@ -442,8 +458,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                 onPressed: () {
                   scaffoldMessenger.hideCurrentMaterialBanner();
                   SharedPreferencesUtil().lastDismissedDailyReport = report.reportDate;
-                  // Navigate to Insights tab (index 3)
-                  homeProvider.setIndex(3);
+                  // Navigate to Insights tab (nav index 4)
+                  homeProvider.setIndex(4);
                 },
                 child: Text(l10n?.viewDailyReport ?? 'View Report', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
@@ -570,11 +586,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         child: Consumer<HomeProvider>(
           builder: (context, homeProvider, _) {
             return Scaffold(
+              key: _scaffoldKey,
               backgroundColor: Theme.of(context).colorScheme.primary,
-              appBar: homeProvider.selectedIndex == 4 ? null : _buildAppBar(context),
+              appBar: _buildAppBar(context),
+              drawer: const AppNavigationDrawer(),
               body: DefaultTabController(
                 length: 4,
-                initialIndex: homeProvider.selectedIndex,
+                initialIndex: homeProvider.stackIndex,
                 child: GestureDetector(
                   onTap: () {
                     primaryFocus?.unfocus();
@@ -587,7 +605,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                         children: [
                           Expanded(
                             child: IndexedStack(
-                              index: context.watch<HomeProvider>().selectedIndex,
+                              index: context.watch<HomeProvider>().stackIndex,
                               children: _pages,
                             ),
                           ),
@@ -599,13 +617,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                               home.isConvoSearchFieldFocused) {
                             return const SizedBox.shrink();
                           } else {
-                            // Check if OMI device is connected
-                            bool isOmiDeviceConnected =
-                                deviceProvider.isConnected && deviceProvider.connectedDevice != null;
-
                             return Stack(
                               children: [
-                                // Bottom Navigation Bar
+                                // Bottom Navigation Bar - 5 positions with FAB center
                                 Align(
                                   alignment: Alignment.bottomCenter,
                                   child: Container(
@@ -626,155 +640,109 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                     ),
                                     child: Row(
                                       children: [
-                                        // Home tab
-                                        Expanded(
-                                          child: InkWell(
-                                            onTap: () {
-                                              HapticFeedback.mediumImpact();
-                                              MixpanelManager().bottomNavigationTabClicked('Home');
-                                              primaryFocus?.unfocus();
-                                              if (home.selectedIndex == 0) {
-                                                _scrollToTop(0);
-                                                return;
-                                              }
-                                              home.setIndex(0);
-                                            },
-                                            child: SizedBox(
-                                              height: 90,
-                                              child: Center(
-                                                child: Icon(
-                                                  FontAwesomeIcons.house,
-                                                  color: home.selectedIndex == 0 ? Colors.white : Colors.grey,
-                                                  size: 22,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
+                                        // Home tab (nav 0)
+                                        _buildNavTab(
+                                          icon: FontAwesomeIcons.house,
+                                          isSelected: home.selectedIndex == 0,
+                                          onTap: () {
+                                            MixpanelManager().bottomNavigationTabClicked('Home');
+                                            primaryFocus?.unfocus();
+                                            if (home.selectedIndex == 0) {
+                                              _scrollToTop(0);
+                                              return;
+                                            }
+                                            home.setIndex(0);
+                                          },
                                         ),
-                                        // To-Do's tab
-                                        Expanded(
-                                          child: InkWell(
-                                            onTap: () {
-                                              HapticFeedback.mediumImpact();
-                                              MixpanelManager().bottomNavigationTabClicked('ToDos');
-                                              primaryFocus?.unfocus();
-                                              if (home.selectedIndex == 1) {
-                                                _scrollToTop(1);
-                                                return;
-                                              }
-                                              home.setIndex(1);
-                                            },
-                                            child: SizedBox(
-                                              height: 90,
-                                              child: Center(
-                                                child: Icon(
-                                                  FontAwesomeIcons.listCheck,
-                                                  color: home.selectedIndex == 1 ? Colors.white : Colors.grey,
-                                                  size: 22,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
+                                        // Conversations tab (nav 1)
+                                        _buildNavTab(
+                                          icon: FontAwesomeIcons.solidMessage,
+                                          isSelected: home.selectedIndex == 1,
+                                          onTap: () {
+                                            MixpanelManager().bottomNavigationTabClicked('Conversations');
+                                            primaryFocus?.unfocus();
+                                            if (home.selectedIndex == 1) {
+                                              _scrollToTop(1);
+                                              return;
+                                            }
+                                            home.setIndex(1);
+                                          },
                                         ),
-                                        // Center space for record button - only when no OMI device is connected
-                                        if (!isOmiDeviceConnected) const SizedBox(width: 80),
-                                        // Memories tab
-                                        Expanded(
-                                          child: InkWell(
-                                            onTap: () {
-                                              HapticFeedback.mediumImpact();
-                                              MixpanelManager().bottomNavigationTabClicked('Memories');
-                                              primaryFocus?.unfocus();
-                                              if (home.selectedIndex == 2) {
-                                                _scrollToTop(2);
-                                                return;
-                                              }
-                                              home.setIndex(2);
-                                            },
-                                            child: SizedBox(
-                                              height: 90,
-                                              child: Center(
-                                                child: Icon(
-                                                  FontAwesomeIcons.lightbulb,
-                                                  color: home.selectedIndex == 2 ? Colors.white : Colors.grey,
-                                                  size: 22,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
+                                        // Center space for FAB
+                                        const SizedBox(width: 80),
+                                        // Tasks tab (nav 3)
+                                        _buildNavTab(
+                                          icon: FontAwesomeIcons.listCheck,
+                                          isSelected: home.selectedIndex == 3,
+                                          onTap: () {
+                                            MixpanelManager().bottomNavigationTabClicked('Tasks');
+                                            primaryFocus?.unfocus();
+                                            if (home.selectedIndex == 3) {
+                                              _scrollToTop(3);
+                                              return;
+                                            }
+                                            home.setIndex(3);
+                                          },
                                         ),
-                                        // Usage Insights tab
-                                        Expanded(
-                                          child: InkWell(
-                                            onTap: () {
-                                              HapticFeedback.mediumImpact();
-                                              MixpanelManager().bottomNavigationTabClicked('Insights');
-                                              primaryFocus?.unfocus();
-                                              if (home.selectedIndex == 3) {
-                                                _scrollToTop(3);
-                                                return;
-                                              }
-                                              home.setIndex(3);
-                                            },
-                                            child: SizedBox(
-                                              height: 90,
-                                              child: Center(
-                                                child: Icon(
-                                                  FontAwesomeIcons.chartLine,
-                                                  color: home.selectedIndex == 3 ? Colors.white : Colors.grey,
-                                                  size: 22,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
+                                        // Insights tab (nav 4)
+                                        _buildNavTab(
+                                          icon: FontAwesomeIcons.chartLine,
+                                          isSelected: home.selectedIndex == 4,
+                                          onTap: () {
+                                            MixpanelManager().bottomNavigationTabClicked('Insights');
+                                            primaryFocus?.unfocus();
+                                            if (home.selectedIndex == 4) {
+                                              _scrollToTop(4);
+                                              return;
+                                            }
+                                            home.setIndex(4);
+                                          },
                                         ),
                                       ],
                                     ),
                                   ),
                                 ),
-                                // Central Record Button - Only show when no OMI device is connected
-                                if (!isOmiDeviceConnected)
-                                  Positioned(
-                                    left: MediaQuery.of(context).size.width / 2 - 40,
-                                    bottom: 40, // Position it to protrude above the taller navbar (90px height)
-                                    child: Consumer<CaptureProvider>(
-                                      builder: (context, captureProvider, child) {
-                                        bool isRecording = captureProvider.recordingState == RecordingState.record;
-                                        bool isInitializing =
-                                            captureProvider.recordingState == RecordingState.initialising;
-                                        return GestureDetector(
-                                          onTap: () async {
-                                            HapticFeedback.heavyImpact();
-                                            if (isInitializing) return;
-                                            await _handleRecordButtonPress(context, captureProvider);
-                                          },
-                                          child: Container(
-                                            width: 80,
-                                            height: 80,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: isRecording ? Colors.red : const Color(0xFF485DF4),
-                                              border: Border.all(
-                                                color: Colors.black,
-                                                width: 5,
-                                              ),
+                                // Central FAB Record Button
+                                Positioned(
+                                  left: MediaQuery.of(context).size.width / 2 - 32,
+                                  bottom: 40,
+                                  child: Consumer<CaptureProvider>(
+                                    builder: (context, captureProvider, child) {
+                                      bool isRecording = captureProvider.recordingState == RecordingState.record;
+                                      bool isInitializing =
+                                          captureProvider.recordingState == RecordingState.initialising;
+                                      return GestureDetector(
+                                        onTap: () async {
+                                          HapticFeedback.heavyImpact();
+                                          if (isInitializing) return;
+                                          await _handleRecordButtonPress(context, captureProvider);
+                                        },
+                                        child: Container(
+                                          width: 64,
+                                          height: 64,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: isRecording ? Colors.red : const Color(0xFF485DF4),
+                                            border: Border.all(
+                                              color: Colors.black,
+                                              width: 4,
                                             ),
-                                            child: isInitializing
-                                                ? const CircularProgressIndicator(
-                                                    color: Colors.white,
-                                                    strokeWidth: 2,
-                                                  )
-                                                : Icon(
-                                                    isRecording ? FontAwesomeIcons.stop : FontAwesomeIcons.microphone,
-                                                    color: Colors.white,
-                                                    size: 24,
-                                                  ),
                                           ),
-                                        );
-                                      },
-                                    ),
+                                          child: isInitializing
+                                              ? const CircularProgressIndicator(
+                                                  color: Colors.white,
+                                                  strokeWidth: 2,
+                                                )
+                                              : Icon(
+                                                  isRecording ? FontAwesomeIcons.stop : FontAwesomeIcons.microphone,
+                                                  color: Colors.white,
+                                                  size: 22,
+                                                ),
+                                        ),
+                                      );
+                                    },
                                   ),
-                                // Remove the floating chat button - moving it to app bar
+                                ),
                               ],
                             );
                           }
@@ -786,6 +754,31 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavTab({
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.mediumImpact();
+          onTap();
+        },
+        child: SizedBox(
+          height: 90,
+          child: Center(
+            child: Icon(
+              icon,
+              color: isSelected ? Colors.white : Colors.grey,
+              size: 22,
+            ),
+          ),
         ),
       ),
     );
@@ -830,10 +823,41 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const BatteryInfoWidget(),
-          const SizedBox.shrink(),
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Hamburger menu to open drawer
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1F1F25),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(
+                      FontAwesomeIcons.bars,
+                      size: 16,
+                      color: Colors.white70,
+                    ),
+                    onPressed: () {
+                      HapticFeedback.mediumImpact();
+                      MixpanelManager().drawerOpened();
+                      _scaffoldKey.currentState?.openDrawer();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const BatteryInfoWidget(),
+              ],
+            ),
+          ),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              // Settings button
               Container(
                 width: 36,
                 height: 36,
@@ -865,12 +889,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                   },
                 ),
               ),
-              // Chat Button - Shows on all pages
+              // Chat Button
               GestureDetector(
                 onTap: () {
                   HapticFeedback.mediumImpact();
                   MixpanelManager().bottomNavigationTabClicked('Chat');
-                  // Navigate to chat page
                   Navigator.push(
                     context,
                     MaterialPageRoute(
