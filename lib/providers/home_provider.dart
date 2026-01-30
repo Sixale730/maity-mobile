@@ -78,7 +78,27 @@ class HomeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Maps nav bar index to IndexedStack index.
+  /// Nav: 0=Home, 1=Conversations, 2=FAB(intercepted), 3=Tasks, 4=Insights
+  /// Stack: 0=Dashboard, 1=Conversations, 2=Tasks, 3=Insights
+  int get stackIndex {
+    switch (selectedIndex) {
+      case 0:
+        return 0;
+      case 1:
+        return 1;
+      case 3:
+        return 2;
+      case 4:
+        return 3;
+      default:
+        return 0;
+    }
+  }
+
   void setIndex(int index) {
+    // Index 2 is FAB, don't change tab for it
+    if (index == 2) return;
     selectedIndex = index;
     notifyListeners();
   }

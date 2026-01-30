@@ -47,6 +47,7 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
 - `memories_provider.dart` - CRUD memorias + revision
 - `action_items_provider.dart` - Tareas
 - `daily_report_provider.dart` - Reportes diarios comunicacion
+- `dashboard_provider.dart` - Agrega datos para Dashboard (score, stats, tareas)
 
 ### Services (`lib/services/`)
 - `supabase_auth_service.dart` - Auth (Google Sign-In)
@@ -66,12 +67,28 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
 
 ## Navegacion
 
-| Index | Pagina | Descripcion |
-|-------|--------|-------------|
-| 0 | ConversationsPage | Lista de conversaciones |
-| 1 | ActionItemsPage | Tareas / To-Do's |
-| 2 | MemoriesPage | Memorias extraidas |
-| 3 | UsagePage | Estadisticas (Insights) |
+### Bottom Nav (5 posiciones, FAB central)
+| Nav Index | Tab | Icono | Stack Index | Pagina |
+|-----------|-----|-------|-------------|--------|
+| 0 | Home | `house` | 0 | DashboardPage (score diario, stats, acciones rapidas) |
+| 1 | Conversations | `message` | 1 | ConversationsPage |
+| 2 | (FAB) | `mic` | - | Boton grabar (interceptado, no cambia stack) |
+| 3 | Tasks | `listCheck` | 2 | ActionItemsPage |
+| 4 | Insights | `chartLine` | 3 | UsagePage |
+
+### Navigation Drawer (hamburger icon en AppBar)
+- **Principal**: Home, Conversaciones, Tareas
+- **Analisis**: Insights, Memorias (Navigator.push), Reporte Diario
+- **Perfil**: Configuracion (SettingsDrawer), Perfil de Voz
+
+**Memorias**: Solo accesible via drawer con `Navigator.push`, no esta en IndexedStack.
+
+### Archivos navegacion
+- `lib/pages/home/page.dart` - Pagina principal con bottom nav + drawer
+- `lib/pages/home/widgets/app_navigation_drawer.dart` - Drawer lateral
+- `lib/pages/dashboard/dashboard_page.dart` - Dashboard con score, stats, acciones rapidas
+- `lib/pages/dashboard/widgets/` - Widgets del dashboard (header, score card, stats, etc.)
+- `lib/providers/home_provider.dart` - Estado nav, `stackIndex` getter, `setIndex()` (intercepta FAB index 2)
 
 ## Conversaciones
 

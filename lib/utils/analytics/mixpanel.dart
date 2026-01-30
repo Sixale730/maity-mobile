@@ -1239,6 +1239,13 @@ class MixpanelManager {
     });
   }
 
+  // Dashboard & Drawer Events
+  void dashboardViewed() => track('Dashboard Viewed');
+
+  void drawerOpened() => track('Drawer Opened');
+
+  void drawerItemClicked(String item) => track('Drawer Item Clicked', properties: {'item': item});
+
   /// Test event to verify Mixpanel connection is working
   void trackTestEvent() {
     track('Mixpanel Connection Test', properties: {
