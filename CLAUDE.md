@@ -1,7 +1,6 @@
 # Maity - Asistente de IA con Wearable
 
-## Descripcion
-App Flutter que se conecta a un dispositivo wearable OMI via Bluetooth, transcribe conversaciones en tiempo real y genera analisis con IA.
+App Flutter + wearable OMI via BLE. Transcribe conversaciones en tiempo real y genera analisis con IA.
 
 **Soporte**: julio.gonzalez@maity.com.mx
 
@@ -12,991 +11,296 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
                OpenAI (analisis + embeddings)
 ```
 
-## Stack
-- Frontend: Flutter (iOS, Android, Desktop)
-- Backend: Vercel Serverless (Python/FastAPI)
-- Database: Supabase PostgreSQL + pgvector
-- AI: OpenAI (GPT-4o-mini, text-embedding-3-small)
-- Audio: Deepgram (transcripcion), Opus codec
-- Analytics: Mixpanel, Firebase Analytics/Crashlytics
+**Stack**: Flutter (iOS/Android/Desktop) · Vercel Serverless (Python/FastAPI) · Supabase PostgreSQL + pgvector · OpenAI (GPT-4o-mini, text-embedding-3-small) · Deepgram STT · Mixpanel/Firebase Analytics
 
-## Supabase Configuration
+## Supabase
 - URL: `https://nhlrtflkxoojvhbyocet.supabase.co`
 - Schema: `maity` (shared with web platform)
-- pgvector: v0.8.0 (1536 dimensions for text-embedding-3-small)
-- Tables: `omi_conversations`, `omi_transcript_segments`, `omi_memories`, `voice_profiles`, `user_feedback`
-- RLS: Todas las tablas usan policies basadas en `auth.uid() = auth_id`
+- pgvector v0.8.0 (1536 dims for text-embedding-3-small)
+- RLS: Todas las tablas usan `auth.uid() = auth_id`
 
 ## Database Schema
 
-### maity.users
-- `id` (UUID PK), `auth_id` (UUID FK auth.users), `email`, `name`
-- Trigger `handle_new_auth_user()` crea registro en signup
+**maity.users**: `id` (UUID PK), `auth_id` (FK auth.users), `email`, `name`. Trigger `handle_new_auth_user()` crea registro en signup.
 
-### maity.omi_conversations
-Conversaciones con embedding vectorial:
-- `id`, `user_id` (FK users), `title`, `overview`, `emoji`, `category`
-- `action_items`, `events` (JSONB), `transcript_text`
-- `embedding` (vector(1536)), `words_count`, `duration_seconds`
-- Indices HNSW para busqueda vectorial
+**maity.omi_conversations**: `id`, `user_id` (FK), `title`, `overview`, `emoji`, `category`, `action_items`/`events` (JSONB), `transcript_text`, `embedding` (vector(1536)), `words_count`, `duration_seconds`, `discarded` (bool default false), `last_segment_at`, `segment_count`, `status`. Indices HNSW.
 
-### maity.omi_transcript_segments
-- `id`, `conversation_id` (FK), `user_id`, `text`, `speaker`, `speaker_id`, `is_user`
-- `start_time`, `end_time`, `embedding` (vector(1536))
+**maity.omi_transcript_segments**: `id`, `conversation_id` (FK), `user_id`, `text`, `speaker`, `speaker_id`, `is_user`, `start_time`, `end_time`, `embedding` (vector(1536)). Unique index: `(conversation_id, segment_index)`.
 
-### maity.voice_profiles
-- `id`, `user_id` (UNIQUE), `auth_id`, `embedding` (vector(192) ECAPA-TDNN)
-- `enrollment_duration_seconds`, `samples_count`, `is_active`
+**maity.voice_profiles**: `id`, `user_id` (UNIQUE), `auth_id`, `embedding` (vector(192) ECAPA-TDNN), `enrollment_duration_seconds`, `samples_count`, `is_active`.
 
-### maity.omi_memories
-- `id`, `user_id`, `auth_id`, `conversation_id` (nullable FK)
-- `content`, `category` ('interesting'|'system'|'manual'), `reviewed`, `user_review`
-- `manually_added`, `edited`, `deleted`, `visibility`, `is_locked`
-- `embedding` (vector(1536))
+**maity.omi_memories**: `id`, `user_id`, `auth_id`, `conversation_id` (nullable FK), `content`, `category` ('interesting'|'system'|'manual'), `reviewed`, `user_review`, `manually_added`, `edited`, `deleted`, `visibility`, `is_locked`, `embedding` (vector(1536)).
 
-### maity.user_feedback
-- `id`, `user_id`, `auth_id`, `feedback_type` ('comment'|'bug'|'suggestion')
-- `message`, `app_version`, `device_info`, `status`, `created_at`
+**maity.user_feedback**: `id`, `user_id`, `auth_id`, `feedback_type` ('comment'|'bug'|'suggestion'), `message`, `app_version`, `device_info`, `status`, `created_at`.
 
-### maity.daily_communication_reports
-- `id`, `user_id` (FK users), `auth_id`, `report_date` (UNIQUE con user_id)
-- Contadores: `total_filler_words`, `total_filler_count`, `total_pero_count`, `total_objection_words`
-- Scores: `score_clarity`, `score_structure`, `score_calls_to_action`, `score_objection_handling`, `score_overall`
-- `top_strengths`, `top_areas_to_improve`, `recommendations`, `daily_summary`
-- `trend` (improving|stable|declining|first_report), `trend_details`, `conversation_ids`
+**maity.daily_communication_reports**: `id`, `user_id` (FK), `auth_id`, `report_date` (UNIQUE con user_id), contadores (`total_filler_words/count`, `total_pero_count`, `total_objection_words`), scores NUMERIC(3,1) (`score_clarity/structure/calls_to_action/objection_handling/overall`), `top_strengths/areas_to_improve/recommendations` (JSONB), `daily_summary`, `trend` (improving|stable|declining|first_report), `trend_details`, `conversation_ids`.
 
-### RPC Functions
-- `search_omi_conversations`, `search_omi_segments`, `get_omi_conversation_with_segments`
-- `get_voice_profile`, `search_omi_memories`, `get_pending_memories`
+**RPC Functions**: `search_omi_conversations`, `search_omi_segments`, `get_omi_conversation_with_segments`, `get_voice_profile`, `search_omi_memories`, `get_pending_memories`.
 
 ## Archivos Clave
 
-### Providers
-- `auth_provider.dart` - Autenticacion Supabase
+### Providers (`lib/providers/`)
+- `auth_provider.dart` - Auth Supabase
 - `conversation_provider.dart` - Estado conversaciones + busqueda semantica
-- `capture_provider.dart` - Grabación, transcripción, guardado
-- `usage_provider.dart` - Estadísticas de uso
-- `memories_provider.dart` - CRUD memorias + revisión
+- `capture_provider.dart` - Grabacion, transcripcion, guardado, health monitor, recovery
+- `usage_provider.dart` - Estadisticas
+- `memories_provider.dart` - CRUD memorias + revision
+- `action_items_provider.dart` - Tareas
+- `daily_report_provider.dart` - Reportes diarios comunicacion
 
-### Services
-- `supabase_auth_service.dart` - Auth Supabase (Google Sign-In)
-- `maity_api_service.dart` - API backend
-- `omi_supabase_service.dart` - Operaciones Supabase
-- `voice_profile_service.dart` - Enrollment y verificación de voz
-- `feedback_service.dart` - Feedback de usuarios
-- `conversation_processor.dart` - Procesamiento local de conversaciones con OpenAI
-- `transcript_recovery_service.dart` - Recuperación de conversaciones interrumpidas
+### Services (`lib/services/`)
+- `supabase_auth_service.dart` - Auth (Google Sign-In)
+- `maity_api_service.dart` - API backend Vercel
+- `omi_supabase_service.dart` - Operaciones Supabase (createDraft, appendSegments, finalize)
+- `voice_profile_service.dart` - Enrollment y verificacion voz
+- `feedback_service.dart` - Feedback usuarios
+- `conversation_processor.dart` - Procesamiento local con OpenAI
+- `transcript_recovery_service.dart` - Recovery de conversaciones interrumpidas
+- `incremental_save_service.dart` - Guardado incremental a Supabase
+- `daily_report_service.dart` - HTTP para reportes diarios
 
 ### Otros
 - `lib/backend/http/shared.dart` - Cliente HTTP con auth centralizada
 - `lib/backend/schema/` - Modelos de datos
-- `lib/pages/home/page.dart` - Página principal
+- `lib/pages/home/page.dart` - Pagina principal
 
-## Navegación de la App
+## Navegacion
 
-| Índice | Página | Icono | Descripción |
-|--------|--------|-------|-------------|
-| 0 | ConversationsPage | House | Lista de conversaciones |
-| 1 | ActionItemsPage | ListCheck | Tareas / To-Do's |
-| 2 | MemoriesPage | Lightbulb | Memorias extraídas |
-| 3 | UsagePage | ChartLine | Estadísticas (Insights) |
+| Index | Pagina | Descripcion |
+|-------|--------|-------------|
+| 0 | ConversationsPage | Lista de conversaciones |
+| 1 | ActionItemsPage | Tareas / To-Do's |
+| 2 | MemoriesPage | Memorias extraidas |
+| 3 | UsagePage | Estadisticas (Insights) |
 
-## Filtros de Conversaciones (ConversationsPage)
-`lib/pages/conversations/conversations_page.dart`
+## Conversaciones
 
-### SearchWidget Filtros
-La barra de búsqueda incluye varios filtros (iconos a la derecha):
+### Filtros (SearchWidget)
+- Busqueda semantica/texto toggle
+- Filtro por fecha
+- Filtro conversaciones cortas (umbral configurable: 0/30/60/120/300s, default 60s)
 
-| Filtro | Icono | Descripción |
-|--------|-------|-------------|
-| Búsqueda semántica | psychology/text_fields | Toggle entre búsqueda semántica (AI) y texto |
-| Filtro por fecha | calendarDays | Seleccionar fecha específica |
-| Filtro conversaciones cortas | clock | Filtrar por duración mínima |
+**Settings**: `showShortConversations` (bool), `shortConversationThreshold` (int segundos) en `preferences.dart`.
 
-### Short Conversation Filter
-Permite ocultar conversaciones cortas según un umbral configurable.
-
-**Archivos**:
-- `lib/pages/settings/short_conversation_dialog.dart` - Dialog de configuración
-- `lib/pages/conversations/widgets/search_widget.dart` - Botón de filtro
-- `lib/providers/conversation_provider.dart` - Lógica de filtrado
-- `lib/backend/preferences.dart` - Persistencia del setting
-
-**Opciones de umbral**:
-- 0 segundos (mostrar todas)
-- 30 segundos
-- 60 segundos (default)
-- 120 segundos (2 min)
-- 300 segundos (5 min)
-
-**Settings persistidos**:
-- `showShortConversations` (bool) - Si mostrar conversaciones cortas
-- `shortConversationThreshold` (int) - Umbral en segundos
+**Archivos filtro cortas**: `short_conversation_dialog.dart`, `search_widget.dart`, `conversation_provider.dart`, `preferences.dart`.
 
 ### Banal Conversation Filter (Discarded)
-Sistema automático para detectar y descartar conversaciones banales/irrelevantes (similar a OMI original).
+Dos niveles: pre-filtro metricas (sin IA) + analisis IA.
 
-**Arquitectura de dos niveles**:
+**Pre-filtro**: <5 palabras, <10s Y <10 palabras, 1 segmento <3 palabras → `discarded: true`.
 
-1. **Pre-filtro con métricas** (sin IA, ahorra tokens):
-   - Menos de 5 palabras → `discarded: true`
-   - Duración < 10s Y < 10 palabras → `discarded: true`
-   - Un solo segmento con < 3 palabras → `discarded: true`
+**IA**: OpenAI evalua si banal → `discarded: true` para saludos casuales, ruido, fragmentos sin contexto.
 
-2. **Análisis con IA**:
-   - OpenAI evalúa si el contenido es banal
-   - Marca `discarded: true` para: saludos casuales, ruido, fragmentos sin contexto
+**Backend**: `should_auto_discard()` en `api/routers/omi.py`. **Flutter**: campo `discarded` en `Structured` model y `conversation_processor.dart`. UI soporta `include_discarded`.
 
-**Flujo**:
-```
-Grabación finaliza
-       ↓
-[Pre-filtro métricas] ← Backend (api/routers/omi.py)
-       ↓
-[Análisis IA] ← Flutter (conversation_processor.dart) + Backend
-       ↓
-[Guardar en Supabase con discarded=true/false]
-       ↓
-[UI muestra solo no-descartadas por defecto]
-```
+### Detalle de Conversacion
+`lib/pages/conversation_detail/page.dart` - Tabs: Transcription, Summary, Action Items.
 
-**Archivos**:
-- `api/routers/omi.py` - Función `should_auto_discard()` compartida entre `store_conversation()` y `finalize_conversation()`
-- `api/services/supabase_client.py` - `insert_conversation()` acepta param `discarded`
-- `lib/services/conversation_processor.dart` - Prompt incluye campo `discarded`
-- `lib/backend/schema/structured.dart` - Modelo `Structured` con campo `discarded`
-- `lib/services/omi_supabase_service.dart` - Pasa `discarded` al backend
+## Action Items
+Extraidos por OpenAI de conversaciones, guardados en `omi_conversations.action_items` (JSONB).
 
-**Campos en BD**: `omi_conversations.discarded` (boolean, default false)
+**Tabs**: To Do (ultimos 3 dias), Done, Old (>3 dias). **ID format**: `{conversation_id}_{index}`.
 
-**Toggle en UI**: Ya existe soporte para `include_discarded` en listado y búsqueda.
+**Endpoints**: GET `/v1/action-items/from-conversations`, PATCH/DELETE `/v1/action-items/{id}`.
 
-## Página de Tareas (ActionItemsPage)
-`lib/pages/action_items/action_items_page.dart`
+**Archivos**: `api/routers/action_items.py`, `lib/backend/http/api/action_items.dart`, `lib/providers/action_items_provider.dart`, `lib/pages/action_items/action_items_page.dart`, `lib/backend/schema/action_item.dart`.
 
-### Arquitectura
-Action items se extraen automáticamente de conversaciones por OpenAI y se guardan en `omi_conversations.action_items` (JSONB).
-
-```
-Conversación → OpenAI extrae → action_items[] en omi_conversations
-                                       ↓
-Backend: GET /v1/action-items/from-conversations → Flatten + metadata
-                                       ↓
-Flutter: ActionItemsProvider → ActionItemsPage
-```
-
-### Extracción de Action Items (Local)
-El procesamiento local en `ConversationProcessor.processLocally()` extrae action_items y events directamente desde Flutter:
-- Prompt incluye instrucciones para extraer tareas, pendientes y compromisos
-- `max_tokens: 500` para acomodar action_items en la respuesta
-- Parsing robusto: soporta strings y objetos con `description`
-- Events: citas/reuniones con fecha/hora específica (si las hay)
-
-### Tabs
-| Tab | Descripción |
-|-----|-------------|
-| To Do | Items no completados (últimos 3 días) |
-| Done | Items completados |
-| Old | Items no completados (más de 3 días) |
-
-### ID Format
-`{conversation_id}_{index}` - Ejemplo: `abc-123_0`
-
-### Endpoints Backend
-| Endpoint | Método | Descripción |
-|----------|--------|-------------|
-| `/v1/action-items/from-conversations` | GET | Lista todos los action items |
-| `/v1/action-items/{id}` | PATCH | Actualizar (completed, description) |
-| `/v1/action-items/{id}` | DELETE | Eliminar action item |
-
-### Archivos
-- **Backend**: `api/routers/action_items.py`
-- **Flutter API**: `lib/backend/http/api/action_items.dart`
-- **Provider**: `lib/providers/action_items_provider.dart`
-- **Page**: `lib/pages/action_items/action_items_page.dart`
-- **Schema**: `lib/backend/schema/action_item.dart`
-
-## Página de Insights (UsagePage)
+## Insights (UsagePage)
 `lib/pages/settings/usage_page.dart`
 
-### 5 Métricas de Uso
-| Métrica | Icono | Color | Descripción |
-|---------|-------|-------|-------------|
-| Listening | Microphone | Azul | Tiempo total de escucha (minutos) |
-| Understanding | Comments | Verde | Palabras transcritas |
-| Providing | WandMagicSparkles | Naranja | Insights (action_items + events) |
-| Conversations | Message | Púrpura | Conversaciones grabadas |
-| Memories | Lightbulb | Rosa | Memorias extraídas |
+5 metricas: Listening (min), Understanding (words), Providing (insights), Conversations (count), Memories (count).
 
-### Flujo de Datos (Backend → Flutter)
-1. `MaityApiService.getMetrics(userId, period)` → `/v1/users/{id}/metrics`
-2. Backend query `omi_conversations` + `omi_memories`
-3. Respuesta incluye:
-   - `stats`: transcription_seconds, words_transcribed, insights_gained, conversations_count, memories_count
-   - `history`: datos diarios con insights y memories por fecha
+**Endpoint**: GET `/v1/users/{id}/metrics` → stats + history diario.
 
-### Archivos
-- **Backend**: `api/routers/metrics.py`, `api/services/supabase_client.py`, `api/models/metrics.py`
-- **Flutter**: `lib/providers/usage_provider.dart`, `lib/models/user_usage.dart`, `lib/services/maity_api_service.dart`
+**Archivos backend**: `api/routers/metrics.py`, `api/services/supabase_client.py`, `api/models/metrics.py`. **Flutter**: `lib/providers/usage_provider.dart`, `lib/models/user_usage.dart`.
 
-## Página de Detalle de Conversación
-`lib/pages/conversation_detail/page.dart`
+## Data Persistence (Grabacion)
 
-**Tabs**: Transcription, Summary, Action Items (localizados)
-**AppBar**: Botón búsqueda (solo en Transcription/Summary), Menú con "Eliminar"
+### Incremental Save (3 fases)
+1. **Draft**: primer segmento → `POST /v1/omi/conversations/draft` → row `status='recording'`
+2. **Segments**: cada 30s o 20 segmentos → `POST /v1/omi/conversations/{id}/segments` (upsert idempotente, ON CONFLICT DO NOTHING)
+3. **Finalize**: al detener → `POST /v1/omi/conversations/{id}/finalize` → rebuild transcript, embeddings, memorias, status='completed'
 
-## Assets
+**Reprocess**: `POST /v1/omi/conversations/{id}/reprocess` para re-analizar existentes.
 
-**Logos**: `assets/images/` - `app_launcher_icon.png`, `maity_launcher_icon.png` (rosa #F93A6E), `maity_icon.png`, `maity_splash.png`
+**Procesamiento**: ≤6,000 chars local (Flutter+OpenAI), >6,000 chars backend chunked (~5,000 chars/chunk, max 3 concurrentes).
 
-**Regenerar**:
-- Launcher icon: `dart run flutter_launcher_icons`
-- Splash screen: `dart run flutter_native_splash:create`
+**Health monitor**: timer cada 10s, alerta si >60s sin segmentos. Notificacion ID: 3.
 
-## Settings Drawer
+**Fallback**: si incremental falla, `store_conversation` monolitico funciona. `get_conversations` filtra `status='completed'`.
 
-**Perfiles de Usuario**:
-- Developer (`*@asertio.mx`): Acceso completo (Storage, Developer Settings, Feedback Received)
-- Usuario Final: Opciones reducidas
+**Archivos backend**: `api/routers/omi.py`, `api/services/supabase_client.py`, `api/services/chunked_processor.py`, `api/services/utils.py`. **Flutter**: `lib/services/incremental_save_service.dart`, `lib/services/omi_supabase_service.dart`, `lib/providers/capture_provider.dart`.
 
-**Secciones**: Profile, Storage*, Device Settings, Share Maity, Send Feedback, Feedback Received*, Data & Privacy, Language, Developer Settings*, About Maity, Sign Out
-(*solo Developer)
+### Transcript Recovery (crash/kill)
+Segmentos se guardan a archivo JSON cada 5s (debounce) o 5 nuevos segmentos. Al reiniciar, `RecoveryDialog` ofrece recuperar o descartar. Expiracion: 24h. Minimo recuperable: 5 palabras. 3 reintentos con backoff.
 
-**Protección Guardados Duplicados**: Flag `_conversationFinalized` en CaptureProvider previene doble guardado.
+**Archivos**: `lib/services/transcript_recovery_service.dart`, `lib/models/recovery_session.dart`, `lib/widgets/recovery_dialog.dart`.
 
-## Internacionalización (i18n)
+### Segmentos de Transcripcion
+- IDs formato: `{timestamp}_{start}_{index}`
+- `mergeConsecutiveSegmentsByTime()`: mismo speaker, gap <3s
+- Auto-guardado por silencio: default 120s → `_onSilenceTimeout()`
 
-- **Archivos**: `lib/l10n/app_en.arb`, `lib/l10n/app_es.arb`
-- **Idiomas**: Inglés (en), Español (es)
-- **Uso**: `AppLocalizations.of(context)!.keyName`
-- **Agregar**: Editar .arb → `flutter gen-l10n`
-- **Cambiar idioma runtime**: `MyApp.changeLocale('es')` (usa ValueNotifier)
-
-**Páginas localizadas**: UsagePage, Onboarding, Settings, FindDevices, DataPrivacy, About, Storage, ConversationDetail, ActionItems, Chat, Memories, CommunicationFeedback, TaskIntegrations (export messages).
-
-**Fechas localizadas**: Usar `dateTimeFormat('MMM dd', date, locale: SharedPreferencesUtil().appLanguage)`
-
-### Strings de Integraciones de Tareas
-Los mensajes de exportación a Google Tasks, Todoist, Asana, ClickUp y Apple Reminders están localizados:
-
-| Key | EN | ES |
-|-----|----|----|
-| `pleaseAuthenticateWith` | Please authenticate with {service} in Settings > Task Integrations | Por favor autentícate con {service} en Ajustes > Integraciones de Tareas |
-| `addingToService` | Adding to {service}... | Agregando a {service}... |
-| `addedToService` | Added to {service} | Agregado a {service} |
-| `failedToAddToService` | Failed to add to {service} | Error al agregar a {service} |
-| `alreadyExportedTo` | Already exported to {platform} | Ya exportado a {platform} |
-| `integrationComingSoon` | {service} integration coming soon | Integración con {service} próximamente |
-| `permissionDeniedAppleReminders` | Permission denied for Apple Reminders | Permiso denegado para Apple Reminders |
-| `taskIntegrations` | Task Integrations | Integraciones de Tareas |
-| `connectToService` | Connect to {service} | Conectar a {service} |
-| `authorizeMaityDescription` | You'll need to authorize Maity to create tasks... | Necesitarás autorizar a Maity para crear tareas... |
-| `serviceIntegration` | {service} Integration | Integración de {service} |
-| `integrationComingSoonDescription` | Integration with {service} is coming soon!... | ¡La integración con {service} estará disponible pronto!... |
-| `linked` | Linked | Vinculado |
-| `configureSettings` | Configure Settings | Configurar Ajustes |
-| `tasksExportedOneAppNote` | Tasks can be exported to one app at a time. | Las tareas se pueden exportar a una app a la vez. |
-| `completeAuthInBrowser` | Please complete authentication in your browser... | Por favor completa la autenticación en tu navegador... |
-| `failedToStartServiceAuth` | Failed to start {service} authentication | Error al iniciar autenticación con {service} |
-| `exportTasksOneTap` | Export tasks with one tap! | ¡Exporta tareas con un toque! |
-
-## Transcript Recovery System
-
-Sistema para recuperar grabaciones interrumpidas cuando la app crashea o el OS la mata.
-
-### Problema Resuelto
-Los segmentos de transcripción solo existían en RAM. Si la app crasheaba o el OS la mataba en background, toda la conversación se perdía.
-
-### Arquitectura
-```
-Grabación activa
-       ↓
-Segmentos llegan → RAM + Archivo JSON (debounced cada 5s)
-       ↓
-App va a background
-       ↓
-[CRASH o KILL]
-       ↓
-Al reiniciar: Detectar archivo → Ofrecer recovery dialog
-```
-
-### Archivos
-| Archivo | Descripción |
-|---------|-------------|
-| `lib/services/transcript_recovery_service.dart` | Persistencia incremental de segmentos |
-| `lib/models/recovery_session.dart` | Modelo de sesión recuperable |
-| `lib/widgets/recovery_dialog.dart` | UI para ofrecer recuperación |
-| `lib/providers/capture_provider.dart` | Integración: debounced save + reintentos |
-| `lib/pages/home/page.dart` | Verifica sesiones interrumpidas al iniciar |
-
-### Flujo de Recovery
-1. **Durante grabación**: Segmentos se guardan cada 5 segundos (o después de 5 nuevos segmentos)
-2. **Al finalizar**: Si save exitoso → limpia archivo; si falla → mantiene para recovery
-3. **Al iniciar app**: Verifica si hay sesión interrumpida → muestra `RecoveryDialog`
-4. **Usuario decide**: Recuperar (procesa con OpenAI) o Descartar (limpia archivo)
-
-### Métodos Clave (CaptureProvider)
-- `_scheduleRecoverySave()` - Agenda guardado debounced
-- `_saveRecoveryData()` - Guarda segmentos a archivo
-- `_clearRecoveryState()` - Limpia después de save exitoso
-- `recoverInterruptedSession()` - Recupera sesión desde archivo
-
-### Configuración
-- **Debounce**: 5 segundos entre guardados
-- **Threshold**: 5 segmentos nuevos fuerza guardado inmediato
-- **Reintentos**: 3 intentos con exponential backoff al guardar
-- **Expiración**: Sesiones > 24 horas se descartan automáticamente
-- **Mínimo recuperable**: 5 palabras
-
-### RecoveryDialog (UI)
-Muestra al usuario:
-- Fecha/hora de la grabación
-- Duración estimada
-- Número de segmentos
-- Cantidad de palabras
-
-**Botones**: Recuperar | Descartar
-
-### Strings i18n
-`recoveryDialogTitle`, `recoveryDialogDescription`, `recoveryDialogRecordedAt`, `recoveryDialogDuration`, `recoveryDialogSegments`, `recoveryDialogWords`, `recoveryDialogDiscard`, `recoveryDialogRecover`, `recoveryInProgress`, `recoverySuccess`, `recoveryFailed`
-
-## Incremental Save System
-
-Sistema para guardar segmentos de transcripción incrementalmente a Supabase durante la grabación, protegiendo contra pérdida de datos en conversaciones largas.
-
-### Problema Resuelto
-- Los segmentos solo existían en RAM durante la grabación
-- Si la app crasheaba o el backend fallaba al guardar, se perdían todos los segmentos
-- El procesamiento truncaba transcripts largos a 2,000 chars (ahora 6,000 local, chunked en backend)
-- No había detección de transcripción detenida
-
-### Arquitectura
-```
-Segmento llega
-       ↓
-RAM + Recovery File (cada 5s) + Supabase (cada 30s)
-       ↓
-Al finalizar: Backend reconstruye transcript desde segmentos en DB
-       ↓
-Backend genera embeddings, extrae memorias, analiza comunicación
-```
-
-### Flujo de 3 Fases
-
-**1. Draft Creation** (primer segmento):
-- `POST /v1/omi/conversations/draft` → crea row con `status='recording'`
-- Retorna UUID del draft
-
-**2. Incremental Segments** (cada 30s o 20 segmentos):
-- `POST /v1/omi/conversations/{id}/segments` → upsert idempotente
-- ON CONFLICT DO NOTHING por `(conversation_id, segment_index)`
-- Seguro de reintentar en caso de error de red
-
-**3. Finalize** (al detener grabación):
-- `POST /v1/omi/conversations/{id}/finalize`
-- Backend lee segmentos de DB, reconstruye `transcript_text`
-- Para transcripts >6,000 chars: usa chunked processing (divide, procesa, merge)
-- Genera embeddings, extrae memorias, analiza comunicación
-- Cambia status a 'completed'
-
-### Endpoints Backend
-
-| Endpoint | Método | Descripción |
-|----------|--------|-------------|
-| `/v1/omi/conversations/draft` | POST | Crea draft con `status='recording'` |
-| `/v1/omi/conversations/{id}/segments` | POST | Upsert batch de segmentos |
-| `/v1/omi/conversations/{id}/finalize` | POST | Finaliza: rebuild transcript, embeddings, memorias |
-| `/v1/omi/conversations/{id}/reprocess` | POST | Re-analiza conversación existente con chunked processor |
-
-### Archivos
-
-| Archivo | Descripción |
-|---------|-------------|
-| `api/routers/omi.py` | 4 endpoints nuevos (draft, segments, finalize, reprocess) + `should_auto_discard()` |
-| `api/services/supabase_client.py` | 3 funciones DB (insert_draft, append_segments, finalize_conversation) |
-| `api/services/chunked_processor.py` | Procesador chunked para transcripts largos |
-| `api/services/utils.py` | Utilidades compartidas: `parse_json_from_llm()` |
-| `lib/services/incremental_save_service.dart` | Servicio Flutter de guardado incremental |
-| `lib/services/omi_supabase_service.dart` | 3 métodos (createDraft, appendSegments, finalize) |
-| `lib/providers/capture_provider.dart` | Integración + health monitor |
-
-### Columnas BD Nuevas
-- `omi_conversations.last_segment_at` (timestamptz) - Último segmento guardado
-- `omi_conversations.segment_count` (integer) - Conteo de segmentos
-- Índice único: `omi_transcript_segments(conversation_id, segment_index)`
-
-### Health Monitor (Detección de Transcripción Detenida)
-- Timer cada 10 segundos verifica si llegan segmentos
-- Si no llegan segmentos por >60s con grabación activa → notificación al usuario
-- Notificación ID: 3
-- Try-catch envuelve el body para evitar spam de excepciones en el timer periódico
-
-### Chunked Processing (Conversaciones Largas)
-Para transcripts >6,000 chars:
-1. Divide en chunks de ~5,000 chars en límites de oración
-2. Procesa cada chunk con OpenAI (máx 3 concurrentes)
-3. Merge de resultados parciales en un solo análisis
-4. Endpoint `reprocess` permite re-analizar conversaciones existentes
-
-### Procesamiento Local vs Backend
-| Transcript Length | Procesamiento |
-|-------------------|---------------|
-| ≤6,000 chars | Flutter procesa localmente con OpenAI |
-| >6,000 chars | Backend procesa con chunked processor |
-
-### Robustez
-- `_scheduleIncrementalSave()` es async y awaita `ensureDraftCreated()` antes de guardar segmentos
-- `saveNewSegments()` guarda referencia en `_lastKnownSegments` para evitar stale closures en el timer debounce
-- `flushPendingSegments()` tiene max 5 retries con backoff para evitar loops infinitos
-- Timer chain de batches valida `_draftId != null && _isActive` antes de programar siguiente batch
-- `appendSegments()` valida userId no-null antes de enviar al backend
-- `append_segments()` en backend query conteo real de segmentos después del upsert (evita conteo incorrecto por duplicates)
-
-### Compatibilidad
-- `store_conversation` (endpoint actual) sigue funcionando para conversaciones cortas
-- `get_conversations` filtra `status='completed'` — drafts no aparecen en lista
-- Recovery file incluye `draftConversationId` para recovery de drafts
-- Si guardado incremental falla, flow monolítico funciona como fallback
-
-### Strings i18n
-`transcriptionLostTitle`, `transcriptionLostBody`, `transcriptionReconnecting`, `transcriptionAutoSaved`, `noSegmentsWarning`
-
-## Foreground Service Notification
-Estados: waiting, device_connected, phone_mic, recording, processing, ready
-
-Botones en estado `waiting`: Connect, Use Mic → navegan a FindDevicesPage
-
-**Flujo**: CaptureProvider → `_updateForegroundNotification()` → FlutterForegroundTask → TaskHandler actualiza notificación
-
-## Sistema de Notificaciones
-
-**Arquitectura**: `NotificationService` singleton usa `awesome_notifications` para notificaciones locales.
-
-**Archivos**:
-- `lib/services/notifications/notification_service.dart` - Factory singleton
-- `lib/services/notifications/notification_service_basic.dart` - Implementación
-- `lib/services/notifications/notification_interface.dart` - Interface
-
-### Permisos Automáticos
-El método `createNotification()` solicita permisos automáticamente si no están otorgados:
-1. Verifica `isNotificationAllowed()`
-2. Si no permitido → llama `requestNotificationPermissions()`
-3. Si usuario rechaza → log y retorna sin mostrar notificación
-4. Si acepta → muestra notificación normalmente
-
-### Notificaciones del Sistema
-| ID | Uso | Origen |
-|----|-----|--------|
-| 1 | Dispositivo desconectado | `device_provider.dart` |
-| 2 | Dispositivo conectado | `device_provider.dart` |
-
-**Localización**: Las notificaciones de conexión/desconexión usan el mapa `_deviceNotificationMessages` en `device_provider.dart` con soporte para `en` y `es`. Los strings se seleccionan según `SharedPreferencesUtil().appLanguage`.
+**Proteccion doble guardado**: Flag `_conversationFinalized` en CaptureProvider.
 
 ## Autenticacion (Supabase Auth)
 
-### Flujo
-1. Usuario toca "Continuar con Google"
-2. `google_sign_in` obtiene idToken
-3. `SupabaseAuthService.signInWithGoogleNative()` intercambia con Supabase
-4. Trigger crea registro en `maity.users`
-5. `fetchMaityUserId()` obtiene UUID de `maity.users`
+**Flujo**: Google Sign-In → idToken → `SupabaseAuthService.signInWithGoogleNative()` → Supabase → trigger crea `maity.users` → `fetchMaityUserId()`.
 
-### Tokens
-- `getAccessToken()` obtiene/renueva JWT (auto-refresh 5 min antes de expirar)
-- `getAuthHeader()` devuelve `Bearer <token>`
-- Retry automático en 401
+**Tokens**: `getAccessToken()` auto-refresh 5 min antes de expirar. Retry en 401.
 
-### IDs de Usuario
-- `auth.users.id` - UUID Supabase Auth (en token como `sub`)
-- `maity.users.id` - UUID tabla usuarios (usado para queries)
+**IDs**: `auth.users.id` (UUID Auth, `sub` en JWT) vs `maity.users.id` (UUID tabla, usado en queries).
 
-### Dominios Autenticados
-`_isRequiredAuthCheck()` en `shared.dart`: `maity-mobile.vercel.app`
+**Dominio auth**: `maity-mobile.vercel.app` en `_isRequiredAuthCheck()`.
 
-### Auto-detección Onboarding
-Si `maityUserId != null` al login → usuario existe → marca `onboardingCompleted = true`
-
-## Flujo de Datos
-
-### Guardar Conversación
-1. `LocalConversationsService.saveConversation()`
-2. Guarda en Supabase via `OmiSupabaseService.storeConversation()`
-3. Supabase retorna UUID → usa para objeto local
-4. Si falla, genera UUID local como fallback
-
-### Segmentos de Transcripción
-- `onSegmentReceived()` recibe del STT
-- `updateSegments()` detecta duplicados por ID
-- IDs formato: `{timestamp}_{start}_{index}`
-- `mergeConsecutiveSegmentsByTime()` fusiona (mismo speaker, gap < 3s)
-
-### Carga en Detalle
-Lista obtiene conversaciones SIN segmentos → `initConversation()` carga segmentos via `getConversation()`
-
-### Busqueda Semantica
-1. `semanticSearchConversations(query, userId)`
-2. Backend genera embedding y busca por similitud coseno
-3. Fallback a texto si falla
-
-### Auto-guardado Custom STT
-Timer de silencio (`conversationSilenceDuration`, default 120s) → `_onSilenceTimeout()` → guarda
-
-### Optimizaciones Audio
-- `WavBytes.asBytes()`: `setRange()` bulk copy
-- `canDisplaySeconds()`: O(n) optimizado
-- Buffer limit: 9600 frames (~10 min)
-- `createWavFile()`: `.toList()` copia superficial
+**Auto-onboarding**: Si `maityUserId != null` al login → `onboardingCompleted = true`.
 
 ## Vercel Backend Endpoints
 
-| Endpoint | Método | Descripción |
+| Endpoint | Metodo | Descripcion |
 |----------|--------|-------------|
 | `/v1/omi/conversations/store` | POST | Guardar con embeddings |
-| `/v1/omi/conversations/search` | POST | Búsqueda semántica |
-| `/v1/omi/conversations` | GET | Listar |
+| `/v1/omi/conversations/search` | POST | Busqueda semantica |
+| `/v1/omi/conversations` | GET | Listar (status='completed') |
 | `/v1/omi/conversations/{id}` | GET | Obtener con segmentos |
-| `/v1/users/{id}/metrics` | GET | Métricas por periodo |
-| `/v1/users/{id}/metrics/summary` | GET | Resumen métricas |
+| `/v1/omi/conversations/draft` | POST | Crear draft |
+| `/v1/omi/conversations/{id}/segments` | POST | Upsert segmentos |
+| `/v1/omi/conversations/{id}/finalize` | POST | Finalizar conversacion |
+| `/v1/omi/conversations/{id}/reprocess` | POST | Re-analizar |
+| `/v1/users/{id}/metrics` | GET | Metricas por periodo |
+| `/v1/users/{id}/metrics/summary` | GET | Resumen metricas |
 | `/v2/messages` | POST | Chat con function calling |
 | `/v1/feedback/*` | * | Submit, list, my |
 | `/v1/memories/*` | * | CRUD, extract, search, review |
 | `/v1/voice/*` | * | Enroll, verify-speakers, status, delete |
+| `/v1/action-items/*` | GET/PATCH/DELETE | CRUD action items |
 | `/v1/daily-reports/*` | GET/POST | Generate (cron), latest, by-date, history |
+| `/v1/communication/analyze` | POST | Analisis comunicacion |
 
-## API Legacy (api.omi.me) - Deshabilitadas
+## API Legacy (api.omi.me)
 
-Las funciones en `lib/backend/http/api/` fueron diseñadas para api.omi.me (OMI original).
-Muchas están **deshabilitadas** porque Maity usa Supabase directamente.
+Funciones en `lib/backend/http/api/` deshabilitadas (retornan default) o redirigidas a `OmiSupabaseService`: `getConversationById` → `OmiSupabaseService.getConversation()`, `getConversations` → `OmiSupabaseService.getConversations()`.
 
-### Funciones Deshabilitadas (`users.dart`)
-| Función | Estado | Razón |
-|---------|--------|-------|
-| `setConversationSummaryRating` | Disabled | Endpoint no existe en backend Maity |
-| `getHasConversationSummaryRating` | Disabled | Endpoint no existe en backend Maity |
-| `updateUserGeolocation` | Disabled | No acepta tokens Supabase |
-| `getPrivateCloudSyncEnabled` | Disabled | No acepta tokens Supabase |
-| `getAllPeople` | Disabled | No acepta tokens Supabase |
-| `getUserUsage` | Disabled | Usa Maity backend en su lugar |
-| `getTrainingDataOptIn` | Disabled | No acepta tokens Supabase |
-| `getUserSubscription` | Disabled | No acepta tokens Supabase |
+Deshabilitadas en `users.dart`: `setConversationSummaryRating`, `getHasConversationSummaryRating`, `updateUserGeolocation`, `getPrivateCloudSyncEnabled`, `getAllPeople`, `getUserUsage`, `getTrainingDataOptIn`, `getUserSubscription`.
 
-### Funciones Redirigidas (`conversations.dart`)
-| Función | Redirección | Descripción |
-|---------|-------------|-------------|
-| `getConversationById` | `OmiSupabaseService.getConversation()` | Obtiene conversación con segmentos |
-| `getConversations` | `OmiSupabaseService.getConversations()` | Lista conversaciones |
+## Chat Agent
 
-### Patrón de Deshabilitación
-```dart
-Future<bool> disabledFunction() async {
-  debugPrint('[API Disabled] functionName skipped');
-  return false; // o valor default apropiado
-}
-```
+Flutter → `/v2/messages` → OpenAI gpt-4o-mini + function calling → Supabase.
 
-### Patrón de Redirección
-```dart
-Future<ServerConversation?> getConversationById(String id) async {
-  final userId = SupabaseAuthService.instance.maityUserId;
-  if (userId == null) return null;
-  final detail = await OmiSupabaseService.getConversation(
-    userId: userId,
-    conversationId: id,
-  );
-  return detail?.toServerConversation();
-}
-```
+**8 tools**: `buscar_conversaciones`, `obtener_conversacion`, `buscar_semantico`, `resumen_dia`, `obtener_action_items`, `buscar_por_categoria`, `estadisticas_uso`, `feedback_comunicacion`.
 
-## User Feedback System
+**Quick Actions**: Resumen de hoy, Mis pendientes, Mis estadisticas, Como me comunico.
 
-**Arquitectura**: Flutter → Vercel `/v1/feedback/*` → Supabase `user_feedback`
-
-**Tipos**: comment (💬), bug (🐛), suggestion (💡)
-
-**Permisos**: Todos envían/ven propio, Developers ven todos
-
-**Archivos**: `api/routers/feedback.py`, `lib/services/feedback_service.dart`, `lib/pages/settings/feedback_page.dart`
-
-## Chat Agent (Maity)
-
-**Arquitectura**: Flutter → Vercel `/v2/messages` → OpenAI (gpt-4o-mini + function calling) → Supabase
-
-### Tools (8)
-| Tool | Descripción |
-|------|-------------|
-| `buscar_conversaciones` | Por rango de fechas |
-| `obtener_conversacion` | Detalles + transcripción |
-| `buscar_semantico` | Por tema/contenido |
-| `resumen_dia` | Resumen del día con métricas |
-| `obtener_action_items` | Tareas pendientes |
-| `buscar_por_categoria` | Filtrar por categoría |
-| `estadisticas_uso` | Métricas por período |
-| `feedback_comunicacion` | Análisis estilo comunicación |
-
-### Quick Actions
-Resumen de hoy, Mis pendientes, Mis estadísticas, Cómo me comunico
-
-### Patrón de Respuesta
-```python
-{"success": True/False, "error": None/"mensaje", "data": {...}}
-```
-
-**Archivos**: `api/routers/messages.py`, `api/services/supabase_client.py`, `lib/pages/chat/page.dart`
-
-## Analytics (Mixpanel)
-
-**Configuración**: Token en `.env` → `MIXPANEL_PROJECT_TOKEN=<token>`
-
-### Archivos
-- `lib/utils/analytics/mixpanel.dart` - MixpanelManager singleton
-- `lib/env/env.dart` - Variables de entorno (envied)
-
-### Inicialización
-Se inicializa en `main.dart` via `MixpanelManager.init()`. Solo se activa si el token está configurado.
-
-### Plataformas
-- **Mobile (iOS/Android)**: usa `mixpanel_flutter` (nativo)
-- **Desktop**: usa `mixpanel_analytics` (HTTP)
-
-### Uso
-```dart
-MixpanelManager().track('Event Name', properties: {'key': 'value'});
-MixpanelManager().setUserProperty('Property', value);
-```
-
-### Métodos principales
-| Método | Descripción |
-|--------|-------------|
-| `track(event, properties)` | Envía evento |
-| `identify()` | Identifica usuario |
-| `setUserProperty(key, value)` | Propiedad de usuario |
-| `trackTestEvent()` | Evento de prueba (Debug) |
-
-### Testing
-En Developer Settings > Debug & Diagnostics hay un botón "Test Mixpanel" que envía un evento de prueba para verificar la conexión.
-
-## VAD Metrics (Developer Settings)
-
-Panel de métricas en tiempo real para Voice Activity Detection en Developer Settings > Debug & Diagnostics.
-
-### Requisitos
-VAD solo se activa cuando:
-1. VAD habilitado en Experimental settings
-2. Custom STT habilitado (Deepgram)
-3. Codec PCM16 (phone mic o desktop)
-
-### Métricas Mostradas
-| Métrica | Descripción | Fuente |
-|---------|-------------|--------|
-| Current State | Estado actual (Silence/Pre-Roll/Speech/Hang-Over) | `vadStateNotifier` |
-| Total Audio | Segundos totales procesados | `metrics.totalSeconds` |
-| Sent to STT | Segundos enviados a transcripción | `metrics.sentSeconds` |
-| Filtered (silence) | Segundos filtrados como silencio | `metrics.filteredSeconds` |
-| Est. Savings | Porcentaje de ahorro estimado | `metrics.savingsPercent` |
-| Speech Segments | Número de segmentos de voz detectados | `metrics.speechSegments` |
-
-### Estados VAD
-- **Silence** (gris): No hay voz, audio filtrado
-- **Pre-Roll** (azul): Voz detectada, enviando buffer
-- **Speech** (verde): Voz activa, enviando todo
-- **Hang-Over** (naranja): Voz terminada, esperando timeout
-
-### Archivos
-- `lib/providers/capture_provider.dart` - `vadStateNotifier`, `vadMetrics`, `isVadActive`
-- `lib/pages/settings/developer.dart` - Widget de métricas VAD
-- `lib/services/vad/vad_metrics.dart` - Clase VadMetrics
-- `lib/services/vad/vad_state.dart` - Enum VadState
-
-## Conexión Bluetooth (BLE)
-
-### Archivos Clave
-- `lib/services/devices/transports/ble_transport.dart` - Transporte BLE, conexión y escritura
-- `lib/services/devices/discovery/bluetooth_discoverer.dart` - Escaneo y descubrimiento de dispositivos
-- `lib/providers/device_provider.dart` - Estado de conexión y reconexión
-
-### Mejoras Implementadas
-
-#### allowLongWrite para datos grandes
-Cuando los datos exceden el tamaño MTU (Maximum Transmission Unit), se usa `allowLongWrite: true` automáticamente:
-```dart
-final useAllowLongWrite = data.length > (_bleDevice.mtuNow - 3);
-await characteristic.write(data, allowLongWrite: useAllowLongWrite);
-```
-- MTU incluye 3 bytes de overhead del protocolo ATT
-- Crítico para firmware updates y transferencias de datos grandes
-
-#### Timeout en espera de Bluetooth
-Evita bloqueos indefinidos si Bluetooth está desactivado:
-- Timeout de 10 segundos esperando que el adaptador se active
-- Retorna gracefully si el timeout se alcanza
-
-#### Delay de permisos en Android
-Agrega un delay de 2 segundos después de que Bluetooth se activa en Android:
-- Permite que los permisos se establezcan completamente
-- Soluciona problema donde dispositivos no aparecían en primer escaneo
-
-#### Exponential Backoff en Reconexión
-Patrón de reintentos con incremento exponencial para reconexión eficiente:
-- Delay inicial: 2 segundos
-- Multiplicador: 1.5x
-- Máximo delay: 60 segundos
-- Límite de reintentos: 8
-
-**Secuencia de delays**: 2s → 3s → 4.5s → 6.75s → 10.1s → 15.2s → 22.8s → 34.2s
-
-#### Notificaciones de Conexión/Desconexión
-El sistema notifica al usuario sobre cambios de estado de conexión:
-
-**Conexión (`_onDeviceConnected`)**:
-- Muestra notificación "Maity Connected" con el nombre del dispositivo
-- Dispara analytics `MixpanelManager().deviceConnected()` en TODAS las conexiones (inicial y reconexiones)
-- Notificación ID: 2
-
-**Desconexión (`onDeviceDisconnected`)**:
-- Timer de 5 segundos antes de mostrar notificación (permite reconexión rápida sin notificar)
-- Mensaje indica que está intentando reconectar automáticamente
-- Notificación ID: 1 (se limpia al reconectar)
-- Analytics `MixpanelManager().deviceDisconnected()` inmediato
-
-**Strings localizados**: `deviceConnectedTitle`, `deviceConnectedBody`, `deviceDisconnectedTitle`, `deviceDisconnectedBody`
+**Archivos**: `api/routers/messages.py`, `lib/pages/chat/page.dart`.
 
 ## Speaker Verification
 
-**Arquitectura**:
-- Enrollment: Flutter → Vercel `/v1/voice/enroll` → Modal.com (ECAPA-TDNN) → Supabase
-- Verificación: Conversación finaliza → extrae audio por speaker → compara con perfil
+**Enrollment**: Flutter → `/v1/voice/enroll` → Modal.com (ECAPA-TDNN, speechbrain/spkrec-ecapa-voxceleb) → embedding vector(192) → Supabase. Validacion: 10-155s, min 25 palabras. Soporta BLE y phone mic.
 
-### Flujo Enrollment
-1. Grabar 30+ segundos en Speech Profile
-2. Validar: auth, duración 10-155s, mínimo 25 palabras
-3. Enviar a Modal.com → guardar embedding
+**Verificacion automatica**: Al finalizar conversacion, compara audio por speaker con perfil. Threshold: 0.75-0.80. Re-etiqueta `is_user`.
 
-### Soporte de Micrófono del Teléfono
-El enrollment soporta grabación con el micrófono del teléfono además del dispositivo BLE:
+**Phone mic enrollment**: `SpeechProfileProvider.initialise(usePhoneMic: true)` → PCM16, 100fps, 320 bytes/frame. Sin BLE: boton principal usa phone mic. Con BLE: link secundario.
 
-**UI comportamiento**:
-- Sin dispositivo BLE: Botón principal muestra "Usar micrófono del teléfono"
-- Con dispositivo BLE: Botón principal usa BLE + link secundario "Usar micrófono del teléfono"
-- Onboarding: Auto-detecta si hay dispositivo; si no, usa phone mic automáticamente
+**Error codes**: `AUTH_REQUIRED`, `ENROLLMENT_FAILED`, `ENROLLMENT_VERIFICATION_FAILED`, `TOO_SHORT`, `NO_SPEECH`, `MULTIPLE_SPEAKERS`.
 
-**Flujo técnico**:
-```
-SpeechProfileProvider.initialise(usePhoneMic: true)
-       ↓
-_initialiseWithPhoneMic() → WavBytesUtil(codec: pcm16, framesPerSecond: 100)
-       ↓
-_startPhoneMicStreaming() → ServiceManager.mic.start()
-       ↓
-onByteReceived → storeRawAudioBytes() (sin header BLE) + socket.send()
-       ↓
-Transcripción STT → progress bar → 70 palabras → finalize()
-       ↓
-createWavFile() → /v1/voice/enroll → ECAPA-TDNN
-```
+**Deploy**: `cd modal_functions && python -m modal deploy voice_embeddings.py`. Env: `MODAL_VOICE_ENDPOINT_URL`.
 
-**Archivos modificados**:
-- `lib/utils/audio/wav_bytes.dart` - `storeRawAudioBytes()` divide en frames de 320 bytes
-- `lib/providers/speech_profile_provider.dart` - `_usePhoneMic`, `_initialiseWithPhoneMic()`, `_startPhoneMicStreaming()`
-- `lib/pages/speech_profile/page.dart` - `_startWithBleDevice()`, `_startWithPhoneMic()`, UI condicional
-- `lib/pages/onboarding/speech_profile_widget.dart` - Auto phone mic si no hay dispositivo
+**Archivos**: `modal_functions/voice_embeddings.py`, `api/routers/voice_profiles.py`, `lib/services/voice_profile_service.dart`, `lib/providers/speech_profile_provider.dart`, `lib/pages/speech_profile/page.dart`.
 
-**Strings i18n**: `usePhoneMic`, `speakClearlyIntoPhone`
+## Feedback de Comunicacion
 
-### Códigos Error
-`AUTH_REQUIRED`, `ENROLLMENT_FAILED`, `ENROLLMENT_VERIFICATION_FAILED`, `TOO_SHORT`, `NO_SPEECH`, `MULTIPLE_SPEAKERS`
+Conversacion → `/v1/communication/analyze` → OpenAI (timeout 20s) → CommunicationFeedback.
 
-### Modal.com
-- Modelo: speechbrain/spkrec-ecapa-voxceleb
-- Deploy: `cd modal_functions && python -m modal deploy voice_embeddings.py`
-- Env: `MODAL_VOICE_ENDPOINT_URL=https://divertido--maity-voice-embeddings`
+**Modelo**: strengths, areas_to_improve (max 5 c/u), observations (claridad, estructura, llamados a accion, objeciones), counters (pero_count, filler_words, objections).
 
-### Verificación Automática
-Al finalizar conversación: extrae audio por speaker → compara con embedding → re-etiqueta `is_user`
-Threshold similitud: 0.75-0.80 (balanceado)
+**Muletillas**: "este", "o sea", "como que", "bueno", "entonces", "basicamente", "literalmente", "tipo", "digamos", "la verdad".
 
-**Archivos**: `modal_functions/voice_embeddings.py`, `api/routers/voice_profiles.py`, `lib/services/voice_profile_service.dart`
+**Archivos**: `api/models/communication.py`, `api/services/communication_analyzer.py`, `lib/pages/conversation_detail/widgets.dart`.
 
-## Feedback de Comunicación
+## Evaluacion Diaria de Comunicacion
 
-**Arquitectura**: Conversación → Vercel `/v1/communication/analyze` → OpenAI (timeout 20s) → CommunicationFeedback
+Cron job (`0 0 * * *` UTC, 6 PM Mexico CST) genera reportes diarios via OpenAI analizando communication_feedback del dia. Idempotente (UNIQUE constraint + upsert).
 
-### Modelo
-- `strengths`, `areas_to_improve` (máx 5 cada uno)
-- `observations`: claridad, estructura, llamados a acción, objeciones
-- `counters`: pero_count, filler_words, objections_received/made
+**Tendencia**: `|change| < 0.5` → stable, `> 0` → improving, `< 0` → declining, primer reporte → `first_report`.
 
-### Muletillas Detectadas
-"este", "o sea", "como que", "bueno", "entonces", "básicamente", "literalmente", "tipo", "digamos", "la verdad"
+**Flutter UI**: DailyReportCard en Insights tab + MaterialBanner in-app (dismiss en `lastDismissedDailyReport`).
 
-**Archivos**: `api/models/communication.py`, `api/services/communication_analyzer.py`, `lib/pages/conversation_detail/widgets.dart`
+**Endpoints**: POST `/v1/daily-reports/generate` (CRON_SECRET), GET `latest`, `by-date`, `history`.
 
-## Evaluación Diaria de Comunicación
-
-Sistema de reportes diarios automáticos que evalúa el desempeño comunicativo del usuario basándose en las conversaciones del día.
-
-### Arquitectura
-```
-Cron Job (00:00 UTC / 6 PM México CST)
-       ↓
-POST /v1/daily-reports/generate (CRON_SECRET)
-       ↓
-[Buscar usuarios con conversaciones hoy]
-       ↓
-[Agregar communication_feedback de cada conversación]
-       ↓
-[OpenAI gpt-4o-mini → scores + evaluación]
-       ↓
-[Upsert en daily_communication_reports]
-       ↓
-[Flutter: banner in-app + card en Insights]
-```
-
-### Tabla: `maity.daily_communication_reports`
-- `id` (UUID PK), `user_id` (FK users), `auth_id` (FK auth.users)
-- `report_date` (DATE, UNIQUE con user_id)
-- Contadores agregados: `total_filler_words`, `total_filler_count`, `total_pero_count`, `total_objection_words`
-- Scores (NUMERIC 3,1): `score_clarity`, `score_structure`, `score_calls_to_action`, `score_objection_handling`, `score_overall`
-- `top_strengths`, `top_areas_to_improve`, `recommendations` (JSONB arrays)
-- `daily_summary` (TEXT), `trend` (improving|stable|declining|first_report)
-- `trend_details` (JSONB: previous_overall, change)
-- RLS: `auth.uid() = auth_id` (solo lectura)
-
-### Endpoints Backend
-| Endpoint | Método | Auth | Descripción |
-|----------|--------|------|-------------|
-| `/v1/daily-reports/generate` | POST | CRON_SECRET | Genera reportes para todos los usuarios |
-| `/v1/daily-reports/latest` | GET | JWT | Último reporte del usuario |
-| `/v1/daily-reports/by-date` | GET | JWT | Reporte de fecha específica |
-| `/v1/daily-reports/history` | GET | JWT | Historial reciente (default 7) |
-
-### Cron Job (Vercel)
-- Schedule: `0 0 * * *` (00:00 UTC = 6 PM México CST)
-- Configurado en `vercel.json` → `crons`
-- Requiere variable de entorno `CRON_SECRET` en Vercel Dashboard
-- Idempotente: constraint UNIQUE + upsert permite re-ejecución sin duplicados
-
-### Tendencia
-- Compara `score_overall` con el reporte del día anterior
-- `|change| < 0.5` → stable, `change > 0` → improving, `change < 0` → declining
-- Primer reporte → `first_report`
-
-### Flutter UI
-- **DailyReportCard**: Card con score general, 4 barras de dimensiones, tendencia, resumen, fortalezas, recomendaciones
-- Aparece en la pestaña "Today" de la vista Communication en Insights (UsagePage)
-- **Banner in-app**: MaterialBanner dismissible al iniciar app cuando hay reporte nuevo de hoy
-- Dismiss guardado en SharedPreferences (`lastDismissedDailyReport`)
-- Tap "Ver Reporte" navega a Insights (index 3)
-
-### Archivos
-**Backend**:
-- `api/models/daily_report.py` - Modelos Pydantic
-- `api/services/daily_report_generator.py` - Generador (OpenAI + Supabase)
-- `api/routers/daily_reports.py` - 4 endpoints REST
-
-**Flutter**:
-- `lib/models/daily_communication_report.dart` - Modelo Dart
-- `lib/services/daily_report_service.dart` - Servicio HTTP
-- `lib/providers/daily_report_provider.dart` - ChangeNotifier
-- `lib/pages/settings/widgets/daily_report_card.dart` - Widget card
-
-**Modificados**:
-- `api/routers/__init__.py`, `api/index.py` - Registro del router
-- `vercel.json` - Cron job
-- `lib/main.dart` - DailyReportProvider
-- `lib/pages/settings/usage_page.dart` - Integración DailyReportCard
-- `lib/pages/home/page.dart` - Banner in-app
-- `lib/backend/preferences.dart` - Key para dismiss
-- `lib/l10n/app_en.arb`, `lib/l10n/app_es.arb` - Strings i18n
-
-### Strings i18n
-`dailyEvaluation`, `dailyReport`, `overallScore`, `scoreTrend`, `trendImproving`, `trendStable`, `trendDeclining`, `trendFirstReport`, `dailyRecommendations`, `dailySummary`, `conversationsAnalyzedCount`, `wordsAnalyzed`, `durationAnalyzed`, `fillerWordsCount`, `noDailyReportYet`, `dailyReportAvailable`, `viewDailyReport`, `scoreDimension`
-
-### Costo Estimado
-~$0.0003 por reporte (gpt-4o-mini). $0.90/mes para 100 usuarios.
+**Archivos backend**: `api/models/daily_report.py`, `api/services/daily_report_generator.py`, `api/routers/daily_reports.py`. **Flutter**: `lib/models/daily_communication_report.dart`, `lib/services/daily_report_service.dart`, `lib/providers/daily_report_provider.dart`, `lib/pages/settings/widgets/daily_report_card.dart`.
 
 ## Sistema de Memorias
 
-**Arquitectura**: Conversación guardada → Backend extrae automáticamente → OpenAI (2-5 memorias) → embeddings → Supabase
+Extraccion automatica en `store_conversation()`: si no discarded y transcript >=50 chars → OpenAI extrae 2-5 memorias (timeout 20s, max 4000 chars) → embeddings → `omi_memories` con `reviewed=false`.
 
-### Extracción Automática
-Las memorias se extraen automáticamente al guardar cada conversación en `store_conversation()`:
+**Categorias**: `interesting` (IA), `system`, `manual`. **Revision**: swipe en MemoriesPage.
 
-```
-Conversación finaliza
-       ↓
-[store_conversation()] en api/routers/omi.py
-       ↓
-[Verificar condiciones: no discarded, transcript >= 50 chars]
-       ↓
-[extract_memories_from_transcript()] → OpenAI gpt-4o-mini
-       ↓
-[Generar embeddings para cada memoria]
-       ↓
-[Insertar en omi_memories con reviewed=false]
-       ↓
-[Usuario ve banner "X memorias para revisar"]
-```
+**Archivos**: `api/routers/memories.py`, `api/services/memory_extractor.py`, `api/models/memory.py`, `lib/providers/memories_provider.dart`, `lib/pages/memories/`.
 
-**Condiciones para extracción**:
-- Conversación NO marcada como `discarded`
-- Transcript con al menos 50 caracteres
-- Timeout de 20 segundos (evita bloqueos)
-- Máximo 4000 caracteres de transcript procesados
+## Notificaciones
 
-### Categorías
-- `interesting`: Extraídas por IA (automático)
-- `system`: Del sistema
-- `manual`: Creadas por usuario
+`NotificationService` singleton (`awesome_notifications`). Auto-solicita permisos.
 
-### Flujo Revisión
-1. IA extrae memorias automáticamente (`reviewed=false`)
-2. Usuario ve banner en MemoriesPage con count de pendientes
-3. Swipe para aprobar/rechazar
+| ID | Uso | Origen |
+|----|-----|--------|
+| 1 | Dispositivo desconectado (5s delay) | `device_provider.dart` |
+| 2 | Dispositivo conectado | `device_provider.dart` |
+| 3 | Transcripcion detenida (>60s) | `capture_provider.dart` |
 
-### Archivos
-**Backend**:
-- `api/routers/omi.py` - Llamada automática en `store_conversation()` (línea ~254)
-- `api/routers/memories.py` - CRUD endpoints y extracción manual
-- `api/services/memory_extractor.py` - OpenAI extraction con timeout 20s
-- `api/models/memory.py` - Modelos Pydantic
+**Foreground service**: Estados: waiting, device_connected, phone_mic, recording, processing, ready. Botones en waiting: Connect, Use Mic.
 
-**Flutter**: `lib/backend/http/api/memories.dart`, `lib/providers/memories_provider.dart`, `lib/pages/memories/`
+## Bluetooth (BLE)
 
-## Backend (Monorepo)
+**Archivos**: `lib/services/devices/transports/ble_transport.dart`, `lib/services/devices/discovery/bluetooth_discoverer.dart`, `lib/providers/device_provider.dart`.
 
-Código en `C:\OMI\api\`:
-- `index.py` - FastAPI entry point
-- `routers/` - omi, metrics, feedback, memories, voice_profiles, messages
-- `services/` - supabase_client, embeddings, memory_extractor, communication_analyzer, chunked_processor, utils
-- `models/` - memory, communication
+**Comportamientos clave**:
+- `allowLongWrite: true` automatico cuando data > MTU-3
+- Timeout 10s esperando adaptador BT
+- Android: 2s delay post-activacion BT (permisos)
+- Reconexion exponential backoff: 2s inicial, 1.5x, max 60s, 8 reintentos
+- Desconexion: 5s delay antes de notificar (permite reconexion rapida)
 
-### Variables de Entorno (Vercel)
-- `OPENAI_API_KEY`
-- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_JWT_SECRET`
-- `MODAL_VOICE_ENDPOINT_URL`
+## Settings Drawer
 
-### Variables de Entorno (Flutter .env)
-- `MIXPANEL_PROJECT_TOKEN` - Token de Mixpanel para analytics
-- `DEEPGRAM_API_KEY` - STT Deepgram
-- `GOOGLE_CLIENT_ID` - Google Sign-In
-- `SUPABASE_URL`, `SUPABASE_ANON_KEY` - Supabase client
+**Perfiles**: Developer (`*@asertio.mx`) tiene Storage, Developer Settings, Feedback Received. Usuario final: opciones reducidas.
 
-## Patrón BuildContext Async
+## Internacionalizacion (i18n)
 
-```dart
-Future<void> myAsyncMethod() async {
-  if (!mounted) return;
-  final navigator = Navigator.of(context);  // Capturar ANTES
-  await someAsyncOperation();
-  if (!mounted) return;  // Verificar DESPUÉS
-  navigator.push(...);  // Usar referencia capturada
-}
-```
+- **Archivos**: `lib/l10n/app_en.arb`, `lib/l10n/app_es.arb`
+- **Uso**: `AppLocalizations.of(context)!.keyName`
+- **Generar**: `flutter gen-l10n`
+- **Runtime**: `MyApp.changeLocale('es')`
+- **Fechas**: `dateTimeFormat('MMM dd', date, locale: SharedPreferencesUtil().appLanguage)`
 
-**Reglas**: Verificar `mounted` antes/después de awaits, capturar Navigator/ScaffoldMessenger/Providers antes del await.
+## Analytics (Mixpanel)
 
-## Documentación Adicional
+Token en `.env` → `MIXPANEL_PROJECT_TOKEN`. Singleton `MixpanelManager` en `lib/utils/analytics/mixpanel.dart`. Mobile: `mixpanel_flutter`, Desktop: `mixpanel_analytics` (HTTP). Init en `main.dart`. Test button en Developer Settings.
 
-- `docs/CHAT_AGENT_DIFFERENCES.md` - Comparación chat agent
-- `docs/google-sign-in-setup.md` - Google Sign-In setup
-- `docs/MIXPANEL_GUIDE.md` - Guía de uso del dashboard de Mixpanel
+## VAD (Voice Activity Detection)
+
+Requiere: VAD habilitado + Custom STT (Deepgram) + PCM16. Estados: Silence → Pre-Roll → Speech → Hang-Over. Metricas en Developer Settings.
+
+**Archivos**: `lib/services/vad/vad_metrics.dart`, `lib/services/vad/vad_state.dart`, `lib/providers/capture_provider.dart` (`vadStateNotifier`, `vadMetrics`).
+
+## Backend
+
+Codigo en `C:\OMI\api\`: `index.py` (FastAPI), `routers/` (omi, metrics, feedback, memories, voice_profiles, messages, action_items, daily_reports), `services/` (supabase_client, embeddings, memory_extractor, communication_analyzer, chunked_processor, utils), `models/`.
+
+### Variables de Entorno
+**Vercel**: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_JWT_SECRET`, `MODAL_VOICE_ENDPOINT_URL`, `CRON_SECRET`.
+
+**Flutter .env**: `MIXPANEL_PROJECT_TOKEN`, `DEEPGRAM_API_KEY`, `GOOGLE_CLIENT_ID`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
+
+## Assets
+
+Logos en `assets/images/` (rosa #F93A6E). Regenerar: `dart run flutter_launcher_icons` / `dart run flutter_native_splash:create`.
+
+## Patrones
+
+**BuildContext async**: Verificar `mounted` antes/despues de awaits, capturar Navigator/ScaffoldMessenger antes del await.
+
+**API disabled pattern**: `debugPrint('[API Disabled]')` + return default. **Redirect pattern**: delegate a `OmiSupabaseService`.
+
+## Docs
+
+`docs/CHAT_AGENT_DIFFERENCES.md`, `docs/google-sign-in-setup.md`, `docs/MIXPANEL_GUIDE.md`.
