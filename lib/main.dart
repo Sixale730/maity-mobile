@@ -64,28 +64,33 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
-/// Auto-configura Deepgram como proveedor de STT si no hay configuración previa
+/// Auto-configura Deepgram como proveedor de STT y sincroniza el API key desde env
 Future<void> _autoConfigureDeepgram() async {
   final prefs = SharedPreferencesUtil();
   final currentConfig = prefs.customSttConfig;
+  final deepgramKey = Env.deepgramApiKey;
 
-  // Solo configurar si no hay STT personalizado habilitado
+  if (deepgramKey == null || deepgramKey.isEmpty) {
+    debugPrint('[Maity] WARNING: DEEPGRAM_API_KEY no configurado. Transcripcion no funcionara.');
+    return;
+  }
+
   if (!currentConfig.isEnabled) {
-    final deepgramKey = Env.deepgramApiKey;
-    if (deepgramKey == null || deepgramKey.isEmpty) {
-      debugPrint('[Maity] WARNING: DEEPGRAM_API_KEY no configurado. Transcripcion no funcionara.');
-      return;
-    }
-    if (deepgramKey.isNotEmpty) {
-      final config = CustomSttConfig(
-        provider: SttProvider.deepgramLive,
-        apiKey: deepgramKey,
-        language: 'es-419', // Español Latinoamericano
-        model: 'nova-3',
-      );
-      await prefs.saveCustomSttConfig(config);
-      debugPrint('[Maity] Deepgram auto-configurado como STT por defecto');
-    }
+    // No hay STT configurado - crear config de Deepgram
+    final config = CustomSttConfig(
+      provider: SttProvider.deepgramLive,
+      apiKey: deepgramKey,
+      language: 'es-419', // Español Latinoamericano
+      model: 'nova-3',
+    );
+    await prefs.saveCustomSttConfig(config);
+    debugPrint('[Maity] Deepgram auto-configurado como STT por defecto');
+  } else if (currentConfig.provider == SttProvider.deepgramLive &&
+             currentConfig.apiKey != deepgramKey) {
+    // Deepgram ya configurado pero con key diferente - actualizar
+    final updatedConfig = currentConfig.copyWith(apiKey: deepgramKey);
+    await prefs.saveCustomSttConfig(updatedConfig);
+    debugPrint('[Maity] Deepgram API key actualizado desde env');
   }
 }
 
