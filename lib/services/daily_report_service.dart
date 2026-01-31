@@ -52,6 +52,32 @@ class DailyReportService {
     }
   }
 
+  static Future<Map<String, dynamic>?> triggerReportGeneration(String date) async {
+    final response = await makeApiCall(
+      url: '$_baseUrl/v1/daily-reports/trigger?date=$date',
+      method: 'POST',
+      headers: {},
+      body: '',
+    );
+
+    if (response == null) {
+      debugPrint('[DailyReportService] triggerReportGeneration: no response');
+      return null;
+    }
+
+    if (response.statusCode != 200) {
+      debugPrint('[DailyReportService] triggerReportGeneration failed: ${response.statusCode} ${response.body}');
+      return null;
+    }
+
+    try {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('[DailyReportService] Error parsing trigger response: $e');
+      return null;
+    }
+  }
+
   static Future<List<DailyCommunicationReport>> getReportHistory(String userId, {int limit = 7}) async {
     final response = await makeApiCall(
       url: '$_baseUrl/v1/daily-reports/history?user_id=$userId&limit=$limit',

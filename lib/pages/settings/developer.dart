@@ -17,8 +17,10 @@ import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/developer_mode_provider.dart';
 import 'package:omi/providers/mcp_provider.dart';
 import 'package:omi/services/vad/vad_state.dart';
+import 'package:omi/services/daily_report_service.dart';
 import 'package:omi/utils/alerts/app_snackbar.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
+import 'package:intl/intl.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -33,6 +35,10 @@ class DeveloperSettingsPage extends StatefulWidget {
 }
 
 class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
+  DateTime _selectedReportDate = DateTime.now().subtract(const Duration(days: 1));
+  bool _triggeringReport = false;
+  String? _triggerResult;
+
   @override
   void initState() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -1434,6 +1440,187 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                           value: provider.followUpQuestionEnabled,
                           onChanged: provider.onFollowUpQuestionChanged,
                         ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Daily Reports Section
+                  _buildSectionHeader('Daily Reports', subtitle: 'Manually trigger report generation'),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1C1C1E),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      children: [
+                        // Date picker row
+                        Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2A2A2E),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Center(
+                                child: FaIcon(
+                                  FontAwesomeIcons.calendarDay,
+                                  color: Colors.grey.shade400,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Report Date',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    DateFormat('yyyy-MM-dd').format(_selectedReportDate),
+                                    style: TextStyle(
+                                      color: Colors.grey.shade400,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: _selectedReportDate,
+                                  firstDate: DateTime.now().subtract(const Duration(days: 90)),
+                                  lastDate: DateTime.now(),
+                                  builder: (context, child) {
+                                    return Theme(
+                                      data: ThemeData.dark().copyWith(
+                                        colorScheme: const ColorScheme.dark(
+                                          primary: Color(0xFFF93A6E),
+                                          onPrimary: Colors.white,
+                                          surface: Color(0xFF1C1C1E),
+                                          onSurface: Colors.white,
+                                        ),
+                                        dialogBackgroundColor: const Color(0xFF1C1C1E),
+                                      ),
+                                      child: child!,
+                                    );
+                                  },
+                                );
+                                if (picked != null) {
+                                  setState(() => _selectedReportDate = picked);
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2A2A2E),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Change',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade300,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Generate button
+                        GestureDetector(
+                          onTap: _triggeringReport
+                              ? null
+                              : () async {
+                                  setState(() {
+                                    _triggeringReport = true;
+                                    _triggerResult = null;
+                                  });
+
+                                  final dateStr = DateFormat('yyyy-MM-dd').format(_selectedReportDate);
+                                  final result = await DailyReportService.triggerReportGeneration(dateStr);
+
+                                  if (!mounted) return;
+
+                                  if (result != null && result['success'] == true) {
+                                    AppSnackbar.showSnackbar('Report generated for $dateStr');
+                                    setState(() {
+                                      _triggerResult = 'Report generated successfully';
+                                    });
+                                  } else {
+                                    final error = result?['error'] ?? 'Unknown error';
+                                    AppSnackbar.showSnackbarError('Failed: $error');
+                                    setState(() {
+                                      _triggerResult = 'Error: $error';
+                                    });
+                                  }
+
+                                  setState(() => _triggeringReport = false);
+                                },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _triggeringReport
+                                  ? const Color(0xFF2A2A2E)
+                                  : const Color(0xFFF93A6E).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: _triggeringReport
+                                ? const Center(
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      FaIcon(FontAwesomeIcons.play, color: Color(0xFFF93A6E), size: 14),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Generate Report',
+                                        style: TextStyle(
+                                          color: Color(0xFFF93A6E),
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                        // Result display
+                        if (_triggerResult != null) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            _triggerResult!,
+                            style: TextStyle(
+                              color: _triggerResult!.startsWith('Error') ? Colors.redAccent : Colors.green,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

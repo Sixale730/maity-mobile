@@ -136,6 +136,47 @@ async def generate_daily_reports(target_date: Optional[str] = None) -> dict:
     return summary
 
 
+async def generate_daily_report_for_user(user_id: str, target_date: Optional[str] = None) -> dict:
+    """Generate a daily report for a single user.
+
+    Args:
+        user_id: The maity.users.id for the user.
+        target_date: Date string YYYY-MM-DD. Defaults to today in Mexico time.
+
+    Returns:
+        Dict with success, report_date, user_id, and error (if any).
+    """
+    supabase = get_supabase()
+
+    if target_date:
+        report_date = target_date
+    else:
+        now_utc = datetime.now(timezone.utc)
+        mexico_time = now_utc + timedelta(hours=MEXICO_UTC_OFFSET)
+        report_date = mexico_time.strftime("%Y-%m-%d")
+
+    date_start = f"{report_date}T00:00:00"
+    date_end = f"{report_date}T23:59:59"
+
+    try:
+        success = await _generate_single_user_report(
+            supabase, user_id, report_date, date_start, date_end
+        )
+        return {
+            "success": success,
+            "report_date": report_date,
+            "user_id": user_id,
+            "error": None if success else "No conversations with feedback found for this date",
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "report_date": report_date,
+            "user_id": user_id,
+            "error": str(e),
+        }
+
+
 async def _generate_single_user_report(
     supabase, user_id: str, report_date: str, date_start: str, date_end: str
 ) -> bool:

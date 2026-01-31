@@ -3,8 +3,8 @@ from fastapi import APIRouter, HTTPException, Depends, Header, Query
 from typing import Optional, List
 import os
 
-from .feedback import get_user_from_token, get_maity_user_id
-from ..services.daily_report_generator import generate_daily_reports
+from .feedback import get_user_from_token, get_maity_user_id, is_developer_email
+from ..services.daily_report_generator import generate_daily_reports, generate_daily_report_for_user
 from ..services.supabase_client import get_supabase
 
 
@@ -22,7 +22,7 @@ def _verify_cron_secret(authorization: str = Header(...)):
         raise HTTPException(status_code=401, detail="Invalid cron secret")
 
 
-@router.post("/generate")
+@router.get("/generate")
 async def generate_reports(
     date: Optional[str] = Query(None, description="Target date YYYY-MM-DD, defaults to today Mexico time"),
     authorization: str = Header(...),
@@ -35,6 +35,27 @@ async def generate_reports(
     _verify_cron_secret(authorization)
 
     result = await generate_daily_reports(target_date=date)
+    return result
+
+
+@router.post("/trigger")
+async def trigger_report_for_user(
+    date: str = Query(..., description="Target date YYYY-MM-DD"),
+    user: dict = Depends(get_user_from_token),
+):
+    """Manually trigger daily report generation for the current user.
+
+    Restricted to developer emails (@asertio.mx).
+    """
+    email = user.get("email")
+    if not is_developer_email(email):
+        raise HTTPException(status_code=403, detail="Access denied. Developer only.")
+
+    maity_user_id = await get_maity_user_id(user["auth_id"])
+    if not maity_user_id:
+        raise HTTPException(status_code=404, detail="User not found in maity.users")
+
+    result = await generate_daily_report_for_user(user_id=maity_user_id, target_date=date)
     return result
 
 
