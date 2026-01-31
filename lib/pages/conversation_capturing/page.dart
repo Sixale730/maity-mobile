@@ -186,7 +186,7 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
                             ? Center(
                                 child: Padding(
                                   padding: const EdgeInsets.only(top: 50.0),
-                                  child: Text(AppLocalizations.of(context)?.waitingForTranscript ?? "Waiting for transcript or photos..."),
+                                  child: Text(AppLocalizations.of(context)?.waitingForTranscript ?? "Waiting for transcript..."),
                                 ),
                               )
                             : getTranscriptWidget(

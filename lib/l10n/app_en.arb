@@ -338,7 +338,7 @@
   "chooseFile": "Choose File",
   "dismiss": "Dismiss",
 
-  "waitingForTranscript": "Waiting for transcript or photos...",
+  "waitingForTranscript": "Waiting for transcript...",
   "noSummaryYet": "No summary yet",
   "finishedConversation": "Finished Conversation?",
   "stopRecordingConfirm": "Are you sure you want to stop recording and summarize the conversation now?",

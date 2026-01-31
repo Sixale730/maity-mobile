@@ -248,7 +248,7 @@
   "chooseFile": "Elegir Archivo",
   "dismiss": "Cerrar",
 
-  "waitingForTranscript": "Esperando transcripción o fotos...",
+  "waitingForTranscript": "Esperando transcripción...",
   "noSummaryYet": "Aún no hay resumen",
   "finishedConversation": "¿Conversación terminada?",
   "stopRecordingConfirm": "¿Estás seguro de que quieres detener la grabación y resumir la conversación ahora?",
