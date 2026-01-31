@@ -72,7 +72,11 @@ Future<void> _autoConfigureDeepgram() async {
   // Solo configurar si no hay STT personalizado habilitado
   if (!currentConfig.isEnabled) {
     final deepgramKey = Env.deepgramApiKey;
-    if (deepgramKey != null && deepgramKey.isNotEmpty) {
+    if (deepgramKey == null || deepgramKey.isEmpty) {
+      debugPrint('[Maity] WARNING: DEEPGRAM_API_KEY no configurado. Transcripcion no funcionara.');
+      return;
+    }
+    if (deepgramKey.isNotEmpty) {
       final config = CustomSttConfig(
         provider: SttProvider.deepgramLive,
         apiKey: deepgramKey,
