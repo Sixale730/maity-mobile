@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/schema/memory.dart';
 import 'package:omi/providers/home_provider.dart';
@@ -233,6 +234,10 @@ class MemoriesPageState extends State<MemoriesPage> with AutomaticKeepAliveClien
           canPop: true,
           child: Scaffold(
             backgroundColor: Theme.of(context).colorScheme.primary,
+            appBar: AppBar(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              title: Text(AppLocalizations.of(context)!.memories),
+            ),
             floatingActionButton: Padding(
               padding: const EdgeInsets.only(bottom: 60.0),
               child: FloatingActionButton(

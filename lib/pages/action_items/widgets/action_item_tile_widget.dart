@@ -224,6 +224,7 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
     }
   }
 
+  // ignore: unused_element
   Widget _buildTaskExportIcon(BuildContext context) {
     // If already exported, show the export platform logo
     // Otherwise, show the currently selected task app
@@ -1029,9 +1030,9 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
                       ],
                     ),
                   ),
-                  // Task export icon
-                  const SizedBox(width: 12),
-                  _buildTaskExportIcon(context),
+                  // Task export icon (disabled)
+                  // const SizedBox(width: 12),
+                  // _buildTaskExportIcon(context),
                 ],
               ),
               if (widget.actionItem.isLocked)

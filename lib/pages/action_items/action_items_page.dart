@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'widgets/action_item_tile_widget.dart';
 import 'widgets/action_item_shimmer_widget.dart';
 import 'widgets/action_item_form_sheet.dart';
-import 'widgets/task_integrations_banner.dart';
+// import 'widgets/task_integrations_banner.dart';
 
 import 'package:omi/backend/schema/schema.dart';
 import 'package:omi/providers/action_items_provider.dart';
@@ -208,8 +208,8 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Task Integrations Banner
-                          const TaskIntegrationsBanner(),
+                          // Task Integrations Banner (disabled)
+                          // const TaskIntegrationsBanner(),
 
                           // Segmented Control - Full width like action items
                           Container(
