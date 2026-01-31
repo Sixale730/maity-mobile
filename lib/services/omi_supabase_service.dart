@@ -588,6 +588,7 @@ class OmiConversation {
         overview,
         emoji: emoji,
         category: category,
+        discarded: discarded,
       ),
       transcriptSegments: [],
       status: status == 'completed' ? ConversationStatus.completed : ConversationStatus.processing,

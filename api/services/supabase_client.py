@@ -317,6 +317,14 @@ async def finalize_conversation(
         update_data["events"] = structured.get("events", [])
         update_data["discarded"] = structured.get("discarded", False)
 
+    # Auto-discard trivial conversations atomically (before the update)
+    # This prevents the race condition where a conversation is briefly
+    # visible as completed before the separate discard check runs.
+    if not update_data.get("discarded", False):
+        from routers.omi import should_auto_discard
+        if should_auto_discard(words_count, duration_seconds, len(segments_in_db)):
+            update_data["discarded"] = True
+
     # Step 2: Update the conversation row
     result = (
         supabase.schema("maity")

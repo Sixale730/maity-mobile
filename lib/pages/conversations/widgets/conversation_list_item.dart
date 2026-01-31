@@ -180,7 +180,11 @@ class _ConversationListItemState extends State<ConversationListItem> {
     final structured = widget.conversation.structured;
     final emoji = structured.getEmoji();
     final title = widget.conversation.discarded
-        ? widget.conversation.getTranscript(maxCount: 100)
+        ? (widget.conversation.getTranscript(maxCount: 100).isNotEmpty
+            ? widget.conversation.getTranscript(maxCount: 100)
+            : structured.title.decodeString.isNotEmpty
+                ? structured.title.decodeString
+                : 'Discarded')
         : structured.title.decodeString;
 
     return Stack(

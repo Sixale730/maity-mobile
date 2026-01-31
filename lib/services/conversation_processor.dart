@@ -69,6 +69,7 @@ class ConversationProcessor {
         transcript,
         emoji: '💬',
         category: 'personal',
+        discarded: true,
       );
     }
 

@@ -317,33 +317,38 @@ class ConversationProvider extends ChangeNotifier {
     List<ServerConversation> newConversations = await _getConversationsFromServer();
     setLoadingConversations(false);
 
-    List<ServerConversation> upsertConvos = [];
-
-    // processing convos
-    upsertConvos = newConversations
-        .where((c) =>
-            c.status == ConversationStatus.processing &&
-            processingConversations.indexWhere((cc) => cc.id == c.id) == -1)
+    // Get completed conversations from server
+    final serverCompleted = newConversations
+        .where((c) => c.status == ConversationStatus.completed)
         .toList();
-    if (upsertConvos.isNotEmpty) {
-      processingConversations.insertAll(0, upsertConvos);
-    }
+    final serverIds = serverCompleted.map((c) => c.id).toSet();
 
-    // completed convos
-    upsertConvos = newConversations
-        .where((c) => c.status == ConversationStatus.completed && conversations.indexWhere((cc) => cc.id == c.id) == -1)
+    // Remove conversations no longer returned by server (e.g. became discarded)
+    // Keep local-only conversations (source == friend) that weren't fetched from server
+    conversations.removeWhere((c) =>
+        !serverIds.contains(c.id) &&
+        c.source != ConversationSource.friend);
+
+    // Add new completed conversations not already in list
+    final newCompleted = serverCompleted
+        .where((c) => conversations.indexWhere((cc) => cc.id == c.id) == -1)
         .toList();
-    if (upsertConvos.isNotEmpty) {
+    if (newCompleted.isNotEmpty) {
       // Check if this is the first conversation
       bool wasEmpty = conversations.isEmpty;
 
-      conversations.insertAll(0, upsertConvos);
+      conversations.insertAll(0, newCompleted);
 
       // Mark first conversation for app review
       if (wasEmpty && await _appReviewService.isFirstConversation()) {
         await _appReviewService.markFirstConversation();
       }
     }
+
+    // Update processing conversations
+    processingConversations = newConversations
+        .where((c) => c.status == ConversationStatus.processing)
+        .toList();
 
     _groupConversationsByDateWithoutNotify();
     notifyListeners();
