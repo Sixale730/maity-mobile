@@ -111,14 +111,8 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 1),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
           child: Row(
             children: [
               SizedBox(
@@ -198,18 +192,19 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               ),
             ],
           ),
-        ),
       ),
     );
   }
 
   Widget _buildSectionContainer({required List<Widget> children}) {
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: children,
       ),
     );

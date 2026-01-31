@@ -32,11 +32,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildSectionContainer({required List<Widget> children}) {
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: children,
       ),
     );
@@ -54,13 +56,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
           child: Row(
             children: [
               SizedBox(
@@ -155,7 +152,6 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ],
           ),
-        ),
       ),
     );
   }
@@ -166,12 +162,9 @@ class _ProfilePageState extends State<ProfilePage> {
     required Function(bool) onChanged,
     required VoidCallback onInfoTap,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
+    return _buildSectionContainer(
+      children: [
+        Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
@@ -220,6 +213,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
       ),
+      ],
     );
   }
 
@@ -247,7 +241,8 @@ class _ProfilePageState extends State<ProfilePage> {
           children: <Widget>[
             const SizedBox(height: 20),
 
-            // DEBUG: Supabase Login Status
+            // DEBUG: Supabase Login Status (developer-only)
+            if (SharedPreferencesUtil().email.endsWith('@asertio.mx'))
             Container(
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 16),
@@ -324,16 +319,18 @@ class _ProfilePageState extends State<ProfilePage> {
                 const Divider(height: 1, color: Color(0xFF3C3C43)),
                 Consumer<HomeProvider>(
                   builder: (context, homeProvider, _) {
-                    final languageName = homeProvider.userPrimaryLanguage.isNotEmpty
+                    final matchingEntries = homeProvider.userPrimaryLanguage.isNotEmpty
                         ? homeProvider.availableLanguages.entries
-                            .firstWhere(
-                              (element) => element.value == homeProvider.userPrimaryLanguage,
-                            )
-                            .key
+                            .where((element) => element.value == homeProvider.userPrimaryLanguage)
+                            .toList()
+                        : <MapEntry<String, String>>[];
+                    final languageName = matchingEntries.isNotEmpty
+                        ? matchingEntries.first.key
                         : 'Not set';
 
                     return _buildProfileItem(
                       title: AppLocalizations.of(context)?.primaryLanguage ?? 'Primary Language',
+                      subtitle: languageName,
                       icon: const FaIcon(FontAwesomeIcons.globe, color: Color(0xFF8E8E93), size: 20),
                       onTap: () async {
                         MixpanelManager().pageOpened('Profile Change Language');
