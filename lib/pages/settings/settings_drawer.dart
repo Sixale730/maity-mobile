@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -10,7 +11,6 @@ import 'package:omi/pages/settings/about.dart';
 import 'package:omi/pages/settings/data_privacy_page.dart';
 import 'package:omi/pages/settings/developer.dart';
 import 'package:omi/pages/settings/profile.dart';
-import 'package:omi/utils/other/temp.dart';
 import 'package:omi/widgets/dialog.dart';
 // Intercom disabled - causes build issues
 // import 'package:intercom_flutter/intercom_flutter.dart';
@@ -110,6 +110,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
     Widget? trailingChip,
   }) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -318,6 +319,18 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
     );
   }
 
+  /// Closes the settings drawer and navigates to a page.
+  /// Uses the global navigator key since the modal bottom sheet's context
+  /// becomes invalid after pop (unlike a Drawer, a modal is a separate route).
+  void _navigateAfterClose(BuildContext context, Widget page) {
+    Navigator.pop(context);
+    MyApp.navigatorKey.currentState?.push(
+      Platform.isIOS
+          ? CupertinoPageRoute(builder: (_) => page)
+          : MaterialPageRoute(builder: (_) => page),
+    );
+  }
+
   /// Returns true if the user has a developer profile (@asertio.mx email)
   bool _isDeveloperUser() {
     final email = SharedPreferencesUtil().email;
@@ -377,10 +390,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               _buildSettingsItem(
                 title: AppLocalizations.of(context)?.profile ?? 'Profile',
                 icon: const FaIcon(FontAwesomeIcons.solidUser, color: Color(0xFF8E8E93), size: 20),
-                onTap: () {
-                  Navigator.pop(context);
-                  routeToPage(context, const ProfilePage());
-                },
+                onTap: () => _navigateAfterClose(context, const ProfilePage()),
               ),
               // Storage - Developer only
               if (_isDeveloperUser()) ...[
@@ -388,28 +398,14 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 _buildSettingsItem(
                   title: AppLocalizations.of(context)?.storage ?? 'Storage',
                   icon: const FaIcon(FontAwesomeIcons.database, color: Color(0xFF8E8E93), size: 20),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const SyncPage(),
-                      ),
-                    );
-                  },
+                  onTap: () => _navigateAfterClose(context, const SyncPage()),
                 ),
               ],
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
                 title: AppLocalizations.of(context)?.deviceSettings ?? 'Device Settings',
                 icon: const FaIcon(FontAwesomeIcons.bluetooth, color: Color(0xFF8E8E93), size: 20),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const DeviceSettings(),
-                    ),
-                  );
-                },
+                onTap: () => _navigateAfterClose(context, const DeviceSettings()),
               ),
             ],
           ),
@@ -436,14 +432,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               _buildSettingsItem(
                 title: AppLocalizations.of(context)?.sendFeedback ?? 'Send Feedback',
                 icon: const FaIcon(FontAwesomeIcons.solidEnvelope, color: Color(0xFF8E8E93), size: 20),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const FeedbackPage(),
-                    ),
-                  );
-                },
+                onTap: () => _navigateAfterClose(context, const FeedbackPage()),
               ),
               // Feedback Received - Developer only
               if (_isDeveloperUser()) ...[
@@ -451,14 +440,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 _buildSettingsItem(
                   title: AppLocalizations.of(context)?.feedbackReceived ?? 'Feedback Received',
                   icon: const FaIcon(FontAwesomeIcons.inbox, color: Color(0xFF8E8E93), size: 20),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const FeedbackListPage(),
-                      ),
-                    );
-                  },
+                  onTap: () => _navigateAfterClose(context, const FeedbackListPage()),
                 ),
               ],
             ],
@@ -471,14 +453,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               _buildSettingsItem(
                 title: AppLocalizations.of(context)?.dataPrivacy ?? 'Data & Privacy',
                 icon: const FaIcon(FontAwesomeIcons.shield, color: Color(0xFF8E8E93), size: 20),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const DataPrivacyPage(),
-                    ),
-                  );
-                },
+                onTap: () => _navigateAfterClose(context, const DataPrivacyPage()),
               ),
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
@@ -496,20 +471,14 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 _buildSettingsItem(
                   title: AppLocalizations.of(context)?.developerSettings ?? 'Developer Settings',
                   icon: const FaIcon(FontAwesomeIcons.code, color: Color(0xFF8E8E93), size: 20),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await routeToPage(context, const DeveloperSettingsPage());
-                  },
+                  onTap: () => _navigateAfterClose(context, const DeveloperSettingsPage()),
                 ),
               ],
               const Divider(height: 1, color: Color(0xFF3C3C43)),
               _buildSettingsItem(
                 title: AppLocalizations.of(context)?.aboutMaity ?? 'About Maity',
                 icon: const FaIcon(FontAwesomeIcons.infoCircle, color: Color(0xFF8E8E93), size: 20),
-                onTap: () {
-                  Navigator.pop(context);
-                  routeToPage(context, const AboutOmiPage());
-                },
+                onTap: () => _navigateAfterClose(context, const AboutOmiPage()),
               ),
             ],
           ),
