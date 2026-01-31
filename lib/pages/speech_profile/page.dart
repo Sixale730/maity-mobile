@@ -415,223 +415,217 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                       onPressed: () => Navigator.pop(context),
                     ),
             ),
-            body: Stack(
+            body: Column(
               children: [
-                Align(
-                  alignment: Alignment.topCenter,
+                // Top section: device animation or phone mic icon
+                provider.usePhoneMic && provider.startedRecording
+                    ? const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: SizedBox(
+                          height: 80,
+                          child: Center(child: Icon(Icons.mic, color: Colors.white, size: 64)),
+                        ),
+                      )
+                    : ClipRect(
+                        child: const DeviceAnimationWidget(
+                          sizeMultiplier: 0.7,
+                          animatedBackground: true,
+                        ),
+                      ),
+                // Middle section: text content
+                Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                    child: Column(
-                      children: [
-                        provider.usePhoneMic && provider.startedRecording
-                            ? const Icon(Icons.mic, color: Colors.white, size: 64)
-                            : const DeviceAnimationWidget(animatedBackground: true),
-                      ],
-                    ),
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.center,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(40, 40, 40, 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
                     child: !provider.startedRecording
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const SizedBox(height: 10),
-                              Text(
-                                AppLocalizations.of(context)?.maityNeedsToLearnVoice ?? 'Maity needs to learn your voice to be able to recognise you.',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  height: 1.4,
-                                  fontWeight: FontWeight.w400,
-                                ),
+                        ? Center(
+                            child: Text(
+                              AppLocalizations.of(context)?.maityNeedsToLearnVoice ?? 'Maity needs to learn your voice to be able to recognise you.',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                height: 1.4,
+                                fontWeight: FontWeight.w400,
                               ),
-                              const SizedBox(height: 20),
-                            ],
+                            ),
                           )
                         : provider.text.isEmpty
-                            ? (provider.percentageCompleted > 0
-                                ? const SizedBox()
-                                : Text(
-                                    AppLocalizations.of(context)?.introduceYourself ?? "Introduce\nyourself",
-                                    style: const TextStyle(color: Colors.white, fontSize: 24, height: 1.4),
-                                    textAlign: TextAlign.center,
-                                  ))
-                            : Padding(
-                                padding: const EdgeInsets.only(top: 80.0),
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    return ShaderMask(
-                                      shaderCallback: (bounds) {
-                                        if (provider.text.split(' ').length < 10) {
-                                          return const LinearGradient(colors: [Colors.white, Colors.white])
-                                              .createShader(bounds);
-                                        }
-                                        return const LinearGradient(
-                                          colors: [Colors.transparent, Colors.white],
-                                          stops: [0.0, 0.5],
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                        ).createShader(bounds);
-                                      },
-                                      blendMode: BlendMode.dstIn,
-                                      child: SizedBox(
-                                        height: 130,
-                                        child: ListView(
-                                          controller: _scrollController,
-                                          shrinkWrap: true,
-                                          physics: const NeverScrollableScrollPhysics(),
-                                          children: [
-                                            Text(
-                                              provider.text,
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w400,
-                                                height: 1.5,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                            ? Center(
+                                child: provider.percentageCompleted > 0
+                                    ? const SizedBox()
+                                    : Text(
+                                        AppLocalizations.of(context)?.introduceYourself ?? "Introduce\nyourself",
+                                        style: const TextStyle(color: Colors.white, fontSize: 24, height: 1.4),
+                                        textAlign: TextAlign.center,
                                       ),
-                                    );
+                              )
+                            : Center(
+                                child: ShaderMask(
+                                  shaderCallback: (bounds) {
+                                    if (provider.text.split(' ').length < 10) {
+                                      return const LinearGradient(colors: [Colors.white, Colors.white])
+                                          .createShader(bounds);
+                                    }
+                                    return const LinearGradient(
+                                      colors: [Colors.transparent, Colors.white],
+                                      stops: [0.0, 0.5],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ).createShader(bounds);
                                   },
-                                ),
-                              ),
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 0, 0, 48),
-                    child: !provider.startedRecording
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              provider.isInitialising
-                                  ? const CircularProgressIndicator(
-                                      color: Colors.white,
-                                    )
-                                  : Column(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      // Primary button: BLE device or phone mic
-                                      MaterialButton(
-                                        onPressed: () async {
-                                          if (provider.device != null) {
-                                            await _startWithBleDevice(provider, stopDeviceRecording, restartDeviceRecording);
-                                          } else {
-                                            await _startWithPhoneMic(provider, stopDeviceRecording, restartDeviceRecording);
-                                          }
-                                        },
-                                        color: Colors.white,
-                                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            if (provider.device == null)
-                                              const Padding(
-                                                padding: EdgeInsets.only(right: 8),
-                                                child: Icon(Icons.mic, color: Colors.black, size: 20),
-                                              ),
-                                            Text(
-                                              provider.device == null
-                                                  ? (AppLocalizations.of(context)?.usePhoneMic ?? 'Use phone microphone')
-                                                  : SharedPreferencesUtil().hasSpeakerProfile
-                                                      ? (AppLocalizations.of(context)?.doItAgain ?? 'Do it again')
-                                                      : (AppLocalizations.of(context)?.getStarted ?? 'Get Started'),
-                                              style: const TextStyle(color: Colors.black),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      // Secondary option: phone mic when device is connected
-                                      if (provider.device != null) ...[
-                                        const SizedBox(height: 12),
-                                        TextButton.icon(
-                                          onPressed: () async => _startWithPhoneMic(provider, stopDeviceRecording, restartDeviceRecording),
-                                          icon: const Icon(Icons.mic, color: Colors.white70, size: 18),
-                                          label: Text(
-                                            AppLocalizations.of(context)?.usePhoneMic ?? 'Use phone microphone',
-                                            style: const TextStyle(color: Colors.white70, fontSize: 14),
+                                  blendMode: BlendMode.dstIn,
+                                  child: SizedBox(
+                                    height: 130,
+                                    child: ListView(
+                                      controller: _scrollController,
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      children: [
+                                        Text(
+                                          provider.text,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w400,
+                                            height: 1.5,
                                           ),
                                         ),
                                       ],
-                                    ],
-                                  ),
-                              const SizedBox(height: 24),
-                              SharedPreferencesUtil().hasSpeakerProfile
-                                  ? TextButton(
-                                      onPressed: () {
-                                        routeToPage(context, const UserSpeechSamples());
-                                      },
-                                      child: Text(
-                                        '${AppLocalizations.of(context)?.listenToMySpeechProfile ?? 'Listen to my speech profile'} ➡️',
-                                        style: const TextStyle(color: Colors.white, fontSize: 16),
-                                      ))
-                                  : const SizedBox(),
-                              TextButton(
-                                  onPressed: () {
-                                    routeToPage(context, const UserPeoplePage());
-                                  },
-                                  child: Text(
-                                    '${AppLocalizations.of(context)?.recognizingOthers ?? 'Recognizing others'} 👀',
-                                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                                  )),
-                            ],
-                          )
-                        : provider.profileCompleted
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                                decoration: BoxDecoration(
-                                  border: const GradientBoxBorder(
-                                    gradient: LinearGradient(colors: [
-                                      Color.fromARGB(127, 208, 208, 208),
-                                      Color.fromARGB(127, 188, 99, 121),
-                                      Color.fromARGB(127, 86, 101, 182),
-                                      Color.fromARGB(127, 126, 190, 236)
-                                    ]),
-                                    width: 2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: TextButton(
-                                  onPressed: () {
-                                    Navigator.pop(context);
-                                  },
-                                  child: Text(
-                                    AppLocalizations.of(context)?.allDone ?? "All done!",
-                                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                                    ),
                                   ),
                                 ),
-                              )
-                            : provider.uploadingProfile
+                              ),
+                  ),
+                ),
+                // Bottom section: buttons, progress bar
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 48),
+                  child: !provider.startedRecording
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            provider.isInitialising
                                 ? const CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    color: Colors.white,
                                   )
                                 : Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const SizedBox(height: 24),
-                                      SizedBox(
-                                        width: MediaQuery.sizeOf(context).width * 0.9,
-                                        child: ProgressBarWithPercentage(progressValue: provider.percentageCompleted),
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Primary button: BLE device or phone mic
+                                    MaterialButton(
+                                      onPressed: () async {
+                                        if (provider.device != null) {
+                                          await _startWithBleDevice(provider, stopDeviceRecording, restartDeviceRecording);
+                                        } else {
+                                          await _startWithPhoneMic(provider, stopDeviceRecording, restartDeviceRecording);
+                                        }
+                                      },
+                                      color: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (provider.device == null)
+                                            const Padding(
+                                              padding: EdgeInsets.only(right: 8),
+                                              child: Icon(Icons.mic, color: Colors.black, size: 20),
+                                            ),
+                                          Text(
+                                            provider.device == null
+                                                ? (AppLocalizations.of(context)?.usePhoneMic ?? 'Use phone microphone')
+                                                : SharedPreferencesUtil().hasSpeakerProfile
+                                                    ? (AppLocalizations.of(context)?.doItAgain ?? 'Do it again')
+                                                    : (AppLocalizations.of(context)?.getStarted ?? 'Get Started'),
+                                            style: const TextStyle(color: Colors.black),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 18),
-                                      Text(
+                                    ),
+                                    // Secondary option: phone mic when device is connected
+                                    if (provider.device != null) ...[
+                                      const SizedBox(height: 12),
+                                      TextButton.icon(
+                                        onPressed: () async => _startWithPhoneMic(provider, stopDeviceRecording, restartDeviceRecording),
+                                        icon: const Icon(Icons.mic, color: Colors.white70, size: 18),
+                                        label: Text(
+                                          AppLocalizations.of(context)?.usePhoneMic ?? 'Use phone microphone',
+                                          style: const TextStyle(color: Colors.white70, fontSize: 14),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                            const SizedBox(height: 24),
+                            SharedPreferencesUtil().hasSpeakerProfile
+                                ? TextButton(
+                                    onPressed: () {
+                                      routeToPage(context, const UserSpeechSamples());
+                                    },
+                                    child: Text(
+                                      '${AppLocalizations.of(context)?.listenToMySpeechProfile ?? 'Listen to my speech profile'} ➡️',
+                                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                                    ))
+                                : const SizedBox(),
+                            TextButton(
+                                onPressed: () {
+                                  routeToPage(context, const UserPeoplePage());
+                                },
+                                child: Text(
+                                  '${AppLocalizations.of(context)?.recognizingOthers ?? 'Recognizing others'} 👀',
+                                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                                )),
+                          ],
+                        )
+                      : provider.profileCompleted
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                              decoration: BoxDecoration(
+                                border: const GradientBoxBorder(
+                                  gradient: LinearGradient(colors: [
+                                    Color.fromARGB(127, 208, 208, 208),
+                                    Color.fromARGB(127, 188, 99, 121),
+                                    Color.fromARGB(127, 86, 101, 182),
+                                    Color.fromARGB(127, 126, 190, 236)
+                                  ]),
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                                child: Text(
+                                  AppLocalizations.of(context)?.allDone ?? "All done!",
+                                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                                ),
+                              ),
+                            )
+                          : provider.uploadingProfile
+                              ? const CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                )
+                              : Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      width: MediaQuery.sizeOf(context).width * 0.9,
+                                      child: ProgressBarWithPercentage(progressValue: provider.percentageCompleted),
+                                    ),
+                                    const SizedBox(height: 18),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 40),
+                                      child: Text(
                                         provider.message,
                                         style: TextStyle(color: Colors.grey.shade300, fontSize: 14, height: 1.4),
                                         textAlign: TextAlign.center,
                                       ),
-                                      const SizedBox(height: 30),
-                                    ],
-                                  ),
-                  ),
+                                    ),
+                                    const SizedBox(height: 30),
+                                  ],
+                                ),
                 ),
               ],
             ),
