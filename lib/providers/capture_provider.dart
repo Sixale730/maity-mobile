@@ -105,6 +105,7 @@ class CaptureProvider extends ChangeNotifier
   DateTime? _recordingStartTime; // Track when recording started for local conversations
   bool _conversationFinalized = false; // Prevents duplicate saves when stopping recording
   bool _isSpeechProfileMode = false; // Blocks conversation save during speech profile training
+  int _audioBytesSent = 0; // Diagnostic counter for audio bytes sent to STT
 
   int _getRecordingDuration() => _recordingDuration;
 
@@ -419,6 +420,9 @@ class CaptureProvider extends ChangeNotifier
     final customSttConfig = SharedPreferencesUtil().customSttConfig;
 
     Logger.debug('Custom STT enabled: ${customSttConfig.isEnabled}, provider: ${customSttConfig.provider}');
+    if (customSttConfig.isEnabled) {
+      debugPrint('[Maity] STT key hash: ${customSttConfig.apiKey?.hashCode.toRadixString(16).padLeft(8, "0").substring(0, 8) ?? "null"}');
+    }
 
     // Check codec compatibility for custom STT - fallback to default if incompatible
     CustomSttConfig? effectiveConfig = customSttConfig.isEnabled ? customSttConfig : null;
@@ -967,6 +971,7 @@ class CaptureProvider extends ChangeNotifier
     await changeAudioRecordProfile(audioCodec: BleAudioCodec.pcm16, sampleRate: 16000);
 
     // record
+    _audioBytesSent = 0;
     await ServiceManager.instance().mic.start(onByteReceived: (bytes) {
       if (_socket?.state == SocketServiceState.connected) {
         // Use VAD to filter silence if available
@@ -976,6 +981,10 @@ class CaptureProvider extends ChangeNotifier
         } else {
           // No VAD - send all audio directly
           _socket?.send(bytes);
+        }
+        _audioBytesSent += bytes.length;
+        if (_audioBytesSent % 32000 < bytes.length) {
+          debugPrint('[Maity] Audio bytes enviados: $_audioBytesSent');
         }
       }
     }, onRecording: () {
