@@ -425,7 +425,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   Future<void> _checkForDailyReport() async {
     try {
       final provider = context.read<DailyReportProvider>();
-      await provider.fetchLatestReport();
+      // Only fetch if not already loaded (DashboardPage likely fetched it already)
+      if (provider.latestReport == null) {
+        await provider.fetchLatestReport();
+      }
       if (!mounted) return;
 
       final report = provider.latestReport;

@@ -8,6 +8,7 @@ class DailyReportProvider extends ChangeNotifier {
   List<DailyCommunicationReport> _history = [];
   bool _isLoading = false;
   String? _error;
+  Future<void>? _fetchFuture;
 
   DailyCommunicationReport? get latestReport => _latestReport;
   List<DailyCommunicationReport> get history => _history;
@@ -16,7 +17,15 @@ class DailyReportProvider extends ChangeNotifier {
 
   bool get hasNewReport => _latestReport != null && _latestReport!.isToday;
 
-  Future<void> fetchLatestReport() async {
+  Future<void> fetchLatestReport() {
+    if (_fetchFuture != null) return _fetchFuture!;
+    _fetchFuture = _doFetchLatestReport().whenComplete(() {
+      _fetchFuture = null;
+    });
+    return _fetchFuture!;
+  }
+
+  Future<void> _doFetchLatestReport() async {
     final userId = SupabaseAuthService.instance.maityUserId;
     if (userId == null) return;
 
