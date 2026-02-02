@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/gen/assets.gen.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/capture/connect.dart';
+import 'package:omi/pages/conversation_capturing/page.dart';
 import 'package:omi/pages/home/device.dart';
+import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/device_provider.dart';
 import 'package:omi/providers/home_provider.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/utils/device.dart';
+import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/other/temp.dart';
 import 'package:provider/provider.dart';
 
@@ -19,8 +23,8 @@ class BatteryInfoWidget extends StatelessWidget {
     return Selector<HomeProvider, bool>(
       selector: (context, state) => state.selectedIndex == 0,
       builder: (context, isDashboardPage, child) {
-        return Consumer<DeviceProvider>(
-          builder: (context, deviceProvider, child) {
+        return Consumer2<DeviceProvider, CaptureProvider>(
+          builder: (context, deviceProvider, captureProvider, child) {
             if (deviceProvider.connectedDevice != null) {
               return GestureDetector(
                 onTap: deviceProvider.connectedDevice == null
@@ -117,6 +121,53 @@ class BatteryInfoWidget extends StatelessWidget {
                       Text(
                         AppLocalizations.of(context)?.disconnected ?? "Disconnected",
                         style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            } else if (captureProvider.recordingState == RecordingState.record) {
+              // Phone mic is actively recording — show mic indicator
+              return GestureDetector(
+                onTap: () {
+                  var topConvoId = (captureProvider.conversationProvider?.conversations ?? []).isNotEmpty
+                      ? captureProvider.conversationProvider!.conversations.first.id
+                      : null;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ConversationCapturingPage(topConversationId: topConvoId),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1F1F25),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8.0),
+                      const Icon(
+                        FontAwesomeIcons.microphone,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6.0),
+                      const Text(
+                        'Rec',
+                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),

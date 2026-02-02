@@ -737,7 +737,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                                   strokeWidth: 2,
                                                 )
                                               : Icon(
-                                                  isRecording ? FontAwesomeIcons.stop : FontAwesomeIcons.microphone,
+                                                  FontAwesomeIcons.microphone,
                                                   color: Colors.white,
                                                   size: 22,
                                                 ),
@@ -791,10 +791,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     var recordingState = captureProvider.recordingState;
 
     if (recordingState == RecordingState.record) {
-      // Stop recording and summarize conversation
-      await captureProvider.stopStreamRecording();
-      captureProvider.forceProcessingCurrentConversation();
-      MixpanelManager().phoneMicRecordingStopped();
+      // Re-open the live transcript page (stop is done from within it)
+      if (context.mounted) {
+        var topConvoId = (captureProvider.conversationProvider?.conversations ?? []).isNotEmpty
+            ? captureProvider.conversationProvider!.conversations.first.id
+            : null;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ConversationCapturingPage(topConversationId: topConvoId),
+          ),
+        );
+      }
     } else if (recordingState == RecordingState.initialising) {
       // Already initializing, do nothing
       debugPrint('initialising, have to wait');
