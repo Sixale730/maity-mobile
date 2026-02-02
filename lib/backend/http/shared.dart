@@ -244,6 +244,7 @@ Stream<String> makeStreamingApiCall({
       final errorBody = await streamedResponse.stream.bytesToString();
       Logger.error('Streaming request failed: ${streamedResponse.statusCode}');
       debugPrint('[Chat] Error response body: $errorBody');
+      yield 'data: Lo siento, hubo un problema con el servidor (${streamedResponse.statusCode}). Por favor intenta de nuevo.';
       return;
     }
 

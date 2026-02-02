@@ -571,6 +571,12 @@ class MessageProvider extends ChangeNotifier {
           continue;
         }
       }
+
+      // Safety net: if stream completed with no content, show error
+      if (message.text.isEmpty) {
+        message.text = 'Lo siento, no pude procesar tu mensaje. Por favor intenta de nuevo.';
+        notifyListeners();
+      }
     } catch (e) {
       message.text = ServerMessageChunk.failedMessage().text;
       notifyListeners();

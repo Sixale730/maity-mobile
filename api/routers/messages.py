@@ -527,85 +527,101 @@ async def send_message(
                 yield f"done: {done_data}\n\n"
                 return
 
-            # With user_id: Use function calling loop (max 5 iterations)
+            # With user_id: Use streaming function calling (max 3 iterations)
+            # IMPORTANT: Use stream=True to send data immediately and avoid
+            # Vercel's 10s timeout on Hobby plan. Tool calls are detected
+            # from the streamed response chunks.
             full_response = ""
 
-            for iteration in range(5):
+            for iteration in range(3):
                 response = await client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=messages,
                     tools=TOOLS,
                     tool_choice="auto",
-                    stream=False,  # No stream during tool calling
+                    stream=True,
                 )
 
-                assistant_message = response.choices[0].message
+                # Collect streamed content and tool calls
+                streamed_content = ""
+                tool_calls_map = {}  # {index: {id, name, arguments}}
+                finish_reason = None
 
-                # If no tool calls, we have the final response - stream it directly
-                if not assistant_message.tool_calls:
-                    # Stream the response content character by character (in chunks)
-                    content = assistant_message.content or ""
-                    full_response = content
+                async for chunk in response:
+                    choice = chunk.choices[0]
+                    delta = choice.delta
+                    finish_reason = choice.finish_reason or finish_reason
 
-                    # Send in small chunks to simulate streaming
-                    chunk_size = 10
-                    for i in range(0, len(content), chunk_size):
-                        chunk = content[i:i+chunk_size]
-                        yield f"data: {chunk.replace(chr(10), '__CRLF__')}\n\n"
+                    # Stream text content to client immediately
+                    if delta.content:
+                        streamed_content += delta.content
+                        yield f"data: {delta.content.replace(chr(10), '__CRLF__')}\n\n"
 
+                    # Accumulate tool call fragments
+                    if delta.tool_calls:
+                        for tc_delta in delta.tool_calls:
+                            idx = tc_delta.index
+                            if idx not in tool_calls_map:
+                                tool_calls_map[idx] = {"id": "", "name": "", "arguments": ""}
+                            if tc_delta.id:
+                                tool_calls_map[idx]["id"] = tc_delta.id
+                            if tc_delta.function:
+                                if tc_delta.function.name:
+                                    tool_calls_map[idx]["name"] = tc_delta.function.name
+                                if tc_delta.function.arguments:
+                                    tool_calls_map[idx]["arguments"] += tc_delta.function.arguments
+
+                # If no tool calls, we have the final response
+                if not tool_calls_map:
+                    full_response = streamed_content
                     break
 
-                # Add assistant message to conversation (with tool calls)
+                # Build assistant message with tool calls for conversation history
+                tool_calls_list = [
+                    {
+                        "id": tc["id"],
+                        "type": "function",
+                        "function": {
+                            "name": tc["name"],
+                            "arguments": tc["arguments"],
+                        }
+                    }
+                    for tc in tool_calls_map.values()
+                ]
                 messages.append({
                     "role": "assistant",
-                    "content": assistant_message.content,
-                    "tool_calls": [
-                        {
-                            "id": tc.id,
-                            "type": "function",
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments,
-                            }
-                        }
-                        for tc in assistant_message.tool_calls
-                    ],
+                    "content": streamed_content or None,
+                    "tool_calls": tool_calls_list,
                 })
 
                 # Execute each tool call
-                for tool_call in assistant_message.tool_calls:
+                for tc in tool_calls_map.values():
                     try:
-                        args = json.loads(tool_call.function.arguments)
+                        args = json.loads(tc["arguments"])
                     except json.JSONDecodeError:
                         args = {}
 
-                    print(f"[Messages] Executing tool: {tool_call.function.name} with args: {args}")
+                    print(f"[Messages] Executing tool: {tc['name']} with args: {args}")
+                    result = await ejecutar_tool(tc["name"], args, user_id)
 
-                    result = await ejecutar_tool(
-                        tool_name=tool_call.function.name,
-                        args=args,
-                        user_id=user_id,
-                    )
-
-                    # Log tool result (first 500 chars) for debugging
                     result_preview = result[:500] if len(result) > 500 else result
                     print(f"[Messages] Tool result preview: {result_preview}")
 
                     messages.append({
                         "role": "tool",
-                        "tool_call_id": tool_call.id,
+                        "tool_call_id": tc["id"],
                         "content": result,
                     })
 
-            # If loop exhausted without final response (edge case), make one more call
-            # with tools included but tool_choice="none" to maintain context
+            # If loop ended after tool calls (full_response still empty),
+            # make a final streaming call to get the response
             if not full_response:
-                print("[Messages] Loop exhausted, making final call with tool_choice=none")
+                print("[Messages] Making final call after tool execution")
                 final_response = await client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=messages,
-                    tools=TOOLS,  # Include tools to maintain context
-                    tool_choice="none",  # Force response without tool calls
+                    tools=TOOLS,
+                    tool_choice="none",
                     stream=True,
                 )
 
