@@ -283,12 +283,13 @@ class OmiSupabaseService {
         debugPrint('[OmiSupabaseService] Draft created: $draftId');
         return draftId;
       } else {
-        debugPrint('[OmiSupabaseService] Create draft error: ${response.statusCode} - ${response.body}');
-        return null;
+        final body = response.body;
+        debugPrint('[OmiSupabaseService] Create draft error: ${response.statusCode} - $body');
+        throw Exception('Draft creation failed: HTTP ${response.statusCode} - $body');
       }
     } catch (e) {
       debugPrint('[OmiSupabaseService] Error creating draft: $e');
-      return null;
+      rethrow;
     }
   }
 

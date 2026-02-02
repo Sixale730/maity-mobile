@@ -2173,17 +2173,27 @@ class CaptureProvider extends ChangeNotifier
 
     // Ensure draft is created on first segment (await to prevent saving without draft)
     if (_incrementalSave.draftId == null && segments.isNotEmpty) {
-      await _incrementalSave.ensureDraftCreated(
-        userId: userId,
-        startedAt: _recordingStartTime ?? DateTime.now(),
-      );
+      try {
+        await _incrementalSave.ensureDraftCreated(
+          userId: userId,
+          startedAt: _recordingStartTime ?? DateTime.now(),
+        );
+      } catch (e) {
+        _captureLog.log('save', 'draft_creation_failed', severity: 'error', details: {
+          'error': e.toString(),
+        });
+        debugPrint('[CaptureProvider] Draft creation failed: $e');
+        return;
+      }
       if (_incrementalSave.draftId != null) {
         _captureLog.log('save', 'draft_created', details: {
           'draft_id': _incrementalSave.draftId,
         });
         _captureLog.updateConversationId(_incrementalSave.draftId!);
       } else {
-        _captureLog.log('save', 'draft_creation_failed', severity: 'error');
+        _captureLog.log('save', 'draft_creation_failed', severity: 'error', details: {
+          'error': 'ensureDraftCreated returned null without throwing',
+        });
         debugPrint('[CaptureProvider] Draft creation failed, skipping incremental save');
         return;
       }
