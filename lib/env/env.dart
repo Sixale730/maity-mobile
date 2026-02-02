@@ -34,7 +34,13 @@ abstract class Env {
 
   static String? get deepgramApiKey => _instance.deepgramApiKey;
 
-  static String? get maityBackendUrl => _instance.maityBackendUrl;
+  static String? get maityBackendUrl {
+    final url = _instance.maityBackendUrl;
+    if (url != null && url.endsWith('/')) {
+      return url.substring(0, url.length - 1);
+    }
+    return url;
+  }
 
   // Supabase
   static String? get supabaseUrl => _instance.supabaseUrl;

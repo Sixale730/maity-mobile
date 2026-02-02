@@ -36,6 +36,7 @@ class ConversationBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
+      heightFactor: 1.0,
       child: _buildBottomBar(context),
     );
   }
