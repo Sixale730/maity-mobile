@@ -1879,7 +1879,7 @@ class RatingDistributionWidget extends StatelessWidget {
                     const Icon(
                       FontAwesomeIcons.solidStar,
                       size: 10,
-                      color: const Color(0xFF485DF4),
+                      color: Color(0xFF485DF4),
                     ),
                     const SizedBox(width: 8),
                     Expanded(

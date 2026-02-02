@@ -1159,7 +1159,7 @@ class CommunicationFeedbackCard extends StatelessWidget {
                         const FaIcon(
                           FontAwesomeIcons.commentDots,
                           size: 16,
-                          color: const Color(0xFF485DF4),
+                          color: Color(0xFF485DF4),
                         ),
                         const SizedBox(width: 8),
                         Text(

@@ -555,7 +555,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
               ),
               child: const Icon(
                 Icons.add_circle_outline,
-                color: const Color(0xFF485DF4),
+                color: Color(0xFF485DF4),
                 size: 24,
               ),
             ),
@@ -580,7 +580,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
               ),
               child: const Icon(
                 Icons.arrow_forward_ios,
-                color: const Color(0xFF485DF4),
+                color: Color(0xFF485DF4),
                 size: 12,
               ),
             ),

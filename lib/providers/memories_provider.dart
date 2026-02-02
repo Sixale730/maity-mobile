@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:omi/widgets/extensions/string.dart';
 import 'package:omi/backend/http/api/memories.dart';
 import 'package:omi/backend/schema/memory.dart';
-import 'package:omi/services/firebase_analytics_service.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:tuple/tuple.dart';
 import 'package:flutter/foundation.dart';

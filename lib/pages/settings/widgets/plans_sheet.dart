@@ -363,7 +363,7 @@ class _PlansSheetState extends State<PlansSheet> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Row(
             children: [
-              Icon(Icons.payment, color: const Color(0xFF485DF4), size: 24),
+              Icon(Icons.payment, color: Color(0xFF485DF4), size: 24),
               SizedBox(width: 8),
               Text(
                 'Upgrade to Annual Plan',
@@ -410,15 +410,15 @@ class _PlansSheetState extends State<PlansSheet> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFF485DF4).withValues(alpha: 0.3)),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
-                    const Icon(Icons.info_outline, color: const Color(0xFF485DF4), size: 20),
-                    const SizedBox(width: 8),
+                    Icon(Icons.info_outline, color: Color(0xFF485DF4), size: 20),
+                    SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'You\'ll get 13 months of coverage total (current month + 12 months annual)',
                         style: TextStyle(
-                          color: const Color(0xFF8B9DF7),
+                          color: Color(0xFF8B9DF7),
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -939,11 +939,11 @@ class _PlansSheetState extends State<PlansSheet> {
                         Builder(builder: (context) {
                           final hasScheduledUpgrade = _hasScheduledUpgrade();
                           if (hasScheduledUpgrade) {
-                            return Text(
+                            return const Text(
                               'Your annual plan will start automatically when your monthly plan ends.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: const Color(0xFF485DF4),
+                                color: Color(0xFF485DF4),
                                 fontSize: 14,
                               ),
                             );
@@ -1022,24 +1022,24 @@ class _PlansSheetState extends State<PlansSheet> {
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: const Color(0xFF485DF4).withValues(alpha: 0.3)),
                               ),
-                              child: Column(
+                              child: const Column(
                                 children: [
-                                  const Icon(Icons.schedule, color: const Color(0xFF485DF4), size: 32),
-                                  const SizedBox(height: 8),
+                                  Icon(Icons.schedule, color: Color(0xFF485DF4), size: 32),
+                                  SizedBox(height: 8),
                                   Text(
                                     'Upgrade Scheduled!',
                                     style: TextStyle(
-                                      color: const Color(0xFF8B9DF7),
+                                      color: Color(0xFF8B9DF7),
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  SizedBox(height: 4),
                                   Text(
                                     'Your annual plan will start automatically when your monthly plan ends.',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: const Color(0xFF485DF4),
+                                      color: Color(0xFF485DF4),
                                       fontSize: 14,
                                     ),
                                   ),

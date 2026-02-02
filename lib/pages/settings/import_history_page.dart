@@ -372,7 +372,7 @@ class _ImportHistoryPageState extends State<ImportHistoryPage> {
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: const Color(0xFF485DF4),
+                        color: Color(0xFF485DF4),
                       ),
                     )
                   : Container(

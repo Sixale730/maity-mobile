@@ -480,7 +480,7 @@ class _ReviewsListPageState extends State<ReviewsListPage> {
                 ),
                 label: Text(
                   review.response.isNotEmpty ? 'Edit Reply' : 'Reply',
-                  style: const TextStyle(color: const Color(0xFF485DF4), fontSize: 13),
+                  style: const TextStyle(color: Color(0xFF485DF4), fontSize: 13),
                 ),
               ),
             ),

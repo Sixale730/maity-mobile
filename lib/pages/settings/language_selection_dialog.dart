@@ -119,7 +119,7 @@ class LanguageSelectionDialog {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: const Color(0xFF485DF4)),
+                          borderSide: const BorderSide(color: Color(0xFF485DF4)),
                         ),
                       ),
                     ),
@@ -145,7 +145,7 @@ class LanguageSelectionDialog {
                                     style: const TextStyle(color: Colors.white),
                                   ),
                                   trailing:
-                                      isSelected ? const Icon(Icons.check_circle, color: const Color(0xFF485DF4)) : null,
+                                      isSelected ? const Icon(Icons.check_circle, color: Color(0xFF485DF4)) : null,
                                   selected: isSelected,
                                   selectedTileColor: const Color(0xFF485DF4).withValues(alpha: 0.2),
                                   shape: RoundedRectangleBorder(

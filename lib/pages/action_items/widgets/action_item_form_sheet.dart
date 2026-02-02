@@ -608,7 +608,7 @@ class _DateTimePickerSheetState extends State<DateTimePickerSheet> {
                     child: const Text(
                       'Done',
                       style: TextStyle(
-                        color: const Color(0xFF485DF4),
+                        color: Color(0xFF485DF4),
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
                       ),
@@ -636,7 +636,7 @@ class _DateTimePickerSheetState extends State<DateTimePickerSheet> {
                 children: [
                   const Icon(
                     Icons.calendar_today_outlined,
-                    color: const Color(0xFF485DF4),
+                    color: Color(0xFF485DF4),
                     size: 20,
                   ),
                   const SizedBox(width: 12),
@@ -652,7 +652,7 @@ class _DateTimePickerSheetState extends State<DateTimePickerSheet> {
                   ),
                   const Icon(
                     Icons.access_time,
-                    color: const Color(0xFF485DF4),
+                    color: Color(0xFF485DF4),
                     size: 20,
                   ),
                   const SizedBox(width: 8),
@@ -661,7 +661,7 @@ class _DateTimePickerSheetState extends State<DateTimePickerSheet> {
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: const Color(0xFF485DF4),
+                      color: Color(0xFF485DF4),
                     ),
                   ),
                 ],
@@ -676,7 +676,7 @@ class _DateTimePickerSheetState extends State<DateTimePickerSheet> {
                 data: ThemeData.dark().copyWith(
                   cupertinoOverrideTheme: const CupertinoThemeData(
                     brightness: Brightness.dark,
-                    primaryColor: const Color(0xFF485DF4),
+                    primaryColor: Color(0xFF485DF4),
                     textTheme: CupertinoTextThemeData(
                       dateTimePickerTextStyle: TextStyle(
                         color: Colors.white,

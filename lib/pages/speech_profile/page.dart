@@ -426,8 +426,8 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                           child: Center(child: Icon(Icons.mic, color: Colors.white, size: 64)),
                         ),
                       )
-                    : ClipRect(
-                        child: const DeviceAnimationWidget(
+                    : const ClipRect(
+                        child: DeviceAnimationWidget(
                           sizeMultiplier: 0.7,
                           animatedBackground: true,
                         ),

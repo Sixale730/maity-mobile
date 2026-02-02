@@ -26,7 +26,7 @@ class CommunicationFeedbackView extends StatelessWidget {
 
     if (isLoading && feedback == null) {
       return const Center(
-        child: CircularProgressIndicator(color: const Color(0xFF485DF4)),
+        child: CircularProgressIndicator(color: Color(0xFF485DF4)),
       );
     }
 
@@ -137,7 +137,7 @@ class CommunicationFeedbackView extends StatelessWidget {
         children: [
           const FaIcon(
             FontAwesomeIcons.chartBar,
-            color: const Color(0xFF485DF4),
+            color: Color(0xFF485DF4),
             size: 16,
           ),
           const SizedBox(width: 8),

@@ -124,10 +124,10 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
                     height: 8,
                     width: constraints.maxWidth * ((isInstalling ? installProgress : downloadProgress) / 100),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
+                      gradient: const LinearGradient(
                         colors: [
-                          const Color(0xFF8B9DF7),
-                          const Color(0xFF485DF4),
+                          Color(0xFF8B9DF7),
+                          Color(0xFF485DF4),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(4),
@@ -285,7 +285,7 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.memory, size: 20, color: const Color(0xFF8B9DF7)),
+                        const Icon(Icons.memory, size: 20, color: Color(0xFF8B9DF7)),
                         const SizedBox(width: 8),
                         Text(
                           widget.device!.firmwareRevision,
@@ -313,7 +313,7 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(Icons.system_update_alt_rounded, size: 20, color: const Color(0xFF8B9DF7)),
+                          const Icon(Icons.system_update_alt_rounded, size: 20, color: Color(0xFF8B9DF7)),
                           const SizedBox(width: 8),
                           Text(
                             '${latestFirmwareDetails['version']}',
@@ -338,10 +338,10 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
                   iconColor: Colors.white.withValues(alpha: 0.6),
                   collapsedIconColor: Colors.white.withValues(alpha: 0.6),
                   tilePadding: EdgeInsets.zero,
-                  title: Text(
+                  title: const Text(
                     'View Changelog',
                     style: TextStyle(
-                      color: const Color(0xFFE8EAFF),
+                      color: Color(0xFFE8EAFF),
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
@@ -357,10 +357,10 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Padding(
-                                      padding: const EdgeInsets.only(right: 10.0, top: 5.0),
+                                    const Padding(
+                                      padding: EdgeInsets.only(right: 10.0, top: 5.0),
                                       child:
-                                          Icon(Icons.fiber_manual_record, size: 8, color: const Color(0xFF8B9DF7)),
+                                          Icon(Icons.fiber_manual_record, size: 8, color: Color(0xFF8B9DF7)),
                                     ),
                                     Expanded(
                                       child: Text(
@@ -389,7 +389,7 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
                     border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline_rounded, color: const Color(0xFF8B9DF7), size: 20),
+                    const Icon(Icons.info_outline_rounded, color: Color(0xFF8B9DF7), size: 20),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(

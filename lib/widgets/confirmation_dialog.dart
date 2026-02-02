@@ -213,7 +213,7 @@ class _ConfirmationDialogState extends State<ConfirmationDialog> {
               widget.confirmText ?? "Confirm",
               style: const TextStyle(
                 fontSize: 16,
-                color: const Color(0xFF485DF4),
+                color: Color(0xFF485DF4),
                 fontWeight: FontWeight.w600,
               ),
             ),

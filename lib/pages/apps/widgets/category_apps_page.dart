@@ -103,7 +103,7 @@ class _CategoryAppsPageState extends State<CategoryAppsPage> {
             child: _isLoading
                 ? const Center(
                     child: CircularProgressIndicator(
-                      color: const Color(0xFF485DF4),
+                      color: Color(0xFF485DF4),
                     ),
                   )
                 : _apps.isEmpty

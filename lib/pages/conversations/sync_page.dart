@@ -1076,7 +1076,7 @@ class _SyncPageState extends State<SyncPage> with TickerProviderStateMixin {
                               ),
                               child: const Icon(
                                 Icons.mic_none,
-                                color: const Color(0xFF485DF4),
+                                color: Color(0xFF485DF4),
                                 size: 48,
                               ),
                             ),

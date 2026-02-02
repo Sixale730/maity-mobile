@@ -90,7 +90,7 @@ class _SearchWidgetState extends State<SearchWidget> {
                         child: Text(
                           AppLocalizations.of(context)?.done ?? 'Done',
                           style: const TextStyle(
-                            color: const Color(0xFF485DF4),
+                            color: Color(0xFF485DF4),
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
