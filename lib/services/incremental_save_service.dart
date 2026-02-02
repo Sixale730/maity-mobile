@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
+import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/omi_supabase_service.dart';
 
 /// Service for incrementally saving transcript segments to Supabase
@@ -12,6 +13,8 @@ import 'package:omi/services/omi_supabase_service.dart';
 /// This ensures that even if the app crashes, segments saved to Supabase
 /// can be recovered and finalized into a complete conversation.
 class IncrementalSaveService {
+  CaptureLogService get _captureLog => CaptureLogService.instance;
+
   /// The draft conversation ID in Supabase (null until first segment)
   String? _draftId;
   String? get draftId => _draftId;
@@ -57,11 +60,17 @@ class IncrementalSaveService {
       if (result != null) {
         _draftId = result;
         _isActive = true;
+        _captureLog.log('save', 'incremental_draft_created', details: {
+          'draft_id': _draftId,
+        });
         debugPrint('[IncrementalSave] Draft created: $_draftId');
       }
 
       return _draftId;
     } catch (e) {
+      _captureLog.log('save', 'incremental_draft_failed', severity: 'error', details: {
+        'error': e.toString(),
+      });
       debugPrint('[IncrementalSave] Failed to create draft: $e');
       return null;
     }
@@ -111,6 +120,11 @@ class IncrementalSaveService {
         return;
       }
 
+      _captureLog.log('save', 'incremental_batch_started', severity: 'debug', details: {
+        'batch_size': batch.length,
+        'offset': startIndex,
+        'total': allSegments.length,
+      });
       debugPrint('[IncrementalSave] Saving ${batch.length} segments (offset: $startIndex)');
 
       // Get userId from the segments' context - we need it for the API call
@@ -122,6 +136,10 @@ class IncrementalSaveService {
 
       if (success) {
         _savedSegmentCount = endIndex;
+        _captureLog.log('save', 'incremental_batch_success', details: {
+          'saved_count': _savedSegmentCount,
+          'total': allSegments.length,
+        });
         debugPrint('[IncrementalSave] Saved. Total confirmed: $_savedSegmentCount');
 
         // If there are more segments to save, schedule another batch
@@ -130,9 +148,16 @@ class IncrementalSaveService {
           _saveTimer = Timer(const Duration(seconds: 2), () => _performSave());
         }
       } else {
+        _captureLog.log('save', 'incremental_batch_failed', severity: 'error', details: {
+          'offset': startIndex,
+          'batch_size': batch.length,
+        });
         debugPrint('[IncrementalSave] Save failed, will retry on next trigger');
       }
     } catch (e) {
+      _captureLog.log('save', 'incremental_batch_failed', severity: 'error', details: {
+        'error': e.toString(),
+      });
       debugPrint('[IncrementalSave] Error saving segments: $e');
     } finally {
       _isSaving = false;
@@ -164,6 +189,11 @@ class IncrementalSaveService {
     }
 
     if (retries >= maxRetries) {
+      _captureLog.log('save', 'incremental_flush_gave_up', severity: 'error', details: {
+        'saved': _savedSegmentCount,
+        'total': allSegments.length,
+        'max_retries': maxRetries,
+      });
       debugPrint('[IncrementalSave] Flush gave up after $maxRetries retries. Saved: $_savedSegmentCount/${allSegments.length}');
     }
   }
@@ -192,13 +222,23 @@ class IncrementalSaveService {
       );
 
       if (success) {
+        _captureLog.log('save', 'incremental_finalize_success', details: {
+          'draft_id': _draftId,
+        });
         debugPrint('[IncrementalSave] Finalized successfully');
       } else {
+        _captureLog.log('save', 'incremental_finalize_failed', severity: 'error', details: {
+          'draft_id': _draftId,
+        });
         debugPrint('[IncrementalSave] Finalize failed');
       }
 
       return success;
     } catch (e) {
+      _captureLog.log('save', 'incremental_finalize_error', severity: 'error', details: {
+        'draft_id': _draftId,
+        'error': e.toString(),
+      });
       debugPrint('[IncrementalSave] Error finalizing: $e');
       return false;
     }
@@ -206,6 +246,7 @@ class IncrementalSaveService {
 
   /// Reset state for next recording session
   void reset() {
+    _captureLog.log('save', 'incremental_reset', severity: 'debug');
     _saveTimer?.cancel();
     _saveTimer = null;
     _draftId = null;

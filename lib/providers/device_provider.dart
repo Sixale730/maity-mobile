@@ -11,6 +11,7 @@ import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/services/devices.dart';
 import 'package:omi/services/notifications.dart';
 import 'package:omi/services/services.dart';
+import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/utils/device.dart';
 import 'package:omi/utils/logger.dart';
@@ -187,6 +188,10 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
     _reconnectRetries = 0; // Reset retries on new connection attempt
 
     Future<void> attemptReconnect() async {
+      CaptureLogService.instance.log('ble', 'reconnect_attempt', severity: 'debug', details: {
+        'retry': _reconnectRetries + 1,
+        'max_retries': _maxReconnectRetries,
+      });
       debugPrint("Reconnect attempt ${_reconnectRetries + 1}/$_maxReconnectRetries at ${DateTime.now()}");
 
       if (_reconnectAt != null && _reconnectAt!.isAfter(DateTime.now())) {
@@ -221,6 +226,9 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
         // Connection failed, increment retries and schedule next attempt
         _reconnectRetries++;
         if (_reconnectRetries >= _maxReconnectRetries) {
+          CaptureLogService.instance.log('ble', 'reconnect_max_retries', severity: 'error', details: {
+            'max_retries': _maxReconnectRetries,
+          });
           debugPrint("Max reconnect retries reached ($_maxReconnectRetries)");
           _reconnectRetries = 0; // Reset for future attempts
           return;
@@ -343,6 +351,10 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
 
   void onDeviceDisconnected() async {
     Logger.debug('onDisconnected inside: $connectedDevice');
+    CaptureLogService.instance.log('ble', 'device_disconnected', severity: 'warning', details: {
+      'device_id': connectedDevice?.id,
+      'device_name': connectedDevice?.name,
+    });
     _havingNewFirmware = false;
     setConnectedDevice(null);
     setisDeviceStorageSupport();
@@ -395,6 +407,11 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
 
   void _onDeviceConnected(BtDevice device) async {
     Logger.debug('_onConnected inside: $connectedDevice');
+    CaptureLogService.instance.log('ble', 'device_connected', details: {
+      'device_id': device.id,
+      'device_name': device.name,
+      'device_type': device.type.name,
+    });
     _disconnectNotificationTimer?.cancel();
     NotificationService.instance.clearNotification(1);
 

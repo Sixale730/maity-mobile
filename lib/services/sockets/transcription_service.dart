@@ -9,6 +9,7 @@ import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/env/env.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/models/stt_provider.dart';
+import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/notifications.dart';
 import 'package:omi/services/sockets/pure_socket.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
@@ -128,6 +129,12 @@ class TranscriptSegmentSocketService implements IPureSocketListener {
   Future start() async {
     bool ok = await _socket.connect();
     if (!ok) {
+      CaptureLogService.instance.log('socket', 'socket_connect_failed', severity: 'error', details: {
+        'sample_rate': sampleRate,
+        'codec': codec.toString(),
+        'language': language,
+        'custom_stt': customSttMode,
+      });
       debugPrint("Can not connect to websocket");
       await DebugLogManager.logWarning('transcription_socket_connect_failed', {
         'url': Env.apiBaseUrl?.replaceAll('https', 'wss') ?? 'null',
@@ -214,6 +221,7 @@ class TranscriptSegmentSocketService implements IPureSocketListener {
   @override
   void onInternetConnectionFailed() {
     debugPrint("onInternetConnectionFailed");
+    CaptureLogService.instance.log('socket', 'internet_connection_failed', severity: 'error');
 
     // Send notification
     NotificationService.instance.clearNotification(3);
@@ -228,6 +236,9 @@ class TranscriptSegmentSocketService implements IPureSocketListener {
   @override
   void onMaxRetriesReach() {
     debugPrint("onMaxRetriesReach");
+    CaptureLogService.instance.log('socket', 'socket_max_retries_reached', severity: 'error', details: {
+      'custom_stt': customSttMode,
+    });
 
     // Send notification
     NotificationService.instance.clearNotification(2);

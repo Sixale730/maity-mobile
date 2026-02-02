@@ -43,6 +43,7 @@ import 'package:omi/utils/image/image_utils.dart';
 import 'package:omi/utils/logger.dart';
 import 'package:omi/utils/platform/platform_service.dart';
 import 'package:omi/utils/audio/wav_bytes.dart';
+import 'package:omi/services/capture_log_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class CaptureProvider extends ChangeNotifier
@@ -122,6 +123,7 @@ class CaptureProvider extends ChangeNotifier
   double _wsSendRateKbps = 0.0;
   DateTime? _metricsLastCalculated;
   Timer? _metricsTimer;
+  int _metricsLogCounter = 0;
 
   double get bleReceiveRateKbps => _bleReceiveRateKbps;
   double get wsSendRateKbps => _wsSendRateKbps;
@@ -136,6 +138,10 @@ class CaptureProvider extends ChangeNotifier
 
   // ValueNotifier for real-time VAD state updates (used by Developer Settings)
   final ValueNotifier<VadState?> vadStateNotifier = ValueNotifier(null);
+
+  CaptureLogService get _captureLog => CaptureLogService.instance;
+
+  String _socketStateName() => _socket?.state.name ?? 'null';
 
   CaptureProvider() {
     _connectionStateListener = ConnectivityService().onConnectionChange.listen((bool isConnected) {
@@ -431,6 +437,16 @@ class CaptureProvider extends ChangeNotifier
       effectiveConfig = null;
     }
 
+    _captureLog.log('socket', 'websocket_initiating', details: {
+      'codec': codec.name,
+      'sample_rate': sampleRate,
+      'channels': channels,
+      'custom_stt': effectiveConfig != null,
+      'language': language,
+      'force': force,
+      'source': source,
+    });
+
     // Connect to the transcript socket
     _socket = await ServiceManager.instance().socket.conversation(
           codec: codec,
@@ -441,6 +457,10 @@ class CaptureProvider extends ChangeNotifier
           customSttConfig: effectiveConfig,
         );
     if (_socket == null) {
+      _captureLog.log('socket', 'websocket_creation_failed', severity: 'error', details: {
+        'codec': codec.name,
+        'custom_stt': effectiveConfig != null,
+      });
       _startKeepAliveServices();
       debugPrint("Can not create new conversation socket");
       return;
@@ -617,6 +637,10 @@ class CaptureProvider extends ChangeNotifier
 
   Future streamAudioToWs(String deviceId, BleAudioCodec codec) async {
     debugPrint('streamAudioToWs in capture_provider');
+    _captureLog.log('ble', 'audio_stream_started', details: {
+      'device_id': deviceId,
+      'codec': codec.name,
+    });
     _bleBytesStream?.cancel();
     _startMetricsTracking();
     _bleBytesStream = await _getBleAudioBytesListener(deviceId, onAudioBytesReceived: (List<int> value) {
@@ -889,6 +913,17 @@ class CaptureProvider extends ChangeNotifier
       _bleReceiveRateKbps = (_blesBytesReceived * 8) / (elapsedSeconds * 1000);
       _wsSendRateKbps = (_wsSocketBytesSent * 8) / (elapsedSeconds * 1000);
 
+      // Log metrics every 30s (every 6th call since timer runs every 5s)
+      _metricsLogCounter++;
+      if (_metricsLogCounter >= 6) {
+        _metricsLogCounter = 0;
+        _captureLog.log('metrics', 'metrics_snapshot', severity: 'debug', details: {
+          'ble_kbps': double.parse(_bleReceiveRateKbps.toStringAsFixed(2)),
+          'ws_kbps': double.parse(_wsSendRateKbps.toStringAsFixed(2)),
+          'audio_bytes_sent': _audioBytesSent,
+        });
+      }
+
       // Reset counters for next interval
       _blesBytesReceived = 0;
       _wsSocketBytesSent = 0;
@@ -910,6 +945,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   Future _closeBleStream() async {
+    _captureLog.log('ble', 'audio_stream_closed');
     await _bleBytesStream?.cancel();
     await _blePhotoStream?.cancel();
     _stopMetricsTracking();
@@ -964,6 +1000,19 @@ class CaptureProvider extends ChangeNotifier
     _recordingStartTime = DateTime.now();
     // Generate session ID for recovery
     _currentSessionId = const Uuid().v4();
+
+    _captureLog.startSession(
+      _currentSessionId!,
+      getRecordingState: () => recordingState.name,
+      getSegmentCount: () => segments.length,
+      getSocketState: _socketStateName,
+    );
+    _captureLog.log('recording', 'recording_started', details: {
+      'source': 'phone_mic',
+      'codec': 'pcm16',
+      'sample_rate': 16000,
+    });
+
     // Start health monitor for transcription stall detection
     _startSocketHealthMonitor();
 
@@ -997,6 +1046,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   stopStreamRecording() async {
+    _captureLog.log('recording', 'recording_stop_requested', details: {'source': 'phone_mic'});
     _stopSocketHealthMonitor();
     // Finalize local conversation before stopping (for custom STT mode)
     await _finalizeLocalConversation();
@@ -1005,6 +1055,7 @@ class CaptureProvider extends ChangeNotifier
     ServiceManager.instance().mic.stop();
     updateRecordingState(RecordingState.stop);
     await _socket?.stop(reason: 'stop stream recording');
+    _captureLog.endSession();
   }
 
   Future streamDeviceRecording({BtDevice? device}) async {
@@ -1015,6 +1066,20 @@ class CaptureProvider extends ChangeNotifier
     _recordingStartTime = DateTime.now();
     // Generate session ID for recovery
     _currentSessionId = const Uuid().v4();
+
+    _captureLog.startSession(
+      _currentSessionId!,
+      getRecordingState: () => recordingState.name,
+      getSegmentCount: () => segments.length,
+      getSocketState: _socketStateName,
+    );
+    _captureLog.log('recording', 'recording_started', details: {
+      'source': 'ble_device',
+      'device_id': device?.id,
+      'device_name': device?.name,
+      'device_type': device?.type.name,
+    });
+
     // Start health monitor for transcription stall detection
     _startSocketHealthMonitor();
 
@@ -1029,6 +1094,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   Future stopStreamDeviceRecording({bool cleanDevice = false}) async {
+    _captureLog.log('recording', 'recording_stop_requested', details: {'source': 'ble_device'});
     _stopSocketHealthMonitor();
     // Finalize local conversation before stopping (for custom STT mode)
     await _finalizeLocalConversation();
@@ -1039,6 +1105,7 @@ class CaptureProvider extends ChangeNotifier
     }
     updateRecordingState(RecordingState.stop);
     await _socket?.stop(reason: 'stop stream device recording');
+    _captureLog.endSession();
   }
 
   Future<void> streamSystemAudioRecording() async {
@@ -1051,6 +1118,19 @@ class CaptureProvider extends ChangeNotifier
     _recordingStartTime = DateTime.now();
     // Generate session ID for recovery
     _currentSessionId = const Uuid().v4();
+
+    _captureLog.startSession(
+      _currentSessionId!,
+      getRecordingState: () => recordingState.name,
+      getSegmentCount: () => segments.length,
+      getSocketState: _socketStateName,
+    );
+    _captureLog.log('recording', 'recording_started', details: {
+      'source': 'system_audio',
+      'codec': 'pcm16',
+      'sample_rate': 16000,
+    });
+
     // Start health monitor for transcription stall detection
     _startSocketHealthMonitor();
 
@@ -1233,6 +1313,7 @@ class CaptureProvider extends ChangeNotifier
   Future<void> stopSystemAudioRecording() async {
     if (!PlatformService.isDesktop) return;
 
+    _captureLog.log('recording', 'recording_stop_requested', details: {'source': 'system_audio'});
     _stopSocketHealthMonitor();
     // Finalize local conversation before stopping (for custom STT mode)
     await _finalizeLocalConversation();
@@ -1249,6 +1330,7 @@ class CaptureProvider extends ChangeNotifier
     _stopRecordingTimer();
     await _socket?.stop(reason: 'manual stop');
     await _cleanupCurrentState();
+    _captureLog.endSession();
   }
 
   Future<void> pauseSystemAudioRecording({bool isAuto = false}) async {
@@ -1298,6 +1380,9 @@ class CaptureProvider extends ChangeNotifier
 
   @override
   void onClosed([int? closeCode]) {
+    _captureLog.log('socket', 'socket_closed', severity: 'warning', details: {
+      'close_code': closeCode,
+    });
     _transcriptionServiceStatuses = [];
     _transcriptServiceReady = false;
 
@@ -1310,6 +1395,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   void _startKeepAliveServices() {
+    _captureLog.log('socket', 'keepalive_started');
     _keepAliveTimer?.cancel();
     _keepAliveTimer = Timer.periodic(const Duration(seconds: 15), (t) async {
       debugPrint("[Provider] keep alive");
@@ -1347,6 +1433,9 @@ class CaptureProvider extends ChangeNotifier
 
   @override
   void onError(Object err) {
+    _captureLog.log('socket', 'socket_error', severity: 'error', details: {
+      'error': err.toString(),
+    });
     _transcriptionServiceStatuses = [];
     _transcriptServiceReady = false;
 
@@ -1363,6 +1452,7 @@ class CaptureProvider extends ChangeNotifier
 
   @override
   void onConnected() {
+    _captureLog.log('socket', 'socket_connected');
     _transcriptServiceReady = true;
     notifyListeners();
   }
@@ -1584,11 +1674,19 @@ class CaptureProvider extends ChangeNotifier
     debugPrint('[CaptureProvider] Received ${newSegments.length} new segments, current total: ${segments.length}');
 
     if (segments.isEmpty) {
+      _captureLog.log('segment', 'first_segment_received', details: {
+        'new_count': newSegments.length,
+      });
       if (!PlatformService.isDesktop) {
         FlutterForegroundTask.sendDataToTask(jsonEncode({'location': true}));
       }
       await _loadInProgressConversation();
     }
+
+    _captureLog.log('segment', 'segments_received', severity: 'debug', details: {
+      'new_count': newSegments.length,
+      'total': segments.length + newSegments.length,
+    });
 
     final remainSegments = TranscriptSegment.updateSegments(segments, newSegments);
     segments.addAll(remainSegments);
@@ -1615,6 +1713,9 @@ class CaptureProvider extends ChangeNotifier
   }
 
   void onConnectionStateChanged(bool isConnected) {
+    _captureLog.log('recording', 'connection_state_changed', details: {
+      'is_connected': isConnected,
+    });
     _isConnected = isConnected;
     notifyListeners();
   }
@@ -1722,10 +1823,18 @@ class CaptureProvider extends ChangeNotifier
 
     // Prevent duplicate saves when stopStreamRecording() and forceProcessingCurrentConversation() both call this
     if (_conversationFinalized) {
+      _captureLog.log('save', 'finalize_skipped_duplicate', severity: 'warning');
       debugPrint('[Maity] Conversation already finalized, skipping duplicate save');
       return;
     }
     _conversationFinalized = true;
+
+    final transcript = segments.map((s) => s.text).join('\n').trim();
+    _captureLog.log('save', 'finalize_started', details: {
+      'segments_count': segments.length,
+      'has_draft': _incrementalSave.draftId != null,
+      'transcript_length': transcript.length,
+    });
 
     debugPrint('[Maity] Finalizing local conversation with ${segments.length} segments');
 
@@ -1783,6 +1892,9 @@ class CaptureProvider extends ChangeNotifier
           );
 
           if (finalized) {
+            _captureLog.log('save', 'finalize_incremental_success', details: {
+              'draft_id': _incrementalSave.draftId,
+            });
             debugPrint('[Maity] Incremental finalize successful');
 
             // Notify conversation provider to refresh the list
@@ -1792,6 +1904,10 @@ class CaptureProvider extends ChangeNotifier
             _clearRecoveryState();
             success = true;
           } else {
+            _captureLog.log('save', 'finalize_incremental_failed', severity: 'warning', details: {
+              'draft_id': _incrementalSave.draftId,
+              'fallback': 'monolithic',
+            });
             debugPrint('[Maity] Incremental finalize failed, falling back to monolithic save');
             // Fall through to monolithic save below
           }
@@ -1816,6 +1932,10 @@ class CaptureProvider extends ChangeNotifier
           debugPrint('[Maity] Local conversation saved: ${conversation.id}');
           debugPrint('[Maity] Title: ${structured?.title}, Category: ${structured?.category}, Emoji: ${structured?.emoji}');
 
+          _captureLog.log('save', 'finalize_monolithic_success', details: {
+            'conversation_id': conversation.id,
+          });
+
           // Notify the conversation provider to add it to the list
           conversationProvider?.addLocalConversation(conversation);
 
@@ -1829,6 +1949,11 @@ class CaptureProvider extends ChangeNotifier
         }
       } catch (e) {
         retryCount++;
+        _captureLog.log('save', 'finalize_retry_error', severity: 'error', details: {
+          'attempt': retryCount,
+          'max_retries': maxRetries,
+          'error': e.toString(),
+        });
         debugPrint('[Maity] Error saving local conversation (attempt $retryCount/$maxRetries): $e');
 
         if (retryCount < maxRetries) {
@@ -1837,6 +1962,9 @@ class CaptureProvider extends ChangeNotifier
           debugPrint('[Maity] Retrying in ${delay.inSeconds}s...');
           await Future.delayed(delay);
         } else {
+          _captureLog.log('save', 'finalize_all_retries_exhausted', severity: 'error', details: {
+            'segments_count': segments.length,
+          });
           debugPrint('[Maity] All retries exhausted. Conversation data preserved in recovery file.');
           // Don't clear recovery data - keep it for later recovery
         }
@@ -1965,6 +2093,10 @@ class CaptureProvider extends ChangeNotifier
   void _onSilenceTimeout() async {
     if (segments.isEmpty) return;
 
+    _captureLog.log('recording', 'silence_timeout_triggered', details: {
+      'timeout_seconds': SharedPreferencesUtil().conversationSilenceDuration,
+      'segments_count': segments.length,
+    });
     debugPrint('[Maity] Silence timeout (${SharedPreferencesUtil().conversationSilenceDuration}s) - auto-finalizing conversation');
     await _finalizeLocalConversation();
     _resetStateVariables();
@@ -2014,6 +2146,10 @@ class CaptureProvider extends ChangeNotifier
       draftConversationId: _incrementalSave.draftId,
     );
 
+    _captureLog.log('recovery', 'recovery_data_saved', severity: 'debug', details: {
+      'segments_count': segments.length,
+      'draft_id': _incrementalSave.draftId,
+    });
     _unsavedSegmentCount = 0;
   }
 
@@ -2041,7 +2177,13 @@ class CaptureProvider extends ChangeNotifier
         userId: userId,
         startedAt: _recordingStartTime ?? DateTime.now(),
       );
-      if (_incrementalSave.draftId == null) {
+      if (_incrementalSave.draftId != null) {
+        _captureLog.log('save', 'draft_created', details: {
+          'draft_id': _incrementalSave.draftId,
+        });
+        _captureLog.updateConversationId(_incrementalSave.draftId!);
+      } else {
+        _captureLog.log('save', 'draft_creation_failed', severity: 'error');
         debugPrint('[CaptureProvider] Draft creation failed, skipping incremental save');
         return;
       }
@@ -2092,6 +2234,10 @@ class CaptureProvider extends ChangeNotifier
       if (_lastSegmentReceivedAt != null && segments.isNotEmpty) {
         final gap = DateTime.now().difference(_lastSegmentReceivedAt!);
         if (gap.inSeconds > 60) {
+          _captureLog.log('health', 'health_check_stall_detected', severity: 'warning', details: {
+            'gap_seconds': gap.inSeconds,
+            'socket_connected': _socket?.state == SocketServiceState.connected,
+          });
           debugPrint('[Maity] Health monitor: no segments for ${gap.inSeconds}s');
           _onTranscriptionStalled();
         }
@@ -2106,6 +2252,9 @@ class CaptureProvider extends ChangeNotifier
     // Only warn once until new segments arrive
     if (_lastSegmentReceivedAt == null) return;
 
+    _captureLog.log('health', 'transcription_stalled', severity: 'error', details: {
+      'total_segments': segments.length,
+    });
     debugPrint('[Maity] Transcription stalled - notifying user');
 
     // Show notification
@@ -2138,6 +2287,10 @@ class CaptureProvider extends ChangeNotifier
       return false;
     }
 
+    _captureLog.log('recovery', 'recovery_attempted', details: {
+      'segments_count': recoverySegments.length,
+      'draft_id': draftConversationId,
+    });
     debugPrint('[Maity] Recovering session with ${recoverySegments.length} segments (draft: $draftConversationId)');
 
     try {
@@ -2202,6 +2355,11 @@ class CaptureProvider extends ChangeNotifier
 
       debugPrint('[Maity] Recovered conversation saved: ${conversation.id}');
 
+      _captureLog.log('recovery', 'recovery_succeeded', details: {
+        'conversation_id': conversation.id,
+        'segments_count': recoverySegments.length,
+      });
+
       // Notify the conversation provider to add it to the list
       conversationProvider?.addLocalConversation(conversation);
 
@@ -2210,6 +2368,9 @@ class CaptureProvider extends ChangeNotifier
 
       return true;
     } catch (e) {
+      _captureLog.log('recovery', 'recovery_failed', severity: 'error', details: {
+        'error': e.toString(),
+      });
       debugPrint('[Maity] Error recovering session: $e');
       return false;
     }
@@ -2218,6 +2379,7 @@ class CaptureProvider extends ChangeNotifier
   Future<void> pauseDeviceRecording() async {
     if (_recordingDevice == null) return;
 
+    _captureLog.log('recording', 'recording_paused', details: {'source': 'ble_device'});
     // Pause the BLE stream but keep the device connection
     await _bleBytesStream?.cancel();
     _isPaused = true;
@@ -2227,6 +2389,7 @@ class CaptureProvider extends ChangeNotifier
 
   Future<void> resumeDeviceRecording() async {
     if (_recordingDevice == null) return;
+    _captureLog.log('recording', 'recording_resumed', details: {'source': 'ble_device'});
     _isPaused = false;
     // Resume streaming from the device
     await _initiateDeviceAudioStreaming();
