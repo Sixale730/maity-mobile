@@ -1,19 +1,18 @@
 import 'package:flutter/widgets.dart';
+import 'package:omi/utils/platform/platform_service.dart';
 
 abstract class AdaptiveWidget extends StatelessWidget {
   const AdaptiveWidget({super.key});
 
-  /// Build for desktop (> 1100px).
+  /// Build for desktop platforms (Windows, macOS).
   Widget buildDesktop(BuildContext context);
 
-  /// Build for mobile (< 1100px). If the widget looks identical you can
-  /// simply return the desktop tree here.
+  /// Build for mobile platforms (Android, iOS).
   Widget buildMobile(BuildContext context);
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    if (width >= 1100) {
+    if (PlatformService.isDesktop) {
       return buildDesktop(context);
     }
     return buildMobile(context);

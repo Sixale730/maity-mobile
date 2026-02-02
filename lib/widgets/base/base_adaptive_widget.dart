@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:omi/utils/platform/platform_service.dart';
 
-/// Base class for widgets that adapt their layout based on screen size
+/// Base class for widgets that adapt their layout based on platform
 abstract class BaseAdaptiveWidget extends StatelessWidget {
   const BaseAdaptiveWidget({super.key});
 
-  /// Check if current screen is mobile (< 1100px width)
-  bool isMobile(BuildContext context) => MediaQuery.of(context).size.width < 1100;
+  /// Check if current platform is mobile (Android, iOS)
+  bool isMobile(BuildContext context) => PlatformService.isMobile;
 
-  /// Check if current screen is desktop (>= 1100px width)
-  bool isDesktop(BuildContext context) => !isMobile(context);
+  /// Check if current platform is desktop (Windows, macOS)
+  bool isDesktop(BuildContext context) => PlatformService.isDesktop;
 
   /// Subclasses must implement mobile layout
   Widget buildMobile(BuildContext context);

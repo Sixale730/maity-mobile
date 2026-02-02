@@ -25,6 +25,7 @@ import 'package:omi/services/todoist_service.dart';
 import 'package:omi/providers/integration_provider.dart';
 import 'package:omi/utils/alerts/app_snackbar.dart';
 import 'package:omi/utils/platform/platform_manager.dart';
+import 'package:omi/utils/platform/platform_service.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -399,15 +400,10 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Route to appropriate app tree based on screen width
-        if (constraints.maxWidth >= 1100) {
-          return const DesktopApp(); // Desktop app tree
-        } else {
-          return const MobileApp(); // Mobile app tree
-        }
-      },
-    );
+    if (PlatformService.isDesktop) {
+      return const DesktopApp();
+    } else {
+      return const MobileApp();
+    }
   }
 }
