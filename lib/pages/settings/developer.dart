@@ -35,7 +35,7 @@ class DeveloperSettingsPage extends StatefulWidget {
 }
 
 class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
-  DateTime _selectedReportDate = DateTime.now().subtract(const Duration(days: 1));
+  DateTime _selectedReportDate = DateTime.now();
   bool _triggeringReport = false;
   String? _triggerResult;
 

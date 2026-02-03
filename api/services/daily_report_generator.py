@@ -18,6 +18,18 @@ from .utils import parse_json_from_llm
 # Mexico City is UTC-6 (CST) / UTC-5 (CDT)
 MEXICO_UTC_OFFSET = -6
 
+
+def _get_utc_range_for_mexico_date(report_date: str) -> tuple:
+    """Convert a Mexico date to UTC range for querying.
+
+    Mexico is UTC-6, so Mexico date "2026-02-02" spans:
+      2026-02-02T06:00:00Z to 2026-02-03T05:59:59Z in UTC.
+    """
+    base = datetime.strptime(report_date, "%Y-%m-%d")
+    utc_start = base + timedelta(hours=-MEXICO_UTC_OFFSET)  # +6 hours
+    utc_end = utc_start + timedelta(hours=24) - timedelta(seconds=1)
+    return utc_start.strftime("%Y-%m-%dT%H:%M:%S"), utc_end.strftime("%Y-%m-%dT%H:%M:%S")
+
 DAILY_EVALUATION_PROMPT = """Eres un coach de comunicación profesional. Analiza las siguientes métricas agregadas de las conversaciones de hoy de un usuario y genera una evaluación diaria.
 
 MÉTRICAS DEL DÍA:
@@ -84,8 +96,8 @@ async def generate_daily_reports(target_date: Optional[str] = None) -> dict:
 
     # Find all users who have completed conversations today
     # with communication_feedback
-    date_start = f"{report_date}T00:00:00"
-    date_end = f"{report_date}T23:59:59"
+    date_start, date_end = _get_utc_range_for_mexico_date(report_date)
+    print(f"[DailyReport] Query range (UTC): {date_start} to {date_end}")
 
     try:
         result = (
@@ -155,8 +167,8 @@ async def generate_daily_report_for_user(user_id: str, target_date: Optional[str
         mexico_time = now_utc + timedelta(hours=MEXICO_UTC_OFFSET)
         report_date = mexico_time.strftime("%Y-%m-%d")
 
-    date_start = f"{report_date}T00:00:00"
-    date_end = f"{report_date}T23:59:59"
+    date_start, date_end = _get_utc_range_for_mexico_date(report_date)
+    print(f"[DailyReport] User {user_id} query range (UTC): {date_start} to {date_end}")
 
     try:
         success = await _generate_single_user_report(

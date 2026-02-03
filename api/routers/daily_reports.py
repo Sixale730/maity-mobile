@@ -1,4 +1,5 @@
 """Daily communication reports router - Cron job and query endpoints"""
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Header, Query
 from typing import Optional, List
 import os
@@ -34,8 +35,15 @@ async def generate_reports(
     """
     _verify_cron_secret(authorization)
 
-    result = await generate_daily_reports(target_date=date)
-    return result
+    print(f"[DailyReport] Cron triggered at {datetime.now(timezone.utc).isoformat()}, date={date}")
+
+    try:
+        result = await generate_daily_reports(target_date=date)
+        print(f"[DailyReport] Cron result: {result}")
+        return result
+    except Exception as e:
+        print(f"[DailyReport] Cron FAILED: {e}")
+        return {"users_processed": 0, "reports_generated": 0, "errors": [str(e)]}
 
 
 @router.post("/trigger")
