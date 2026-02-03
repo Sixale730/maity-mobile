@@ -49,6 +49,8 @@ import 'package:permission_handler/permission_handler.dart';
 class CaptureProvider extends ChangeNotifier
     with MessageNotifierMixin, WidgetsBindingObserver
     implements ITransctiptSegmentSocketServiceListener {
+  /// Flag to indicate phone mic recording is active (used by DeviceProvider to skip BLE reconnection)
+  static bool isRecordingWithPhoneMic = false;
   ConversationProvider? conversationProvider;
   MessageProvider? messageProvider;
   PeopleProvider? peopleProvider;
@@ -100,6 +102,13 @@ class CaptureProvider extends ChangeNotifier
   // Health monitor for detecting stalled transcription
   Timer? _socketHealthTimer;
   DateTime? _lastSegmentReceivedAt;
+
+  // STT reconnection tracking
+  int _sttReconnectAttempts = 0;
+  static const int _maxSttReconnectAttempts = 3;
+
+  // Tracks when audio bytes were last sent to STT (to distinguish STT stall from real silence)
+  DateTime? _lastAudioBytesSentAt;
 
   Timer? _recordingTimer;
   int _recordingDuration = 0; // in seconds
@@ -328,6 +337,9 @@ class CaptureProvider extends ChangeNotifier
     _socketHealthTimer?.cancel();
     _socketHealthTimer = null;
     _lastSegmentReceivedAt = null;
+    _sttReconnectAttempts = 0;
+    _lastAudioBytesSentAt = null;
+    CaptureProvider.isRecordingWithPhoneMic = false;
     notifyListeners();
   }
 
@@ -649,6 +661,7 @@ class CaptureProvider extends ChangeNotifier
 
       // Track bytes received from BLE
       _blesBytesReceived += snapshot.length;
+      _lastAudioBytesSentAt = DateTime.now();
 
       // Store audio for speaker verification (used when conversation ends)
       _audioBuffer?.storeFramePacket(snapshot);
@@ -1022,6 +1035,7 @@ class CaptureProvider extends ChangeNotifier
     // record
     _audioBytesSent = 0;
     await ServiceManager.instance().mic.start(onByteReceived: (bytes) {
+      _lastAudioBytesSentAt = DateTime.now();
       if (_socket?.state == SocketServiceState.connected) {
         // Use VAD to filter silence if available
         if (_vadService != null && _vadService!.isInitialized) {
@@ -1037,8 +1051,10 @@ class CaptureProvider extends ChangeNotifier
         }
       }
     }, onRecording: () {
+      CaptureProvider.isRecordingWithPhoneMic = true;
       updateRecordingState(RecordingState.record);
     }, onStop: () {
+      CaptureProvider.isRecordingWithPhoneMic = false;
       updateRecordingState(RecordingState.stop);
     }, onInitializing: () {
       updateRecordingState(RecordingState.initialising);
@@ -1046,6 +1062,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   stopStreamRecording() async {
+    CaptureProvider.isRecordingWithPhoneMic = false;
     _captureLog.log('recording', 'recording_stop_requested', details: {'source': 'phone_mic'});
     _stopSocketHealthMonitor();
     // Finalize local conversation before stopping (for custom STT mode)
@@ -1699,6 +1716,7 @@ class CaptureProvider extends ChangeNotifier
 
     // Update health monitor timestamp
     _lastSegmentReceivedAt = DateTime.now();
+    _sttReconnectAttempts = 0;
 
     // Reset silence timer (auto-save after N seconds of no speech)
     _resetSilenceTimer();
@@ -2090,14 +2108,44 @@ class CaptureProvider extends ChangeNotifier
   }
 
   /// Called when silence timeout expires - auto-finalize conversation
+  /// Distinguishes between real silence and STT stall (audio flowing but no segments)
   void _onSilenceTimeout() async {
     if (segments.isEmpty) return;
 
+    // Check if audio is still actively being captured
+    // If audio bytes are flowing but no segments → STT stall, not real silence
+    if (_lastAudioBytesSentAt != null) {
+      final audioGap = DateTime.now().difference(_lastAudioBytesSentAt!);
+      if (audioGap.inSeconds < 10) {
+        debugPrint('[Maity] Silence timeout but audio still flowing (${audioGap.inSeconds}s ago) - STT stall detected, attempting reconnection');
+        _captureLog.log('recording', 'silence_timeout_stt_stall', details: {
+          'audio_gap_seconds': audioGap.inSeconds,
+          'segments_count': segments.length,
+        });
+        // Trigger STT reconnection instead of finalizing
+        _onTranscriptionStalled();
+        return;
+      }
+    }
+
+    // Real silence - proceed with finalization
     _captureLog.log('recording', 'silence_timeout_triggered', details: {
       'timeout_seconds': SharedPreferencesUtil().conversationSilenceDuration,
       'segments_count': segments.length,
     });
     debugPrint('[Maity] Silence timeout (${SharedPreferencesUtil().conversationSilenceDuration}s) - auto-finalizing conversation');
+
+    // Save recovery data as safety net before finalizing
+    if (segments.isNotEmpty && _currentSessionId != null) {
+      await TranscriptRecoveryService.saveSegments(
+        sessionId: _currentSessionId!,
+        startedAt: _recordingStartTime ?? DateTime.now(),
+        segments: List.from(segments),
+        draftConversationId: _incrementalSave.draftId,
+      );
+      debugPrint('[Maity] Recovery data saved before silence timeout finalize');
+    }
+
     await _finalizeLocalConversation();
     _resetStateVariables();
     notifyListeners();
@@ -2258,16 +2306,58 @@ class CaptureProvider extends ChangeNotifier
   }
 
   /// Called when transcription appears to have stalled (no segments for >60s)
-  void _onTranscriptionStalled() {
+  void _onTranscriptionStalled() async {
     // Only warn once until new segments arrive
     if (_lastSegmentReceivedAt == null) return;
 
     _captureLog.log('health', 'transcription_stalled', severity: 'error', details: {
       'total_segments': segments.length,
+      'reconnect_attempt': _sttReconnectAttempts,
     });
-    debugPrint('[Maity] Transcription stalled - notifying user');
 
-    // Show notification
+    // Clear timestamp to avoid repeated triggers while reconnecting
+    _lastSegmentReceivedAt = null;
+
+    _sttReconnectAttempts++;
+    if (_sttReconnectAttempts > _maxSttReconnectAttempts) {
+      debugPrint('[Maity] Max STT reconnect attempts reached ($_maxSttReconnectAttempts) - notifying user');
+      _showStallNotification();
+      return;
+    }
+
+    debugPrint('[Maity] Transcription stalled - STT reconnect attempt $_sttReconnectAttempts/$_maxSttReconnectAttempts');
+
+    // Kill current socket and create new one
+    await _socket?.stop(reason: 'transcription stalled');
+
+    if (recordingState == RecordingState.record) {
+      await _initiateWebsocket(
+        audioCodec: BleAudioCodec.pcm16,
+        sampleRate: 16000,
+        force: true,
+        source: ConversationSource.phone.name,
+      );
+    } else if (recordingState == RecordingState.deviceRecord && _recordingDevice != null) {
+      BleAudioCodec codec = await _getAudioCodec(_recordingDevice!.id);
+      await _initiateWebsocket(audioCodec: codec, force: true, source: _getConversationSourceFromDevice());
+    } else if (recordingState == RecordingState.systemAudioRecord) {
+      await _initiateWebsocket(
+        audioCodec: BleAudioCodec.pcm16,
+        sampleRate: 16000,
+        force: true,
+        source: ConversationSource.desktop.name,
+      );
+    }
+
+    // Reset silence timer to give new socket time to produce segments
+    _resetSilenceTimer();
+
+    // Set timestamp so health monitor can detect if reconnected socket also stalls
+    _lastSegmentReceivedAt = DateTime.now();
+  }
+
+  /// Shows a notification when transcription has stalled and reconnection failed
+  void _showStallNotification() {
     final lang = SharedPreferencesUtil().appLanguage;
     final title = lang == 'es' ? 'Transcripción interrumpida' : 'Transcription Lost';
     final body = lang == 'es'
@@ -2279,9 +2369,6 @@ class CaptureProvider extends ChangeNotifier
       body: body,
       notificationId: 3,
     );
-
-    // Clear timestamp to avoid repeated warnings
-    _lastSegmentReceivedAt = null;
   }
 
   /// Recovers an interrupted session from the recovery file

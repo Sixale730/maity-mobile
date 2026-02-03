@@ -188,6 +188,13 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
     _reconnectRetries = 0; // Reset retries on new connection attempt
 
     Future<void> attemptReconnect() async {
+      // Skip BLE reconnection during phone mic recording to avoid unnecessary overhead
+      if (CaptureProvider.isRecordingWithPhoneMic) {
+        debugPrint("Skipping BLE reconnection - phone mic recording active");
+        _scheduleNextReconnect(boundDeviceOnly);
+        return;
+      }
+
       CaptureLogService.instance.log('ble', 'reconnect_attempt', severity: 'debug', details: {
         'retry': _reconnectRetries + 1,
         'max_retries': _maxReconnectRetries,
