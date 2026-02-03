@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
@@ -152,25 +153,27 @@ class CaptureProvider extends ChangeNotifier
 
   String _socketStateName() => _socket?.state.name ?? 'null';
 
+  // Keep-alive attempt tracking to prevent infinite reconnection loops
+  int _keepAliveAttempts = 0;
+  static const int _maxKeepAliveAttempts = 10;
+
   CaptureProvider() {
     _connectionStateListener = ConnectivityService().onConnectionChange.listen((bool isConnected) {
       onConnectionStateChanged(isConnected);
     });
 
+    // Register lifecycle observer on ALL platforms (mobile + desktop)
+    // This is critical for handling app paused/resumed states
+    WidgetsBinding.instance.addObserver(this);
+
     if (PlatformService.isDesktop) {
       _screenCaptureChannel = const MethodChannel('screenCapturePlatform');
       _controlBarChannel = const MethodChannel('com.omi/floating_control_bar');
-
-      _initializeAppLifecycleListener();
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _controlBarChannel.setMethodCallHandler(_handleFloatingControlBarMethodCall);
       });
     }
-  }
-
-  void _initializeAppLifecycleListener() {
-    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
@@ -181,32 +184,174 @@ class CaptureProvider extends ChangeNotifier
       'state': state.name,
       'recording_state': recordingState.name,
       'has_device': _recordingDevice != null,
-      'socket_connected': _socket?.state == SocketServiceState.connected,
+      'socket_state': _socket != null ? _socket!.state.name : 'null',
+      'is_paused': _isPaused,
+      'has_draft': _incrementalSave.draftId != null,
+      'segment_count': segments.length,
+      'platform': PlatformService.isDesktop ? 'desktop' : 'mobile',
     });
 
-    if (state == AppLifecycleState.resumed) {
-      _handleAppResumed();
+    switch (state) {
+      case AppLifecycleState.paused:
+        _handleAppPaused();
+        break;
+      case AppLifecycleState.resumed:
+        _handleAppResumed();
+        break;
+      case AppLifecycleState.detached:
+        _handleAppDetached();
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+        // Just logging, no action needed
+        debugPrint('[CaptureProvider] Lifecycle: $state');
+        break;
     }
   }
 
-  void _handleAppResumed() async {
-    if (!PlatformService.isDesktop || !_shouldAutoResumeAfterWake) return;
+  /// Handle app going to background (screen locked, app minimized)
+  void _handleAppPaused() {
+    DebugLogManager.logEvent('app_paused_handling', {
+      'action': 'stopping_background_services',
+      'socket_state': _socket != null ? _socket!.state.name : 'null',
+      'recording_state': recordingState.name,
+      'segment_count': segments.length,
+    });
 
-    try {
-      final nativeRecording = await _screenCaptureChannel.invokeMethod('isRecording') ?? false;
+    debugPrint('[CaptureProvider] App paused - stopping health monitor and keep-alive');
 
-      if (!nativeRecording && recordingState != RecordingState.stop) {
-        updateRecordingState(RecordingState.stop);
-        await _socket?.stop(reason: 'native recording stopped during sleep');
-      }
+    // Stop health monitor to avoid reconnections while in background
+    _stopSocketHealthMonitor();
 
-      if (!nativeRecording && recordingState == RecordingState.stop) {
-        await Future.delayed(const Duration(seconds: 2));
-        await streamSystemAudioRecording();
-      }
-    } catch (e) {
-      debugPrint('[AutoRecord] Resume error: $e');
+    // Cancel keep-alive timer to prevent reconnection attempts in background
+    _keepAliveTimer?.cancel();
+    _keepAliveTimer = null;
+
+    // Save recovery data immediately to prevent data loss
+    if (segments.isNotEmpty && !_isSpeechProfileMode) {
+      debugPrint('[CaptureProvider] Saving recovery data before pause');
+      _saveRecoveryData();
     }
+  }
+
+  /// Handle app being terminated
+  void _handleAppDetached() {
+    DebugLogManager.logEvent('app_detached_handling', {
+      'action': 'cleanup',
+      'recording_state': recordingState.name,
+      'segment_count': segments.length,
+    });
+
+    debugPrint('[CaptureProvider] App detached - performing cleanup');
+
+    // Stop socket cleanly
+    _socket?.stop(reason: 'app detached');
+  }
+
+  /// Handle app returning from background
+  void _handleAppResumed() async {
+    DebugLogManager.logEvent('app_resumed_handling_start', {
+      'recording_state': recordingState.name,
+      'socket_state': _socket != null ? _socket!.state.name : 'null',
+      'is_mobile': !PlatformService.isDesktop,
+      'has_device': _recordingDevice != null,
+      'segment_count': segments.length,
+    });
+
+    debugPrint('[CaptureProvider] App resumed - checking state');
+
+    // Desktop-specific auto-resume logic for system audio
+    if (PlatformService.isDesktop && _shouldAutoResumeAfterWake) {
+      try {
+        final nativeRecording = await _screenCaptureChannel.invokeMethod('isRecording') ?? false;
+
+        if (!nativeRecording && recordingState != RecordingState.stop) {
+          updateRecordingState(RecordingState.stop);
+          await _socket?.stop(reason: 'native recording stopped during sleep');
+        }
+
+        if (!nativeRecording && recordingState == RecordingState.stop) {
+          await Future.delayed(const Duration(seconds: 2));
+          await streamSystemAudioRecording();
+        }
+      } catch (e) {
+        debugPrint('[CaptureProvider] Desktop resume error: $e');
+      }
+      return;
+    }
+
+    // Mobile: handle socket reconnection if we were recording
+    try {
+      final isRecording = recordingState == RecordingState.record ||
+          recordingState == RecordingState.deviceRecord ||
+          recordingState == RecordingState.systemAudioRecord;
+
+      if (isRecording) {
+        // Restart health monitor
+        _startSocketHealthMonitor();
+
+        // Check if socket needs reconnection
+        if (_socket != null && _socket!.state != SocketServiceState.connected) {
+          DebugLogManager.logEvent('app_resumed_socket_reconnect', {
+            'previous_state': _socket!.state.name,
+            'recording_state': recordingState.name,
+          });
+
+          debugPrint('[CaptureProvider] Socket disconnected during background, reconnecting...');
+          await _reconnectSocketAfterResume();
+        }
+      }
+
+      // Refresh in-progress conversations
+      refreshInProgressConversations();
+
+    } catch (e, stack) {
+      DebugLogManager.logEvent('app_resumed_error', {
+        'error': e.toString(),
+        'stack': stack.toString().substring(0, min(500, stack.toString().length)),
+      });
+      debugPrint('[CaptureProvider] Resume error: $e');
+    }
+  }
+
+  /// Reconnect socket after app resumes from background
+  Future<void> _reconnectSocketAfterResume() async {
+    DebugLogManager.logEvent('socket_reconnect_attempt', {
+      'current_state': _socket != null ? _socket!.state.name : 'null',
+      'recording_state': recordingState.name,
+    });
+
+    debugPrint('[CaptureProvider] Attempting socket reconnect after resume');
+
+    // Stop current socket cleanly
+    await _socket?.stop(reason: 'reconnect after resume');
+
+    // Small delay to ensure cleanup
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // Reinitiate websocket based on recording state
+    if (recordingState == RecordingState.record) {
+      await _initiateWebsocket(
+        audioCodec: BleAudioCodec.pcm16,
+        sampleRate: 16000,
+        force: true,
+        source: ConversationSource.phone.name,
+      );
+    } else if (recordingState == RecordingState.deviceRecord && _recordingDevice != null) {
+      BleAudioCodec codec = await _getAudioCodec(_recordingDevice!.id);
+      await _initiateWebsocket(audioCodec: codec, force: true, source: _getConversationSourceFromDevice());
+    } else if (recordingState == RecordingState.systemAudioRecord) {
+      await _initiateWebsocket(
+        audioCodec: BleAudioCodec.pcm16,
+        sampleRate: 16000,
+        force: true,
+        source: ConversationSource.desktop.name,
+      );
+    }
+
+    DebugLogManager.logEvent('socket_reconnect_completed', {
+      'new_state': _socket != null ? _socket!.state.name : 'null',
+    });
   }
 
   void updateProviderInstances(ConversationProvider? cp, MessageProvider? mp, PeopleProvider? pp, UsageProvider? up) {
@@ -973,25 +1118,31 @@ class CaptureProvider extends ChangeNotifier
 
   @override
   void dispose() {
+    debugPrint('[CaptureProvider] dispose() called');
+
+    // Cancel ALL timers to prevent memory leaks and zombie timers
     _bleBytesStream?.cancel();
     _blePhotoStream?.cancel();
-    _socket?.unsubscribe(this);
     _keepAliveTimer?.cancel();
     _connectionStateListener?.cancel();
     _recordingTimer?.cancel();
     _metricsTimer?.cancel();
     _recoveryTimer?.cancel();
     _silenceTimer?.cancel();
+    _socketHealthTimer?.cancel();  // Health monitor timer
+    _reconnectTimer?.cancel();     // Auto-reconnect timer
 
     // Dispose VAD service
     _vadService?.dispose();
     _vadService = null;
     vadStateNotifier.value = null;
 
-    // Remove lifecycle observer
-    if (PlatformService.isDesktop) {
-      WidgetsBinding.instance.removeObserver(this);
-    }
+    // Stop socket BEFORE unsubscribing to ensure clean shutdown
+    _socket?.stop(reason: 'provider disposed');
+    _socket?.unsubscribe(this);
+
+    // Remove lifecycle observer on ALL platforms (was registered in constructor)
+    WidgetsBinding.instance.removeObserver(this);
 
     super.dispose();
   }
@@ -1414,8 +1565,32 @@ class CaptureProvider extends ChangeNotifier
   void _startKeepAliveServices() {
     _captureLog.log('socket', 'keepalive_started');
     _keepAliveTimer?.cancel();
+    _keepAliveAttempts = 0;  // Reset counter when starting keep-alive
+
     _keepAliveTimer = Timer.periodic(const Duration(seconds: 15), (t) async {
-      debugPrint("[Provider] keep alive");
+      _keepAliveAttempts++;
+
+      DebugLogManager.logEvent('keep_alive_tick', {
+        'attempt': _keepAliveAttempts,
+        'max_attempts': _maxKeepAliveAttempts,
+        'socket_ready': recordingDeviceServiceReady,
+        'socket_state': _socket != null ? _socket!.state.name : 'null',
+        'recording_state': recordingState.name,
+      });
+
+      debugPrint("[Provider] keep alive - attempt $_keepAliveAttempts/$_maxKeepAliveAttempts");
+
+      // Check if max attempts reached
+      if (_keepAliveAttempts >= _maxKeepAliveAttempts) {
+        DebugLogManager.logEvent('keep_alive_max_reached', {
+          'attempts': _keepAliveAttempts,
+        });
+        debugPrint("[Provider] keep alive - max attempts reached, stopping");
+        t.cancel();
+        _keepAliveTimer = null;
+        return;
+      }
+
       // rate 1/15s
       if (_keepAliveLastExecutedAt != null &&
           DateTime.now().subtract(const Duration(seconds: 15)).isBefore(_keepAliveLastExecutedAt!)) {
@@ -1424,8 +1599,13 @@ class CaptureProvider extends ChangeNotifier
       }
 
       _keepAliveLastExecutedAt = DateTime.now();
+
+      // If socket is already connected or no recording device, stop keep-alive
       if (!recordingDeviceServiceReady || _socket?.state == SocketServiceState.connected) {
+        debugPrint("[Provider] keep alive - socket ready or connected, stopping");
         t.cancel();
+        _keepAliveTimer = null;
+        _keepAliveAttempts = 0;  // Reset for next time
         return;
       }
 

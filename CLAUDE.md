@@ -160,6 +160,49 @@ Segmentos se guardan a archivo JSON cada 5s (debounce) o 5 nuevos segmentos. Al 
 
 **Proteccion doble guardado**: Flag `_conversationFinalized` en CaptureProvider.
 
+## App Lifecycle Handling
+
+### Manejo de Estados del Ciclo de Vida
+`CaptureProvider` implementa `WidgetsBindingObserver` en **todas las plataformas** (mobile + desktop) para manejar correctamente cuando la app va a background/foreground.
+
+**Estados manejados**:
+- `paused`: App en background (pantalla bloqueada, minimizada)
+- `resumed`: App vuelve a foreground
+- `detached`: App terminandose
+- `inactive`/`hidden`: Solo logging
+
+### _handleAppPaused()
+Al ir a background:
+1. Detiene health monitor (`_stopSocketHealthMonitor()`)
+2. Cancela keep-alive timer
+3. Guarda recovery data inmediatamente (`_saveRecoveryData()`)
+
+**Motivo**: Evita reconexiones y race conditions mientras app esta en background.
+
+### _handleAppResumed()
+Al volver de background:
+1. Reinicia health monitor si estaba grabando
+2. Reconecta socket si estaba desconectado (`_reconnectSocketAfterResume()`)
+3. Refresca conversaciones en progreso
+
+**Desktop**: Logica especial para system audio con `_shouldAutoResumeAfterWake`.
+
+### Keep-Alive con Limite
+Timer de 15s que intenta reconectar socket desconectado.
+- `_keepAliveAttempts`: contador de intentos
+- `_maxKeepAliveAttempts = 10`: limite para evitar loops infinitos
+- Se resetea cuando socket conecta exitosamente
+
+**Eventos de debug** (DebugLogManager):
+- `app_lifecycle_changed` - Cambio de estado
+- `app_paused_handling` - Acciones al pausar
+- `app_resumed_handling_start` - Inicio de resume
+- `socket_reconnect_attempt` - Intento de reconexion
+- `keep_alive_tick` - Cada tick del timer
+- `keep_alive_max_reached` - Limite alcanzado
+
+**Archivos**: `lib/providers/capture_provider.dart` (lifecycle handling), `lib/services/sockets/pure_socket.dart`, `lib/services/sockets/pure_streaming_stt.dart` (debug logs).
+
 ## Autenticacion (Supabase Auth)
 
 **Flujo**: Google Sign-In → idToken → `SupabaseAuthService.signInWithGoogleNative()` → Supabase → trigger crea `maity.users` → `fetchMaityUserId()`.
