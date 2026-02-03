@@ -521,6 +521,9 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
       context,
       title: l10n?.deleteSelectedItems ?? 'Delete Selected Items',
       message: l10n?.areYouSureDeleteActionItems(selectedCount, selectedCount > 1 ? 's' : '') ?? 'Are you sure you want to delete $selectedCount selected action item${selectedCount > 1 ? 's' : ''}?',
+      confirmLabel: l10n?.confirm ?? 'Confirm',
+      cancelLabel: l10n?.cancel ?? 'Cancel',
+      skipLabel: l10n?.doNotShowAgain ?? 'Do not show this again',
     );
 
     if (result != null && result.confirmed) {
@@ -583,6 +586,9 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
       context,
       title: l10n?.deleteActionItem ?? 'Delete Action Item',
       message: l10n?.areYouSureDeleteActionItem ?? 'Are you sure you want to delete this action item?',
+      confirmLabel: l10n?.confirm ?? 'Confirm',
+      cancelLabel: l10n?.cancel ?? 'Cancel',
+      skipLabel: l10n?.doNotShowAgain ?? 'Do not show this again',
     );
 
     if (result?.confirmed == true) {
