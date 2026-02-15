@@ -963,3 +963,98 @@ async def reprocess_conversation(
     except Exception as e:
         print(f"[OMI Router] Reprocess failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to reprocess: {str(e)}")
+
+
+@router.post("/conversations/cleanup-orphans")
+async def cleanup_orphan_drafts(
+    user_id: str = Query(..., description="User ID (maity.users UUID)"),
+    auth_user_id: Optional[str] = Depends(optional_auth_user_id),
+):
+    """
+    Find and finalize orphan draft conversations (status='recording' with
+    last_segment_at older than 1 hour). These are recordings that were
+    interrupted by app crashes, screen locks, or OS kills.
+
+    Drafts with segments are finalized into completed conversations.
+    Drafts without segments are marked as abandoned.
+    """
+    from datetime import timedelta
+
+    try:
+        supabase = get_supabase()
+        cutoff = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+
+        # Find orphan drafts: status='recording' and last_segment_at > 1 hour ago
+        result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .select("id, last_segment_at, segment_count, created_at")
+            .eq("user_id", user_id)
+            .eq("status", "recording")
+            .lt("last_segment_at", cutoff)
+            .execute()
+        )
+
+        orphans = result.data if result.data else []
+
+        # Also find drafts with null last_segment_at that are old (created > 1h ago)
+        null_result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .select("id, last_segment_at, segment_count, created_at")
+            .eq("user_id", user_id)
+            .eq("status", "recording")
+            .is_("last_segment_at", "null")
+            .lt("created_at", cutoff)
+            .execute()
+        )
+
+        if null_result.data:
+            orphans.extend(null_result.data)
+
+        if not orphans:
+            return {"cleaned": 0, "finalized": [], "abandoned": []}
+
+        finalized = []
+        abandoned = []
+
+        for orphan in orphans:
+            orphan_id = orphan["id"]
+            seg_count = orphan.get("segment_count", 0) or 0
+
+            if seg_count > 0:
+                # Has segments - try to finalize
+                try:
+                    conv = await finalize_conversation(
+                        conversation_id=orphan_id,
+                        user_id=user_id,
+                        finished_at=datetime.utcnow(),
+                    )
+                    if conv:
+                        finalized.append(orphan_id)
+                        print(f"[OMI Router] Finalized orphan draft {orphan_id} ({seg_count} segments)")
+                    else:
+                        # Finalize returned None (no segments in DB) - mark as abandoned
+                        supabase.schema("maity").table("omi_conversations").update({
+                            "status": "abandoned",
+                        }).eq("id", orphan_id).eq("user_id", user_id).execute()
+                        abandoned.append(orphan_id)
+                except Exception as e:
+                    print(f"[OMI Router] Failed to finalize orphan {orphan_id}: {e}")
+            else:
+                # No segments - mark as abandoned
+                supabase.schema("maity").table("omi_conversations").update({
+                    "status": "abandoned",
+                }).eq("id", orphan_id).eq("user_id", user_id).execute()
+                abandoned.append(orphan_id)
+                print(f"[OMI Router] Marked orphan draft {orphan_id} as abandoned (no segments)")
+
+        return {
+            "cleaned": len(finalized) + len(abandoned),
+            "finalized": finalized,
+            "abandoned": abandoned,
+        }
+
+    except Exception as e:
+        print(f"[OMI Router] Cleanup orphans failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")

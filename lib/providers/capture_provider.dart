@@ -157,6 +157,9 @@ class CaptureProvider extends ChangeNotifier
   int _keepAliveAttempts = 0;
   static const int _maxKeepAliveAttempts = 10;
 
+  // Background finalize timer: auto-finalizes if socket stays dead while app is in background
+  Timer? _backgroundFinalizeTimer;
+
   CaptureProvider() {
     _connectionStateListener = ConnectivityService().onConnectionChange.listen((bool isConnected) {
       onConnectionStateChanged(isConnected);
@@ -227,6 +230,14 @@ class CaptureProvider extends ChangeNotifier
     _keepAliveTimer?.cancel();
     _keepAliveTimer = null;
 
+    // Start background finalize timer: if socket stays dead for 3 min, auto-finalize
+    final isRecording = recordingState == RecordingState.record ||
+        recordingState == RecordingState.deviceRecord ||
+        recordingState == RecordingState.systemAudioRecord;
+    if (isRecording && segments.isNotEmpty) {
+      _startBackgroundFinalizeTimer();
+    }
+
     // Save recovery data immediately to prevent data loss
     if (segments.isNotEmpty && !_isSpeechProfileMode) {
       debugPrint('[CaptureProvider] Saving recovery data before pause');
@@ -248,8 +259,30 @@ class CaptureProvider extends ChangeNotifier
     _socket?.stop(reason: 'app detached');
   }
 
+  /// Starts a timer that auto-finalizes the conversation if the socket
+  /// remains disconnected while the app is in background for 3 minutes.
+  void _startBackgroundFinalizeTimer() {
+    _backgroundFinalizeTimer?.cancel();
+    _backgroundFinalizeTimer = Timer(const Duration(minutes: 3), () {
+      // If socket is still disconnected after 3 min in background, finalize
+      if (_socket?.state != SocketServiceState.connected && segments.isNotEmpty && !_conversationFinalized) {
+        _captureLog.log('recording', 'background_auto_finalize', severity: 'warning', details: {
+          'segments_count': segments.length,
+          'socket_state': _socket?.state.name ?? 'null',
+          'minutes_in_background': 3,
+        });
+        debugPrint('[CaptureProvider] Background timer: socket dead for 3 min, auto-finalizing');
+        _autoFinalizeOnConnectionLost();
+      }
+    });
+  }
+
   /// Handle app returning from background
   void _handleAppResumed() async {
+    // Cancel background finalize timer since user is back
+    _backgroundFinalizeTimer?.cancel();
+    _backgroundFinalizeTimer = null;
+
     DebugLogManager.logEvent('app_resumed_handling_start', {
       'recording_state': recordingState.name,
       'socket_state': _socket != null ? _socket!.state.name : 'null',
@@ -299,6 +332,12 @@ class CaptureProvider extends ChangeNotifier
 
           debugPrint('[CaptureProvider] Socket disconnected during background, reconnecting...');
           await _reconnectSocketAfterResume();
+
+          // If reconnect didn't succeed immediately, start keep-alive to keep trying
+          if (_socket?.state != SocketServiceState.connected) {
+            debugPrint('[CaptureProvider] Immediate reconnect failed, starting keep-alive services');
+            _startKeepAliveServices();
+          }
         }
       }
 
@@ -360,7 +399,24 @@ class CaptureProvider extends ChangeNotifier
     peopleProvider = pp;
     usageProvider = up;
 
+    // Clean up orphan drafts from previous sessions (fire-and-forget)
+    _cleanupOrphanDrafts();
+
     notifyListeners();
+  }
+
+  /// Cleans up orphan draft conversations from previous interrupted sessions.
+  /// Non-blocking: runs in background without affecting app startup.
+  void _cleanupOrphanDrafts() async {
+    try {
+      final userId = SupabaseAuthService.instance.maityUserId;
+      if (userId == null) return;
+      await OmiSupabaseService.cleanupOrphanDrafts(userId: userId);
+      // Refresh conversation list if any were finalized
+      conversationProvider?.refreshConversations();
+    } catch (e) {
+      debugPrint('[CaptureProvider] Orphan cleanup failed (non-blocking): $e');
+    }
   }
 
   BtDevice? _recordingDevice;
@@ -484,6 +540,9 @@ class CaptureProvider extends ChangeNotifier
     _lastSegmentReceivedAt = null;
     _sttReconnectAttempts = 0;
     _lastAudioBytesSentAt = null;
+    // Cancel background finalize timer
+    _backgroundFinalizeTimer?.cancel();
+    _backgroundFinalizeTimer = null;
     CaptureProvider.isRecordingWithPhoneMic = false;
     notifyListeners();
   }
@@ -1131,6 +1190,7 @@ class CaptureProvider extends ChangeNotifier
     _silenceTimer?.cancel();
     _socketHealthTimer?.cancel();  // Health monitor timer
     _reconnectTimer?.cancel();     // Auto-reconnect timer
+    _backgroundFinalizeTimer?.cancel();  // Background finalize timer
 
     // Dispose VAD service
     _vadService?.dispose();
@@ -1588,6 +1648,8 @@ class CaptureProvider extends ChangeNotifier
         debugPrint("[Provider] keep alive - max attempts reached, stopping");
         t.cancel();
         _keepAliveTimer = null;
+        // Auto-finalize conversation with existing segments instead of going zombie
+        _autoFinalizeOnConnectionLost();
         return;
       }
 
@@ -2500,8 +2562,10 @@ class CaptureProvider extends ChangeNotifier
 
     _sttReconnectAttempts++;
     if (_sttReconnectAttempts > _maxSttReconnectAttempts) {
-      debugPrint('[Maity] Max STT reconnect attempts reached ($_maxSttReconnectAttempts) - notifying user');
+      debugPrint('[Maity] Max STT reconnect attempts reached ($_maxSttReconnectAttempts) - notifying user and auto-finalizing');
       _showStallNotification();
+      // Auto-finalize conversation instead of leaving it in zombie state
+      _autoFinalizeOnConnectionLost();
       return;
     }
 
@@ -2549,6 +2613,46 @@ class CaptureProvider extends ChangeNotifier
       body: body,
       notificationId: 3,
     );
+  }
+
+  /// Auto-finalizes the current conversation when connection is permanently lost.
+  /// Called when keep-alive or STT reconnect attempts are exhausted.
+  /// Saves whatever segments we have and cleanly stops recording.
+  Future<void> _autoFinalizeOnConnectionLost() async {
+    if (segments.isEmpty || _conversationFinalized) return;
+
+    _captureLog.log('recording', 'auto_finalize_connection_lost', severity: 'warning', details: {
+      'segments_count': segments.length,
+      'keep_alive_attempts': _keepAliveAttempts,
+      'stt_reconnect_attempts': _sttReconnectAttempts,
+      'has_draft': _incrementalSave.draftId != null,
+    });
+
+    debugPrint('[Maity] Auto-finalizing conversation due to connection loss (${segments.length} segments)');
+
+    // Save recovery data as backup in case finalization fails
+    if (_currentSessionId != null) {
+      await TranscriptRecoveryService.saveSegments(
+        sessionId: _currentSessionId!,
+        startedAt: _recordingStartTime ?? DateTime.now(),
+        segments: List.from(segments),
+        draftConversationId: _incrementalSave.draftId,
+      );
+    }
+
+    // Stop socket and microphone
+    await _socket?.stop(reason: 'connection lost - auto finalizing');
+    ServiceManager.instance().mic.stop();
+    CaptureProvider.isRecordingWithPhoneMic = false;
+    _stopSocketHealthMonitor();
+    _cancelSilenceTimer();
+
+    // Finalize with whatever segments we have
+    await _finalizeLocalConversation();
+    await _resetStateVariables();
+    updateRecordingState(RecordingState.stop);
+    _captureLog.endSession();
+    notifyListeners();
   }
 
   /// Recovers an interrupted session from the recovery file

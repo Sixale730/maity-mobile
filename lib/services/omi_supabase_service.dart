@@ -397,6 +397,38 @@ class OmiSupabaseService {
     }
   }
 
+  /// Clean up orphan draft conversations (status='recording' with last_segment_at > 1h ago)
+  /// Finalizes drafts with segments, marks empty ones as abandoned
+  static Future<void> cleanupOrphanDrafts({required String userId}) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/v1/omi/conversations/cleanup-orphans').replace(
+        queryParameters: {'user_id': userId},
+      );
+
+      debugPrint('[OmiSupabaseService] POST $uri');
+
+      final authHeader = await getAuthHeader();
+      final response = await http.post(
+        uri,
+        headers: {'Authorization': authHeader},
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final cleaned = data['cleaned'] ?? 0;
+        if (cleaned > 0) {
+          debugPrint('[OmiSupabaseService] Cleaned up $cleaned orphan drafts '
+              '(finalized: ${data['finalized']?.length ?? 0}, abandoned: ${data['abandoned']?.length ?? 0})');
+        }
+      } else {
+        debugPrint('[OmiSupabaseService] Cleanup orphans error: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Non-blocking: don't let cleanup failures affect app startup
+      debugPrint('[OmiSupabaseService] Cleanup orphans error: $e');
+    }
+  }
+
   /// Delete a conversation (soft delete - marks as deleted in Supabase)
   /// [userId] es el UUID de maity.users
   static Future<bool> deleteConversation({
