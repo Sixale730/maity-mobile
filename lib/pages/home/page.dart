@@ -736,7 +736,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                                   color: Colors.white,
                                                   strokeWidth: 2,
                                                 )
-                                              : Icon(
+                                              : const Icon(
                                                   FontAwesomeIcons.microphone,
                                                   color: Colors.white,
                                                   size: 22,
