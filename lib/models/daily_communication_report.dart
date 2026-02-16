@@ -1,27 +1,44 @@
 class DailyScores {
+  // 6-competency standard scores
   final double clarity;
   final double structure;
+  final double vocabulario;
+  final double empatia;
+  final double objetivo;
+  final double adaptacion;
+  final double overall;
+  // Legacy fields (kept for backward compat)
   final double callsToAction;
   final double objectionHandling;
-  final double overall;
 
   const DailyScores({
     this.clarity = 0,
     this.structure = 0,
+    this.vocabulario = 0,
+    this.empatia = 0,
+    this.objetivo = 0,
+    this.adaptacion = 0,
+    this.overall = 0,
     this.callsToAction = 0,
     this.objectionHandling = 0,
-    this.overall = 0,
   });
 
   factory DailyScores.fromJson(Map<String, dynamic> json) {
     return DailyScores(
       clarity: (json['clarity'] as num?)?.toDouble() ?? 0,
       structure: (json['structure'] as num?)?.toDouble() ?? 0,
+      vocabulario: (json['vocabulario'] as num?)?.toDouble() ?? 0,
+      empatia: (json['empatia'] as num?)?.toDouble() ?? 0,
+      objetivo: (json['objetivo'] as num?)?.toDouble() ?? 0,
+      adaptacion: (json['adaptacion'] as num?)?.toDouble() ?? 0,
+      overall: (json['overall'] as num?)?.toDouble() ?? 0,
       callsToAction: (json['calls_to_action'] as num?)?.toDouble() ?? 0,
       objectionHandling: (json['objection_handling'] as num?)?.toDouble() ?? 0,
-      overall: (json['overall'] as num?)?.toDouble() ?? 0,
     );
   }
+
+  /// True if this report has the new 6-competency scores
+  bool get hasNewScores => vocabulario > 0 || empatia > 0 || objetivo > 0 || adaptacion > 0;
 }
 
 class DailyTrend {

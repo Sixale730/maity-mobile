@@ -10,6 +10,7 @@ import 'package:omi/backend/schema/person.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/pages/capture/widgets/widgets.dart';
 import 'package:omi/pages/conversation_detail/widgets.dart';
+import 'package:omi/pages/conversation_detail/widgets/analysis/analysis_tab.dart';
 import 'package:omi/pages/home/page.dart';
 import 'package:omi/providers/connectivity_provider.dart';
 import 'package:omi/providers/conversation_provider.dart';
@@ -207,11 +208,11 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
     final l10n = AppLocalizations.of(context);
     switch (tab) {
       case ConversationTab.transcript:
-        return l10n?.transcription ?? 'Transcription';
+        return l10n?.transcriptionTab ?? 'Transcription';
       case ConversationTab.summary:
-        return l10n?.summary ?? 'Summary';
+        return l10n?.analysisTab ?? 'Analysis';
       case ConversationTab.actionItems:
-        return l10n?.actionItems ?? 'Action Items';
+        return l10n?.tasksTab ?? 'Tasks';
     }
   }
 
@@ -903,8 +904,8 @@ class SummaryTab extends StatelessWidget {
                       data.item1
                           ? const ReprocessDiscardedWidget()
                           : GetAppsWidgets(searchQuery: searchQuery, currentResultIndex: currentResultIndex),
-                      // Communication Feedback Card (only for non-discarded)
-                      if (!data.item1) const CommunicationFeedbackCard(),
+                      // Communication Analysis Section (6-competency standard)
+                      if (!data.item1) const AnalysisSection(),
                       const SizedBox(height: 150)
                     ],
                   ),

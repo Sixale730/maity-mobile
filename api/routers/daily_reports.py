@@ -188,6 +188,10 @@ def _format_report(row: dict) -> dict:
         "scores": {
             "clarity": float(row.get("score_clarity", 0)),
             "structure": float(row.get("score_structure", 0)),
+            "vocabulario": float(row.get("score_vocabulario", 0)),
+            "empatia": float(row.get("score_empatia", 0)),
+            "objetivo": float(row.get("score_objetivo", 0)),
+            "adaptacion": float(row.get("score_adaptacion", 0)),
             "calls_to_action": float(row.get("score_calls_to_action", 0)),
             "objection_handling": float(row.get("score_objection_handling", 0)),
             "overall": float(row.get("score_overall", 0)),

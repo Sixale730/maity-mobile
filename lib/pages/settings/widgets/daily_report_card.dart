@@ -183,6 +183,24 @@ class DailyReportCard extends StatelessWidget {
 
   Widget _buildScoreBars(BuildContext context, DailyScores scores) {
     final l10n = AppLocalizations.of(context)!;
+    if (scores.hasNewScores) {
+      return Column(
+        children: [
+          _buildScoreBar(l10n.clarity, scores.clarity, const Color(0xFF485DF4)),
+          const SizedBox(height: 10),
+          _buildScoreBar(l10n.structure, scores.structure, const Color(0xFFFF8C42)),
+          const SizedBox(height: 10),
+          _buildScoreBar(l10n.vocabulario, scores.vocabulario, const Color(0xFF1BEA9A)),
+          const SizedBox(height: 10),
+          _buildScoreBar(l10n.empatia, scores.empatia, const Color(0xFFEF4444)),
+          const SizedBox(height: 10),
+          _buildScoreBar(l10n.objetivo, scores.objetivo, const Color(0xFFFFD93D)),
+          const SizedBox(height: 10),
+          _buildScoreBar(l10n.adaptacion, scores.adaptacion, const Color(0xFF9B4DCA)),
+        ],
+      );
+    }
+    // Legacy 4-score layout
     return Column(
       children: [
         _buildScoreBar(l10n.clarity, scores.clarity, Colors.cyan),

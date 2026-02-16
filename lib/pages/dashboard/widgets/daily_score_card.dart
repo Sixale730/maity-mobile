@@ -122,17 +122,33 @@ class DailyScoreCard extends StatelessWidget {
                   const SizedBox(width: 24),
                   // Score bars
                   Expanded(
-                    child: Column(
-                      children: [
-                        _buildScoreBar(l10n.clarity, scores.clarity, Colors.cyan),
-                        const SizedBox(height: 8),
-                        _buildScoreBar(l10n.structure, scores.structure, const Color(0xFF485DF4)),
-                        const SizedBox(height: 8),
-                        _buildScoreBar(l10n.callsToAction, scores.callsToAction, Colors.pink),
-                        const SizedBox(height: 8),
-                        _buildScoreBar(l10n.objectionHandling, scores.objectionHandling, Colors.amber),
-                      ],
-                    ),
+                    child: scores.hasNewScores
+                        ? Column(
+                            children: [
+                              _buildScoreBar(l10n.clarity, scores.clarity, const Color(0xFF485DF4)),
+                              const SizedBox(height: 6),
+                              _buildScoreBar(l10n.structure, scores.structure, const Color(0xFFFF8C42)),
+                              const SizedBox(height: 6),
+                              _buildScoreBar(l10n.vocabulario, scores.vocabulario, const Color(0xFF1BEA9A)),
+                              const SizedBox(height: 6),
+                              _buildScoreBar(l10n.empatia, scores.empatia, const Color(0xFFEF4444)),
+                              const SizedBox(height: 6),
+                              _buildScoreBar(l10n.objetivo, scores.objetivo, const Color(0xFFFFD93D)),
+                              const SizedBox(height: 6),
+                              _buildScoreBar(l10n.adaptacion, scores.adaptacion, const Color(0xFF9B4DCA)),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              _buildScoreBar(l10n.clarity, scores.clarity, Colors.cyan),
+                              const SizedBox(height: 8),
+                              _buildScoreBar(l10n.structure, scores.structure, const Color(0xFF485DF4)),
+                              const SizedBox(height: 8),
+                              _buildScoreBar(l10n.callsToAction, scores.callsToAction, Colors.pink),
+                              const SizedBox(height: 8),
+                              _buildScoreBar(l10n.objectionHandling, scores.objectionHandling, Colors.amber),
+                            ],
+                          ),
                   ),
                 ],
               ),

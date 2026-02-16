@@ -365,17 +365,7 @@ async def finalize_conversation_endpoint(
                 ]
                 communication_feedback = await analyze_communication(transcript_segments)
                 if communication_feedback:
-                    feedback_dict = {
-                        "strengths": communication_feedback.strengths,
-                        "areas_to_improve": communication_feedback.areas_to_improve,
-                        "observations": {
-                            "clarity": communication_feedback.observations.clarity,
-                            "structure": communication_feedback.observations.structure,
-                            "calls_to_action": communication_feedback.observations.calls_to_action,
-                            "objections": communication_feedback.observations.objections,
-                        },
-                        "summary": communication_feedback.summary,
-                    }
+                    feedback_dict = communication_feedback.model_dump(exclude_none=True)
                     await update_conversation_feedback(
                         conversation_id=conversation_id,
                         user_id=request.user_id,
@@ -564,18 +554,7 @@ async def store_conversation(
             communication_feedback = await analyze_communication(transcript_segments)
 
             if communication_feedback:
-                feedback_dict = {
-                    "strengths": communication_feedback.strengths,
-                    "areas_to_improve": communication_feedback.areas_to_improve,
-                    "observations": {
-                        "clarity": communication_feedback.observations.clarity,
-                        "structure": communication_feedback.observations.structure,
-                        "calls_to_action": communication_feedback.observations.calls_to_action,
-                        "objections": communication_feedback.observations.objections,
-                    },
-                    "summary": communication_feedback.summary,
-                }
-
+                feedback_dict = communication_feedback.model_dump(exclude_none=True)
                 await update_conversation_feedback(
                     conversation_id=conversation_id,
                     user_id=request.user_id,

@@ -4,9 +4,14 @@ from pydantic import BaseModel, Field
 
 
 class DailyScores(BaseModel):
-    """Communication scores for a daily report"""
+    """Communication scores for a daily report - 6 competency standard"""
     clarity: float = 0.0
     structure: float = 0.0
+    vocabulario: float = 0.0
+    empatia: float = 0.0
+    objetivo: float = 0.0
+    adaptacion: float = 0.0
+    # Legacy fields (kept for backward compat)
     calls_to_action: float = 0.0
     objection_handling: float = 0.0
     overall: float = 0.0

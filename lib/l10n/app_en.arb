@@ -996,5 +996,49 @@
   "transcriptionLostBody": "The transcription connection was interrupted. Your conversation has been saved.",
   "transcriptionReconnecting": "Reconnecting transcription...",
   "transcriptionAutoSaved": "Conversation auto-saved due to connection loss.",
-  "noSegmentsWarning": "No transcription segments were captured."
+  "noSegmentsWarning": "No transcription segments were captured.",
+
+  "vocabulario": "Vocabulary",
+  "empatia": "Empathy",
+  "objetivo": "Objective",
+  "adaptacion": "Adaptation",
+
+  "analysisTab": "Analysis",
+  "transcriptionTab": "Transcription",
+  "tasksTab": "Tasks",
+
+  "overallScoreLabel": "Overall Score",
+  "heroFeedback": "Feedback",
+  "radiografia": "Quick X-Ray",
+  "competencyScores": "Communication Skills",
+  "muletillas": "Filler Words Detected",
+  "preguntasAnalysis": "Question Analysis",
+  "temasAnalysis": "Topics & Commitments",
+  "patronComunicacion": "Communication Pattern",
+  "insightsTitle": "What You Might Not Have Noticed",
+
+  "ratioHabla": "Talk ratio",
+  "palabrasUsuario": "Your words",
+  "palabrasOtros": "Others' words",
+  "totalPalabras": "Total words",
+  "muletillasFrecuencia": "Filler frequency",
+  "muletillasTotal": "Total fillers",
+
+  "preguntasUsuario": "Your questions",
+  "preguntasOtros": "Others' questions",
+
+  "temasTratados": "Topics discussed",
+  "accionesUsuario": "Your commitments",
+  "temasSinCerrar": "Unresolved topics",
+  "conFecha": "Has date",
+  "sinFecha": "No date",
+
+  "patronActual": "Current pattern",
+  "patronEvolucion": "Evolution",
+  "senales": "Signals",
+  "queCambiaria": "What to change",
+
+  "regenerateAnalysis": "Regenerate Analysis",
+  "legacyFeedback": "Legacy Feedback",
+  "newAnalysisAvailable": "A more detailed analysis is available. Tap to regenerate."
 }

@@ -30,7 +30,7 @@ def _get_utc_range_for_mexico_date(report_date: str) -> tuple:
     utc_end = utc_start + timedelta(hours=24) - timedelta(seconds=1)
     return utc_start.strftime("%Y-%m-%dT%H:%M:%S"), utc_end.strftime("%Y-%m-%dT%H:%M:%S")
 
-DAILY_EVALUATION_PROMPT = """Eres un coach de comunicación profesional. Analiza las siguientes métricas agregadas de las conversaciones de hoy de un usuario y genera una evaluación diaria.
+DAILY_EVALUATION_PROMPT = """Eres un coach de comunicación profesional. Analiza las siguientes métricas agregadas de las conversaciones de hoy de un usuario y genera una evaluación diaria con las 6 competencias estándar.
 
 MÉTRICAS DEL DÍA:
 - Conversaciones analizadas: {conversations_analyzed}
@@ -38,23 +38,22 @@ MÉTRICAS DEL DÍA:
 - Duración total: {total_duration_minutes} minutos
 - Muletillas detectadas: {filler_words}
 - Total muletillas: {total_filler_count}
-- Conteo de "pero": {pero_count}
-- Palabras de objeción: {objection_words}
-- Objeciones recibidas: {objections_received}
-- Objeciones hechas: {objections_made}
+- Scores por conversación: {per_conversation_scores}
 - Fortalezas detectadas (de análisis individuales): {strengths}
 - Áreas de mejora detectadas: {areas_to_improve}
 
 {trend_context}
 
-Genera una evaluación con scores del 1 al 10 y feedback constructivo.
+Genera una evaluación con las 6 competencias estándar, cada una de 1.0 a 10.0.
 
 Responde ÚNICAMENTE en JSON válido (sin markdown, sin ```):
 {{
   "score_clarity": 7.5,
   "score_structure": 6.0,
-  "score_calls_to_action": 5.5,
-  "score_objection_handling": 8.0,
+  "score_vocabulario": 7.0,
+  "score_empatia": 6.5,
+  "score_objetivo": 7.0,
+  "score_adaptacion": 6.8,
   "score_overall": 6.8,
   "top_strengths": ["fortaleza 1", "fortaleza 2", "fortaleza 3"],
   "top_areas_to_improve": ["área 1", "área 2", "área 3"],
@@ -65,7 +64,8 @@ Responde ÚNICAMENTE en JSON válido (sin markdown, sin ```):
 
 REGLAS:
 - Scores de 1.0 a 10.0 (un decimal)
-- score_overall es el promedio ponderado (claridad 30%, estructura 25%, llamados a acción 25%, objeciones 20%)
+- score_overall = promedio simple de las 6 competencias (peso igual, 1/6 cada una)
+- Las 6 competencias: clarity, structure, vocabulario, empatia, objetivo, adaptacion
 - top_strengths: máximo 5, basadas en las fortalezas detectadas
 - top_areas_to_improve: máximo 5, basadas en áreas de mejora detectadas
 - recommendations: 2-4 acciones concretas y específicas para mejorar mañana
@@ -273,6 +273,23 @@ async def _generate_single_user_report(
     all_objections_received = all_objections_received[:10]
     all_objections_made = all_objections_made[:10]
 
+    # Collect per-conversation scores (from new 6-competency format)
+    per_conversation_scores = []
+    for convo in convos.data:
+        feedback = convo.get("communication_feedback")
+        if feedback and isinstance(feedback, dict):
+            score = feedback.get("overall_score", 0)
+            if score and score > 0:
+                per_conversation_scores.append({
+                    "clarity": feedback.get("clarity", 0),
+                    "structure": feedback.get("structure", 0),
+                    "vocabulario": feedback.get("vocabulario", 0),
+                    "empatia": feedback.get("empatia", 0),
+                    "objetivo": feedback.get("objetivo", 0),
+                    "adaptacion": feedback.get("adaptacion", 0),
+                    "overall": score,
+                })
+
     # Get previous report for trend comparison
     trend_context = ""
     previous_report = None
@@ -280,7 +297,7 @@ async def _generate_single_user_report(
         prev = (
             supabase.schema("maity")
             .table("daily_communication_reports")
-            .select("score_overall, score_clarity, score_structure, score_calls_to_action, score_objection_handling, report_date")
+            .select("score_overall, score_clarity, score_structure, score_vocabulario, score_empatia, score_objetivo, score_adaptacion, report_date")
             .eq("user_id", user_id)
             .lt("report_date", report_date)
             .order("report_date", desc=True)
@@ -291,10 +308,12 @@ async def _generate_single_user_report(
             previous_report = prev.data[0]
             trend_context = f"""REPORTE ANTERIOR ({previous_report['report_date']}):
 - Score general: {previous_report['score_overall']}
-- Claridad: {previous_report['score_clarity']}
-- Estructura: {previous_report['score_structure']}
-- Llamados a acción: {previous_report['score_calls_to_action']}
-- Manejo de objeciones: {previous_report['score_objection_handling']}
+- Claridad: {previous_report.get('score_clarity', 0)}
+- Estructura: {previous_report.get('score_structure', 0)}
+- Vocabulario: {previous_report.get('score_vocabulario', 0)}
+- Empatía: {previous_report.get('score_empatia', 0)}
+- Objetivo: {previous_report.get('score_objetivo', 0)}
+- Adaptación: {previous_report.get('score_adaptacion', 0)}
 Compara con estos scores para determinar la tendencia."""
     except Exception as e:
         print(f"[DailyReport] Could not fetch previous report: {e}")
@@ -307,10 +326,7 @@ Compara con estos scores para determinar la tendencia."""
         total_duration_minutes=round(total_duration / 60),
         filler_words=json.dumps(all_filler_words, ensure_ascii=False),
         total_filler_count=total_filler_count,
-        pero_count=total_pero_count,
-        objection_words=json.dumps(all_objection_words, ensure_ascii=False),
-        objections_received=json.dumps(all_objections_received, ensure_ascii=False),
-        objections_made=json.dumps(all_objections_made, ensure_ascii=False),
+        per_conversation_scores=json.dumps(per_conversation_scores, ensure_ascii=False) if per_conversation_scores else "[]",
         strengths=json.dumps(all_strengths[:10], ensure_ascii=False),
         areas_to_improve=json.dumps(all_areas_to_improve[:10], ensure_ascii=False),
         trend_context=trend_context,
@@ -373,6 +389,10 @@ Compara con estos scores para determinar la tendencia."""
         "objections_made": all_objections_made,
         "score_clarity": float(evaluation.get("score_clarity", 0)),
         "score_structure": float(evaluation.get("score_structure", 0)),
+        "score_vocabulario": float(evaluation.get("score_vocabulario", 0)),
+        "score_empatia": float(evaluation.get("score_empatia", 0)),
+        "score_objetivo": float(evaluation.get("score_objetivo", 0)),
+        "score_adaptacion": float(evaluation.get("score_adaptacion", 0)),
         "score_calls_to_action": float(evaluation.get("score_calls_to_action", 0)),
         "score_objection_handling": float(evaluation.get("score_objection_handling", 0)),
         "score_overall": float(evaluation.get("score_overall", 0)),

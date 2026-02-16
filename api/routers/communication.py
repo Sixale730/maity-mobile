@@ -326,18 +326,8 @@ async def regenerate_conversation_feedback(
                 detail="Could not generate feedback. Conversation may be too short."
             )
 
-        # Convert to dict for storage
-        feedback_dict = {
-            "strengths": feedback.strengths,
-            "areas_to_improve": feedback.areas_to_improve,
-            "observations": {
-                "clarity": feedback.observations.clarity,
-                "structure": feedback.observations.structure,
-                "calls_to_action": feedback.observations.calls_to_action,
-                "objections": feedback.observations.objections,
-            },
-            "summary": feedback.summary,
-        }
+        # Convert to dict for storage (model_dump serializes all new fields)
+        feedback_dict = feedback.model_dump(exclude_none=True)
 
         # Update conversation with new feedback
         update_result = (

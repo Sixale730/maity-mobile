@@ -723,5 +723,49 @@
   "transcriptionLostBody": "La conexión de transcripción se perdió. Tu conversación fue guardada.",
   "transcriptionReconnecting": "Reconectando transcripción...",
   "transcriptionAutoSaved": "Conversación guardada automáticamente por pérdida de conexión.",
-  "noSegmentsWarning": "No se capturaron segmentos de transcripción."
+  "noSegmentsWarning": "No se capturaron segmentos de transcripción.",
+
+  "vocabulario": "Vocabulario",
+  "empatia": "Empatía",
+  "objetivo": "Objetivo",
+  "adaptacion": "Adaptación",
+
+  "analysisTab": "Análisis",
+  "transcriptionTab": "Transcripción",
+  "tasksTab": "Tareas",
+
+  "overallScoreLabel": "Score General",
+  "heroFeedback": "Feedback",
+  "radiografia": "Radiografía Rápida",
+  "competencyScores": "Competencias de Comunicación",
+  "muletillas": "Muletillas Detectadas",
+  "preguntasAnalysis": "Análisis de Preguntas",
+  "temasAnalysis": "Temas y Compromisos",
+  "patronComunicacion": "Patrón de Comunicación",
+  "insightsTitle": "Lo que quizás no notaste",
+
+  "ratioHabla": "Ratio de habla",
+  "palabrasUsuario": "Tus palabras",
+  "palabrasOtros": "Palabras de otros",
+  "totalPalabras": "Total de palabras",
+  "muletillasFrecuencia": "Frecuencia de muletillas",
+  "muletillasTotal": "Total de muletillas",
+
+  "preguntasUsuario": "Tus preguntas",
+  "preguntasOtros": "Preguntas de otros",
+
+  "temasTratados": "Temas tratados",
+  "accionesUsuario": "Tus compromisos",
+  "temasSinCerrar": "Temas sin cerrar",
+  "conFecha": "Con fecha",
+  "sinFecha": "Sin fecha",
+
+  "patronActual": "Patrón actual",
+  "patronEvolucion": "Evolución",
+  "senales": "Señales",
+  "queCambiaria": "Qué cambiar",
+
+  "regenerateAnalysis": "Regenerar Análisis",
+  "legacyFeedback": "Feedback Anterior",
+  "newAnalysisAvailable": "Un análisis más detallado está disponible. Toca para regenerar."
 }
