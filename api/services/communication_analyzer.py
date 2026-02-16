@@ -284,8 +284,8 @@ def _parse_communication_response(content: str) -> CommunicationFeedback:
             counters=counters,
             # 6 competency scores
             overall_score=float(data.get("overall_score", 0)),
-            clarity=float(data.get("clarity", 0)),
-            structure=float(data.get("structure", 0)),
+            clarity=float(data.get("clarity", data.get("claridad", 0))),
+            structure=float(data.get("structure", data.get("estructura", 0))),
             vocabulario=float(data.get("vocabulario", 0)),
             empatia=float(data.get("empatia", 0)),
             objetivo=float(data.get("objetivo", 0)),

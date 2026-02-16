@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:omi/backend/preferences.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/models/communication_feedback.dart';
 import 'package:omi/pages/conversation_detail/conversation_detail_provider.dart';
@@ -22,6 +23,9 @@ import 'package:provider/provider.dart';
 
 class AnalysisSection extends StatelessWidget {
   const AnalysisSection({super.key});
+
+  static bool _isDeveloper() =>
+      SharedPreferencesUtil().email.endsWith('@asertio.mx');
 
   @override
   Widget build(BuildContext context) {
@@ -165,51 +169,53 @@ class AnalysisSection extends StatelessWidget {
     bool isRegenerating,
   ) {
     final l10n = AppLocalizations.of(context);
+    final isDev = _isDeveloper();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 16),
 
-        // Upgrade banner
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                const Color(0xFF485DF4).withValues(alpha: 0.15),
-                const Color(0xFF9B4DCA).withValues(alpha: 0.15),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFF485DF4).withValues(alpha: 0.3),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const FaIcon(FontAwesomeIcons.wandMagicSparkles,
-                      size: 16, color: Color(0xFF485DF4)),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n?.newAnalysisAvailable ??
-                        'A more detailed analysis is available. Tap to regenerate.',
-                    style: TextStyle(
-                      color: Colors.grey[300],
-                      fontSize: 13,
-                    ),
-                  ),
+        // Upgrade banner (developers only)
+        if (isDev)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF485DF4).withValues(alpha: 0.15),
+                  const Color(0xFF9B4DCA).withValues(alpha: 0.15),
                 ],
               ),
-              const SizedBox(height: 12),
-              _buildRegenerateButton(context, provider, isRegenerating),
-            ],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFF485DF4).withValues(alpha: 0.3),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const FaIcon(FontAwesomeIcons.wandMagicSparkles,
+                        size: 16, color: Color(0xFF485DF4)),
+                    const SizedBox(width: 8),
+                    Text(
+                      l10n?.newAnalysisAvailable ??
+                          'A more detailed analysis is available. Tap to regenerate.',
+                      style: TextStyle(
+                        color: Colors.grey[300],
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildRegenerateButton(context, provider, isRegenerating),
+              ],
+            ),
           ),
-        ),
 
-        const SizedBox(height: 16),
+        if (isDev) const SizedBox(height: 16),
 
         // Legacy strengths
         if (feedback.strengths.isNotEmpty)
@@ -224,12 +230,14 @@ class AnalysisSection extends StatelessWidget {
     );
   }
 
-  /// Generate prompt for conversations with no feedback
+  /// Generate prompt for conversations with no feedback (developers only)
   Widget _buildGeneratePrompt(
     BuildContext context,
     ConversationDetailProvider provider,
     bool isRegenerating,
   ) {
+    if (!_isDeveloper()) return const SizedBox.shrink();
+
     final l10n = AppLocalizations.of(context);
     return Container(
       margin: const EdgeInsets.only(top: 24),
@@ -271,6 +279,8 @@ class AnalysisSection extends StatelessWidget {
     bool isRegenerating, {
     String? label,
   }) {
+    if (!_isDeveloper()) return const SizedBox.shrink();
+
     final l10n = AppLocalizations.of(context);
     return SizedBox(
       width: double.infinity,

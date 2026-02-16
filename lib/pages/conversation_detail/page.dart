@@ -895,20 +895,15 @@ class SummaryTab extends StatelessWidget {
             selector: (context, provider) =>
                 Tuple3(provider.conversation.discarded, provider.showRatingUI, provider.setConversationRating),
             builder: (context, data, child) {
-              return Stack(
+              return ListView(
                 children: [
-                  ListView(
-                    shrinkWrap: true,
-                    children: [
-                      const GetSummaryWidgets(),
-                      data.item1
-                          ? const ReprocessDiscardedWidget()
-                          : GetAppsWidgets(searchQuery: searchQuery, currentResultIndex: currentResultIndex),
-                      // Communication Analysis Section (6-competency standard)
-                      if (!data.item1) const AnalysisSection(),
-                      const SizedBox(height: 150)
-                    ],
-                  ),
+                  const GetSummaryWidgets(),
+                  data.item1
+                      ? const ReprocessDiscardedWidget()
+                      : GetAppsWidgets(searchQuery: searchQuery, currentResultIndex: currentResultIndex),
+                  // Communication Analysis Section (6-competency standard)
+                  if (!data.item1) const AnalysisSection(),
+                  const SizedBox(height: 150)
                 ],
               );
             },

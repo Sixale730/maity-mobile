@@ -124,10 +124,20 @@ class Radiografia {
               {},
       muletillasTotal: (json['muletillas_total'] as num?)?.toInt() ?? 0,
       muletillasFrecuencia: json['muletillas_frecuencia'] ?? '',
-      ratioHabla: json['ratio_habla'] ?? '',
+      ratioHabla: _parseRatioHabla(json['ratio_habla']),
       palabrasUsuario: (json['palabras_usuario'] as num?)?.toInt() ?? 0,
       palabrasOtros: (json['palabras_otros'] as num?)?.toInt() ?? 0,
     );
+  }
+
+  static String _parseRatioHabla(dynamic value) {
+    if (value == null) return '';
+    if (value is String) return value;
+    if (value is num) {
+      final pct = (value * 100).round();
+      return '$pct% usuario / ${100 - pct}% otros';
+    }
+    return value.toString();
   }
 
   int get totalPalabras => palabrasUsuario + palabrasOtros;
@@ -348,8 +358,10 @@ class CommunicationFeedback {
           : null,
       // 6 competency scores
       overallScore: (json['overall_score'] as num?)?.toDouble() ?? 0,
-      clarityScore: (json['clarity'] as num?)?.toDouble() ?? 0,
-      structureScore: (json['structure'] as num?)?.toDouble() ?? 0,
+      clarityScore: (json['clarity'] as num?)?.toDouble() ??
+          (json['claridad'] as num?)?.toDouble() ?? 0,
+      structureScore: (json['structure'] as num?)?.toDouble() ??
+          (json['estructura'] as num?)?.toDouble() ?? 0,
       vocabularioScore: (json['vocabulario'] as num?)?.toDouble() ?? 0,
       empatiaScore: (json['empatia'] as num?)?.toDouble() ?? 0,
       objetivoScore: (json['objetivo'] as num?)?.toDouble() ?? 0,

@@ -49,25 +49,25 @@ class HeroScoreWidget extends StatelessWidget {
           // Semicircular gauge
           Center(
             child: SizedBox(
-              width: 200,
-              height: 120,
+              width: 220,
+              height: 130,
               child: CustomPaint(
                 painter: _SemicircularGaugePainter(
                   score: feedback.overallScore,
                   maxScore: 10,
                   scoreColor: scoreColor,
                   trackColor: Colors.white.withValues(alpha: 0.08),
-                  strokeWidth: 12,
+                  strokeWidth: 10,
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 24),
+                  padding: const EdgeInsets.only(top: 16),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         feedback.overallScore.toStringAsFixed(1),
                         style: TextStyle(
-                          fontSize: 44,
+                          fontSize: 36,
                           fontWeight: FontWeight.bold,
                           color: scoreColor,
                           height: 1,
