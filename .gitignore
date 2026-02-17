@@ -15,6 +15,7 @@
 *.keystore
 *.jks
 key.properties
+!android/debug-shared.keystore
 
 # Private documentation (contains credentials)
 docs/ANDROID_RELEASE_SETUP.md
