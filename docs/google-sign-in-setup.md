@@ -52,7 +52,7 @@ Cada Android OAuth Client solo admite **1 SHA-1**, asi que se necesitan **3 clie
 ### Web OAuth Client
 
 El Web OAuth Client ya existe y no necesita cambios:
-- Client ID: `410083914404-0eld8h1l6s722prioe4tka56tfsrs66m.apps.googleusercontent.com`
+- Client ID: `452559089881-sa4cbrni1i9bh31vrp63l5hdks0jtecf.apps.googleusercontent.com`
 - Este es el que va en `serverClientId` / `.env` (`GOOGLE_CLIENT_ID`)
 - Authorized redirect URI: `https://nhlrtflkxoojvhbyocet.supabase.co/auth/v1/callback`
 
@@ -136,7 +136,7 @@ Si se regenera el upload keystore:
 **Solucion**:
 1. Verificar `.env`:
    ```
-   GOOGLE_CLIENT_ID=410083914404-0eld8h1l6s722prioe4tka56tfsrs66m.apps.googleusercontent.com
+   GOOGLE_CLIENT_ID=452559089881-sa4cbrni1i9bh31vrp63l5hdks0jtecf.apps.googleusercontent.com
    ```
 2. Verificar que Supabase Dashboard tenga el mismo Web Client ID
 3. Rebuild: `flutter clean && flutter run`
