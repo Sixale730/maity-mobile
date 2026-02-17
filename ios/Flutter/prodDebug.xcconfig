@@ -4,5 +4,5 @@
 #include "Custom.xcconfig"
 
 ASSET_PREFIX=prod
-BUNDLE_NAME=Omi
-BUNDLE_DISPLAY_NAME=Omi
+BUNDLE_NAME=Maity
+BUNDLE_DISPLAY_NAME=Maity
