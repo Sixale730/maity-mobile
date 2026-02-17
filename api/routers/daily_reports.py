@@ -4,7 +4,8 @@ from fastapi import APIRouter, HTTPException, Depends, Header, Query
 from typing import Optional, List
 import os
 
-from .feedback import get_user_from_token, get_maity_user_id, is_developer_email
+from ..services.supabase_auth import get_user_from_token
+from .feedback import get_maity_user_id, is_developer_email
 from ..services.daily_report_generator import generate_daily_reports, generate_daily_report_for_user
 from ..services.supabase_client import get_supabase
 

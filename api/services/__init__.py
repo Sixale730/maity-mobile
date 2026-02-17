@@ -16,6 +16,7 @@ from .supabase_auth import (
     verify_supabase_token,
     get_auth_user_id,
     optional_auth_user_id,
+    get_user_from_token,
 )
 
 __all__ = [
@@ -31,4 +32,5 @@ __all__ = [
     "verify_supabase_token",
     "get_auth_user_id",
     "optional_auth_user_id",
+    "get_user_from_token",
 ]

@@ -3,10 +3,9 @@ from fastapi import APIRouter, HTTPException, Depends, Header, Query
 from pydantic import BaseModel
 from typing import Optional, List, Literal
 from datetime import datetime
-import jwt
-import os
 
 from ..services.supabase_client import get_supabase
+from ..services.supabase_auth import get_user_from_token
 
 
 router = APIRouter(prefix="/v1/feedback", tags=["feedback"])
@@ -33,30 +32,6 @@ class FeedbackResponse(BaseModel):
 class FeedbackListResponse(BaseModel):
     feedback: List[FeedbackResponse]
     total: int
-
-
-def get_user_from_token(authorization: str = Header(...)) -> dict:
-    """Extract user info from JWT token."""
-    try:
-        if not authorization.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Invalid authorization header")
-
-        token = authorization.replace("Bearer ", "")
-        jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
-
-        if not jwt_secret:
-            raise HTTPException(status_code=500, detail="JWT secret not configured")
-
-        payload = jwt.decode(token, jwt_secret, algorithms=["HS256"], audience="authenticated")
-
-        return {
-            "auth_id": payload.get("sub"),
-            "email": payload.get("email"),
-        }
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
 
 
 async def get_maity_user_id(auth_id: str) -> Optional[str]:
