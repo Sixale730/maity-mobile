@@ -1,83 +1,170 @@
-# Google Sign In con Supabase - Setup y Debugging
+# Google Sign-In con Supabase - Guia Completa
 
-## Requisitos
+## Resumen
 
-### Google Cloud Console
-1. **Android OAuth Client** con:
-   - Package name: `com.maity.app`
-   - SHA-1 del debug keystore (ver comando abajo)
+Google Sign-In en Android valida que el SHA-1 de la app este registrado como Android OAuth Client en Google Cloud Console. Dependiendo del entorno (debug, release manual, Play Store), la app se firma con una llave distinta, por lo que se necesitan **3 Android OAuth clients** registrados.
 
-2. **Web OAuth Client** con:
-   - Authorized redirect URI: `https://nhlrtflkxoojvhbyocet.supabase.co/auth/v1/callback`
+## Los 3 SHAs
 
-### Supabase Dashboard
-En Authentication > Providers > Google:
-- Client ID: `410083914404-0eld8h1l6s722prioe4tka56tfsrs66m.apps.googleusercontent.com`
-- Client Secret: (del Web OAuth Client)
+| # | Entorno | SHA-1 | Cuando se usa |
+|---|---------|-------|---------------|
+| 1 | **Debug** | `23:AE:6A:8D:42:C0:E2:31:1E:25:3D:75:57:4D:17:3B:E2:DE:76:BB` | `flutter run`, builds de debug |
+| 2 | **Upload (release)** | `12:59:75:70:A2:3A:9B:19:52:DC:23:28:0E:D7:9C:6A:BF:94:CF:A7` | APK/AAB firmado localmente, instalacion manual |
+| 3 | **Google Play App Signing** | `95:14:0C:55:B4:42:88:CD:B8:0C:68:10:75:AA:36:65:F4:84:96:1D` | App descargada desde Google Play (Google re-firma) |
 
-## Obtener SHA-1 del Debug Keystore
+### Como obtener cada SHA
 
+**Debug** (keystore compartido en el repo):
 ```bash
-keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+keytool -list -v -keystore android/debug-shared.keystore -storepass android
 ```
 
-El SHA-1 debe coincidir con el registrado en el Android OAuth Client de Google Cloud Console.
+**Upload (release)**:
+```bash
+keytool -list -v -keystore android/app/upload-keystore.jks
+```
+(Se te pedira la contrasena del keystore)
 
-## Errores Comunes
+**Google Play App Signing**:
+1. Ir a [Google Play Console](https://play.google.com/console)
+2. Seleccionar la app Maity
+3. Setup → App signing
+4. Copiar SHA-1 de "App signing key certificate"
 
-### ApiException: 10 (DEVELOPER_ERROR)
-**Causa:** SHA-1 no coincide con el registrado en Google Cloud Console.
+> **Nota**: Google Play re-firma toda app subida con su propia llave. Por eso el SHA de Play Store es diferente al de upload.
 
-**Solución:**
-1. Verificar que `android/app/build.gradle` use el debug keystore:
+## Registro en Google Cloud Console
+
+Cada Android OAuth Client solo admite **1 SHA-1**, asi que se necesitan **3 clientes** (uno por entorno).
+
+### Pasos
+
+1. Ir a [Google Cloud Console](https://console.cloud.google.com/) → seleccionar el proyecto correcto
+2. APIs & Services → Credentials
+3. Para **cada SHA**, crear un "OAuth 2.0 Client ID" tipo **Android**:
+
+| Cliente | Package name | SHA-1 |
+|---------|-------------|-------|
+| Maity Android (Debug) | `com.maity.app` | `23:AE:6A:8D:42:C0:E2:31:1E:25:3D:75:57:4D:17:3B:E2:DE:76:BB` |
+| Maity Android (Upload) | `com.maity.app` | `12:59:75:70:A2:3A:9B:19:52:DC:23:28:0E:D7:9C:6A:BF:94:CF:A7` |
+| Maity Android (Play Store) | `com.maity.app` | `95:14:0C:55:B4:42:88:CD:B8:0C:68:10:75:AA:36:65:F4:84:96:1D` |
+
+### Web OAuth Client
+
+El Web OAuth Client ya existe y no necesita cambios:
+- Client ID: `410083914404-0eld8h1l6s722prioe4tka56tfsrs66m.apps.googleusercontent.com`
+- Este es el que va en `serverClientId` / `.env` (`GOOGLE_CLIENT_ID`)
+- Authorized redirect URI: `https://nhlrtflkxoojvhbyocet.supabase.co/auth/v1/callback`
+
+### Supabase Dashboard
+
+En Authentication → Providers → Google:
+- Client ID: (el Web Client ID de arriba)
+- Client Secret: (del Web OAuth Client)
+
+## Keystores
+
+### Debug keystore (`android/debug-shared.keystore`)
+
+Keystore compartido que vive en el repositorio. **Todos los desarrolladores usan el mismo**, lo que evita tener que registrar un SHA diferente por maquina.
+
+Referenciado en `android/app/build.gradle`:
 ```groovy
-buildTypes {
-    release {
-        signingConfig signingConfigs.debug
-        // ...
-    }
+signingConfigs {
     debug {
-        // NO necesita signingConfig explícito
+        storeFile file('../debug-shared.keystore')
+        storePassword 'android'
+        keyAlias 'androiddebugkey'
+        keyPassword 'android'
     }
 }
 ```
 
-2. NO usar signingConfigs personalizados a menos que sea necesario para producción.
+### Upload keystore (`android/app/upload-keystore.jks`)
+
+Keystore para firmar releases que se suben a Google Play. **No se sube al repo** (esta en `.gitignore`). Se comparte de manera segura entre desarrolladores autorizados.
+
+## Checklist por escenario
+
+### Nueva maquina de desarrollo
+
+- [ ] Clonar el repo (el debug keystore ya esta incluido)
+- [ ] Verificar `.env` tiene `GOOGLE_CLIENT_ID` correcto
+- [ ] `flutter clean && flutter run`
+- [ ] Google Sign-In deberia funcionar sin pasos adicionales
+
+> Ya no necesitas registrar tu SHA de debug en Google Cloud Console. El keystore compartido `debug-shared.keystore` tiene un SHA fijo registrado para todos.
+
+### Primera subida a Google Play
+
+- [ ] Subir el AAB a Google Play Console
+- [ ] Ir a Setup → App signing → copiar SHA-1 de "App signing key certificate"
+- [ ] Registrar ese SHA como Android OAuth Client en Google Cloud Console (ver pasos arriba)
+
+### Nuevo upload keystore
+
+Si se regenera el upload keystore:
+- [ ] Obtener el nuevo SHA-1: `keytool -list -v -keystore android/app/upload-keystore.jks`
+- [ ] Actualizar el Android OAuth Client "Maity Android (Upload)" en Google Cloud Console con el nuevo SHA
+- [ ] Actualizar la tabla de SHAs en este documento
+
+## Troubleshooting
+
+### ApiException: 10 (DEVELOPER_ERROR)
+
+**Causa**: El SHA-1 de la app no coincide con ningun Android OAuth Client registrado en Google Cloud Console.
+
+**Diagnostico**:
+1. Determinar en que entorno falla:
+   - `flutter run` → falta SHA de Debug
+   - APK release instalado manualmente → falta SHA de Upload
+   - Descarga de Play Store → falta SHA de Play App Signing
+2. Verificar que el SHA correspondiente este registrado con package `com.maity.app`
+
+**Solucion por entorno**:
+
+| Entorno | Verificar |
+|---------|-----------|
+| Debug | Que `build.gradle` use `debug-shared.keystore`, no `~/.android/debug.keystore` |
+| Upload | Que exista Android OAuth Client con SHA del upload keystore |
+| Play Store | Que exista Android OAuth Client con SHA de Google Play App Signing |
 
 ### Unacceptable audience in id_token
-**Causa:** El Web Client ID en el código no coincide con el configurado en Supabase.
 
-**Solución:**
+**Causa**: El Web Client ID en el codigo no coincide con el configurado en Supabase.
+
+**Solucion**:
 1. Verificar `.env`:
-```
-GOOGLE_CLIENT_ID=410083914404-0eld8h1l6s722prioe4tka56tfsrs66m.apps.googleusercontent.com
-```
+   ```
+   GOOGLE_CLIENT_ID=410083914404-0eld8h1l6s722prioe4tka56tfsrs66m.apps.googleusercontent.com
+   ```
+2. Verificar que Supabase Dashboard tenga el mismo Web Client ID
+3. Rebuild: `flutter clean && flutter run`
 
-2. Regenerar archivo de environment:
-```bash
-flutter pub run build_runner build --delete-conflicting-outputs
-```
+### Google Sign-In modal no abre
 
-3. Verificar que Supabase Dashboard tenga el mismo Web Client ID.
+**Causa**: Configuracion de signing incorrecta (SHA no registrado).
 
-### Google Sign In modal no abre
-**Causa:** Configuración de signing incorrecta.
+**Solucion**: Ver "ApiException: 10" arriba.
 
-**Solución:** Ver "ApiException: 10" arriba.
+### Funciona en debug pero no en Play Store
 
-## Archivos Clave
+**Causa**: Solo esta registrado el SHA de debug. Google Play re-firma la app con su propia llave.
 
-| Archivo | Propósito |
+**Solucion**: Registrar el SHA de Google Play App Signing como Android OAuth Client (ver seccion "Registro en Google Cloud Console").
+
+### Funciona en debug pero no en release (APK manual)
+
+**Causa**: El APK release se firma con el upload keystore, cuyo SHA es diferente al de debug.
+
+**Solucion**: Registrar el SHA del upload keystore como Android OAuth Client.
+
+## Archivos clave
+
+| Archivo | Proposito |
 |---------|-----------|
-| `.env` | Variables de entorno (GOOGLE_CLIENT_ID) |
-| `lib/env/prod_env.g.dart` | Archivo generado (regenerar si hay problemas) |
-| `android/app/build.gradle` | Configuración de signing Android |
-| `lib/services/supabase_auth_service.dart` | Implementación de Google Sign In |
-
-## Checklist Nueva Máquina
-
-1. [ ] Obtener SHA-1 del debug keystore local
-2. [ ] Registrar SHA-1 en Google Cloud Console (Android OAuth Client)
-3. [ ] Verificar `.env` tiene el Web Client ID correcto
-4. [ ] Ejecutar `flutter pub run build_runner build --delete-conflicting-outputs`
-5. [ ] Ejecutar `flutter clean && flutter run`
+| `.env` | `GOOGLE_CLIENT_ID` (Web Client ID) |
+| `android/debug-shared.keystore` | Keystore debug compartido (en repo) |
+| `android/app/upload-keystore.jks` | Keystore release/upload (no en repo) |
+| `android/app/build.gradle` | Configuracion de signing Android |
+| `lib/services/supabase_auth_service.dart` | Implementacion de Google Sign-In |
