@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/env/env.dart';
 import 'package:omi/utils/logger.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Servicio de autenticación con Supabase Auth
@@ -96,6 +97,66 @@ class SupabaseAuthService {
     await _updateLocalPreferences(response);
 
     // 4. Obtener maity.users.id
+    await _fetchMaityUserId();
+
+    return response;
+  }
+
+  // ============================================================
+  // Apple Sign In
+  // ============================================================
+
+  /// Apple Sign In nativo para iOS
+  /// Usa sign_in_with_apple para obtener credenciales y las intercambia con Supabase
+  Future<AuthResponse> signInWithAppleNative() async {
+    debugPrint('[SupabaseAuth] Iniciando Apple Sign In nativo');
+
+    // 1. Obtener credenciales de Apple
+    final credential = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+    );
+
+    if (credential.identityToken == null) {
+      throw Exception('No se recibió identityToken de Apple');
+    }
+
+    debugPrint('[SupabaseAuth] Apple credential obtenida, intercambiando con Supabase...');
+
+    // 2. Intercambiar identityToken con Supabase
+    final response = await _supabase.auth.signInWithIdToken(
+      provider: OAuthProvider.apple,
+      idToken: credential.identityToken!,
+    );
+
+    if (response.user == null) {
+      throw Exception('Supabase no retornó usuario después del sign in');
+    }
+
+    debugPrint('[SupabaseAuth] Apple Sign in exitoso: ${response.user!.email}');
+
+    // 3. Actualizar nombre si Apple lo proporcionó (solo en primer sign-in)
+    if (credential.givenName != null || credential.familyName != null) {
+      final fullName = [credential.givenName, credential.familyName]
+          .where((s) => s != null && s.isNotEmpty)
+          .join(' ');
+      if (fullName.isNotEmpty) {
+        try {
+          await _supabase.auth.updateUser(
+            UserAttributes(data: {'full_name': fullName}),
+          );
+        } catch (e) {
+          debugPrint('[SupabaseAuth] Error actualizando nombre de Apple: $e');
+        }
+      }
+    }
+
+    // 4. Actualizar preferencias locales
+    await _updateLocalPreferences(response);
+
+    // 5. Obtener maity.users.id
     await _fetchMaityUserId();
 
     return response;

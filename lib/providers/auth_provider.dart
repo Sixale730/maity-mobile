@@ -227,9 +227,31 @@ class AuthenticationProvider extends BaseProvider {
   // Métodos deprecados (para compatibilidad temporal)
   // ============================================================
 
-  /// @deprecated Apple Sign In será agregado después
+  // ============================================================
+  // Apple Sign In
+  // ============================================================
+
   Future<void> onAppleSignIn(Function() onSignIn) async {
-    AppSnackbar.showSnackbarError('Apple Sign In próximamente disponible');
+    if (!loading) {
+      setLoadingState(true);
+      try {
+        final response = await _authService.signInWithAppleNative();
+
+        if (response.user != null && isSignedIn()) {
+          await _onSignInSuccess(onSignIn);
+        } else {
+          AppSnackbar.showSnackbarError('Error al iniciar sesión con Apple, intenta de nuevo.');
+        }
+      } catch (e) {
+        debugPrint('[AuthProvider] Apple sign in error: $e');
+        if (e.toString().contains('AuthorizationErrorCode.canceled')) {
+          // Usuario canceló, no mostrar error
+        } else {
+          AppSnackbar.showSnackbarError('Error de autenticación. Intenta de nuevo.');
+        }
+      }
+      setLoadingState(false);
+    }
   }
 
   /// @deprecated Ya no soportamos usuarios anónimos
