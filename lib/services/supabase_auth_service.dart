@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -106,9 +107,18 @@ class SupabaseAuthService {
   // Apple Sign In
   // ============================================================
 
-  /// Apple Sign In nativo para iOS
-  /// Usa sign_in_with_apple para obtener credenciales y las intercambia con Supabase
+  /// Apple Sign In - nativo en iOS/macOS, OAuth via browser en Android
   Future<AuthResponse> signInWithAppleNative() async {
+    if (Platform.isIOS || Platform.isMacOS) {
+      return _signInWithAppleNativeIOS();
+    } else {
+      return _signInWithAppleOAuth();
+    }
+  }
+
+  /// Apple Sign In nativo para iOS/macOS
+  /// Usa sign_in_with_apple para obtener credenciales y las intercambia con Supabase
+  Future<AuthResponse> _signInWithAppleNativeIOS() async {
     debugPrint('[SupabaseAuth] Iniciando Apple Sign In nativo');
 
     // 1. Obtener credenciales de Apple
@@ -160,6 +170,44 @@ class SupabaseAuthService {
     await _fetchMaityUserId();
 
     return response;
+  }
+
+  /// Apple Sign In via OAuth para Android
+  /// Abre el browser para el flujo OAuth de Apple, Supabase intercepta el redirect
+  Future<AuthResponse> _signInWithAppleOAuth() async {
+    debugPrint('[SupabaseAuth] Iniciando Apple Sign In via OAuth (Android)');
+
+    final completer = Completer<AuthResponse>();
+    StreamSubscription<AuthState>? subscription;
+
+    subscription = _supabase.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.signedIn && data.session != null) {
+        subscription?.cancel();
+        if (!completer.isCompleted) {
+          completer.complete(AuthResponse(session: data.session, user: data.session!.user));
+        }
+      }
+    });
+
+    final launched = await _supabase.auth.signInWithOAuth(
+      OAuthProvider.apple,
+      redirectTo: 'maity://login-callback',
+    );
+
+    if (!launched) {
+      subscription.cancel();
+      throw Exception('No se pudo abrir el navegador para Apple Sign In');
+    }
+
+    try {
+      final response = await completer.future.timeout(const Duration(minutes: 5));
+      await _updateLocalPreferences(response);
+      await _fetchMaityUserId();
+      return response;
+    } on TimeoutException {
+      subscription.cancel();
+      throw Exception('Apple Sign In cancelado o expirado');
+    }
   }
 
   // ============================================================
