@@ -38,6 +38,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
   DateTime _selectedReportDate = DateTime.now();
   bool _triggeringReport = false;
   String? _triggerResult;
+  String? _signingCertSha1;
 
   @override
   void initState() {
@@ -805,6 +806,106 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                             ],
                           ),
                         ),
+
+                        // Signing Certificate SHA-1
+                        if (Platform.isAndroid) ...[
+                          const SizedBox(height: 16),
+                          const Divider(height: 1, color: Color(0xFF3C3C43)),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2A2A2E),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: FaIcon(
+                                    FontAwesomeIcons.fingerprint,
+                                    color: Colors.grey.shade400,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Signing Certificate',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _signingCertSha1 ?? 'Tap to load SHA-1',
+                                      style: TextStyle(
+                                        color: _signingCertSha1 != null ? Colors.white70 : Colors.grey.shade500,
+                                        fontSize: 11,
+                                        fontFamily: 'Ubuntu Mono',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (_signingCertSha1 != null)
+                                GestureDetector(
+                                  onTap: () {
+                                    Clipboard.setData(ClipboardData(text: _signingCertSha1!));
+                                    AppSnackbar.showSnackbar('SHA-1 copied to clipboard');
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2A2A2E),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'Copy',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade300,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              else
+                                GestureDetector(
+                                  onTap: () async {
+                                    try {
+                                      const channel = MethodChannel('com.maity.app/signing');
+                                      final sha1 = await channel.invokeMethod<String>('getSigningCertificateSha1');
+                                      setState(() => _signingCertSha1 = sha1);
+                                    } catch (e) {
+                                      setState(() => _signingCertSha1 = 'Error: $e');
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2A2A2E),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'Load',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade300,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
 
                         // Action buttons when enabled
                         if (SharedPreferencesUtil().devLogsToFileEnabled) ...[

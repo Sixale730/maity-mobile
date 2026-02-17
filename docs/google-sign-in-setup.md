@@ -10,7 +10,7 @@ Google Sign-In en Android valida que el SHA-1 de la app este registrado como And
 |---|---------|-------|---------------|
 | 1 | **Debug** | `23:AE:6A:8D:42:C0:E2:31:1E:25:3D:75:57:4D:17:3B:E2:DE:76:BB` | `flutter run`, builds de debug |
 | 2 | **Upload (release)** | `12:59:75:70:A2:3A:9B:19:52:DC:23:28:0E:D7:9C:6A:BF:94:CF:A7` | APK/AAB firmado localmente, instalacion manual |
-| 3 | **Google Play App Signing** | `8E:36:46:6A:30:F3:07:47:82:2E:86:FE:17:D8:0A:4A:EA:18:66:7D` | App descargada desde Google Play (Google re-firma) |
+| 3 | **Google Play App Signing** | `EE:16:5D:F9:E5:66:9F:BB:4B:D8:2D:A7:58:B2:94:24:D3:CA:7F:EE` | App descargada desde Google Play (Google re-firma) |
 
 ### Como obtener cada SHA
 
@@ -47,7 +47,7 @@ Cada Android OAuth Client solo admite **1 SHA-1**, asi que se necesitan **3 clie
 |---------|-------------|-------|
 | Maity Android (Debug) | `com.maity.app` | `23:AE:6A:8D:42:C0:E2:31:1E:25:3D:75:57:4D:17:3B:E2:DE:76:BB` |
 | Maity Android (Upload) | `com.maity.app` | `12:59:75:70:A2:3A:9B:19:52:DC:23:28:0E:D7:9C:6A:BF:94:CF:A7` |
-| Maity Android (Play Store) | `com.maity.app` | `8E:36:46:6A:30:F3:07:47:82:2E:86:FE:17:D8:0A:4A:EA:18:66:7D` |
+| Maity Android (Play Store) | `com.maity.app` | `EE:16:5D:F9:E5:66:9F:BB:4B:D8:2D:A7:58:B2:94:24:D3:CA:7F:EE` |
 
 ### Web OAuth Client
 

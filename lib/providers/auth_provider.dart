@@ -5,6 +5,7 @@ import 'package:omi/backend/preferences.dart';
 import 'package:omi/providers/base_provider.dart';
 import 'package:omi/services/notifications.dart';
 import 'package:omi/services/supabase_auth_service.dart';
+import 'package:omi/main.dart';
 import 'package:omi/utils/alerts/app_snackbar.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/utils/platform/platform_manager.dart';
@@ -131,7 +132,7 @@ class AuthenticationProvider extends BaseProvider {
         if (e.toString().contains('cancelado')) {
           // Usuario canceló, no mostrar error
         } else {
-          AppSnackbar.showSnackbarError('Error de autenticación. Intenta de nuevo.');
+          _showAuthErrorDialog(e);
         }
       }
       setLoadingState(false);
@@ -243,11 +244,41 @@ class AuthenticationProvider extends BaseProvider {
         if (e.toString().contains('AuthorizationErrorCode.canceled')) {
           // Usuario canceló, no mostrar error
         } else {
-          AppSnackbar.showSnackbarError('Error de autenticación. Intenta de nuevo.');
+          _showAuthErrorDialog(e);
         }
       }
       setLoadingState(false);
     }
+  }
+
+  // ============================================================
+  // Auth Error Dialog
+  // ============================================================
+
+  void _showAuthErrorDialog(Object error) {
+    final context = MyApp.navigatorKey.currentContext;
+    if (context == null) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1E),
+        title: const Text(
+          'Error de autenticación',
+          style: TextStyle(color: Colors.white, fontSize: 18),
+        ),
+        content: SelectableText(
+          error.toString(),
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cerrar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   /// @deprecated Ya no soportamos usuarios anónimos
