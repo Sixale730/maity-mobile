@@ -160,6 +160,9 @@ class CaptureProvider extends ChangeNotifier
   // Background finalize timer: auto-finalizes if socket stays dead while app is in background
   Timer? _backgroundFinalizeTimer;
 
+  // Flag to suppress keep-alive during intentional reconnection after resume
+  bool _isReconnectingAfterResume = false;
+
   CaptureProvider() {
     _connectionStateListener = ConnectivityService().onConnectionChange.listen((bool isConnected) {
       onConnectionStateChanged(isConnected);
@@ -255,6 +258,13 @@ class CaptureProvider extends ChangeNotifier
 
     debugPrint('[CaptureProvider] App detached - performing cleanup');
 
+    // Save recovery data before stopping socket — OS may kill the app without
+    // going through paused state, so this is our last chance to persist segments
+    if (segments.isNotEmpty && !_isSpeechProfileMode) {
+      debugPrint('[CaptureProvider] Saving recovery data before detach');
+      _saveRecoveryData();
+    }
+
     // Stop socket cleanly
     _socket?.stop(reason: 'app detached');
   }
@@ -320,6 +330,10 @@ class CaptureProvider extends ChangeNotifier
           recordingState == RecordingState.systemAudioRecord;
 
       if (isRecording) {
+        // Cancel any running keep-alive before reconnecting to avoid cascading reconnections
+        _keepAliveTimer?.cancel();
+        _keepAliveTimer = null;
+
         // Restart health monitor
         _startSocketHealthMonitor();
 
@@ -339,10 +353,13 @@ class CaptureProvider extends ChangeNotifier
             _startKeepAliveServices();
           }
         }
-      }
 
-      // Refresh in-progress conversations
-      refreshInProgressConversations();
+        // Refresh in-progress conversations after socket stabilizes
+        refreshInProgressConversations();
+      } else {
+        // Not recording: defer refresh to avoid saturating the event loop on resume
+        Future.delayed(const Duration(seconds: 1), refreshInProgressConversations);
+      }
 
     } catch (e, stack) {
       DebugLogManager.logEvent('app_resumed_error', {
@@ -362,35 +379,41 @@ class CaptureProvider extends ChangeNotifier
 
     debugPrint('[CaptureProvider] Attempting socket reconnect after resume');
 
-    // Stop current socket cleanly
-    await _socket?.stop(reason: 'reconnect after resume');
+    // Set flag to prevent onClosed() from triggering keep-alive during this stop
+    _isReconnectingAfterResume = true;
+    try {
+      // Stop current socket cleanly
+      await _socket?.stop(reason: 'reconnect after resume');
 
-    // Small delay to ensure cleanup
-    await Future.delayed(const Duration(milliseconds: 500));
+      // Brief delay to ensure cleanup (socket.stop handles its own teardown)
+      await Future.delayed(const Duration(milliseconds: 50));
 
-    // Reinitiate websocket based on recording state
-    if (recordingState == RecordingState.record) {
-      await _initiateWebsocket(
-        audioCodec: BleAudioCodec.pcm16,
-        sampleRate: 16000,
-        force: true,
-        source: ConversationSource.phone.name,
-      );
-    } else if (recordingState == RecordingState.deviceRecord && _recordingDevice != null) {
-      BleAudioCodec codec = await _getAudioCodec(_recordingDevice!.id);
-      await _initiateWebsocket(audioCodec: codec, force: true, source: _getConversationSourceFromDevice());
-    } else if (recordingState == RecordingState.systemAudioRecord) {
-      await _initiateWebsocket(
-        audioCodec: BleAudioCodec.pcm16,
-        sampleRate: 16000,
-        force: true,
-        source: ConversationSource.desktop.name,
-      );
+      // Reinitiate websocket based on recording state
+      if (recordingState == RecordingState.record) {
+        await _initiateWebsocket(
+          audioCodec: BleAudioCodec.pcm16,
+          sampleRate: 16000,
+          force: true,
+          source: ConversationSource.phone.name,
+        );
+      } else if (recordingState == RecordingState.deviceRecord && _recordingDevice != null) {
+        BleAudioCodec codec = await _getAudioCodec(_recordingDevice!.id);
+        await _initiateWebsocket(audioCodec: codec, force: true, source: _getConversationSourceFromDevice());
+      } else if (recordingState == RecordingState.systemAudioRecord) {
+        await _initiateWebsocket(
+          audioCodec: BleAudioCodec.pcm16,
+          sampleRate: 16000,
+          force: true,
+          source: ConversationSource.desktop.name,
+        );
+      }
+
+      DebugLogManager.logEvent('socket_reconnect_completed', {
+        'new_state': _socket != null ? _socket!.state.name : 'null',
+      });
+    } finally {
+      _isReconnectingAfterResume = false;
     }
-
-    DebugLogManager.logEvent('socket_reconnect_completed', {
-      'new_state': _socket != null ? _socket!.state.name : 'null',
-    });
   }
 
   void updateProviderInstances(ConversationProvider? cp, MessageProvider? mp, PeopleProvider? pp, UsageProvider? up) {
@@ -1610,6 +1633,7 @@ class CaptureProvider extends ChangeNotifier
   void onClosed([int? closeCode]) {
     _captureLog.log('socket', 'socket_closed', severity: 'warning', details: {
       'close_code': closeCode,
+      'is_reconnecting_after_resume': _isReconnectingAfterResume,
     });
     _transcriptionServiceStatuses = [];
     _transcriptServiceReady = false;
@@ -1618,8 +1642,12 @@ class CaptureProvider extends ChangeNotifier
       usageProvider?.markAsOutOfCreditsAndRefresh();
     }
 
-    notifyListeners();
-    _startKeepAliveServices();
+    // Skip notifyListeners + keep-alive during intentional reconnection after resume
+    // to avoid cascading reconnections that saturate the event loop
+    if (!_isReconnectingAfterResume) {
+      notifyListeners();
+      _startKeepAliveServices();
+    }
   }
 
   void _startKeepAliveServices() {
@@ -2400,7 +2428,8 @@ class CaptureProvider extends ChangeNotifier
   }
 
   /// Schedules a recovery save with debouncing
-  /// Saves every 5 seconds or after 5 new segments, whichever comes first
+  /// Saves every 5 seconds or after 5 new segments, whichever comes first.
+  /// CRITICAL: Saves immediately on the first segment to prevent data loss on early crash.
   void _scheduleRecoverySave() {
     // Only save for custom STT mode
     final customSttConfig = SharedPreferencesUtil().customSttConfig;
@@ -2410,6 +2439,12 @@ class CaptureProvider extends ChangeNotifier
     if (_isSpeechProfileMode) return;
 
     _unsavedSegmentCount++;
+
+    // Save immediately on the FIRST segment — no debounce, so recovery exists from the start
+    if (segments.length <= 1) {
+      _saveRecoveryData();
+      return;
+    }
 
     // Save immediately if we have 5+ unsaved segments
     if (_unsavedSegmentCount >= 5) {
@@ -2423,33 +2458,44 @@ class CaptureProvider extends ChangeNotifier
   }
 
   /// Saves current segments to recovery file
-  void _saveRecoveryData() async {
+  Future<void> _saveRecoveryData() async {
     if (segments.isEmpty) return;
 
-    // Ensure we have a session ID
-    _currentSessionId ??= const Uuid().v4();
+    try {
+      // Ensure we have a session ID
+      _currentSessionId ??= const Uuid().v4();
 
-    await TranscriptRecoveryService.saveSegments(
-      sessionId: _currentSessionId!,
-      startedAt: _recordingStartTime ?? DateTime.now(),
-      segments: List.from(segments),
-      draftConversationId: _incrementalSave.draftId,
-    );
+      await TranscriptRecoveryService.saveSegments(
+        sessionId: _currentSessionId!,
+        startedAt: _recordingStartTime ?? DateTime.now(),
+        segments: List.from(segments),
+        draftConversationId: _incrementalSave.draftId,
+      );
 
-    _captureLog.log('recovery', 'recovery_data_saved', severity: 'debug', details: {
-      'segments_count': segments.length,
-      'draft_id': _incrementalSave.draftId,
-    });
-    _unsavedSegmentCount = 0;
+      _captureLog.log('recovery', 'recovery_data_saved', severity: 'debug', details: {
+        'segments_count': segments.length,
+        'draft_id': _incrementalSave.draftId,
+      });
+      _unsavedSegmentCount = 0;
+    } catch (e) {
+      debugPrint('[CaptureProvider] Error saving recovery data: $e');
+      _captureLog.log('recovery', 'recovery_save_failed', severity: 'error', details: {
+        'error': e.toString(),
+      });
+    }
   }
 
   /// Clears recovery data and resets recovery state
-  void _clearRecoveryState() async {
+  Future<void> _clearRecoveryState() async {
     _recoveryTimer?.cancel();
     _recoveryTimer = null;
     _unsavedSegmentCount = 0;
     _currentSessionId = null;
-    await TranscriptRecoveryService.clearRecoveryData();
+    try {
+      await TranscriptRecoveryService.clearRecoveryData();
+    } catch (e) {
+      debugPrint('[CaptureProvider] Error clearing recovery state: $e');
+    }
   }
 
   /// Schedules incremental save of segments to Supabase

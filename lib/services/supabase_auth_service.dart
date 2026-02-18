@@ -19,6 +19,9 @@ class SupabaseAuthService {
 
   SupabaseClient get _supabase => Supabase.instance.client;
 
+  /// Pending refresh future to avoid concurrent refreshSession() calls
+  Future<AuthResponse>? _pendingRefresh;
+
   /// Usuario actual de Supabase Auth
   User? get currentUser => _supabase.auth.currentUser;
 
@@ -214,7 +217,8 @@ class SupabaseAuthService {
   // Token Management
   // ============================================================
 
-  /// Obtiene el access token actual, renovándolo si es necesario
+  /// Obtiene el access token actual, renovándolo si es necesario.
+  /// Returns null if the token is expired and refresh fails (caller should handle re-auth).
   Future<String?> getAccessToken() async {
     final session = _supabase.auth.currentSession;
     if (session == null) {
@@ -232,13 +236,22 @@ class SupabaseAuthService {
       if (expiryTime.isBefore(now.add(buffer))) {
         debugPrint('[SupabaseAuth] Token por expirar, renovando...');
         try {
-          final refreshed = await _supabase.auth.refreshSession();
+          // Reuse pending refresh to avoid concurrent refreshSession() calls
+          _pendingRefresh ??= _supabase.auth.refreshSession();
+          final refreshed = await _pendingRefresh!;
+          _pendingRefresh = null;
           if (refreshed.session != null) {
             await _updateLocalPreferences(refreshed);
             return refreshed.session!.accessToken;
           }
         } catch (e) {
+          _pendingRefresh = null;
           debugPrint('[SupabaseAuth] Error renovando token: $e');
+          // If the token is already expired, do NOT return it — caller gets null
+          if (expiryTime.isBefore(now)) {
+            debugPrint('[SupabaseAuth] Token already expired and refresh failed, returning null');
+            return null;
+          }
         }
       }
     }
