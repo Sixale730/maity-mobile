@@ -196,6 +196,9 @@ class OmiSupabaseService {
 
       final authHeader = await getAuthHeader();
       debugPrint('[OmiSupabaseService] Auth header present: ${authHeader.isNotEmpty}');
+      if (authHeader.isEmpty) {
+        debugPrint('[OmiSupabaseService] DIAGNOSTIC: Empty auth header - token may be expired or session missing');
+      }
 
       final response = await http.get(
         uri,
@@ -211,12 +214,17 @@ class OmiSupabaseService {
         debugPrint('[OmiSupabaseService] Conversations count: ${conversations?.length ?? 0}');
         return (conversations ?? []).map((c) => OmiConversation.fromJson(c)).toList();
       } else {
-        debugPrint('[OmiSupabaseService] Error response: ${response.body}');
+        debugPrint('[OmiSupabaseService] Error response (${response.statusCode}): ${response.body}');
+        if (response.statusCode == 401) {
+          debugPrint('[OmiSupabaseService] DIAGNOSTIC: 401 Unauthorized - token invalid or expired');
+        } else if (response.statusCode == 422) {
+          debugPrint('[OmiSupabaseService] DIAGNOSTIC: 422 Validation error - check user_id param');
+        }
       }
       return [];
     } catch (e, stack) {
       debugPrint('[OmiSupabaseService] Get conversations error: $e');
-      debugPrint('[OmiSupabaseService] Stack: $stack');
+      debugPrint('[OmiSupabaseService] DIAGNOSTIC stack: $stack');
       return [];
     }
   }

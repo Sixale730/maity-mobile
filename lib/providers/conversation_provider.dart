@@ -549,6 +549,11 @@ class ConversationProvider extends ChangeNotifier {
     // Try to get from Supabase first (our own database)
     // Wait for maityUserId to be available (max 5 seconds) - handles race condition after app reinstall
     String? userId = SupabaseAuthService.instance.maityUserId;
+    final authId = SupabaseAuthService.instance.authId;
+    final isSignedIn = SupabaseAuthService.instance.isSignedIn;
+
+    debugPrint('[ConversationProvider] === DIAGNOSTIC: _getConversationsFromServer ===');
+    debugPrint('[ConversationProvider] isSignedIn: $isSignedIn, authId: $authId, maityUserId: $userId');
 
     if (userId == null) {
       debugPrint('[ConversationProvider] maityUserId is null, waiting for auth to initialize...');
@@ -564,6 +569,7 @@ class ConversationProvider extends ChangeNotifier {
 
       if (userId == null) {
         debugPrint('[ConversationProvider] maityUserId still null after 5s, using fallback');
+        debugPrint('[ConversationProvider] DIAGNOSTIC: authId=$authId, isSignedIn=$isSignedIn, currentSession=${SupabaseAuthService.instance.currentSession != null}');
       }
     } else {
       debugPrint('[ConversationProvider] maityUserId already available: $userId');
@@ -582,9 +588,12 @@ class ConversationProvider extends ChangeNotifier {
           debugPrint('[ConversationProvider] Loaded ${supabaseConvos.length} conversations from Supabase');
           // Convert OmiConversation to ServerConversation
           return supabaseConvos.map((c) => c.toServerConversation()).toList();
+        } else {
+          debugPrint('[ConversationProvider] DIAGNOSTIC: API returned 0 conversations for userId=$userId');
         }
-      } catch (e) {
+      } catch (e, stack) {
         debugPrint('[ConversationProvider] Error loading from Supabase: $e');
+        debugPrint('[ConversationProvider] DIAGNOSTIC stack: $stack');
       }
     }
 

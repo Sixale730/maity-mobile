@@ -21,9 +21,9 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
 
 ## Database Schema
 
-**maity.users**: `id` (UUID PK), `auth_id` (FK auth.users), `email`, `name`. Trigger `handle_new_auth_user()` crea registro en signup.
+**maity.users**: `id` (UUID PK), `auth_id` (FK auth.users), `email`, `name`, `company_id`, `status` (ACTIVE default), `level`, `role`. Trigger `handle_new_auth_user()` crea registro en signup. Nota: columnas `company_id`, `status`, `level`, `role` agregadas por web platform.
 
-**maity.omi_conversations**: `id`, `user_id` (FK), `title`, `overview`, `emoji`, `category`, `action_items`/`events` (JSONB), `transcript_text`, `embedding` (vector(1536)), `words_count`, `duration_seconds`, `discarded` (bool default false), `last_segment_at`, `segment_count`, `status`. Indices HNSW.
+**maity.omi_conversations**: `id`, `user_id` (FK), `title`, `overview`, `emoji`, `category`, `action_items`/`events` (JSONB), `transcript_text`, `embedding` (vector(1536)), `words_count`, `duration_seconds`, `discarded` (bool default false), `last_segment_at`, `segment_count`, `status`, `firebase_uid` (legacy, siempre NULL). Check constraint `omi_conversations_valid_status`: status IN ('recording','in_progress','processing','completed','failed'). Indices HNSW.
 
 **maity.omi_transcript_segments**: `id`, `conversation_id` (FK), `user_id`, `text`, `speaker`, `speaker_id`, `is_user`, `start_time`, `end_time`, `embedding` (vector(1536)). Unique index: `(conversation_id, segment_index)`.
 
@@ -364,3 +364,29 @@ Logos en `assets/images/` (rosa #F93A6E). Regenerar: `dart run flutter_launcher_
 ## Docs
 
 `docs/CHAT_AGENT_DIFFERENCES.md`, `docs/google-sign-in-setup.md`, `docs/MIXPANEL_GUIDE.md`.
+
+## Troubleshooting: Conversaciones no aparecen
+
+**Flujo de carga** (posibles puntos de falla):
+```
+ConversationProvider._getConversationsFromServer()
+  → SupabaseAuthService.maityUserId  (puede ser null si _fetchMaityUserId falló)
+  → fallback a SharedPreferencesUtil().uid
+  → si null: espera 5s retry → si sigue null → cae a api.omi.me fallback → lista vacía
+  → si OK: OmiSupabaseService.getConversations(userId)
+    → getAuthHeader() → si token refresh falla y isSignedIn → THROW → catch → return []
+```
+
+**Diagnóstico**: Logs con prefijo `[ConversationProvider] DIAGNOSTIC` y `[OmiSupabaseService] DIAGNOSTIC` muestran:
+- `authId` y `maityUserId` al iniciar carga
+- Estado de sesión si maityUserId es null
+- Body de respuesta HTTP en errores (401, 422, etc.)
+- Stack trace completo en excepciones
+
+**Causas comunes**:
+1. `maityUserId` null → RLS bloquea query a `maity.users` o timing issue post-reinstall
+2. Token expirado + refresh falla → 401 en backend → catch silencioso → lista vacía
+3. `user_id` NULL en `omi_conversations` → conversaciones invisibles para el API
+4. Orphan drafts (`status='recording'`) → no aparecen en listado (filtro `status='completed'`)
+
+**Auditoría Feb 2026**: Se encontraron 7 convos con `user_id=NULL` (marcadas deleted) y 10 orphan drafts (marcadas failed+deleted).
