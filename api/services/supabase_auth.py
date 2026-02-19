@@ -1,4 +1,4 @@
-"""Supabase JWT authentication service — JWKS (ES256) + HS256 fallback"""
+"""Supabase JWT authentication service — JWKS (ES256)"""
 import os
 from typing import Optional
 from fastapi import Header, HTTPException
@@ -6,7 +6,9 @@ import jwt
 from jwt import PyJWKClient
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+
+if not SUPABASE_URL:
+    print("[supabase_auth] WARNING: SUPABASE_URL not set — JWT verification will fail")
 
 # PyJWKClient caches the JWKS for 5 minutes (persists across Vercel warm instances)
 jwks_client: Optional[PyJWKClient] = None
@@ -22,39 +24,40 @@ def _get_jwks_client() -> PyJWKClient:
 
 
 def _decode_token(token: str) -> dict:
-    """Decode JWT using JWKS (primary) or HS256 secret (fallback).
+    """Decode JWT using JWKS endpoint (ES256).
 
-    JWKS supports both ES256 (new ECC P-256 keys) and HS256 automatically.
-    The HS256 fallback using SUPABASE_JWT_SECRET is a safety net during the
-    key rotation transition period.
+    Retries once with fresh JWKS keys if first attempt fails
+    (handles key rotation gracefully).
     """
-    # Primary: JWKS endpoint
-    try:
-        client = _get_jwks_client()
-        signing_key = client.get_signing_key_from_jwt(token)
-        return jwt.decode(
-            token,
-            signing_key.key,
-            algorithms=["ES256", "HS256"],
-            audience="authenticated",
-        )
-    except Exception:
-        pass
+    global jwks_client
+    last_error = None
 
-    # Fallback: legacy HS256 shared secret
-    jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
-    if jwt_secret:
+    for attempt in range(2):
         try:
+            client = _get_jwks_client()
+            signing_key = client.get_signing_key_from_jwt(token)
             return jwt.decode(
                 token,
-                jwt_secret,
-                algorithms=["HS256"],
+                signing_key.key,
+                algorithms=["ES256"],
                 audience="authenticated",
             )
-        except Exception:
-            pass
+        except Exception as e:
+            last_error = e
+            print(f"[supabase_auth] JWKS verification failed (attempt {attempt + 1}): {type(e).__name__}: {e}")
+            if attempt == 0:
+                # Invalidate JWKS cache and retry with fresh keys
+                jwks_client = None
+                print("[supabase_auth] Invalidated JWKS cache, retrying with fresh keys...")
 
-    raise jwt.InvalidTokenError("Could not verify token with JWKS or HS256 secret")
+    # Log token header for debugging (header is not secret)
+    try:
+        header = jwt.get_unverified_header(token)
+        print(f"[supabase_auth] Token header: alg={header.get('alg')}, kid={header.get('kid')}")
+    except Exception:
+        print("[supabase_auth] Could not decode token header")
+
+    raise jwt.InvalidTokenError(f"JWKS verification failed: {last_error}")
 
 
 async def verify_supabase_token(
