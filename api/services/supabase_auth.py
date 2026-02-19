@@ -1,4 +1,4 @@
-"""Supabase JWT authentication service — JWKS (ES256)"""
+"""Supabase JWT authentication service — JWKS (ES256) + HS256 fallback"""
 import os
 from typing import Optional
 from fastapi import Header, HTTPException
@@ -6,6 +6,7 @@ import jwt
 from jwt import PyJWKClient
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
 
 if not SUPABASE_URL:
     print("[supabase_auth] WARNING: SUPABASE_URL not set — JWT verification will fail")
@@ -24,14 +25,16 @@ def _get_jwks_client() -> PyJWKClient:
 
 
 def _decode_token(token: str) -> dict:
-    """Decode JWT using JWKS endpoint (ES256).
+    """Decode JWT using JWKS endpoint (ES256), with HS256 fallback.
 
-    Retries once with fresh JWKS keys if first attempt fails
-    (handles key rotation gracefully).
+    Strategy:
+    1. JWKS (ES256) — primary, retries once with cache invalidation
+    2. HS256 fallback — for legacy tokens signed before key rotation
     """
     global jwks_client
-    last_error = None
+    last_jwks_error = None
 
+    # --- Primary: JWKS (ES256) ---
     for attempt in range(2):
         try:
             client = _get_jwks_client()
@@ -43,12 +46,36 @@ def _decode_token(token: str) -> dict:
                 audience="authenticated",
             )
         except Exception as e:
-            last_error = e
+            last_jwks_error = e
             print(f"[supabase_auth] JWKS verification failed (attempt {attempt + 1}): {type(e).__name__}: {e}")
             if attempt == 0:
                 # Invalidate JWKS cache and retry with fresh keys
                 jwks_client = None
                 print("[supabase_auth] Invalidated JWKS cache, retrying with fresh keys...")
+
+    # --- Fallback: HS256 (legacy tokens) ---
+    if SUPABASE_JWT_SECRET:
+        try:
+            header = jwt.get_unverified_header(token)
+            if header.get("alg") == "HS256":
+                print("[supabase_auth] Attempting HS256 fallback for legacy token...")
+                payload = jwt.decode(
+                    token,
+                    SUPABASE_JWT_SECRET,
+                    algorithms=["HS256"],
+                    audience="authenticated",
+                )
+                print("[supabase_auth] HS256 fallback succeeded")
+                return payload
+            else:
+                print(f"[supabase_auth] Token alg is {header.get('alg')}, skipping HS256 fallback")
+        except jwt.ExpiredSignatureError:
+            print("[supabase_auth] HS256 fallback: token expired")
+            raise
+        except Exception as e:
+            print(f"[supabase_auth] HS256 fallback failed: {type(e).__name__}: {e}")
+    else:
+        print("[supabase_auth] SUPABASE_JWT_SECRET not set, skipping HS256 fallback")
 
     # Log token header for debugging (header is not secret)
     try:
@@ -57,7 +84,7 @@ def _decode_token(token: str) -> dict:
     except Exception:
         print("[supabase_auth] Could not decode token header")
 
-    raise jwt.InvalidTokenError(f"JWKS verification failed: {last_error}")
+    raise jwt.InvalidTokenError(f"JWKS verification failed: {last_jwks_error}")
 
 
 async def verify_supabase_token(
