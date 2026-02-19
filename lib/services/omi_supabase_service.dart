@@ -367,7 +367,8 @@ class OmiSupabaseService {
     bool generateEmbeddings = true,
   }) async {
     try {
-      debugPrint('[OmiSupabaseService] Finalizing conversation $conversationId');
+      debugPrint('[OmiSupabaseService] Finalizing conversation=$conversationId, '
+          'userId=$userId, hasStructured=${structured != null}');
 
       final body = <String, dynamic>{
         'user_id': userId,
@@ -393,15 +394,42 @@ class OmiSupabaseService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        debugPrint('[OmiSupabaseService] Finalized: ${data['words_count']} words, ${data['segment_count']} segments');
+        debugPrint('[OmiSupabaseService] Finalized OK: ${data['words_count']} words, ${data['segment_count']} segments');
         return true;
       } else {
-        debugPrint('[OmiSupabaseService] Finalize error: ${response.statusCode} - ${response.body}');
+        final responseBody = utf8.decode(response.bodyBytes);
+        debugPrint('[OmiSupabaseService] Finalize FAILED: status=${response.statusCode}, body=$responseBody');
         return false;
       }
-    } catch (e) {
-      debugPrint('[OmiSupabaseService] Error finalizing: $e');
+    } catch (e, stackTrace) {
+      debugPrint('[OmiSupabaseService] Finalize ERROR: $e');
+      debugPrint('[OmiSupabaseService] Stack trace: $stackTrace');
       return false;
+    }
+  }
+
+  /// Mark a draft conversation as abandoned (used when monolithic fallback succeeds)
+  static Future<void> markDraftAbandoned({required String conversationId}) async {
+    try {
+      final authHeader = await getAuthHeader();
+      final response = await http
+          .patch(
+            Uri.parse('$_baseUrl/v1/omi/conversations/$conversationId/status'),
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              'Authorization': authHeader,
+            },
+            body: jsonEncode({'status': 'abandoned'}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        debugPrint('[OmiSupabaseService] Draft $conversationId marked as abandoned');
+      } else {
+        debugPrint('[OmiSupabaseService] Failed to mark draft abandoned: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[OmiSupabaseService] Error marking draft abandoned: $e');
     }
   }
 

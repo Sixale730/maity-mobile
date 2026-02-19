@@ -280,9 +280,9 @@ async def finalize_conversation_endpoint(
         segment_count = result["segment_count"]
         used_chunked = False
 
-        # For long transcripts without structured data, use chunked processing
-        if len(transcript_text) > 6000 and (not request.structured or not request.structured.title):
-            print(f"[OMI Router] Long transcript ({len(transcript_text)} chars), using chunked processing")
+        # Process structured data if not provided by client (any transcript length)
+        if not request.structured or not request.structured.title:
+            print(f"[OMI Router] No structured data provided, using chunked processing ({len(transcript_text)} chars)")
             try:
                 chunked_result = await process_long_transcript(transcript_text)
                 if chunked_result:
@@ -798,6 +798,32 @@ async def set_conversation_starred(
         raise HTTPException(status_code=500, detail=f"Failed to update starred status: {str(e)}")
 
 
+class UpdateStatusRequest(BaseModel):
+    status: str = Field(..., description="New status (e.g., 'abandoned')")
+
+
+@router.patch("/conversations/{conversation_id}/status")
+async def update_conversation_status(
+    conversation_id: str,
+    request: UpdateStatusRequest,
+    auth_user_id: Optional[str] = Depends(optional_auth_user_id),
+):
+    """Update the status of a conversation (e.g., mark as abandoned)."""
+    valid_statuses = {"recording", "in_progress", "processing", "completed", "failed", "abandoned"}
+    if request.status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {request.status}")
+
+    try:
+        supabase = get_supabase()
+        supabase.schema("maity").table("omi_conversations").update({
+            "status": request.status,
+        }).eq("id", conversation_id).execute()
+        return {"id": conversation_id, "status": request.status}
+    except Exception as e:
+        print(f"[OMI Router] Update status failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update status: {str(e)}")
+
+
 @router.post("/conversations/{conversation_id}/reprocess")
 async def reprocess_conversation(
     conversation_id: str,
@@ -1002,7 +1028,7 @@ async def cleanup_orphan_drafts(
             seg_count = orphan.get("segment_count", 0) or 0
 
             if seg_count > 0:
-                # Has segments - try to finalize
+                # Has segments - try to finalize and generate structured data
                 try:
                     conv = await finalize_conversation(
                         conversation_id=orphan_id,
@@ -1010,6 +1036,35 @@ async def cleanup_orphan_drafts(
                         finished_at=datetime.utcnow(),
                     )
                     if conv:
+                        transcript_text = conv.get("transcript_text", "")
+                        # Generate structured data (title, overview, etc.) from transcript
+                        if transcript_text and len(transcript_text.strip()) >= 50:
+                            try:
+                                chunked_result = await process_long_transcript(transcript_text)
+                                if chunked_result:
+                                    supabase.schema("maity").table("omi_conversations").update({
+                                        "title": chunked_result.get("title", "Conversation"),
+                                        "overview": chunked_result.get("overview", ""),
+                                        "emoji": chunked_result.get("emoji", "🎤"),
+                                        "category": chunked_result.get("category", "other"),
+                                        "action_items": chunked_result.get("action_items", []),
+                                        "events": chunked_result.get("events", []),
+                                        "discarded": chunked_result.get("discarded", False),
+                                    }).eq("id", orphan_id).eq("user_id", user_id).execute()
+                                    print(f"[OMI Router] Orphan {orphan_id}: generated structured data: {chunked_result.get('title')}")
+                            except Exception as e:
+                                print(f"[OMI Router] Orphan {orphan_id}: structured data generation failed (non-blocking): {e}")
+
+                            # Generate embeddings
+                            try:
+                                embedding = await generate_embedding(transcript_text)
+                                if embedding:
+                                    supabase.schema("maity").table("omi_conversations").update({
+                                        "embedding": embedding,
+                                    }).eq("id", orphan_id).execute()
+                            except Exception as e:
+                                print(f"[OMI Router] Orphan {orphan_id}: embedding generation failed (non-blocking): {e}")
+
                         finalized.append(orphan_id)
                         print(f"[OMI Router] Finalized orphan draft {orphan_id} ({seg_count} segments)")
                     else:
