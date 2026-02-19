@@ -115,6 +115,7 @@ class CaptureProvider extends ChangeNotifier
   int _recordingDuration = 0; // in seconds
   DateTime? _recordingStartTime; // Track when recording started for local conversations
   bool _conversationFinalized = false; // Prevents duplicate saves when stopping recording
+  bool _finalizeInProgress = false; // Prevents _resetStateVariables() from wiping state during in-flight finalize
   bool _isSpeechProfileMode = false; // Blocks conversation save during speech profile training
   int _audioBytesSent = 0; // Diagnostic counter for audio bytes sent to STT
 
@@ -1303,6 +1304,7 @@ class CaptureProvider extends ChangeNotifier
 
   stopStreamRecording() async {
     CaptureProvider.isRecordingWithPhoneMic = false;
+    _cancelSilenceTimer(); // Prevent silence timeout from interfering with finalize
     _captureLog.log('recording', 'recording_stop_requested', details: {'source': 'phone_mic'});
     _stopSocketHealthMonitor();
     // Finalize local conversation before stopping (for custom STT mode)
@@ -1351,6 +1353,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   Future stopStreamDeviceRecording({bool cleanDevice = false}) async {
+    _cancelSilenceTimer(); // Prevent silence timeout from interfering with finalize
     _captureLog.log('recording', 'recording_stop_requested', details: {'source': 'ble_device'});
     _stopSocketHealthMonitor();
     // Finalize local conversation before stopping (for custom STT mode)
@@ -1834,7 +1837,9 @@ class CaptureProvider extends ChangeNotifier
     debugPrint('[Maity] Force processing conversation via local/Supabase flow');
     // IMPORTANT: Save BEFORE resetting state, otherwise segments will be empty
     await _finalizeLocalConversation();
-    _resetStateVariables();
+    if (!_finalizeInProgress) {
+      _resetStateVariables();
+    }
   }
 
   Future<void> _processConversationCreated(ServerConversation? conversation, List<ServerMessage> messages) async {
@@ -2098,19 +2103,19 @@ class CaptureProvider extends ChangeNotifier
   Future<void> _finalizeLocalConversation() async {
     // Block saving during speech profile training
     if (_isSpeechProfileMode) {
-      debugPrint('[Maity] Speech profile mode active, skipping conversation save');
+      debugPrint('[Finalize] SKIP: Speech profile mode active');
       return;
     }
 
     // Only save if we're using custom STT and have transcripts
     final customSttConfig = SharedPreferencesUtil().customSttConfig;
     if (!customSttConfig.isEnabled) {
-      debugPrint('[Maity] Not using custom STT, skipping local save');
+      debugPrint('[Finalize] SKIP: Custom STT not enabled');
       return;
     }
 
     if (segments.isEmpty) {
-      debugPrint('[Maity] No segments to save');
+      debugPrint('[Finalize] SKIP: No segments to save');
       _clearRecoveryState();
       return;
     }
@@ -2118,155 +2123,196 @@ class CaptureProvider extends ChangeNotifier
     // Prevent duplicate saves when stopStreamRecording() and forceProcessingCurrentConversation() both call this
     if (_conversationFinalized) {
       _captureLog.log('save', 'finalize_skipped_duplicate', severity: 'warning');
-      debugPrint('[Maity] Conversation already finalized, skipping duplicate save');
+      debugPrint('[Finalize] SKIP: Already finalized (_conversationFinalized=true)');
       return;
     }
     _conversationFinalized = true;
 
-    final transcript = segments.map((s) => s.text).join('\n').trim();
+    // Capture mutable state upfront — protects against concurrent _resetStateVariables()
+    // which can wipe segments/draftId while we await OpenAI or network calls.
+    final localSegments = List<TranscriptSegment>.from(segments);
+    final localDraftId = _incrementalSave.draftId;
+
+    final transcript = localSegments.map((s) => s.text).join('\n').trim();
     _captureLog.log('save', 'finalize_started', details: {
-      'segments_count': segments.length,
-      'has_draft': _incrementalSave.draftId != null,
+      'segments_count': localSegments.length,
+      'has_draft': localDraftId != null,
       'transcript_length': transcript.length,
     });
 
-    debugPrint('[Maity] Finalizing local conversation with ${segments.length} segments');
+    debugPrint('[Finalize] START: ${localSegments.length} segments, '
+        'draftId=$localDraftId, '
+        'transcript=${transcript.length} chars');
 
     // Cancel recovery timer but don't clear data yet (only after successful save)
     _recoveryTimer?.cancel();
 
-    // Retry up to 3 times on failure
-    const maxRetries = 3;
-    int retryCount = 0;
-    bool success = false;
+    _finalizeInProgress = true;
+    try {
+      // Voice profile verification (non-blocking, outside retry loop)
+      var userId = SupabaseAuthService.instance.maityUserId;
+      if (userId == null) {
+        debugPrint('[Finalize] userId null, attempting fetch...');
+        userId = await SupabaseAuthService.instance.fetchMaityUserId();
+      }
+      debugPrint('[Finalize] userId=$userId');
 
-    while (retryCount < maxRetries && !success) {
-      try {
-        // Verify speakers using voice profile if available
-        var userId = SupabaseAuthService.instance.maityUserId;
-        if (userId == null) {
-          debugPrint('[CaptureProvider] userId null in _processConversation, attempting fetch...');
-          userId = await SupabaseAuthService.instance.fetchMaityUserId();
-        }
-        if (userId != null) {
+      if (userId != null) {
+        try {
           await _verifySpeakersWithVoiceProfile(userId);
-        }
-
-        // Check if we have a draft conversation (incremental save path)
-        if (_incrementalSave.draftId != null && userId != null) {
-          debugPrint('[Maity] Using incremental finalize path (draft: ${_incrementalSave.draftId})');
-
-          // Flush any pending segments first
-          await _incrementalSave.flushPendingSegments(segments);
-
-          // Build transcript for local processing
-          final transcript = segments.map((s) => s.text).join('\n').trim();
-
-          // For long transcripts (>6000 chars), let backend handle processing
-          Map<String, dynamic>? structuredData;
-          if (transcript.length <= 6000) {
-            // Process locally with OpenAI for short transcripts
-            final structured = await ConversationProcessor.processLocally(segments);
-            if (structured != null) {
-              structuredData = {
-                'title': structured.title,
-                'overview': structured.overview,
-                'emoji': structured.emoji,
-                'category': structured.category,
-                'discarded': structured.discarded,
-                'action_items': structured.actionItems.map((a) => a.toJson()).toList(),
-                'events': structured.events.map((e) => e.toJson()).toList(),
-              };
-            }
-          } else {
-            debugPrint('[Maity] Long transcript (${transcript.length} chars), backend will process with chunking');
-          }
-
-          // Finalize via backend (rebuilds transcript from segments in DB)
-          final finalized = await _incrementalSave.finalize(
-            userId: userId,
-            finishedAt: DateTime.now(),
-            structured: structuredData,
-          );
-
-          if (finalized) {
-            _captureLog.log('save', 'finalize_incremental_success', details: {
-              'draft_id': _incrementalSave.draftId,
-            });
-            debugPrint('[Maity] Incremental finalize successful');
-
-            // Notify conversation provider to refresh the list
-            conversationProvider?.refreshConversations();
-
-            _recordingStartTime = null;
-            _clearRecoveryState();
-            success = true;
-          } else {
-            _captureLog.log('save', 'finalize_incremental_failed', severity: 'warning', details: {
-              'draft_id': _incrementalSave.draftId,
-              'fallback': 'monolithic',
-            });
-            debugPrint('[Maity] Incremental finalize failed, falling back to monolithic save');
-            // Fall through to monolithic save below
-          }
-        }
-
-        // Monolithic save (fallback or when no draft exists)
-        if (!success) {
-          // Process conversation with OpenAI to get structured data (title, emoji, category, etc.)
-          final structured = await ConversationProcessor.processLocally(segments);
-
-          // Save the conversation locally with full structured data
-          final conversation = await LocalConversationsService.saveConversation(
-            segments: List.from(segments), // Copy segments
-            startedAt: _recordingStartTime ?? DateTime.now(),
-            structured: structured,
-            // Fallback values if structured is null
-            title: structured?.title ?? 'Conversación',
-            emoji: structured?.emoji ?? '🎤',
-            category: structured?.category ?? 'personal',
-          );
-
-          debugPrint('[Maity] Local conversation saved: ${conversation.id}');
-          debugPrint('[Maity] Title: ${structured?.title}, Category: ${structured?.category}, Emoji: ${structured?.emoji}');
-
-          _captureLog.log('save', 'finalize_monolithic_success', details: {
-            'conversation_id': conversation.id,
-          });
-
-          // Notify the conversation provider to add it to the list
-          conversationProvider?.addLocalConversation(conversation);
-
-          // Reset recording start time
-          _recordingStartTime = null;
-
-          // Clear recovery data only after successful save
-          _clearRecoveryState();
-
-          success = true;
-        }
-      } catch (e) {
-        retryCount++;
-        _captureLog.log('save', 'finalize_retry_error', severity: 'error', details: {
-          'attempt': retryCount,
-          'max_retries': maxRetries,
-          'error': e.toString(),
-        });
-        debugPrint('[Maity] Error saving local conversation (attempt $retryCount/$maxRetries): $e');
-
-        if (retryCount < maxRetries) {
-          // Wait before retrying (exponential backoff)
-          final delay = Duration(seconds: retryCount * 2);
-          debugPrint('[Maity] Retrying in ${delay.inSeconds}s...');
-          await Future.delayed(delay);
-        } else {
-          _captureLog.log('save', 'finalize_all_retries_exhausted', severity: 'error', details: {
-            'segments_count': segments.length,
-          });
-          debugPrint('[Maity] All retries exhausted. Conversation data preserved in recovery file.');
-          // Don't clear recovery data - keep it for later recovery
+          debugPrint('[Finalize] Voice profile verification completed');
+        } catch (e) {
+          debugPrint('[Finalize] Voice profile verification failed (non-blocking): $e');
+          // Non-blocking: continue with finalize even if voice verification fails
         }
       }
+
+      // Retry up to 3 times on failure
+      const maxRetries = 3;
+      int retryCount = 0;
+      bool success = false;
+
+      while (retryCount < maxRetries && !success) {
+        try {
+          // Check if we have a draft conversation (incremental save path)
+          if (localDraftId != null && userId != null) {
+            debugPrint('[Finalize] Incremental path: draft=$localDraftId');
+
+            // Flush any pending segments first
+            debugPrint('[Finalize] Flushing pending segments...');
+            await _incrementalSave.flushPendingSegments(localSegments);
+            debugPrint('[Finalize] Flush complete. Saved: ${_incrementalSave.savedSegmentCount}/${localSegments.length}');
+
+            // Build transcript for local processing
+            final transcript = localSegments.map((s) => s.text).join('\n').trim();
+
+            // For long transcripts (>6000 chars), let backend handle processing
+            Map<String, dynamic>? structuredData;
+            if (transcript.length <= 6000) {
+              // Process locally with OpenAI for short transcripts
+              debugPrint('[Finalize] Processing locally (${transcript.length} chars)...');
+              final structured = await ConversationProcessor.processLocally(localSegments);
+              debugPrint('[Finalize] Local processing result: ${structured != null ? 'title="${structured.title}"' : 'null'}');
+              if (structured != null) {
+                structuredData = {
+                  'title': structured.title,
+                  'overview': structured.overview,
+                  'emoji': structured.emoji,
+                  'category': structured.category,
+                  'discarded': structured.discarded,
+                  'action_items': structured.actionItems.map((a) => a.toJson()).toList(),
+                  'events': structured.events.map((e) => e.toJson()).toList(),
+                };
+              }
+            } else {
+              debugPrint('[Finalize] Long transcript (${transcript.length} chars), backend will process with chunking');
+            }
+
+            // Finalize via backend (rebuilds transcript from segments in DB)
+            debugPrint('[Finalize] Calling incremental finalize (structured=${structuredData != null})...');
+            final finalized = await _incrementalSave.finalize(
+              userId: userId,
+              finishedAt: DateTime.now(),
+              structured: structuredData,
+              draftId: localDraftId,
+            );
+
+            if (finalized) {
+              _captureLog.log('save', 'finalize_incremental_success', details: {
+                'draft_id': localDraftId,
+              });
+              debugPrint('[Finalize] SUCCESS via incremental path');
+
+              // Notify conversation provider to refresh the list
+              conversationProvider?.refreshConversations();
+
+              _recordingStartTime = null;
+              _clearRecoveryState();
+              success = true;
+            } else {
+              _captureLog.log('save', 'finalize_incremental_failed', severity: 'warning', details: {
+                'draft_id': localDraftId,
+                'fallback': 'monolithic',
+              });
+              debugPrint('[Finalize] FAILED incremental path, falling back to monolithic');
+              // Fall through to monolithic save below
+            }
+          }
+
+          // Monolithic save (fallback or when no draft exists)
+          if (!success) {
+            debugPrint('[Finalize] Monolithic path: processing locally...');
+            // Process conversation with OpenAI to get structured data (title, emoji, category, etc.)
+            final structured = await ConversationProcessor.processLocally(localSegments);
+            debugPrint('[Finalize] Monolithic processing result: ${structured != null ? 'title="${structured.title}"' : 'null'}');
+
+            // Save the conversation locally with full structured data
+            final conversation = await LocalConversationsService.saveConversation(
+              segments: List.from(localSegments), // Copy segments
+              startedAt: _recordingStartTime ?? DateTime.now(),
+              structured: structured,
+              // Fallback values if structured is null
+              title: structured?.title ?? 'Conversación',
+              emoji: structured?.emoji ?? '🎤',
+              category: structured?.category ?? 'personal',
+            );
+
+            debugPrint('[Finalize] Monolithic save OK: id=${conversation.id}, title="${structured?.title}"');
+
+            _captureLog.log('save', 'finalize_monolithic_success', details: {
+              'conversation_id': conversation.id,
+            });
+
+            // Mark the orphan draft as abandoned so it doesn't linger as 'recording'
+            if (localDraftId != null) {
+              debugPrint('[Finalize] Marking orphan draft $localDraftId as abandoned...');
+              try {
+                await OmiSupabaseService.markDraftAbandoned(
+                  conversationId: localDraftId,
+                );
+                debugPrint('[Finalize] Draft marked as abandoned');
+              } catch (e) {
+                debugPrint('[Finalize] Failed to mark draft as abandoned (non-blocking): $e');
+              }
+            }
+
+            // Notify the conversation provider to add it to the list
+            conversationProvider?.addLocalConversation(conversation);
+
+            // Reset recording start time
+            _recordingStartTime = null;
+
+            // Clear recovery data only after successful save
+            _clearRecoveryState();
+
+            success = true;
+          }
+        } catch (e, stackTrace) {
+          retryCount++;
+          _captureLog.log('save', 'finalize_retry_error', severity: 'error', details: {
+            'attempt': retryCount,
+            'max_retries': maxRetries,
+            'error': e.toString(),
+          });
+          debugPrint('[Finalize] ERROR attempt $retryCount/$maxRetries: $e');
+          debugPrint('[Finalize] Stack trace: $stackTrace');
+
+          if (retryCount < maxRetries) {
+            // Wait before retrying (exponential backoff)
+            final delay = Duration(seconds: retryCount * 2);
+            debugPrint('[Finalize] Retrying in ${delay.inSeconds}s...');
+            await Future.delayed(delay);
+          } else {
+            _captureLog.log('save', 'finalize_all_retries_exhausted', severity: 'error', details: {
+              'segments_count': localSegments.length,
+            });
+            debugPrint('[Finalize] All retries exhausted. Recovery data preserved.');
+            // Don't clear recovery data - keep it for later recovery
+          }
+        }
+      }
+    } finally {
+      _finalizeInProgress = false;
     }
   }
 
@@ -2427,7 +2473,9 @@ class CaptureProvider extends ChangeNotifier
     }
 
     await _finalizeLocalConversation();
-    _resetStateVariables();
+    if (!_finalizeInProgress) {
+      _resetStateVariables();
+    }
     notifyListeners();
   }
 

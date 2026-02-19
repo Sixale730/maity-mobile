@@ -200,21 +200,30 @@ class IncrementalSaveService {
 
   /// Finalize the draft conversation in Supabase.
   /// Backend rebuilds transcript from segments, generates embeddings, etc.
+  /// Finalize the draft conversation in Supabase.
+  /// Backend rebuilds transcript from segments, generates embeddings, etc.
+  /// [draftId] allows caller to pass a captured draftId (protects against concurrent reset).
   Future<bool> finalize({
     required String userId,
     required DateTime finishedAt,
     Map<String, dynamic>? structured,
     bool generateEmbeddings = true,
+    String? draftId,
   }) async {
-    if (_draftId == null) {
-      debugPrint('[IncrementalSave] No draft to finalize');
+    final effectiveDraftId = draftId ?? _draftId;
+    if (effectiveDraftId == null) {
+      debugPrint('[IncrementalSave] No draft to finalize (draftId=null)');
       return false;
     }
 
     try {
-      debugPrint('[IncrementalSave] Finalizing draft $_draftId...');
+      debugPrint('[IncrementalSave] Finalizing draft=$effectiveDraftId, '
+          'userId=$userId, '
+          'hasStructured=${structured != null}, '
+          'structuredTitle=${structured?['title']}, '
+          'savedSegments=$_savedSegmentCount');
       final success = await OmiSupabaseService.finalizeConversation(
-        conversationId: _draftId!,
+        conversationId: effectiveDraftId,
         userId: userId,
         finishedAt: finishedAt,
         structured: structured,
@@ -223,23 +232,24 @@ class IncrementalSaveService {
 
       if (success) {
         _captureLog.log('save', 'incremental_finalize_success', details: {
-          'draft_id': _draftId,
+          'draft_id': effectiveDraftId,
         });
         debugPrint('[IncrementalSave] Finalized successfully');
       } else {
         _captureLog.log('save', 'incremental_finalize_failed', severity: 'error', details: {
-          'draft_id': _draftId,
+          'draft_id': effectiveDraftId,
         });
-        debugPrint('[IncrementalSave] Finalize failed');
+        debugPrint('[IncrementalSave] Finalize FAILED (returned false)');
       }
 
       return success;
-    } catch (e) {
+    } catch (e, stackTrace) {
       _captureLog.log('save', 'incremental_finalize_error', severity: 'error', details: {
-        'draft_id': _draftId,
+        'draft_id': effectiveDraftId,
         'error': e.toString(),
       });
       debugPrint('[IncrementalSave] Error finalizing: $e');
+      debugPrint('[IncrementalSave] Stack trace: $stackTrace');
       return false;
     }
   }
