@@ -281,41 +281,36 @@ class SupabaseAuthService {
       return null;
     }
 
-    try {
-      final response = await _supabase
-          .schema('maity')
-          .from('users')
-          .select('id')
-          .eq('auth_id', authId)
-          .maybeSingle();
+    const maxRetries = 3;
+    const delays = [Duration(seconds: 1), Duration(seconds: 2), Duration(seconds: 4)];
 
-      if (response != null && response['id'] != null) {
-        _maityUserId = response['id'] as String;
-        SharedPreferencesUtil().uid = _maityUserId!;
-        debugPrint('[SupabaseAuth] maity.users.id: $_maityUserId');
-        return _maityUserId;
-      } else {
-        debugPrint('[SupabaseAuth] Usuario no encontrado en maity.users (el trigger debería crearlo)');
-        // Esperar un poco y reintentar (el trigger puede tomar un momento)
-        await Future.delayed(const Duration(seconds: 1));
-        final retryResponse = await _supabase
+    for (int attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        final response = await _supabase
             .schema('maity')
             .from('users')
             .select('id')
             .eq('auth_id', authId)
             .maybeSingle();
 
-        if (retryResponse != null && retryResponse['id'] != null) {
-          _maityUserId = retryResponse['id'] as String;
+        if (response != null && response['id'] != null) {
+          _maityUserId = response['id'] as String;
           SharedPreferencesUtil().uid = _maityUserId!;
-          debugPrint('[SupabaseAuth] maity.users.id (retry): $_maityUserId');
+          debugPrint('[SupabaseAuth] maity.users.id: $_maityUserId (attempt ${attempt + 1})');
           return _maityUserId;
+        } else {
+          debugPrint('[SupabaseAuth] Usuario no encontrado en maity.users (attempt ${attempt + 1}/$maxRetries)');
         }
+      } catch (e) {
+        debugPrint('[SupabaseAuth] Error obteniendo maity.users.id (attempt ${attempt + 1}/$maxRetries): $e');
       }
-    } catch (e) {
-      debugPrint('[SupabaseAuth] Error obteniendo maity.users.id: $e');
+
+      if (attempt < maxRetries - 1) {
+        await Future.delayed(delays[attempt]);
+      }
     }
 
+    debugPrint('[SupabaseAuth] ALERTA: maityUserId null después de $maxRetries intentos para authId=$authId');
     return null;
   }
 
