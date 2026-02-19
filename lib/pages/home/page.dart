@@ -143,7 +143,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       // Reload convos
       if (mounted) {
         Provider.of<ConversationProvider>(context, listen: false).refreshConversations();
-        Provider.of<CaptureProvider>(context, listen: false).refreshInProgressConversations();
       }
     } else if (state == AppLifecycleState.hidden) {
       event = 'App is hidden';
@@ -709,29 +708,35 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                 Positioned(
                                   left: MediaQuery.of(context).size.width / 2 - 32,
                                   bottom: 40,
-                                  child: Consumer<CaptureProvider>(
-                                    builder: (context, captureProvider, child) {
-                                      bool isRecording = captureProvider.recordingState == RecordingState.record;
-                                      bool isInitializing =
-                                          captureProvider.recordingState == RecordingState.initialising;
+                                  child: Selector<CaptureProvider, ({RecordingState state, bool reconnecting})>(
+                                    selector: (_, p) => (state: p.recordingState, reconnecting: p.isReconnectingSocket),
+                                    builder: (context, value, child) {
+                                      bool isRecording = value.state == RecordingState.record;
+                                      bool isInitializing = value.state == RecordingState.initialising;
+                                      bool isReconnecting = value.reconnecting;
                                       return GestureDetector(
                                         onTap: () async {
                                           HapticFeedback.heavyImpact();
-                                          if (isInitializing) return;
-                                          await _handleRecordButtonPress(context, captureProvider);
+                                          if (isInitializing || isReconnecting) return;
+                                          await _handleRecordButtonPress(
+                                            context,
+                                            Provider.of<CaptureProvider>(context, listen: false),
+                                          );
                                         },
                                         child: Container(
                                           width: 64,
                                           height: 64,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: isRecording ? Colors.red : const Color(0xFF485DF4),
+                                            color: isReconnecting
+                                                ? Colors.orange
+                                                : (isRecording ? Colors.red : const Color(0xFF485DF4)),
                                             border: Border.all(
                                               color: Colors.black,
                                               width: 4,
                                             ),
                                           ),
-                                          child: isInitializing
+                                          child: isInitializing || isReconnecting
                                               ? const CircularProgressIndicator(
                                                   color: Colors.white,
                                                   strokeWidth: 2,

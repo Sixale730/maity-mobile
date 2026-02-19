@@ -109,7 +109,7 @@ class PureSocket implements IPureSocket {
       url,
       headers: headers,
       pingInterval: const Duration(seconds: 20),
-      connectTimeout: const Duration(seconds: 15),
+      connectTimeout: const Duration(seconds: 5),
     );
     if (_channel?.ready == null) {
       return false;

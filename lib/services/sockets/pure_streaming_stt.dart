@@ -137,7 +137,7 @@ class GeminiStreamingSttSocket implements IPureSocket {
       _channel = IOWebSocketChannel.connect(
         _wsUrl,
         pingInterval: const Duration(seconds: 20),
-        connectTimeout: const Duration(seconds: 15),
+        connectTimeout: const Duration(seconds: 5),
       );
 
       await _channel!.ready;
@@ -579,7 +579,7 @@ class PureStreamingSttSocket implements IPureSocket {
         config.url,
         headers: config.headers,
         pingInterval: const Duration(seconds: 20),
-        connectTimeout: const Duration(seconds: 15),
+        connectTimeout: const Duration(seconds: 5),
       );
 
       await _channel!.ready;

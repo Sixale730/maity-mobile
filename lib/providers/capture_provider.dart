@@ -163,6 +163,10 @@ class CaptureProvider extends ChangeNotifier
   // Flag to suppress keep-alive during intentional reconnection after resume
   bool _isReconnectingAfterResume = false;
 
+  // Flag to indicate socket is reconnecting after resume (for UI feedback)
+  bool _isReconnectingSocket = false;
+  bool get isReconnectingSocket => _isReconnectingSocket;
+
   CaptureProvider() {
     _connectionStateListener = ConnectivityService().onConnectionChange.listen((bool isConnected) {
       onConnectionStateChanged(isConnected);
@@ -324,50 +328,29 @@ class CaptureProvider extends ChangeNotifier
     }
 
     // Mobile: handle socket reconnection if we were recording
-    try {
-      final isRecording = recordingState == RecordingState.record ||
-          recordingState == RecordingState.deviceRecord ||
-          recordingState == RecordingState.systemAudioRecord;
+    final isRecording = recordingState == RecordingState.record ||
+        recordingState == RecordingState.deviceRecord ||
+        recordingState == RecordingState.systemAudioRecord;
 
-      if (isRecording) {
-        // Cancel any running keep-alive before reconnecting to avoid cascading reconnections
-        _keepAliveTimer?.cancel();
-        _keepAliveTimer = null;
+    if (isRecording) {
+      // Cancel any running keep-alive before reconnecting to avoid cascading reconnections
+      _keepAliveTimer?.cancel();
+      _keepAliveTimer = null;
 
-        // Restart health monitor
-        _startSocketHealthMonitor();
+      // Check if socket needs reconnection
+      if (_socket != null && _socket!.state != SocketServiceState.connected) {
+        _isReconnectingSocket = true;
+        notifyListeners(); // UI shows "reconnecting" state immediately
 
-        // Check if socket needs reconnection
-        if (_socket != null && _socket!.state != SocketServiceState.connected) {
-          DebugLogManager.logEvent('app_resumed_socket_reconnect', {
-            'previous_state': _socket!.state.name,
-            'recording_state': recordingState.name,
-          });
-
-          debugPrint('[CaptureProvider] Socket disconnected during background, reconnecting...');
-          await _reconnectSocketAfterResume();
-
-          // If reconnect didn't succeed immediately, start keep-alive to keep trying
-          if (_socket?.state != SocketServiceState.connected) {
-            debugPrint('[CaptureProvider] Immediate reconnect failed, starting keep-alive services');
-            _startKeepAliveServices();
-          }
-        }
-
-        // Refresh in-progress conversations after socket stabilizes
-        refreshInProgressConversations();
+        // Fire-and-forget: does NOT block the event loop
+        _reconnectSocketAfterResumeAsync();
       } else {
-        // Not recording: defer refresh to avoid saturating the event loop on resume
-        Future.delayed(const Duration(seconds: 1), refreshInProgressConversations);
+        // Socket still connected, just restart health monitor
+        _startSocketHealthMonitor();
       }
-
-    } catch (e, stack) {
-      DebugLogManager.logEvent('app_resumed_error', {
-        'error': e.toString(),
-        'stack': stack.toString().substring(0, min(500, stack.toString().length)),
-      });
-      debugPrint('[CaptureProvider] Resume error: $e');
     }
+    // REMOVED: refreshInProgressConversations() - already called inside _initiateWebsocket
+    // REMOVED: Future.delayed for non-recording - HomePage.ConversationProvider handles it
   }
 
   /// Reconnect socket after app resumes from background
@@ -413,6 +396,29 @@ class CaptureProvider extends ChangeNotifier
       });
     } finally {
       _isReconnectingAfterResume = false;
+    }
+  }
+
+  /// Non-blocking wrapper for socket reconnection after resume.
+  void _reconnectSocketAfterResumeAsync() async {
+    try {
+      await _reconnectSocketAfterResume();
+
+      if (_socket?.state != SocketServiceState.connected) {
+        debugPrint('[CaptureProvider] Immediate reconnect failed, starting keep-alive');
+        _startKeepAliveServices();
+      }
+    } catch (e, stack) {
+      DebugLogManager.logEvent('app_resumed_reconnect_error', {
+        'error': e.toString(),
+        'stack': stack.toString().substring(0, min(500, stack.toString().length)),
+      });
+      debugPrint('[CaptureProvider] Resume reconnect error: $e');
+      _startKeepAliveServices();
+    } finally {
+      _isReconnectingSocket = false;
+      _startSocketHealthMonitor(); // Start health monitor AFTER reconnection
+      notifyListeners();
     }
   }
 
