@@ -12,87 +12,102 @@ class HeroScoreWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final scoreColor = _getScoreColor(feedback.overallScore);
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1F1F25),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section title
-          Row(
+    return Column(
+      children: [
+        // Card 1: Gauge
+        Container(
+          clipBehavior: Clip.hardEdge,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1F1F25),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: scoreColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.speed, color: scoreColor, size: 16),
+              // Section title
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: scoreColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.speed, color: scoreColor, size: 16),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Score General',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              const Text(
-                'Score General',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+              const SizedBox(height: 0),
+
+              // Semicircular gauge
+              Center(
+                child: SizedBox(
+                  width: 220,
+                  height: 130,
+                  child: CustomPaint(
+                    painter: _SemicircularGaugePainter(
+                      score: feedback.overallScore,
+                      maxScore: 10,
+                      scoreColor: scoreColor,
+                      trackColor: Colors.white.withValues(alpha: 0.15),
+                      strokeWidth: 14,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            feedback.overallScore.toStringAsFixed(1),
+                            style: TextStyle(
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                              color: scoreColor,
+                              height: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '/10',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+        ),
 
-          // Semicircular gauge
-          Center(
-            child: SizedBox(
-              width: 220,
-              height: 130,
-              child: CustomPaint(
-                painter: _SemicircularGaugePainter(
-                  score: feedback.overallScore,
-                  maxScore: 10,
-                  scoreColor: scoreColor,
-                  trackColor: Colors.white.withValues(alpha: 0.08),
-                  strokeWidth: 10,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        feedback.overallScore.toStringAsFixed(1),
-                        style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: scoreColor,
-                          height: 1,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '/10',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade500,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+        // Card 2: Feedback text
+        if (feedback.feedback.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1F1F25),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
-          ),
-
-          // Feedback text
-          if (feedback.feedback.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Text(
+            child: Text(
               feedback.feedback,
               style: TextStyle(
                 fontSize: 14,
@@ -102,9 +117,9 @@ class HeroScoreWidget extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-          ],
+          ),
         ],
-      ),
+      ],
     );
   }
 
@@ -133,8 +148,9 @@ class _SemicircularGaugePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height);
-    final radius = min(size.width / 2, size.height) - strokeWidth / 2;
+    // Position center at 62% of height so the full arc fits with clearance
+    final center = Offset(size.width / 2, size.height * 0.55);
+    final radius = min(size.width / 2 - strokeWidth, center.dy - strokeWidth);
 
     // Draw track (background arc from 180 to 0 degrees)
     final trackPaint = Paint()

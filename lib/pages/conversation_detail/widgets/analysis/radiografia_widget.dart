@@ -56,7 +56,7 @@ class RadiografiaWidget extends StatelessWidget {
           crossAxisCount: 2,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
-          childAspectRatio: 1.4,
+          childAspectRatio: 1.2,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: kpis
@@ -86,15 +86,15 @@ class RadiografiaWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(emoji, style: const TextStyle(fontSize: 20)),
-          const Spacer(),
+          const SizedBox(height: 8),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
