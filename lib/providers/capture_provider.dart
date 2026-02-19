@@ -2137,7 +2137,11 @@ class CaptureProvider extends ChangeNotifier
     while (retryCount < maxRetries && !success) {
       try {
         // Verify speakers using voice profile if available
-        final userId = SupabaseAuthService.instance.maityUserId;
+        var userId = SupabaseAuthService.instance.maityUserId;
+        if (userId == null) {
+          debugPrint('[CaptureProvider] userId null in _processConversation, attempting fetch...');
+          userId = await SupabaseAuthService.instance.fetchMaityUserId();
+        }
         if (userId != null) {
           await _verifySpeakersWithVoiceProfile(userId);
         }
@@ -2504,8 +2508,19 @@ class CaptureProvider extends ChangeNotifier
     if (!customSttConfig.isEnabled) return;
     if (_isSpeechProfileMode) return;
 
-    final userId = SupabaseAuthService.instance.maityUserId;
-    if (userId == null) return;
+    var userId = SupabaseAuthService.instance.maityUserId;
+
+    // Actively attempt to resolve userId if null
+    if (userId == null) {
+      debugPrint('[CaptureProvider] WARNING: maityUserId null during incremental save, attempting fetch...');
+      userId = await SupabaseAuthService.instance.fetchMaityUserId();
+    }
+
+    if (userId == null) {
+      debugPrint('[CaptureProvider] CRITICAL: Cannot save - maityUserId is null');
+      _captureLog.log('save', 'skipped_no_user_id', severity: 'error');
+      return;
+    }
 
     // Ensure draft is created on first segment (await to prevent saving without draft)
     if (_incrementalSave.draftId == null && segments.isNotEmpty) {

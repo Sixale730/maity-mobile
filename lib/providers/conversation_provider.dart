@@ -557,7 +557,6 @@ class ConversationProvider extends ChangeNotifier {
 
     if (userId == null) {
       debugPrint('[ConversationProvider] maityUserId is null, waiting for auth to initialize...');
-      // Aumentar a 10 intentos (5 segundos) para dar tiempo a _fetchMaityUserId()
       for (int i = 0; i < 10; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
         userId = SupabaseAuthService.instance.maityUserId;
@@ -567,8 +566,14 @@ class ConversationProvider extends ChangeNotifier {
         }
       }
 
+      // If still null, actively attempt to fetch it
       if (userId == null) {
-        debugPrint('[ConversationProvider] maityUserId still null after 5s, using fallback');
+        debugPrint('[ConversationProvider] Attempting active fetchMaityUserId...');
+        userId = await SupabaseAuthService.instance.fetchMaityUserId();
+      }
+
+      if (userId == null) {
+        debugPrint('[ConversationProvider] CRITICAL: maityUserId null - conversations will not load');
         debugPrint('[ConversationProvider] DIAGNOSTIC: authId=$authId, isSignedIn=$isSignedIn, currentSession=${SupabaseAuthService.instance.currentSession != null}');
       }
     } else {
@@ -597,9 +602,8 @@ class ConversationProvider extends ChangeNotifier {
       }
     }
 
-    // Fallback to api.omi.me (will likely fail with 401)
-    debugPrint('[ConversationProvider] Falling back to api.omi.me');
-    return await getConversations(includeDiscarded: showDiscardedConversations);
+    debugPrint('[ConversationProvider] CRITICAL: No conversations loaded - userId was ${userId ?? "null"}');
+    return [];
   }
 
   void updateActionItemState(String convoId, bool state, int i, DateTime date) {
