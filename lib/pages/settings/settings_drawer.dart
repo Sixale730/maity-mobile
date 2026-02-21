@@ -20,6 +20,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/main.dart';
+import 'package:omi/providers/role_provider.dart';
 import 'package:omi/pages/settings/feedback_page.dart';
 import 'package:omi/pages/settings/feedback_list_page.dart';
 import 'device_settings.dart';
@@ -331,12 +332,6 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
     );
   }
 
-  /// Returns true if the user has a developer profile (@asertio.mx email)
-  bool _isDeveloperUser() {
-    final email = SharedPreferencesUtil().email;
-    return email.endsWith('@asertio.mx');
-  }
-
   void _showCopyNotification() {
     final overlay = Overlay.of(context);
     late OverlayEntry overlayEntry;
@@ -382,6 +377,8 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
   }
 
   Widget _buildOmiModeContent(BuildContext context) {
+    final roleProvider = context.watch<RoleProvider>();
+
     return Column(
       children: [
           // Profile & Notifications Section
@@ -392,8 +389,8 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 icon: const FaIcon(FontAwesomeIcons.solidUser, color: Color(0xFF8E8E93), size: 20),
                 onTap: () => _navigateAfterClose(context, const ProfilePage()),
               ),
-              // Storage - Developer only
-              if (_isDeveloperUser()) ...[
+              // Storage - Admin only
+              if (roleProvider.isAdmin) ...[
                 const Divider(height: 1, color: Color(0xFF3C3C43)),
                 _buildSettingsItem(
                   title: AppLocalizations.of(context)?.storage ?? 'Storage',
@@ -434,8 +431,8 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 icon: const FaIcon(FontAwesomeIcons.solidEnvelope, color: Color(0xFF8E8E93), size: 20),
                 onTap: () => _navigateAfterClose(context, const FeedbackPage()),
               ),
-              // Feedback Received - Developer only
-              if (_isDeveloperUser()) ...[
+              // Feedback Received - Admin only
+              if (roleProvider.isAdmin) ...[
                 const Divider(height: 1, color: Color(0xFF3C3C43)),
                 _buildSettingsItem(
                   title: AppLocalizations.of(context)?.feedbackReceived ?? 'Feedback Received',
@@ -465,8 +462,8 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 ),
                 onTap: () => _showLanguageSelector(context),
               ),
-              // Developer Settings - Developer only
-              if (_isDeveloperUser()) ...[
+              // Developer Settings - Admin only
+              if (roleProvider.isAdmin) ...[
                 const Divider(height: 1, color: Color(0xFF3C3C43)),
                 _buildSettingsItem(
                   title: AppLocalizations.of(context)?.developerSettings ?? 'Developer Settings',
