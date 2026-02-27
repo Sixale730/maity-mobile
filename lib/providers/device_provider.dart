@@ -191,7 +191,6 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
       // Skip BLE reconnection during phone mic recording to avoid unnecessary overhead
       if (CaptureProvider.isRecordingWithPhoneMic) {
         debugPrint("Skipping BLE reconnection - phone mic recording active");
-        _scheduleNextReconnect(boundDeviceOnly);
         return;
       }
 

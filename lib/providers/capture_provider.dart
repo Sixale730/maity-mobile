@@ -2505,7 +2505,15 @@ class CaptureProvider extends ChangeNotifier
   /// Called when silence timeout expires - auto-finalize conversation
   /// Distinguishes between real silence and STT stall (audio flowing but no segments)
   void _onSilenceTimeout() async {
-    if (segments.isEmpty) return;
+    if (segments.isEmpty) {
+      // No speech detected at all — stop recording cleanly to avoid burning STT credits
+      debugPrint('[Maity] Silence timeout with no segments - stopping recording');
+      _captureLog.log('recording', 'silence_timeout_no_speech', details: {
+        'timeout_seconds': SharedPreferencesUtil().conversationSilenceDuration,
+      });
+      await stopStreamRecording();
+      return;
+    }
 
     // Check if audio is still actively being captured
     // If audio bytes are flowing but no segments → STT stall, not real silence
@@ -2545,6 +2553,7 @@ class CaptureProvider extends ChangeNotifier
     if (!_finalizeInProgress) {
       _resetStateVariables();
     }
+    updateRecordingState(RecordingState.stop);
     notifyListeners();
   }
 
