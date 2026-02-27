@@ -160,6 +160,16 @@ class ForegroundUtil {
     return messages['waiting']!;
   }
 
+  /// Request only notification permission (Android 13+).
+  /// Does NOT request battery optimization exemption.
+  static Future<void> requestNotificationPermission() async {
+    final NotificationPermission notificationPermissionStatus =
+        await FlutterForegroundTask.checkNotificationPermission();
+    if (notificationPermissionStatus != NotificationPermission.granted) {
+      await FlutterForegroundTask.requestNotificationPermission();
+    }
+  }
+
   static Future<void> requestPermissions() async {
     // Android 13+, you need to allow notification permission to display foreground service notification.
     //

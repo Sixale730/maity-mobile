@@ -233,8 +233,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _initiateApps();
 
-      // ForegroundUtil.requestPermissions();
       if (!PlatformService.isDesktop) {
+        await ForegroundUtil.requestNotificationPermission();
         await ForegroundUtil.initializeForegroundService();
         await ForegroundUtil.startForegroundTask();
       }
