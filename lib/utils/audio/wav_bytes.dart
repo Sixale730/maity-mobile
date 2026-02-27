@@ -84,7 +84,6 @@ class WavBytesUtil {
   BleAudioCodec codec;
   int framesPerSecond;
   List<List<int>> frames = [];
-  List<List<int>> rawPackets = [];
 
   /// Límite máximo de frames para prevenir memory leak en grabaciones largas
   /// ~10 minutos a 16 frames/segundo = 9600 frames
@@ -122,7 +121,6 @@ class WavBytesUtil {
   }
 
   void storeFramePacket(value) {
-    rawPackets.add(value);
     int index = value[0] + (value[1] << 8);
     int internal = value[2];
     List<int> content = value.sublist(3);
@@ -177,7 +175,7 @@ class WavBytesUtil {
 
   void insertAudioBytes(List<List<int>> bytes) => frames.insertAll(0, bytes);
 
-  void clearAudioBytes() => {frames.clear(), rawPackets.clear()};
+  void clearAudioBytes() => frames.clear();
 
   bool hasFrames() => frames.isNotEmpty;
 
@@ -564,9 +562,6 @@ class StorageBytesUtil extends WavBytesUtil {
       debugPrint('packet too small');
       return;
     }
-    //enforce
-    // if (value.length ==83 * 5) //83 is one packet, 5 is the packets per bluetooth frame
-    rawPackets.add(value);
     int index = value[0] + (value[1] << 8);
     int internal = value[2];
     int amount = value[3];
@@ -597,11 +592,12 @@ class StorageBytesUtil extends WavBytesUtil {
     // Start of a new frame
     if (internal == 0) {
       frames.add(pending); // Save frame
+      if (frames.length > WavBytesUtil._maxFrames) {
+        frames.removeAt(0);
+      }
       pending = content; // Start new frame
       lastFrameId = internal; // Update internal frame id
       lastPacketIndex = index; // Update packet id
-      // debugPrint('Frames received: ${frames.length} && Lost: $lost');
-      // debugPrint('new frame');
       return;
     }
 
@@ -609,7 +605,6 @@ class StorageBytesUtil extends WavBytesUtil {
     pending.addAll(content);
     lastFrameId = internal; // Update internal frame id
     lastPacketIndex = index; // Update packet id
-    // debugPrint('reached end');
   }
 
   @override

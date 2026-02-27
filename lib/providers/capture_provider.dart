@@ -97,8 +97,19 @@ class CaptureProvider extends ChangeNotifier
   int _unsavedSegmentCount = 0;
   String? _currentSessionId;
 
+  // Throttled notifyListeners for segment updates (max ~3 rebuilds/sec)
+  Timer? _segmentNotifyTimer;
+  DateTime? _lastSegmentNotifyTime;
+  static const Duration _segmentNotifyMinInterval = Duration(milliseconds: 300);
+
   // Incremental save service for saving segments to Supabase during recording
   final IncrementalSaveService _incrementalSave = IncrementalSaveService();
+
+  /// Maximum segments kept in memory. Older saved segments are trimmed.
+  static const int _maxSegmentsInMemory = 200;
+
+  /// Total segments produced in this session (survives trimming, for accurate logs)
+  int _totalSegmentCount = 0;
 
   // Health monitor for detecting stalled transcription
   Timer? _socketHealthTimer;
@@ -246,10 +257,10 @@ class CaptureProvider extends ChangeNotifier
       _startBackgroundFinalizeTimer();
     }
 
-    // Save recovery data immediately to prevent data loss
+    // Save recovery data immediately to prevent data loss (synchronous: app may be killed)
     if (segments.isNotEmpty && !_isSpeechProfileMode) {
       debugPrint('[CaptureProvider] Saving recovery data before pause');
-      _saveRecoveryData();
+      _saveRecoveryData(synchronous: true);
     }
   }
 
@@ -267,7 +278,7 @@ class CaptureProvider extends ChangeNotifier
     // going through paused state, so this is our last chance to persist segments
     if (segments.isNotEmpty && !_isSpeechProfileMode) {
       debugPrint('[CaptureProvider] Saving recovery data before detach');
-      _saveRecoveryData();
+      _saveRecoveryData(synchronous: true);
     }
 
     // Stop socket cleanly
@@ -481,6 +492,11 @@ class CaptureProvider extends ChangeNotifier
   Map<String, SpeakerLabelSuggestionEvent> suggestionsBySegmentId = {};
   List<String> taggingSegmentIds = [];
 
+  /// Version counter for segment changes. Widgets use Selector on this
+  /// to only rebuild when segments actually change, not on every notifyListeners().
+  int _segmentsVersion = 0;
+  int get segmentsVersion => _segmentsVersion;
+
   bool hasTranscripts = false;
 
   StreamSubscription? _bleBytesStream;
@@ -549,6 +565,7 @@ class CaptureProvider extends ChangeNotifier
     segments = [];
     photos = [];
     hasTranscripts = false;
+    _segmentsVersion++;
     suggestionsBySegmentId = {};
     _conversation = null;
     taggingSegmentIds = [];
@@ -562,8 +579,13 @@ class CaptureProvider extends ChangeNotifier
     _recoveryTimer = null;
     _unsavedSegmentCount = 0;
     _currentSessionId = null;
+    // Reset segment notify throttle
+    _segmentNotifyTimer?.cancel();
+    _segmentNotifyTimer = null;
+    _lastSegmentNotifyTime = null;
     // Reset incremental save state
     _incrementalSave.reset();
+    _totalSegmentCount = 0;
     // Reset health monitor
     _socketHealthTimer?.cancel();
     _socketHealthTimer = null;
@@ -1131,6 +1153,7 @@ class CaptureProvider extends ChangeNotifier
   void clearTranscripts() {
     segments = [];
     hasTranscripts = false;
+    _segmentsVersion++;
     notifyListeners();
   }
 
@@ -1157,8 +1180,13 @@ class CaptureProvider extends ChangeNotifier
     final elapsedSeconds = now.difference(_metricsLastCalculated!).inMilliseconds / 1000.0;
     if (elapsedSeconds > 0) {
       // Calculate kbps (kilobits per second)
-      _bleReceiveRateKbps = (_blesBytesReceived * 8) / (elapsedSeconds * 1000);
-      _wsSendRateKbps = (_wsSocketBytesSent * 8) / (elapsedSeconds * 1000);
+      final newBleRate = (_blesBytesReceived * 8) / (elapsedSeconds * 1000);
+      final newWsRate = (_wsSocketBytesSent * 8) / (elapsedSeconds * 1000);
+      final rateChanged = (newBleRate - _bleReceiveRateKbps).abs() > 0.1 ||
+          (newWsRate - _wsSendRateKbps).abs() > 0.1;
+
+      _bleReceiveRateKbps = newBleRate;
+      _wsSendRateKbps = newWsRate;
 
       // Log metrics every 30s (every 6th call since timer runs every 5s)
       _metricsLogCounter++;
@@ -1176,7 +1204,9 @@ class CaptureProvider extends ChangeNotifier
       _wsSocketBytesSent = 0;
       _metricsLastCalculated = now;
 
-      notifyListeners();
+      if (rateChanged) {
+        notifyListeners();
+      }
     }
   }
 
@@ -1221,6 +1251,7 @@ class CaptureProvider extends ChangeNotifier
     _socketHealthTimer?.cancel();  // Health monitor timer
     _reconnectTimer?.cancel();     // Auto-reconnect timer
     _backgroundFinalizeTimer?.cancel();  // Background finalize timer
+    _segmentNotifyTimer?.cancel();       // Segment notify throttle timer
 
     // Dispose VAD service
     _vadService?.dispose();
@@ -1966,6 +1997,30 @@ class CaptureProvider extends ChangeNotifier
     _processNewSegmentReceived(newSegments);
   }
 
+  /// Throttled notifyListeners for segment updates.
+  /// Ensures at most ~3 rebuilds per second during rapid speech.
+  void _notifySegmentUpdate() {
+    final now = DateTime.now();
+    if (_lastSegmentNotifyTime == null ||
+        now.difference(_lastSegmentNotifyTime!) >= _segmentNotifyMinInterval) {
+      _lastSegmentNotifyTime = now;
+      _segmentNotifyTimer?.cancel();
+      _segmentNotifyTimer = null;
+      notifyListeners();
+    } else {
+      // Schedule a deferred notification to guarantee the final update fires
+      _segmentNotifyTimer?.cancel();
+      _segmentNotifyTimer = Timer(
+        _segmentNotifyMinInterval - now.difference(_lastSegmentNotifyTime!),
+        () {
+          _lastSegmentNotifyTime = DateTime.now();
+          _segmentNotifyTimer = null;
+          notifyListeners();
+        },
+      );
+    }
+  }
+
   void _processNewSegmentReceived(List<TranscriptSegment> newSegments) async {
     if (newSegments.isEmpty) return;
 
@@ -1988,11 +2043,13 @@ class CaptureProvider extends ChangeNotifier
 
     final remainSegments = TranscriptSegment.updateSegments(segments, newSegments);
     segments.addAll(remainSegments);
+    _totalSegmentCount += remainSegments.length;
 
     // Fusionar segmentos consecutivos del mismo speaker con gap < 3 segundos
     TranscriptSegment.mergeConsecutiveSegmentsByTime(segments);
+    _segmentsVersion++;
 
-    debugPrint('[CaptureProvider] After update: ${segments.length} total segments');
+    debugPrint('[CaptureProvider] After update: ${segments.length} total segments (produced: $_totalSegmentCount)');
     hasTranscripts = true;
 
     // Update health monitor timestamp
@@ -2008,7 +2065,10 @@ class CaptureProvider extends ChangeNotifier
     // Schedule incremental save to Supabase (debounced)
     _scheduleIncrementalSave();
 
-    notifyListeners();
+    // Trim old segments that have been confirmed saved to Supabase
+    _trimSavedSegments();
+
+    _notifySegmentUpdate();
   }
 
   void onConnectionStateChanged(bool isConnected) {
@@ -2241,6 +2301,15 @@ class CaptureProvider extends ChangeNotifier
 
           // Monolithic save (fallback or when no draft exists)
           if (!success) {
+            if (_totalSegmentCount > localSegments.length) {
+              debugPrint('[Finalize] WARNING: segments were trimmed '
+                  '(have ${localSegments.length}/$_totalSegmentCount), '
+                  'monolithic save will have partial transcript');
+              _captureLog.log('save', 'monolithic_partial_transcript', severity: 'warning', details: {
+                'available': localSegments.length,
+                'total': _totalSegmentCount,
+              });
+            }
             debugPrint('[Finalize] Monolithic path: processing locally...');
             // Process conversation with OpenAI to get structured data (title, emoji, category, etc.)
             final structured = await ConversationProcessor.processLocally(localSegments);
@@ -2516,22 +2585,35 @@ class CaptureProvider extends ChangeNotifier
   }
 
   /// Saves current segments to recovery file
-  Future<void> _saveRecoveryData() async {
+  Future<void> _saveRecoveryData({bool synchronous = false}) async {
     if (segments.isEmpty) return;
 
     try {
       // Ensure we have a session ID
       _currentSessionId ??= const Uuid().v4();
 
-      await TranscriptRecoveryService.saveSegments(
-        sessionId: _currentSessionId!,
-        startedAt: _recordingStartTime ?? DateTime.now(),
-        segments: List.from(segments),
-        draftConversationId: _incrementalSave.draftId,
-      );
+      final segmentsCopy = List<TranscriptSegment>.from(segments);
+
+      if (synchronous) {
+        // Synchronous path for app paused/detached (app may be killed)
+        await TranscriptRecoveryService.saveSegments(
+          sessionId: _currentSessionId!,
+          startedAt: _recordingStartTime ?? DateTime.now(),
+          segments: segmentsCopy,
+          draftConversationId: _incrementalSave.draftId,
+        );
+      } else {
+        // Async path: offload JSON encoding to background isolate
+        await TranscriptRecoveryService.saveSegmentsAsync(
+          sessionId: _currentSessionId!,
+          startedAt: _recordingStartTime ?? DateTime.now(),
+          segments: segmentsCopy,
+          draftConversationId: _incrementalSave.draftId,
+        );
+      }
 
       _captureLog.log('recovery', 'recovery_data_saved', severity: 'debug', details: {
-        'segments_count': segments.length,
+        'segments_count': segmentsCopy.length,
         'draft_id': _incrementalSave.draftId,
       });
       _unsavedSegmentCount = 0;
@@ -2606,6 +2688,31 @@ class CaptureProvider extends ChangeNotifier
 
     // Save segments (debounced internally by IncrementalSaveService)
     _incrementalSave.saveNewSegments(segments);
+  }
+
+  /// Trims segments that have been confirmed saved to Supabase,
+  /// keeping at most [_maxSegmentsInMemory] segments in memory.
+  /// The finalize endpoint reconstructs the full transcript from Supabase.
+  void _trimSavedSegments() {
+    final savedCount = _incrementalSave.savedSegmentCount;
+    if (savedCount <= 0 || segments.length <= _maxSegmentsInMemory) return;
+
+    // Only trim saved segments, keeping at least _maxSegmentsInMemory
+    final trimCount = (savedCount - _maxSegmentsInMemory).clamp(0, savedCount);
+    if (trimCount <= 0) return;
+
+    debugPrint('[CaptureProvider] Trimming $trimCount saved segments '
+        '(total: ${segments.length}, saved: $savedCount, keeping: ${segments.length - trimCount})');
+
+    segments.removeRange(0, trimCount);
+    _incrementalSave.adjustAfterTrim(trimCount);
+    _segmentsVersion++;
+
+    _captureLog.log('memory', 'segments_trimmed', severity: 'debug', details: {
+      'trimmed': trimCount,
+      'remaining': segments.length,
+      'total_produced': _totalSegmentCount,
+    });
   }
 
   /// Starts the socket health monitor to detect stalled transcription

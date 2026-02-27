@@ -29,12 +29,19 @@ class LiteCaptureWidgetState extends State<LiteCaptureWidget> with AutomaticKeep
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return Consumer2<CaptureProvider, DeviceProvider>(builder: (context, provider, deviceProvider, child) {
-      return getLiteTranscriptWidget(
-        provider.segments,
-        provider.photos,
-        deviceProvider.connectedDevice,
-      );
-    });
+    // Use Selector on segmentsVersion to only rebuild when segments actually change,
+    // not on every notifyListeners() call (e.g., metrics, connection state).
+    return Selector<CaptureProvider, int>(
+      selector: (_, p) => p.segmentsVersion,
+      builder: (context, _, child) {
+        final provider = context.read<CaptureProvider>();
+        final deviceProvider = context.read<DeviceProvider>();
+        return getLiteTranscriptWidget(
+          provider.segments,
+          provider.photos,
+          deviceProvider.connectedDevice,
+        );
+      },
+    );
   }
 }

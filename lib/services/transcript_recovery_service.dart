@@ -19,10 +19,8 @@ class TranscriptRecoveryService {
     return File('${directory.path}/$_fileName');
   }
 
-  /// Save segments incrementally (should be called with debouncing)
-  ///
-  /// This saves the current state of segments to disk so they can be
-  /// recovered if the app crashes or is killed by the OS.
+  /// Save segments synchronously on the current isolate.
+  /// Use for critical paths (app paused/detached) where the app may be killed.
   static Future<void> saveSegments({
     required String sessionId,
     required DateTime startedAt,
@@ -48,6 +46,44 @@ class TranscriptRecoveryService {
       debugPrint('[TranscriptRecovery] Saved ${segments.length} segments for session $sessionId (draft: $draftConversationId)');
     } catch (e) {
       debugPrint('[TranscriptRecovery] Error saving segments: $e');
+    }
+  }
+
+  /// Background isolate entry point for JSON encoding
+  static String _encodeRecoveryJson(Map<String, dynamic> sessionJson) {
+    return jsonEncode(sessionJson);
+  }
+
+  /// Async version that offloads JSON serialization to a background isolate.
+  /// Use for periodic saves during recording (non-critical path).
+  static Future<void> saveSegmentsAsync({
+    required String sessionId,
+    required DateTime startedAt,
+    required List<TranscriptSegment> segments,
+    String? draftConversationId,
+  }) async {
+    if (segments.isEmpty) {
+      debugPrint('[TranscriptRecovery] No segments to save');
+      return;
+    }
+
+    try {
+      final session = RecoverySession(
+        sessionId: sessionId,
+        startedAt: startedAt,
+        lastUpdatedAt: DateTime.now(),
+        segments: segments,
+        draftConversationId: draftConversationId,
+      );
+
+      // Offload jsonEncode to background isolate to avoid UI jank
+      final jsonString = await compute(_encodeRecoveryJson, session.toJson());
+
+      final file = await _getRecoveryFile();
+      await file.writeAsString(jsonString);
+      debugPrint('[TranscriptRecovery] Saved ${segments.length} segments async for session $sessionId');
+    } catch (e) {
+      debugPrint('[TranscriptRecovery] Error saving segments async: $e');
     }
   }
 

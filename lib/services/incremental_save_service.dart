@@ -254,6 +254,13 @@ class IncrementalSaveService {
     }
   }
 
+  /// Adjusts savedSegmentCount after the provider trims old segments from memory.
+  /// When prefix segments are removed, both the list and the offset shrink together.
+  void adjustAfterTrim(int trimmedCount) {
+    _savedSegmentCount = (_savedSegmentCount - trimmedCount).clamp(0, _savedSegmentCount);
+    debugPrint('[IncrementalSave] Adjusted after trim: -$trimmedCount, new savedSegmentCount=$_savedSegmentCount');
+  }
+
   /// Reset state for next recording session
   void reset() {
     _captureLog.log('save', 'incremental_reset', severity: 'debug');
