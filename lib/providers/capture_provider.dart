@@ -64,6 +64,7 @@ class CaptureProvider extends ChangeNotifier
   final TranscriptionPipeline _pipeline = TranscriptionPipeline();
   final PersistenceManager _persistence = PersistenceManager();
   final AppLifecycleManager _lifecycle = AppLifecycleManager();
+  bool _hasCleanedUpOrphans = false;
 
   // ---------------------------------------------------------------------------
   // Connection state
@@ -127,8 +128,11 @@ class CaptureProvider extends ChangeNotifier
     peopleProvider = pp;
     usageProvider = up;
 
-    // Clean up orphan drafts (fire-and-forget)
-    _persistence.cleanupOrphanDrafts(SupabaseAuthService.instance.maityUserId);
+    // Clean up orphan drafts once (fire-and-forget)
+    if (!_hasCleanedUpOrphans) {
+      _hasCleanedUpOrphans = true;
+      _persistence.cleanupOrphanDrafts(SupabaseAuthService.instance.maityUserId);
+    }
     conversationProvider?.refreshConversations();
 
     notifyListeners();
@@ -260,20 +264,31 @@ class CaptureProvider extends ChangeNotifier
       _pipeline.updateLastAudioBytesSentAt();
     });
 
-    await _pipeline.initiateWebsocket(
-      audioCodec: BleAudioCodec.pcm16,
-      sampleRate: 16000,
-      source: ConversationSource.phone.name,
-    );
+    try {
+      await _pipeline.initiateWebsocket(
+        audioCodec: BleAudioCodec.pcm16,
+        sampleRate: 16000,
+        source: ConversationSource.phone.name,
+      );
 
-    // Set VAD reference for audio transport
-    _audioTransport.setVadService(null); // VAD is handled inside pipeline
+      // Set VAD reference for audio transport
+      _audioTransport.setVadService(null); // VAD is handled inside pipeline
 
-    await _audioTransport.startPhoneMicRecording(
-      onStateChange: (state) => updateRecordingState(state),
-      socketState: () =>
-          _pipeline.socket?.state ?? SocketServiceState.disconnected,
-    );
+      await _audioTransport.startPhoneMicRecording(
+        onStateChange: (state) => updateRecordingState(state),
+        socketState: () =>
+            _pipeline.socket?.state ?? SocketServiceState.disconnected,
+      );
+    } catch (e) {
+      debugPrint('[CaptureProvider] streamRecording failed: $e');
+      _captureLog.log('recording', 'stream_recording_failed',
+          severity: 'error', details: {'error': e.toString()});
+      _pipeline.stopHealthMonitor();
+      _audioTransport.setSocketSender(null);
+      await _resetStateVariables();
+      updateRecordingState(RecordingState.stop);
+      _captureLog.endSession();
+    }
   }
 
   Future<void> stopStreamRecording() async {
@@ -321,10 +336,19 @@ class CaptureProvider extends ChangeNotifier
 
     _pipeline.startHealthMonitor();
 
-    bool wasPaused = _stateMachine.isPaused;
-    await _resetStateVariables();
-    await _resetState();
-    if (wasPaused) await pauseDeviceRecording();
+    try {
+      bool wasPaused = _stateMachine.isPaused;
+      await _resetStateVariables();
+      await _resetState();
+      if (wasPaused) await pauseDeviceRecording();
+    } catch (e) {
+      debugPrint('[CaptureProvider] streamDeviceRecording failed: $e');
+      _captureLog.log('recording', 'stream_device_recording_failed',
+          severity: 'error', details: {'error': e.toString()});
+      await _resetStateVariables();
+      updateRecordingState(RecordingState.stop);
+      _captureLog.endSession();
+    }
   }
 
   Future<void> stopStreamDeviceRecording({bool cleanDevice = false}) async {
@@ -394,11 +418,20 @@ class CaptureProvider extends ChangeNotifier
 
     _pipeline.startHealthMonitor();
 
-    await _audioTransport.startSystemAudioRecording(
-      onStateChange: (state) => updateRecordingState(state),
-      socketState: () =>
-          _pipeline.socket?.state ?? SocketServiceState.disconnected,
-    );
+    try {
+      await _audioTransport.startSystemAudioRecording(
+        onStateChange: (state) => updateRecordingState(state),
+        socketState: () =>
+            _pipeline.socket?.state ?? SocketServiceState.disconnected,
+      );
+    } catch (e) {
+      debugPrint('[CaptureProvider] streamSystemAudioRecording failed: $e');
+      _captureLog.log('recording', 'stream_system_audio_failed',
+          severity: 'error', details: {'error': e.toString()});
+      _pipeline.stopHealthMonitor();
+      updateRecordingState(RecordingState.stop);
+      _captureLog.endSession();
+    }
   }
 
   Future<void> stopSystemAudioRecording() async {
@@ -460,35 +493,41 @@ class CaptureProvider extends ChangeNotifier
   }
 
   Future<void> onTranscriptionSettingsChanged() async {
-    final device = _audioTransport.recordingDevice;
-    if (device != null) {
-      await _pipeline.stopSocket('transcription settings changed');
-      BleAudioCodec codec = await _getAudioCodec(device.id);
-      await _pipeline.initiateWebsocket(
-        audioCodec: codec,
-        force: true,
-        source: _getConversationSourceFromDevice(),
-      );
-      return;
-    }
-    if (recordingState == RecordingState.record) {
-      await _pipeline.stopSocket('transcription settings changed');
-      await _pipeline.initiateWebsocket(
-        audioCodec: BleAudioCodec.pcm16,
-        sampleRate: 16000,
-        force: true,
-        source: ConversationSource.phone.name,
-      );
-      return;
-    }
-    if (recordingState == RecordingState.systemAudioRecord) {
-      await _pipeline.stopSocket('transcription settings changed');
-      await _pipeline.initiateWebsocket(
-        audioCodec: BleAudioCodec.pcm16,
-        sampleRate: 16000,
-        force: true,
-        source: ConversationSource.desktop.name,
-      );
+    try {
+      final device = _audioTransport.recordingDevice;
+      if (device != null) {
+        await _pipeline.stopSocket('transcription settings changed');
+        BleAudioCodec codec = await _getAudioCodec(device.id);
+        await _pipeline.initiateWebsocket(
+          audioCodec: codec,
+          force: true,
+          source: _getConversationSourceFromDevice(),
+        );
+        return;
+      }
+      if (recordingState == RecordingState.record) {
+        await _pipeline.stopSocket('transcription settings changed');
+        await _pipeline.initiateWebsocket(
+          audioCodec: BleAudioCodec.pcm16,
+          sampleRate: 16000,
+          force: true,
+          source: ConversationSource.phone.name,
+        );
+        return;
+      }
+      if (recordingState == RecordingState.systemAudioRecord) {
+        await _pipeline.stopSocket('transcription settings changed');
+        await _pipeline.initiateWebsocket(
+          audioCodec: BleAudioCodec.pcm16,
+          sampleRate: 16000,
+          force: true,
+          source: ConversationSource.desktop.name,
+        );
+      }
+    } catch (e) {
+      debugPrint('[CaptureProvider] onTranscriptionSettingsChanged failed: $e');
+      _captureLog.log('recording', 'transcription_settings_change_failed',
+          severity: 'error', details: {'error': e.toString()});
     }
   }
 
@@ -707,12 +746,18 @@ class CaptureProvider extends ChangeNotifier
   Future<void> _resetState() async {
     await _cleanupCurrentState();
     if (_audioTransport.recordingDevice != null) {
-      await _pipeline.initiateWebsocket(
-        audioCodec: await _getAudioCodec(_audioTransport.recordingDevice!.id),
-        force: true,
-        source: _getConversationSourceFromDevice(),
-      );
-      await _audioTransport.startDeviceAudioStreaming();
+      try {
+        await _pipeline.initiateWebsocket(
+          audioCodec: await _getAudioCodec(_audioTransport.recordingDevice!.id),
+          force: true,
+          source: _getConversationSourceFromDevice(),
+        );
+        await _audioTransport.startDeviceAudioStreaming();
+      } catch (e) {
+        debugPrint('[CaptureProvider] _resetState failed: $e');
+        _captureLog.log('recording', 'reset_state_failed',
+            severity: 'error', details: {'error': e.toString()});
+      }
     }
     notifyListeners();
   }
@@ -836,28 +881,34 @@ class CaptureProvider extends ChangeNotifier
 
   Future<void> _reconnectForStall() async {
     await _pipeline.stopSocket('transcription stalled');
-    if (recordingState == RecordingState.record) {
-      await _pipeline.initiateWebsocket(
-        audioCodec: BleAudioCodec.pcm16,
-        sampleRate: 16000,
-        force: true,
-        source: ConversationSource.phone.name,
-      );
-    } else if (recordingState == RecordingState.deviceRecord &&
-        _audioTransport.recordingDevice != null) {
-      BleAudioCodec codec =
-          await _getAudioCodec(_audioTransport.recordingDevice!.id);
-      await _pipeline.initiateWebsocket(
-          audioCodec: codec,
+    try {
+      if (recordingState == RecordingState.record) {
+        await _pipeline.initiateWebsocket(
+          audioCodec: BleAudioCodec.pcm16,
+          sampleRate: 16000,
           force: true,
-          source: _getConversationSourceFromDevice());
-    } else if (recordingState == RecordingState.systemAudioRecord) {
-      await _pipeline.initiateWebsocket(
-        audioCodec: BleAudioCodec.pcm16,
-        sampleRate: 16000,
-        force: true,
-        source: ConversationSource.desktop.name,
-      );
+          source: ConversationSource.phone.name,
+        );
+      } else if (recordingState == RecordingState.deviceRecord &&
+          _audioTransport.recordingDevice != null) {
+        BleAudioCodec codec =
+            await _getAudioCodec(_audioTransport.recordingDevice!.id);
+        await _pipeline.initiateWebsocket(
+            audioCodec: codec,
+            force: true,
+            source: _getConversationSourceFromDevice());
+      } else if (recordingState == RecordingState.systemAudioRecord) {
+        await _pipeline.initiateWebsocket(
+          audioCodec: BleAudioCodec.pcm16,
+          sampleRate: 16000,
+          force: true,
+          source: ConversationSource.desktop.name,
+        );
+      }
+    } catch (e) {
+      debugPrint('[CaptureProvider] _reconnectForStall failed: $e');
+      _captureLog.log('recording', 'reconnect_for_stall_failed',
+          severity: 'error', details: {'error': e.toString()});
     }
   }
 
@@ -968,13 +1019,19 @@ class CaptureProvider extends ChangeNotifier
     bool? isPcm,
     String? source,
   }) async {
-    await _resetState();
-    await _pipeline.initiateWebsocket(
-        audioCodec: audioCodec,
-        sampleRate: sampleRate,
-        channels: channels,
-        isPcm: isPcm,
-        source: source);
+    try {
+      await _resetState();
+      await _pipeline.initiateWebsocket(
+          audioCodec: audioCodec,
+          sampleRate: sampleRate,
+          channels: channels,
+          isPcm: isPcm,
+          source: source);
+    } catch (e) {
+      debugPrint('[CaptureProvider] changeAudioRecordProfile failed: $e');
+      _captureLog.log('recording', 'change_audio_profile_failed',
+          severity: 'error', details: {'error': e.toString()});
+    }
   }
 
   // ---------------------------------------------------------------------------

@@ -200,14 +200,27 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     });
 
     // Connect to the transcript socket
-    _socket = await ServiceManager.instance().socket.conversation(
-          codec: codec,
-          sampleRate: sampleRate,
-          language: language,
-          force: force,
-          source: source,
-          customSttConfig: effectiveConfig,
-        );
+    try {
+      _socket = await ServiceManager.instance().socket.conversation(
+            codec: codec,
+            sampleRate: sampleRate,
+            language: language,
+            force: force,
+            source: source,
+            customSttConfig: effectiveConfig,
+          );
+    } catch (e) {
+      _captureLog.log('socket', 'websocket_connection_failed',
+          severity: 'error',
+          details: {
+            'error': e.toString(),
+            'codec': codec.name,
+            'custom_stt': effectiveConfig != null,
+          });
+      debugPrint('[TranscriptionPipeline] WebSocket connection failed: $e');
+      _startKeepAlive();
+      return;
+    }
     if (_socket == null) {
       _captureLog.log('socket', 'websocket_creation_failed',
           severity: 'error',
