@@ -105,13 +105,21 @@ Future onStart(ServiceInstance service) async {
   service.on('recorder.start').listen((event) async {
     recorder = MicRecorderService(isInBG: Platform.isAndroid ? true : false);
     recorder?.start(onByteReceived: (bytes) {
-      Uint8List audioBytes = bytes;
-      List<dynamic> audioBytesList = audioBytes.toList();
-      service.invoke("recorder.ui.audioBytes", {"data": audioBytesList});
+      try {
+        Uint8List audioBytes = bytes;
+        List<dynamic> audioBytesList = audioBytes.toList();
+        service.invoke("recorder.ui.audioBytes", {"data": audioBytesList});
+      } catch (e) {
+        recorder?.stop();
+      }
     }, onStop: () {
-      service.invoke("recorder.ui.stateUpdate", {"state": 'stopped'});
+      try {
+        service.invoke("recorder.ui.stateUpdate", {"state": 'stopped'});
+      } catch (_) {}
     }, onRecording: () {
-      service.invoke("recorder.ui.stateUpdate", {"state": 'recording'});
+      try {
+        service.invoke("recorder.ui.stateUpdate", {"state": 'recording'});
+      } catch (_) {}
     });
   });
 
@@ -134,16 +142,26 @@ Future onStart(ServiceInstance service) async {
     pongAt = DateTime.now();
   });
   Timer.periodic(const Duration(seconds: 5), (timer) async {
-    if (pongAt.isBefore(DateTime.now().subtract(const Duration(seconds: 15)))) {
+    if (pongAt.isBefore(DateTime.now().subtract(const Duration(seconds: 8)))) {
       // retire
       if (recorder?.status != RecorderServiceStatus.stop) {
         recorder?.stop();
       }
-      service.invoke("recorder.ui.stateUpdate", {"state": 'stopped'});
+      try {
+        service.invoke("recorder.ui.stateUpdate", {"state": 'stopped'});
+      } catch (_) {}
       service.stopSelf();
       return;
     }
-    service.invoke("ui.ping");
+    try {
+      service.invoke("ui.ping");
+    } catch (e) {
+      timer.cancel();
+      if (recorder?.status != RecorderServiceStatus.stop) {
+        recorder?.stop();
+      }
+      service.stopSelf();
+    }
   });
 }
 
@@ -196,6 +214,14 @@ class BackgroundService {
 
   void stop() {
     debugPrint("invoke stop");
+    _service.invoke("stop");
+  }
+
+  /// Stops the recorder AND the entire background service.
+  /// Use when the Flutter engine is about to die (app detached).
+  void stopService() {
+    debugPrint("[BackgroundService] Stopping service completely");
+    _service.invoke("recorder.stop");
     _service.invoke("stop");
   }
 
@@ -259,6 +285,10 @@ abstract class IMicRecorderService {
     Function()? onInitializing,
   });
   void stop();
+
+  /// Stops the recorder AND the entire background service.
+  /// Use when the Flutter engine is about to die (app detached).
+  void stopService();
 }
 
 class MicRecorderBackgroundService implements IMicRecorderService {
@@ -290,6 +320,11 @@ class MicRecorderBackgroundService implements IMicRecorderService {
   @override
   void stop() {
     _runner.stopRecorder();
+  }
+
+  @override
+  void stopService() {
+    _runner.stopService();
   }
 }
 
@@ -372,6 +407,12 @@ class MicRecorderService implements IMicRecorderService {
     _onByteReceived = null;
     _onStop = null;
     _onRecording = null;
+  }
+
+  @override
+  void stopService() {
+    // MicRecorderService runs in-process (not a background service), so just stop normally
+    stop();
   }
 }
 

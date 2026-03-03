@@ -209,6 +209,37 @@ class TranscriptSegment {
     }
   }
 
+  /// Merge optimizado: solo checa el boundary entre segmentos existentes y nuevos.
+  /// Precondición: segments[0..insertStartIndex-1] ya están merged de llamadas previas.
+  /// Complejidad: O(k) donde k = segmentos nuevos, en lugar de O(n) de la lista completa.
+  static void mergeNewSegmentsAtBoundary(
+    List<TranscriptSegment> segments, {
+    required int insertStartIndex,
+    double maxTimeGapSeconds = 3.0,
+  }) {
+    if (segments.length < 2 || insertStartIndex <= 0) return;
+    int startCheck = insertStartIndex - 1;
+    if (startCheck >= segments.length - 1) return;
+
+    int i = startCheck;
+    while (i < segments.length - 1) {
+      final current = segments[i];
+      final next = segments[i + 1];
+      final sameSpeaker = current.speaker == next.speaker;
+      final sameIsUser = current.isUser == next.isUser;
+      final timeGap = next.start - current.end;
+      final shouldMerge = sameSpeaker && sameIsUser && timeGap <= maxTimeGapSeconds && timeGap >= 0;
+
+      if (shouldMerge) {
+        current.text = '${current.text} ${next.text}'.trim();
+        current.end = next.end;
+        segments.removeAt(i + 1);
+      } else {
+        i++;
+      }
+    }
+  }
+
   static String segmentsAsString(
     List<TranscriptSegment> segments, {
     bool includeTimestamps = false,

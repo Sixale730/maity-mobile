@@ -100,7 +100,7 @@ class CaptureProvider extends ChangeNotifier
   // Throttled notifyListeners for segment updates (max ~3 rebuilds/sec)
   Timer? _segmentNotifyTimer;
   DateTime? _lastSegmentNotifyTime;
-  static const Duration _segmentNotifyMinInterval = Duration(milliseconds: 300);
+  static const Duration _segmentNotifyMinInterval = Duration(milliseconds: 500);
 
   // Incremental save service for saving segments to Supabase during recording
   final IncrementalSaveService _incrementalSave = IncrementalSaveService();
@@ -125,6 +125,9 @@ class CaptureProvider extends ChangeNotifier
   Timer? _recordingTimer;
   int _recordingDuration = 0; // in seconds
   DateTime? _recordingStartTime; // Track when recording started for local conversations
+  /// Cached maityUserId para la sesión de grabación actual.
+  /// Se resuelve al iniciar grabación para evitar network calls en el hot path.
+  String? _cachedRecordingUserId;
   bool _conversationFinalized = false; // Prevents duplicate saves when stopping recording
   bool _finalizeInProgress = false; // Prevents _resetStateVariables() from wiping state during in-flight finalize
   bool _isSpeechProfileMode = false; // Blocks conversation save during speech profile training
@@ -178,6 +181,9 @@ class CaptureProvider extends ChangeNotifier
   // Flag to indicate socket is reconnecting after resume (for UI feedback)
   bool _isReconnectingSocket = false;
   bool get isReconnectingSocket => _isReconnectingSocket;
+
+  // Flag to suppress non-essential work (debugPrint, metrics) while app is in background
+  bool _isAppInBackground = false;
 
   CaptureProvider() {
     _connectionStateListener = ConnectivityService().onConnectionChange.listen((bool isConnected) {
@@ -233,6 +239,8 @@ class CaptureProvider extends ChangeNotifier
 
   /// Handle app going to background (screen locked, app minimized)
   void _handleAppPaused() {
+    _isAppInBackground = true;
+
     DebugLogManager.logEvent('app_paused_handling', {
       'action': 'stopping_background_services',
       'socket_state': _socket != null ? _socket!.state.name : 'null',
@@ -248,6 +256,13 @@ class CaptureProvider extends ChangeNotifier
     // Cancel keep-alive timer to prevent reconnection attempts in background
     _keepAliveTimer?.cancel();
     _keepAliveTimer = null;
+
+    // Pause metrics tracking to reduce main thread work in background
+    _metricsTimer?.cancel();
+
+    // Cancel silence timer to prevent auto-finalize while in background
+    // (it will restart naturally when new segments arrive after resume)
+    _cancelSilenceTimer();
 
     // Start background finalize timer: if socket stays dead for 3 min, auto-finalize
     final isRecording = recordingState == RecordingState.record ||
@@ -281,6 +296,16 @@ class CaptureProvider extends ChangeNotifier
       _saveRecoveryData(synchronous: true);
     }
 
+    // Stop background service mic BEFORE engine dies to prevent FlutterJNI
+    // detached spam (~268 messages) from the service sending to a dead engine
+    if (recordingState == RecordingState.record) {
+      try {
+        ServiceManager.instance().mic.stopService();
+      } catch (e) {
+        debugPrint('[CaptureProvider] Error stopping mic service on detach: $e');
+      }
+    }
+
     // Stop socket cleanly
     _socket?.stop(reason: 'app detached');
   }
@@ -305,6 +330,8 @@ class CaptureProvider extends ChangeNotifier
 
   /// Handle app returning from background
   void _handleAppResumed() async {
+    _isAppInBackground = false;
+
     // Cancel background finalize timer since user is back
     _backgroundFinalizeTimer?.cancel();
     _backgroundFinalizeTimer = null;
@@ -345,6 +372,9 @@ class CaptureProvider extends ChangeNotifier
         recordingState == RecordingState.systemAudioRecord;
 
     if (isRecording) {
+      // Re-start metrics tracking that was paused in _handleAppPaused
+      _startMetricsTracking();
+
       // Cancel any running keep-alive before reconnecting to avoid cascading reconnections
       _keepAliveTimer?.cancel();
       _keepAliveTimer = null;
@@ -585,6 +615,7 @@ class CaptureProvider extends ChangeNotifier
     _lastSegmentNotifyTime = null;
     // Reset incremental save state
     _incrementalSave.reset();
+    _cachedRecordingUserId = null;
     _totalSegmentCount = 0;
     // Reset health monitor
     _socketHealthTimer?.cancel();
@@ -1283,6 +1314,7 @@ class CaptureProvider extends ChangeNotifier
 
     // Track when recording started for local conversations
     _recordingStartTime = DateTime.now();
+    _cachedRecordingUserId = SupabaseAuthService.instance.maityUserId;
     // Generate session ID for recovery
     _currentSessionId = const Uuid().v4();
 
@@ -1318,7 +1350,7 @@ class CaptureProvider extends ChangeNotifier
           _socket?.send(bytes);
         }
         _audioBytesSent += bytes.length;
-        if (_audioBytesSent % 32000 < bytes.length) {
+        if (!_isAppInBackground && _audioBytesSent % 32000 < bytes.length) {
           debugPrint('[Maity] Audio bytes enviados: $_audioBytesSent');
         }
       }
@@ -1354,6 +1386,7 @@ class CaptureProvider extends ChangeNotifier
 
     // Track when recording started for local conversations
     _recordingStartTime = DateTime.now();
+    _cachedRecordingUserId = SupabaseAuthService.instance.maityUserId;
     // Generate session ID for recovery
     _currentSessionId = const Uuid().v4();
 
@@ -1407,6 +1440,7 @@ class CaptureProvider extends ChangeNotifier
 
     // Track when recording started for local conversations
     _recordingStartTime = DateTime.now();
+    _cachedRecordingUserId = SupabaseAuthService.instance.maityUserId;
     // Generate session ID for recovery
     _currentSessionId = const Uuid().v4();
 
@@ -2041,12 +2075,15 @@ class CaptureProvider extends ChangeNotifier
       'total': segments.length + newSegments.length,
     });
 
+    final insertStartIndex = segments.length;
     final remainSegments = TranscriptSegment.updateSegments(segments, newSegments);
     segments.addAll(remainSegments);
     _totalSegmentCount += remainSegments.length;
 
-    // Fusionar segmentos consecutivos del mismo speaker con gap < 3 segundos
-    TranscriptSegment.mergeConsecutiveSegmentsByTime(segments);
+    // Fusionar solo en el boundary (O(k) en vez de O(n²) con merge completo)
+    if (remainSegments.isNotEmpty) {
+      TranscriptSegment.mergeNewSegmentsAtBoundary(segments, insertStartIndex: insertStartIndex);
+    }
     _segmentsVersion++;
 
     debugPrint('[CaptureProvider] After update: ${segments.length} total segments (produced: $_totalSegmentCount)');
@@ -2653,19 +2690,13 @@ class CaptureProvider extends ChangeNotifier
     if (!customSttConfig.isEnabled) return;
     if (_isSpeechProfileMode) return;
 
-    var userId = SupabaseAuthService.instance.maityUserId;
-
-    // Actively attempt to resolve userId if null
+    var userId = _cachedRecordingUserId ?? SupabaseAuthService.instance.maityUserId;
     if (userId == null) {
-      debugPrint('[CaptureProvider] WARNING: maityUserId null during incremental save, attempting fetch...');
-      userId = await SupabaseAuthService.instance.fetchMaityUserId();
-    }
-
-    if (userId == null) {
-      debugPrint('[CaptureProvider] CRITICAL: Cannot save - maityUserId is null');
-      _captureLog.log('save', 'skipped_no_user_id', severity: 'error');
+      debugPrint('[CaptureProvider] WARNING: maityUserId null during incremental save, will retry on next trigger');
+      _captureLog.log('save', 'skipped_no_user_id_hot_path', severity: 'warning');
       return;
     }
+    _cachedRecordingUserId ??= userId;
 
     // Ensure draft is created on first segment (await to prevent saving without draft)
     if (_incrementalSave.draftId == null && segments.isNotEmpty) {
