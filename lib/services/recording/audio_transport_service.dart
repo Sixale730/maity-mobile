@@ -328,7 +328,7 @@ class AudioTransportService {
                 SharedPreferencesUtil().unlimitedLocalStorageEnabled);
         if (checkWalSupported != _isWalSupported) {
           _isWalSupported = checkWalSupported;
-          _onNotifyListeners?.call();
+          // UI updates via _calculateMetricsRates() every 5s — sufficient for WAL indicator
         }
         if (_isWalSupported) {
           _wal.getSyncs().phone.onByteStream(snapshot);
@@ -982,8 +982,8 @@ class AudioTransportService {
     double sysAudioLevel,
   ) {
     final bool needsUpdate = microphoneName != deviceName ||
-        (microphoneLevel - micLevel).abs() > 0.001 ||
-        (systemAudioLevel - sysAudioLevel).abs() > 0.001;
+        (microphoneLevel - micLevel).abs() > 0.05 ||
+        (systemAudioLevel - sysAudioLevel).abs() > 0.05;
 
     if (needsUpdate) {
       microphoneName = deviceName;

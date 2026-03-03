@@ -36,6 +36,7 @@ abstract class AppLifecycleDelegate {
   void startKeepAlive();
   Future<void> saveRecoveryData({bool synchronous = false});
   Future<void> stopMicService();
+  Future<void> stopMicServiceCompletely();
   Future<void> stopSocket(String reason);
   Future<void> autoFinalizeOnConnectionLost();
   Future<void> streamSystemAudioRecording();
@@ -181,11 +182,12 @@ class AppLifecycleManager with WidgetsBindingObserver {
       delegate.saveRecoveryData(synchronous: true);
     }
 
-    // Stop background service mic BEFORE engine dies to prevent FlutterJNI
-    // detached spam (~268 messages) from the service sending to a dead engine
+    // Stop background service mic completely BEFORE engine dies to prevent
+    // FlutterJNI detached spam (~163 messages) from the service sending to a dead engine.
+    // Uses stopService() which sends both 'recorder.stop' + 'stop' to fully terminate the service.
     if (delegate.recordingState == RecordingState.record) {
       try {
-        delegate.stopMicService();
+        delegate.stopMicServiceCompletely();
       } catch (e) {
         debugPrint('[AppLifecycleManager] Error stopping mic service on detach: $e');
       }

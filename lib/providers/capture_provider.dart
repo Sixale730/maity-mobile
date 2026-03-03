@@ -689,6 +689,15 @@ class CaptureProvider extends ChangeNotifier
   }
 
   @override
+  Future<void> stopMicServiceCompletely() async {
+    try {
+      ServiceManager.instance().mic.stopService();
+    } catch (e) {
+      debugPrint('[CaptureProvider] Error stopping mic service completely: $e');
+    }
+  }
+
+  @override
   Future<void> stopSocket(String reason) async =>
       _pipeline.stopSocket(reason);
   @override

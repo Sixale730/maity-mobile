@@ -68,7 +68,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   Timer? _segmentNotifyTimer;
   DateTime? _lastSegmentNotifyTime;
   static const Duration _segmentNotifyMinInterval =
-      Duration(milliseconds: 500);
+      Duration(milliseconds: 800);
 
   // ---------------------------------------------------------------------------
   // Segments state
@@ -478,17 +478,12 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   }
 
   /// Throttled notification for segment updates.
-  /// Ensures at most ~3 rebuilds per second during rapid speech.
+  /// Ensures at most ~1.25 rebuilds per second during rapid speech.
   void _notifySegmentUpdate() {
     final now = DateTime.now();
-    if (_lastSegmentNotifyTime == null ||
-        now.difference(_lastSegmentNotifyTime!) >= _segmentNotifyMinInterval) {
-      _lastSegmentNotifyTime = now;
-      _segmentNotifyTimer?.cancel();
-      _segmentNotifyTimer = null;
-      onNotifyListeners?.call();
-    } else {
-      // Schedule a deferred notification to guarantee the final update fires
+    if (_lastSegmentNotifyTime != null &&
+        now.difference(_lastSegmentNotifyTime!) < _segmentNotifyMinInterval) {
+      // Within throttle window — schedule a deferred notification
       _segmentNotifyTimer?.cancel();
       _segmentNotifyTimer = Timer(
         _segmentNotifyMinInterval - now.difference(_lastSegmentNotifyTime!),
@@ -498,7 +493,13 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
           onNotifyListeners?.call();
         },
       );
+      return;
     }
+    // Outside throttle window — notify immediately
+    _lastSegmentNotifyTime = now;
+    _segmentNotifyTimer?.cancel();
+    _segmentNotifyTimer = null;
+    onNotifyListeners?.call();
   }
 
   void setHasTranscripts(bool value) {

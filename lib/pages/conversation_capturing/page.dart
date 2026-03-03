@@ -26,28 +26,21 @@ class ConversationCapturingPage extends StatefulWidget {
   State<ConversationCapturingPage> createState() => _ConversationCapturingPageState();
 }
 
-class _ConversationCapturingPageState extends State<ConversationCapturingPage> with TickerProviderStateMixin {
+class _ConversationCapturingPageState extends State<ConversationCapturingPage> with SingleTickerProviderStateMixin {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   TabController? _controller;
   late bool showSummarizeConfirmation;
-  late AnimationController _animationController;
 
   @override
   void initState() {
     _controller = TabController(length: 2, vsync: this, initialIndex: 0);
-    _controller!.addListener(() => setState(() {}));
     showSummarizeConfirmation = SharedPreferencesUtil().showSummarizeConfirmation;
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    )..repeat(reverse: true);
     super.initState();
   }
 
   @override
   void dispose() {
     _controller?.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -143,8 +136,15 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<CaptureProvider, DeviceProvider>(
-      builder: (context, provider, deviceProvider, child) {
+    return Selector<CaptureProvider, ({int segmentsVersion, int photosCount, bool hasData})>(
+      selector: (_, p) => (
+        segmentsVersion: p.segmentsVersion,
+        photosCount: p.photos.length,
+        hasData: p.hasTranscripts || p.photos.isNotEmpty,
+      ),
+      builder: (context, snapshot, child) {
+        final provider = context.read<CaptureProvider>();
+        final deviceProvider = context.read<DeviceProvider>();
         return PopScope(
           canPop: true,
           child: Scaffold(

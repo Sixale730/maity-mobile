@@ -31,48 +31,60 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CaptureProvider>(builder: (context, provider, child) {
-      var topConvoId = (provider.conversationProvider?.conversations ?? []).isNotEmpty
-          ? provider.conversationProvider!.conversations.first.id
-          : null;
+    return Selector<CaptureProvider, ({RecordingState state, bool isPaused, bool hasSegments, bool hasPhotos, bool hasDevice, bool transcriptReady, int segmentsVersion})>(
+      selector: (_, p) => (
+        state: p.recordingState,
+        isPaused: p.isPaused,
+        hasSegments: p.hasTranscripts,
+        hasPhotos: p.photos.isNotEmpty,
+        hasDevice: p.havingRecordingDevice,
+        transcriptReady: p.transcriptServiceReady,
+        segmentsVersion: p.segmentsVersion,
+      ),
+      builder: (context, snapshot, child) {
+        final provider = context.read<CaptureProvider>();
+        var topConvoId = (provider.conversationProvider?.conversations ?? []).isNotEmpty
+            ? provider.conversationProvider!.conversations.first.id
+            : null;
 
-      var header = _getConversationHeader(context);
-      if (header == null) {
-        return const SizedBox.shrink();
-      }
+        var header = _getConversationHeader(context);
+        if (header == null) {
+          return const SizedBox.shrink();
+        }
 
-      return GestureDetector(
-        onTap: () async {
-          if (provider.segments.isEmpty && provider.photos.isEmpty) return;
-          MixpanelManager().liveTranscriptCardClicked(
-            hasSegments: provider.segments.isNotEmpty,
-            hasPhotos: provider.photos.isNotEmpty,
-            segmentCount: provider.segments.length,
-            photoCount: provider.photos.length,
-          );
-          routeToPage(context, ConversationCapturingPage(topConversationId: topConvoId));
-        },
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          width: double.maxFinite,
-          decoration: BoxDecoration(
-            color: const Color(0xFF1F1F25),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 18, 10, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Use unified recording UI for all recording types
-                _buildUnifiedRecordingUI(provider, header),
-              ],
+        return GestureDetector(
+          onTap: () async {
+            if (provider.segments.isEmpty && provider.photos.isEmpty) return;
+            MixpanelManager().liveTranscriptCardClicked(
+              hasSegments: provider.segments.isNotEmpty,
+              hasPhotos: provider.photos.isNotEmpty,
+              segmentCount: provider.segments.length,
+              photoCount: provider.photos.length,
+            );
+            routeToPage(context, ConversationCapturingPage(topConversationId: topConvoId));
+          },
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            width: double.maxFinite,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1F1F25),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 18, 10, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Use unified recording UI for all recording types
+                  _buildUnifiedRecordingUI(provider, header),
+                ],
+              ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 
   _toggleRecording(BuildContext context, CaptureProvider provider) async {
