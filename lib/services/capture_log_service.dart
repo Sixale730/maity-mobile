@@ -21,6 +21,11 @@ class CaptureLogService {
   Timer? _flushTimer;
   bool _isFlushing = false;
 
+  // Circuit breaker: stop retrying after consecutive failures
+  int _consecutiveFailures = 0;
+  static const int _maxConsecutiveFailures = 3;
+  bool _disabled = false;
+
   // Session context
   String? _sessionId;
   String? _conversationId;
@@ -45,6 +50,10 @@ class CaptureLogService {
     _getRecordingState = getRecordingState;
     _getSegmentCount = getSegmentCount;
     _getSocketState = getSocketState;
+
+    _consecutiveFailures = 0;
+    _disabled = false;
+    _buffer.clear();
 
     _flushTimer?.cancel();
     _flushTimer = Timer.periodic(
@@ -72,7 +81,7 @@ class CaptureLogService {
     String severity = 'info',
     Map<String, dynamic>? details,
   }) {
-    if (_sessionId == null) return;
+    if (_sessionId == null || _disabled) return;
 
     final authId = Supabase.instance.client.auth.currentUser?.id;
     final userId = SupabaseAuthService.instance.maityUserId;
@@ -122,8 +131,11 @@ class CaptureLogService {
   }
 
   /// Flush buffered logs to Supabase. Non-blocking with full error swallowing.
+  ///
+  /// Circuit breaker: after [_maxConsecutiveFailures] consecutive failures,
+  /// discards the batch and disables the service until the next session.
   Future<void> flush() async {
-    if (_buffer.isEmpty || _isFlushing) return;
+    if (_buffer.isEmpty || _isFlushing || _disabled) return;
 
     _isFlushing = true;
     final batch = List<Map<String, dynamic>>.from(_buffer);
@@ -134,11 +146,18 @@ class CaptureLogService {
           .schema('maity')
           .from('capture_debug_logs')
           .insert(batch);
+      _consecutiveFailures = 0;
     } catch (e) {
-      debugPrint('[CaptureLog] Flush failed (${batch.length} logs): $e');
-      // Re-add failed logs if there is room
-      if (_buffer.length + batch.length <= _maxBufferSize) {
-        _buffer.insertAll(0, batch);
+      _consecutiveFailures++;
+      if (_consecutiveFailures >= _maxConsecutiveFailures) {
+        debugPrint('[CaptureLog] Disabled after $_consecutiveFailures consecutive failures. Discarded ${batch.length} logs.');
+        _disabled = true;
+        // Don't re-add — discard the batch to break the loop
+      } else {
+        // Re-add failed logs for retry on next timer tick
+        if (_buffer.length + batch.length <= _maxBufferSize) {
+          _buffer.insertAll(0, batch);
+        }
       }
     } finally {
       _isFlushing = false;
