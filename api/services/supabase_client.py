@@ -166,6 +166,7 @@ async def insert_draft_conversation(
         "discarded": False,
         "deleted": False,
         "segment_count": 0,
+        "last_segment_at": started_at.isoformat(),
     }
 
     supabase.schema("maity").table("omi_conversations").insert(data).execute()
