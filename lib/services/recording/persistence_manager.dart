@@ -44,6 +44,9 @@ class PersistenceManager {
   // --- Concurrent flush guard (H8) ---
   Completer<void>? _saveInFlight;
 
+  // --- Draft creation guard (prevents concurrent ensureDraftCreated calls) ---
+  Completer<void>? _draftCreationInFlight;
+
   // --- Recovery threshold (M1: 20 words instead of 5) ---
   static const int _recoveryMinWords = 20;
   static const int _recoveryMinDurationSeconds = 15;
@@ -72,37 +75,47 @@ class PersistenceManager {
   ) async {
     if (isSpeechProfileMode) return;
     if (userId == null || userId.isEmpty) {
-      debugPrint('[PersistenceManager] WARNING: userId null during incremental save');
+      assert(() { debugPrint('[PersistenceManager] WARNING: userId null during incremental save'); return true; }());
       _captureLog.log('save', 'skipped_no_user_id', severity: 'warning');
       return;
     }
 
-    // C5: Ensure draft is created on first segment; throw on null
+    // C5: Ensure draft is created on first segment; guard against concurrent calls
     if (_incrementalSave.draftId == null && segments.isNotEmpty) {
-      try {
-        await _incrementalSave.ensureDraftCreated(
-          userId: userId,
-          startedAt: startedAt ?? DateTime.now(),
-        );
-      } catch (e) {
-        _captureLog.log('save', 'draft_creation_failed', severity: 'error', details: {
-          'error': e.toString(),
-        });
-        debugPrint('[PersistenceManager] Draft creation failed: $e');
-        return;
-      }
-      if (_incrementalSave.draftId != null) {
-        _captureLog.log('save', 'draft_created', details: {
-          'draft_id': _incrementalSave.draftId,
-        });
-        _captureLog.updateConversationId(_incrementalSave.draftId!);
+      // If another call is already creating the draft, wait for it instead of duplicating
+      if (_draftCreationInFlight != null && !_draftCreationInFlight!.isCompleted) {
+        await _draftCreationInFlight!.future;
       } else {
-        // C5: Throw instead of returning null silently
-        _captureLog.log('save', 'draft_creation_null', severity: 'error', details: {
-          'error': 'ensureDraftCreated returned null without throwing',
-        });
-        debugPrint('[PersistenceManager] Draft creation returned null — aborting incremental save');
-        return;
+        _draftCreationInFlight = Completer<void>();
+        try {
+          await _incrementalSave.ensureDraftCreated(
+            userId: userId,
+            startedAt: startedAt ?? DateTime.now(),
+          );
+        } catch (e) {
+          _captureLog.log('save', 'draft_creation_failed', severity: 'error', details: {
+            'error': e.toString(),
+          });
+          debugPrint('[PersistenceManager] Draft creation failed: $e');
+          return;
+        } finally {
+          if (_draftCreationInFlight != null && !_draftCreationInFlight!.isCompleted) {
+            _draftCreationInFlight!.complete();
+          }
+          _draftCreationInFlight = null;
+        }
+        if (_incrementalSave.draftId != null) {
+          _captureLog.log('save', 'draft_created', details: {
+            'draft_id': _incrementalSave.draftId,
+          });
+          _captureLog.updateConversationId(_incrementalSave.draftId!);
+        } else {
+          _captureLog.log('save', 'draft_creation_null', severity: 'error', details: {
+            'error': 'ensureDraftCreated returned null without throwing',
+          });
+          assert(() { debugPrint('[PersistenceManager] Draft creation returned null — aborting incremental save'); return true; }());
+          return;
+        }
       }
     }
 
@@ -144,8 +157,8 @@ class PersistenceManager {
       return;
     }
 
-    // Save immediately if 5+ unsaved segments
-    if (_unsavedSegmentCount >= 5) {
+    // Save immediately if 15+ unsaved segments (reduced from 5 to avoid hot-path I/O)
+    if (_unsavedSegmentCount >= 15) {
       saveRecoveryData(segments, sessionId ?? '', startedAt ?? DateTime.now());
       return;
     }
@@ -191,6 +204,8 @@ class PersistenceManager {
   }
 
   /// C4: Atomic JSON write — temp file + rename to prevent corruption.
+  /// Segments are pre-serialized to Maps on main thread (fast: only ref copies),
+  /// then the full JSON structure + jsonEncode runs in an isolate via compute().
   Future<void> _atomicSaveRecovery({
     required String sessionId,
     required DateTime startedAt,
@@ -202,24 +217,42 @@ class PersistenceManager {
     final targetFile = File('${directory.path}/transcript_recovery.json');
     final tempFile = File('${directory.path}/transcript_recovery.json.tmp');
 
-    final session = RecoverySession(
-      sessionId: sessionId,
-      startedAt: startedAt,
-      lastUpdatedAt: DateTime.now(),
-      segments: segments,
-      draftConversationId: draftConversationId,
-    );
+    // Pre-serialize segments to primitive Maps (fast: ~0.5ms per segment).
+    // The expensive jsonEncode of the full tree runs in the isolate.
+    final segmentMaps = segments.map((s) => s.toJson()).toList();
+    final now = DateTime.now().toIso8601String();
+    final startedAtStr = startedAt.toIso8601String();
 
-    final jsonString = synchronous
-        ? jsonEncode(session.toJson())
-        : await compute(_encodeJson, session.toJson());
+    if (synchronous) {
+      final json = <String, dynamic>{
+        'session_id': sessionId,
+        'started_at': startedAtStr,
+        'last_updated_at': now,
+        'segments': segmentMaps,
+        if (draftConversationId != null)
+          'draft_conversation_id': draftConversationId,
+      };
+      final jsonString = jsonEncode(json);
+      await tempFile.writeAsString(jsonString);
+    } else {
+      final payload = <String, dynamic>{
+        'session_id': sessionId,
+        'started_at': startedAtStr,
+        'last_updated_at': now,
+        'segments': segmentMaps,
+        if (draftConversationId != null)
+          'draft_conversation_id': draftConversationId,
+      };
+      final jsonString = await compute(_encodeJsonMap, payload);
+      await tempFile.writeAsString(jsonString);
+    }
 
-    await tempFile.writeAsString(jsonString);
     await tempFile.rename(targetFile.path);
   }
 
-  /// Background isolate entry point for JSON encoding.
-  static String _encodeJson(Map<String, dynamic> data) {
+  /// Isolate entry point: encodes a Map<String, dynamic> to JSON string.
+  /// Runs entirely off the main thread.
+  static String _encodeJsonMap(Map<String, dynamic> data) {
     return jsonEncode(data);
   }
 
@@ -632,11 +665,17 @@ class PersistenceManager {
     final trimCount = (savedCount - _maxSegmentsInMemory).clamp(0, savedCount);
     if (trimCount <= 0) return 0;
 
-    debugPrint('[PersistenceManager] Trimming $trimCount saved segments '
-        '(total: ${segments.length}, saved: $savedCount, '
-        'keeping: ${segments.length - trimCount})');
+    assert(() {
+      debugPrint('[PersistenceManager] Trimming $trimCount saved segments '
+          '(total: ${segments.length}, saved: $savedCount, '
+          'keeping: ${segments.length - trimCount})');
+      return true;
+    }());
 
-    segments.removeRange(0, trimCount);
+    // sublist+clear+addAll preserves list identity without O(n) shifts
+    final kept = segments.sublist(trimCount);
+    segments.clear();
+    segments.addAll(kept);
     _incrementalSave.adjustAfterTrim(trimCount);
 
     _captureLog.log('memory', 'segments_trimmed', severity: 'debug', details: {
@@ -704,6 +743,7 @@ class PersistenceManager {
     _totalSegmentCount = 0;
     _incrementalSave.reset();
     _saveInFlight = null;
+    _draftCreationInFlight = null;
   }
 
   /// Async reset that waits for any in-progress finalize to complete (C3).
@@ -723,5 +763,6 @@ class PersistenceManager {
     _recoveryTimer = null;
     _incrementalSave.reset();
     _saveInFlight = null;
+    _draftCreationInFlight = null;
   }
 }

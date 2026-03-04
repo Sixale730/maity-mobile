@@ -430,8 +430,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   void _processNewSegmentReceived(List<TranscriptSegment> newSegments) {
     if (newSegments.isEmpty) return;
 
-    debugPrint(
-        '[TranscriptionPipeline] Received ${newSegments.length} new segments, current total: ${segments.length}');
+    assert(() {
+      debugPrint(
+          '[TranscriptionPipeline] Received ${newSegments.length} new segments, current total: ${segments.length}');
+      return true;
+    }());
 
     if (segments.isEmpty) {
       _captureLog.log('segment', 'first_segment_received', details: {
@@ -460,8 +463,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     }
     _segmentsVersion++;
 
-    debugPrint(
-        '[TranscriptionPipeline] After update: ${segments.length} total segments');
+    assert(() {
+      debugPrint(
+          '[TranscriptionPipeline] After update: ${segments.length} total segments');
+      return true;
+    }());
     hasTranscripts = true;
 
     // Update health monitor timestamp
