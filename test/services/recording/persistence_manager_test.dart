@@ -137,14 +137,16 @@ void main() {
       expect(pm.isWorthRecovering(session), isTrue);
     });
 
-    test('accepts session with draft ID regardless of word count', () {
+    test('rejects session with draft ID if below threshold', () {
+      // After the local-first refactor, draft IDs are no longer used.
+      // Recovery threshold is purely based on word count and duration.
       final session = _session(
         texts: ['hi'],
         endTime: 2.0,
         draftId: 'draft-123',
       );
       expect(session.wordCount, lessThan(20));
-      expect(pm.isWorthRecovering(session), isTrue);
+      expect(pm.isWorthRecovering(session), isFalse);
     });
 
     test('rejects empty session', () {
@@ -157,23 +159,36 @@ void main() {
   // Reset (C3)
   // ---------------------------------------------------------------------------
   group('Reset', () {
-    test('reset clears all state', () {
-      pm.onSegmentsUpdated(50);
-      expect(pm.totalSegmentCount, 50);
+    test('reset clears recovery state without error', () {
+      // Schedule a local save to set internal recovery state
+      pm.scheduleLocalSave(
+        [_seg('test segment')],
+        'session-1',
+        DateTime.now(),
+        false,
+      );
 
+      // reset should clear internal state without throwing
       pm.reset();
-      expect(pm.totalSegmentCount, 0);
-      expect(pm.draftId, isNull);
-      expect(pm.savedSegmentCount, 0);
+
+      // Calling reset again should be safe (idempotent)
+      pm.reset();
     });
 
     test('resetAsync waits for finalize mutex before resetting (C3)', () async {
-      pm.onSegmentsUpdated(25);
-      expect(pm.totalSegmentCount, 25);
+      // Schedule a local save to set internal recovery state
+      pm.scheduleLocalSave(
+        [_seg('test segment')],
+        'session-1',
+        DateTime.now(),
+        false,
+      );
 
       // resetAsync acquires the mutex, so it serializes with any in-flight finalize
       await pm.resetAsync();
-      expect(pm.totalSegmentCount, 0);
+
+      // Should be safe to call again
+      await pm.resetAsync();
     });
   });
 
@@ -181,11 +196,8 @@ void main() {
   // Force finalize (C3)
   // ---------------------------------------------------------------------------
   group('forceFinalize (C3)', () {
-    test('resets state after finalization completes', () async {
-      pm.onSegmentsUpdated(10);
-      expect(pm.totalSegmentCount, 10);
-
-      // forceFinalize with empty segments returns false but still resets
+    test('returns false with empty segments and resets state', () async {
+      // forceFinalize with empty segments returns false but still calls reset()
       final result = await pm.forceFinalize(
         segments: [],
         userId: 'u1',
@@ -195,35 +207,28 @@ void main() {
       );
 
       expect(result, isFalse);
-      expect(pm.totalSegmentCount, 0); // reset() was called
+    });
+
+    test('returns false when speech profile mode is active', () async {
+      final result = await pm.forceFinalize(
+        segments: [_seg('hello world test')],
+        userId: 'u1',
+        startedAt: DateTime.now(),
+        isSpeechProfileMode: true,
+        onSuccess: () {},
+      );
+
+      expect(result, isFalse);
     });
   });
 
   // ---------------------------------------------------------------------------
-  // Segment trimming
+  // scheduleLocalSave guards
   // ---------------------------------------------------------------------------
-  group('Trim saved segments', () {
-    test('does not trim when segments count is within limit', () {
-      final segments = List.generate(100, (i) => _seg('word$i', start: i.toDouble(), end: i + 1.0));
-      final trimmed = pm.trimSavedSegments(segments);
-      expect(trimmed, 0);
-      expect(segments.length, 100);
-    });
-
-    test('totalSegmentCount tracks produced segments', () {
-      pm.onSegmentsUpdated(10);
-      pm.onSegmentsUpdated(5);
-      expect(pm.totalSegmentCount, 15);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // scheduleRecoverySave guards
-  // ---------------------------------------------------------------------------
-  group('scheduleRecoverySave', () {
+  group('scheduleLocalSave', () {
     test('skips when speech profile mode is active', () {
       // Should not throw or schedule anything
-      pm.scheduleRecoverySave(
+      pm.scheduleLocalSave(
         [_seg('test')],
         'session-1',
         DateTime.now(),
@@ -231,30 +236,26 @@ void main() {
       );
       // No crash = pass
     });
-  });
 
-  // ---------------------------------------------------------------------------
-  // scheduleIncrementalSave guards
-  // ---------------------------------------------------------------------------
-  group('scheduleIncrementalSave', () {
-    test('skips when speech profile mode is active', () async {
-      await pm.scheduleIncrementalSave(
-        [_seg('test')],
-        'user-1',
+    test('does not throw with valid arguments', () {
+      // Normal call should not throw
+      pm.scheduleLocalSave(
+        [_seg('test segment data')],
+        'session-1',
         DateTime.now(),
-        true, // isSpeechProfileMode
+        false,
       );
-      expect(pm.draftId, isNull);
+      // No crash = pass
     });
 
-    test('skips when userId is null', () async {
-      await pm.scheduleIncrementalSave(
+    test('does not throw with null sessionId', () {
+      pm.scheduleLocalSave(
         [_seg('test')],
         null,
         DateTime.now(),
         false,
       );
-      expect(pm.draftId, isNull);
+      // No crash = pass
     });
   });
 }

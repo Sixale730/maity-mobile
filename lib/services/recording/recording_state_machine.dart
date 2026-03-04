@@ -88,22 +88,28 @@ class RecordingStateMachine {
     RecordingState.record: {
       RecordingState.stop,
       RecordingState.pause,
+      RecordingState.processing,
       RecordingState.error,
     },
     RecordingState.deviceRecord: {
       RecordingState.stop,
       RecordingState.pause,
+      RecordingState.processing,
       RecordingState.error,
     },
     RecordingState.systemAudioRecord: {
       RecordingState.stop,
       RecordingState.pause,
+      RecordingState.processing,
       RecordingState.error,
     },
     RecordingState.pause: {
       RecordingState.record,
       RecordingState.deviceRecord,
       RecordingState.systemAudioRecord,
+      RecordingState.stop,
+    },
+    RecordingState.processing: {
       RecordingState.stop,
     },
     RecordingState.error: {
@@ -133,6 +139,9 @@ class RecordingStateMachine {
     // Derive phone-mic flag from state
     if (newState == RecordingState.record) {
       _isRecordingWithPhoneMic = true;
+    } else if (newState == RecordingState.processing) {
+      _isRecordingWithPhoneMic = false;
+      _isPaused = false;
     } else if (newState == RecordingState.stop) {
       _isRecordingWithPhoneMic = false;
       _isPaused = false;

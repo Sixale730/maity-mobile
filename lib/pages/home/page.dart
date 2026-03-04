@@ -146,7 +146,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
         final isRecording = captureProvider.recordingState == RecordingState.record ||
             captureProvider.recordingState == RecordingState.deviceRecord ||
-            captureProvider.recordingState == RecordingState.systemAudioRecord;
+            captureProvider.recordingState == RecordingState.systemAudioRecord ||
+            captureProvider.recordingState == RecordingState.processing;
         if (!isRecording) {
           Provider.of<ConversationProvider>(context, listen: false).refreshConversations();
         } else {
@@ -722,11 +723,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                     builder: (context, value, child) {
                                       bool isRecording = value.state == RecordingState.record;
                                       bool isInitializing = value.state == RecordingState.initialising;
+                                      bool isProcessing = value.state == RecordingState.processing;
                                       bool isReconnecting = value.reconnecting;
                                       return GestureDetector(
                                         onTap: () async {
                                           HapticFeedback.heavyImpact();
-                                          if (isInitializing || isReconnecting) return;
+                                          if (isInitializing || isReconnecting || isProcessing) return;
                                           await _handleRecordButtonPress(
                                             context,
                                             Provider.of<CaptureProvider>(context, listen: false),
@@ -739,13 +741,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                             shape: BoxShape.circle,
                                             color: isReconnecting
                                                 ? Colors.orange
-                                                : (isRecording ? Colors.red : const Color(0xFF485DF4)),
+                                                : isProcessing
+                                                    ? const Color(0xFF35343B)
+                                                    : (isRecording ? Colors.red : const Color(0xFF485DF4)),
                                             border: Border.all(
                                               color: Colors.black,
                                               width: 4,
                                             ),
                                           ),
-                                          child: isInitializing || isReconnecting
+                                          child: isInitializing || isReconnecting || isProcessing
                                               ? const CircularProgressIndicator(
                                                   color: Colors.white,
                                                   strokeWidth: 2,
@@ -804,7 +808,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   Future<void> _handleRecordButtonPress(BuildContext context, CaptureProvider captureProvider) async {
     var recordingState = captureProvider.recordingState;
 
-    if (recordingState == RecordingState.record) {
+    if (recordingState == RecordingState.processing) {
+      // Processing in background, do nothing
+      return;
+    } else if (recordingState == RecordingState.record) {
       // Re-open the live transcript page (stop is done from within it)
       if (context.mounted) {
         var topConvoId = (captureProvider.conversationProvider?.conversations ?? []).isNotEmpty

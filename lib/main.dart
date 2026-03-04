@@ -46,6 +46,7 @@ import 'package:omi/providers/communication_provider.dart';
 import 'package:omi/providers/daily_report_provider.dart';
 import 'package:omi/providers/role_provider.dart';
 import 'package:omi/services/auth_service.dart';
+import 'package:omi/services/background_upload_service.dart';
 import 'package:omi/services/desktop_update_service.dart';
 import 'package:omi/services/notifications.dart';
 import 'package:omi/services/services.dart';
@@ -154,6 +155,9 @@ Future _init() async {
   if (PlatformService.isDesktop) {
     await DesktopUpdateService().initialize();
   }
+
+  // Initialize background upload service (processes pending conversation uploads)
+  await BackgroundUploadService.instance.initialize();
 
   await ServiceManager.instance().start();
   return;

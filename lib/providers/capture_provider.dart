@@ -64,7 +64,6 @@ class CaptureProvider extends ChangeNotifier
   final TranscriptionPipeline _pipeline = TranscriptionPipeline();
   final PersistenceManager _persistence = PersistenceManager();
   final AppLifecycleManager _lifecycle = AppLifecycleManager();
-  bool _hasCleanedUpOrphans = false;
 
   // ---------------------------------------------------------------------------
   // Connection state
@@ -128,11 +127,6 @@ class CaptureProvider extends ChangeNotifier
     peopleProvider = pp;
     usageProvider = up;
 
-    // Clean up orphan drafts once (fire-and-forget)
-    if (!_hasCleanedUpOrphans) {
-      _hasCleanedUpOrphans = true;
-      _persistence.cleanupOrphanDrafts(SupabaseAuthService.instance.maityUserId);
-    }
     conversationProvider?.refreshConversations();
 
     notifyListeners();
@@ -197,8 +191,6 @@ class CaptureProvider extends ChangeNotifier
   // Speaker label suggestions
   Map<String, SpeakerLabelSuggestionEvent> suggestionsBySegmentId = {};
   List<String> taggingSegmentIds = [];
-
-  ServerConversation? _conversation;
 
   // ---------------------------------------------------------------------------
   // Public API — Recording controls
@@ -298,12 +290,15 @@ class CaptureProvider extends ChangeNotifier
         details: {'source': 'phone_mic'});
     _pipeline.stopHealthMonitor();
 
-    await _finalizeLocalConversation();
+    // Instant UI feedback: transition to processing state
+    updateRecordingState(RecordingState.processing);
 
+    // Stop audio and socket
     _audioTransport.stopPhoneMicRecording();
-    updateRecordingState(RecordingState.stop);
-    await _pipeline.stopSocket('stop stream recording');
-    _captureLog.endSession();
+    _pipeline.stopSocket('stop stream recording');
+
+    // Fire-and-forget: finalize in background
+    _backgroundFinalize();
   }
 
   // ---------------------------------------------------------------------------
@@ -357,13 +352,16 @@ class CaptureProvider extends ChangeNotifier
         details: {'source': 'ble_device'});
     _pipeline.stopHealthMonitor();
 
-    await _finalizeLocalConversation();
-    await _cleanupCurrentState();
+    // Instant UI feedback: transition to processing state
+    updateRecordingState(RecordingState.processing);
 
+    // Stop audio and socket
+    await _cleanupCurrentState();
     if (cleanDevice) updateRecordingDevice(null);
-    updateRecordingState(RecordingState.stop);
-    await _pipeline.stopSocket('stop stream device recording');
-    _captureLog.endSession();
+    _pipeline.stopSocket('stop stream device recording');
+
+    // Fire-and-forget: finalize in background
+    _backgroundFinalize();
   }
 
   Future<void> pauseDeviceRecording() async {
@@ -440,13 +438,18 @@ class CaptureProvider extends ChangeNotifier
     _captureLog.log('recording', 'recording_stop_requested',
         details: {'source': 'system_audio'});
     _pipeline.stopHealthMonitor();
-    await _finalizeLocalConversation();
 
+    // Instant UI feedback: transition to processing state
+    updateRecordingState(RecordingState.processing);
+
+    // Stop audio and socket
     _stateMachine.shouldAutoResumeAfterWake = false;
     _audioTransport.stopSystemAudioRecording();
-    await _pipeline.stopSocket('manual stop');
+    _pipeline.stopSocket('manual stop');
     await _cleanupCurrentState();
-    _captureLog.endSession();
+
+    // Fire-and-forget: finalize in background
+    _backgroundFinalize();
   }
 
   Future<void> pauseSystemAudioRecording({bool isAuto = false}) async {
@@ -595,8 +598,6 @@ class CaptureProvider extends ChangeNotifier
         if (newPerson != null) finalPersonId = newPerson.id;
       }
 
-      if (_conversation == null) return;
-
       final isAssigningToUser = finalPersonId == 'user';
       for (var segment in segments) {
         if (segmentIds.contains(segment.id)) {
@@ -604,13 +605,6 @@ class CaptureProvider extends ChangeNotifier
           segment.personId = isAssigningToUser ? null : finalPersonId;
         }
       }
-
-      await assignBulkConversationTranscriptSegments(
-        _conversation!.id,
-        segmentIds,
-        isUser: isAssigningToUser,
-        personId: isAssigningToUser ? null : finalPersonId,
-      );
 
       if (_pipeline.socket?.state == SocketServiceState.connected) {
         _pipeline.sendToSocket(jsonEncode({
@@ -647,11 +641,11 @@ class CaptureProvider extends ChangeNotifier
   @override
   List<TranscriptSegment> get currentSegments => segments;
   @override
-  String? get draftId => _persistence.draftId;
-  @override
   bool get isSpeechProfileMode => _stateMachine.isSpeechProfileMode;
   @override
   SocketServiceState? get socketState => _pipeline.socket?.state;
+  @override
+  int get recordingDuration => _audioTransport.recordingDuration;
 
   @override
   Future<void> stopHealthMonitor() async => _pipeline.stopHealthMonitor();
@@ -717,7 +711,10 @@ class CaptureProvider extends ChangeNotifier
         recordingState == RecordingState.systemAudioRecord) {
       return 'recording';
     }
-    if (recordingState == RecordingState.initialising) return 'processing';
+    if (recordingState == RecordingState.initialising ||
+        recordingState == RecordingState.processing) {
+      return 'processing';
+    }
     if (_audioTransport.recordingDevice != null) return 'device_connected';
     return 'waiting';
   }
@@ -783,7 +780,6 @@ class CaptureProvider extends ChangeNotifier
     _audioTransport.photos.clear();
     suggestionsBySegmentId = {};
     taggingSegmentIds = [];
-    _conversation = null;
     _stateMachine.endSession();
     CaptureProvider.isRecordingWithPhoneMic = false;
     _persistence.reset();
@@ -795,31 +791,12 @@ class CaptureProvider extends ChangeNotifier
   // ---------------------------------------------------------------------------
 
   void _onNewSegments(List<TranscriptSegment> newSegments) {
-    // Schedule recovery save
-    _persistence.scheduleRecoverySave(
+    _persistence.scheduleLocalSave(
       segments,
       _stateMachine.currentSessionId,
       _stateMachine.recordingStartTime,
       _stateMachine.isSpeechProfileMode,
     );
-
-    // Schedule incremental save to Supabase
-    _persistence.scheduleIncrementalSave(
-      segments,
-      _stateMachine.cachedRecordingUserId ??
-          SupabaseAuthService.instance.maityUserId,
-      _stateMachine.recordingStartTime,
-      _stateMachine.isSpeechProfileMode,
-    );
-
-    // Track new segments for persistence
-    _persistence.onSegmentsUpdated(newSegments.length);
-
-    // Trim old saved segments
-    final trimmed = _persistence.trimSavedSegments(segments);
-    if (trimmed > 0) {
-      // Segments list was modified in place
-    }
   }
 
   void _onMessageEvent(MessageEvent event) {
@@ -889,6 +866,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   Future<void> _reconnectForStall() async {
+    _pipeline.setReconnecting(true);
     await _pipeline.stopSocket('transcription stalled');
     try {
       if (recordingState == RecordingState.record) {
@@ -918,6 +896,8 @@ class CaptureProvider extends ChangeNotifier
       debugPrint('[CaptureProvider] _reconnectForStall failed: $e');
       _captureLog.log('recording', 'reconnect_for_stall_failed',
           severity: 'error', details: {'error': e.toString()});
+    } finally {
+      _pipeline.setReconnecting(false);
     }
   }
 
@@ -928,7 +908,6 @@ class CaptureProvider extends ChangeNotifier
         severity: 'warning',
         details: {
           'segments_count': segments.length,
-          'has_draft': _persistence.draftId != null,
         });
 
     // Save recovery as backup
@@ -964,12 +943,27 @@ class CaptureProvider extends ChangeNotifier
       onSuccess: () {
         conversationProvider?.refreshConversations();
       },
-      totalSegmentCount: _persistence.totalSegmentCount,
     );
 
     if (success) {
       _stateMachine.conversationFinalized = true;
     }
+  }
+
+  /// Fire-and-forget finalize: runs finalization in background and transitions
+  /// to stop state when complete. Logs errors but always transitions to stop.
+  void _backgroundFinalize() {
+    _finalizeLocalConversation().then((_) {
+      debugPrint('[CaptureProvider] Background finalize completed successfully');
+    }).catchError((e) {
+      debugPrint('[CaptureProvider] Background finalize error: $e');
+      _captureLog.log('recording', 'background_finalize_error',
+          severity: 'error', details: {'error': e.toString()});
+    }).whenComplete(() {
+      _resetStateVariables();
+      updateRecordingState(RecordingState.stop);
+      _captureLog.endSession();
+    });
   }
 
   // ---------------------------------------------------------------------------

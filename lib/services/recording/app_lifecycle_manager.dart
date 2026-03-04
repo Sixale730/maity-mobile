@@ -23,8 +23,8 @@ abstract class AppLifecycleDelegate {
   BtDevice? get recordingDevice;
   List<TranscriptSegment> get currentSegments;
   bool get isSpeechProfileMode;
-  String? get draftId;
   SocketServiceState? get socketState;
+  int get recordingDuration;
 
   // Actions
   Future<void> stopHealthMonitor();
@@ -63,11 +63,6 @@ class AppLifecycleManager with WidgetsBindingObserver {
   bool _isReconnectingSocket = false;
   bool get isReconnectingSocket => _isReconnectingSocket;
 
-  // Desktop recording timer
-  Timer? _recordingTimer;
-  int _recordingDuration = 0;
-  int getRecordingDuration() => _recordingDuration;
-
   // Desktop method channels
   MethodChannel? _screenCaptureChannel;
   MethodChannel? _controlBarChannel;
@@ -99,7 +94,6 @@ class AppLifecycleManager with WidgetsBindingObserver {
       'has_device': delegate.recordingDevice != null,
       'socket_state': delegate.socketState?.name ?? 'null',
       'is_paused': delegate.isPaused,
-      'has_draft': delegate.draftId != null,
       'segment_count': delegate.currentSegments.length,
       'platform': PlatformService.isDesktop ? 'desktop' : 'mobile',
     });
@@ -365,7 +359,8 @@ class AppLifecycleManager with WidgetsBindingObserver {
         delegate.recordingState == RecordingState.systemAudioRecord) {
       return 'recording';
     }
-    if (delegate.recordingState == RecordingState.initialising) {
+    if (delegate.recordingState == RecordingState.initialising ||
+        delegate.recordingState == RecordingState.processing) {
       return 'processing';
     }
 
@@ -389,40 +384,17 @@ class AppLifecycleManager with WidgetsBindingObserver {
       'isRecording': delegate.recordingState == RecordingState.systemAudioRecord ||
           delegate.recordingState == RecordingState.deviceRecord,
       'isPaused': delegate.isPaused,
-      'duration': _recordingDuration,
+      'duration': delegate.recordingDuration,
       'isInitialising': delegate.recordingState == RecordingState.initialising,
+      'isProcessing': delegate.recordingState == RecordingState.processing,
     };
 
     _controlBarChannel?.invokeMethod('updateRecordingState', stateData);
   }
 
-  /// Start recording timer (desktop) that broadcasts state every second.
-  void startRecordingTimer() {
-    _recordingDuration = 0;
-    _recordingTimer?.cancel();
-    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      final delegate = _delegate;
-      if (delegate == null) return;
-
-      if (delegate.recordingState == RecordingState.systemAudioRecord ||
-          delegate.recordingState == RecordingState.deviceRecord) {
-        _recordingDuration++;
-        broadcastRecordingState();
-      }
-    });
-  }
-
-  /// Stop recording timer and reset duration.
-  void stopRecordingTimer() {
-    _recordingTimer?.cancel();
-    _recordingTimer = null;
-    _recordingDuration = 0;
-  }
-
   /// Dispose of timers and remove lifecycle observer.
   void dispose() {
     _backgroundFinalizeTimer?.cancel();
-    _recordingTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
   }
 }

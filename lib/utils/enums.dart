@@ -1,1 +1,1 @@
-enum RecordingState { initialising, record, stop, deviceRecord, systemAudioRecord, pause, error }
+enum RecordingState { initialising, record, deviceRecord, systemAudioRecord, pause, processing, stop, error }

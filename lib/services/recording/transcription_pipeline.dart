@@ -34,9 +34,9 @@ typedef OnNotifyListeners = void Function();
 /// Manages the transcription socket lifecycle, segment buffering,
 /// health monitoring, keep-alive reconnection, and VAD integration.
 ///
-/// This service does NOT directly call IncrementalSaveService or
-/// TranscriptRecoveryService. Those are PersistenceManager's responsibility
-/// and are triggered via the [onSegmentsReceived] callback.
+/// This service does NOT directly call persistence or recovery services.
+/// Those are PersistenceManager's responsibility and are triggered via
+/// the [onSegmentsReceived] callback.
 class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   TranscriptSegmentSocketService? _socket;
 
@@ -96,7 +96,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   // ---------------------------------------------------------------------------
   // Reconnection flags
   // ---------------------------------------------------------------------------
-  bool _isReconnectingAfterResume = false;
+  bool _isReconnecting = false;
   bool _isReconnectingSocket = false;
   bool get isReconnectingSocket => _isReconnectingSocket;
 
@@ -243,6 +243,12 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     onNotifyListeners?.call();
   }
 
+  /// Set the reconnecting flag to suppress keep-alive during intentional
+  /// socket stop+restart cycles (e.g. resume from background, stall recovery).
+  void setReconnecting(bool value) {
+    _isReconnecting = value;
+  }
+
   /// Stop the socket cleanly.
   Future<void> stopSocket(String reason) async {
     _captureLog.log('socket', 'socket_stopping',
@@ -357,13 +363,13 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   void onClosed([int? closeCode]) {
     _captureLog.log('socket', 'socket_closed', severity: 'warning', details: {
       'close_code': closeCode,
-      'is_reconnecting_after_resume': _isReconnectingAfterResume,
+      'is_reconnecting': _isReconnecting,
     });
     _transcriptionServiceStatuses = [];
     _transcriptServiceReady = false;
 
     // Skip notifyListeners + keep-alive during intentional reconnection
-    if (!_isReconnectingAfterResume) {
+    if (!_isReconnecting) {
       onNotifyListeners?.call();
       _startKeepAlive();
     }
@@ -825,7 +831,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     debugPrint(
         '[TranscriptionPipeline] Attempting socket reconnect after resume');
 
-    _isReconnectingAfterResume = true;
+    _isReconnecting = true;
     try {
       await _socket?.stop(reason: 'reconnect after resume');
       await Future.delayed(const Duration(milliseconds: 50));
@@ -840,7 +846,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
         'new_state': _socket != null ? _socket!.state.name : 'null',
       });
     } finally {
-      _isReconnectingAfterResume = false;
+      _isReconnecting = false;
     }
   }
 
