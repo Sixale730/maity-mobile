@@ -140,9 +140,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     } else if (state == AppLifecycleState.resumed) {
       event = 'App is resumed';
 
-      // Reload convos
+      // Reload convos — but skip during recording to avoid main thread jank
+      // from fetching/parsing conversations during lifecycle transitions
       if (mounted) {
-        Provider.of<ConversationProvider>(context, listen: false).refreshConversations();
+        final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+        final isRecording = captureProvider.recordingState == RecordingState.record ||
+            captureProvider.recordingState == RecordingState.deviceRecord ||
+            captureProvider.recordingState == RecordingState.systemAudioRecord;
+        if (!isRecording) {
+          Provider.of<ConversationProvider>(context, listen: false).refreshConversations();
+        } else {
+          debugPrint('[HomePage] Skipping conversation refresh - recording in progress');
+        }
       }
     } else if (state == AppLifecycleState.hidden) {
       event = 'App is hidden';

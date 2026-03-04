@@ -175,22 +175,21 @@ class AppLifecycleManager with WidgetsBindingObserver {
 
     debugPrint('[AppLifecycleManager] App detached - performing cleanup');
 
-    // Save recovery data before stopping socket -- OS may kill the app without
-    // going through paused state, so this is our last chance to persist segments
-    if (delegate.currentSegments.isNotEmpty && !delegate.isSpeechProfileMode) {
-      debugPrint('[AppLifecycleManager] Saving recovery data before detach');
-      delegate.saveRecoveryData(synchronous: true);
-    }
-
-    // Stop background service mic completely BEFORE engine dies to prevent
-    // FlutterJNI detached spam (~163 messages) from the service sending to a dead engine.
-    // Uses stopService() which sends both 'recorder.stop' + 'stop' to fully terminate the service.
+    // FIRST: Stop background service mic completely BEFORE saving recovery data
+    // to prevent FlutterJNI spam from the service sending audio to a dying engine.
     if (delegate.recordingState == RecordingState.record) {
       try {
         delegate.stopMicServiceCompletely();
       } catch (e) {
         debugPrint('[AppLifecycleManager] Error stopping mic service on detach: $e');
       }
+    }
+
+    // THEN: Save recovery data — segments are already in memory,
+    // stopping the mic first doesn't lose any data
+    if (delegate.currentSegments.isNotEmpty && !delegate.isSpeechProfileMode) {
+      debugPrint('[AppLifecycleManager] Saving recovery data before detach');
+      delegate.saveRecoveryData(synchronous: true);
     }
 
     // Stop socket cleanly

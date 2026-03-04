@@ -585,7 +585,7 @@ class ConversationProvider extends ChangeNotifier {
         debugPrint('[ConversationProvider] Fetching conversations from Supabase for user: $userId');
         final supabaseConvos = await OmiSupabaseService.getConversations(
           userId: userId,
-          limit: 50,
+          limit: 10,
           includeDiscarded: showDiscardedConversations,
         );
         debugPrint('[ConversationProvider] Received ${supabaseConvos.length} conversations from Supabase');
