@@ -31,48 +31,60 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CaptureProvider>(builder: (context, provider, child) {
-      var topConvoId = (provider.conversationProvider?.conversations ?? []).isNotEmpty
-          ? provider.conversationProvider!.conversations.first.id
-          : null;
+    return Selector<CaptureProvider, ({RecordingState state, bool isPaused, bool hasSegments, bool hasPhotos, bool hasDevice, bool transcriptReady, int segmentsVersion})>(
+      selector: (_, p) => (
+        state: p.recordingState,
+        isPaused: p.isPaused,
+        hasSegments: p.hasTranscripts,
+        hasPhotos: p.photos.isNotEmpty,
+        hasDevice: p.havingRecordingDevice,
+        transcriptReady: p.transcriptServiceReady,
+        segmentsVersion: p.segmentsVersion,
+      ),
+      builder: (context, snapshot, child) {
+        final provider = context.read<CaptureProvider>();
+        var topConvoId = (provider.conversationProvider?.conversations ?? []).isNotEmpty
+            ? provider.conversationProvider!.conversations.first.id
+            : null;
 
-      var header = _getConversationHeader(context);
-      if (header == null) {
-        return const SizedBox.shrink();
-      }
+        var header = _getConversationHeader(context);
+        if (header == null) {
+          return const SizedBox.shrink();
+        }
 
-      return GestureDetector(
-        onTap: () async {
-          if (provider.segments.isEmpty && provider.photos.isEmpty) return;
-          MixpanelManager().liveTranscriptCardClicked(
-            hasSegments: provider.segments.isNotEmpty,
-            hasPhotos: provider.photos.isNotEmpty,
-            segmentCount: provider.segments.length,
-            photoCount: provider.photos.length,
-          );
-          routeToPage(context, ConversationCapturingPage(topConversationId: topConvoId));
-        },
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          width: double.maxFinite,
-          decoration: BoxDecoration(
-            color: const Color(0xFF1F1F25),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 18, 10, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Use unified recording UI for all recording types
-                _buildUnifiedRecordingUI(provider, header),
-              ],
+        return GestureDetector(
+          onTap: () async {
+            if (provider.segments.isEmpty && provider.photos.isEmpty) return;
+            MixpanelManager().liveTranscriptCardClicked(
+              hasSegments: provider.segments.isNotEmpty,
+              hasPhotos: provider.photos.isNotEmpty,
+              segmentCount: provider.segments.length,
+              photoCount: provider.photos.length,
+            );
+            routeToPage(context, ConversationCapturingPage(topConversationId: topConvoId));
+          },
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            width: double.maxFinite,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1F1F25),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 18, 10, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Use unified recording UI for all recording types
+                  _buildUnifiedRecordingUI(provider, header),
+                ],
+              ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 
   _toggleRecording(BuildContext context, CaptureProvider provider) async {
@@ -154,6 +166,7 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
         captureProvider.recordingState == RecordingState.deviceRecord ||
         captureProvider.recordingState == RecordingState.initialising ||
         captureProvider.recordingState == RecordingState.pause ||
+        captureProvider.recordingState == RecordingState.processing ||
         captureProvider.isPaused ||
         _isPhoneMicPaused;
 
@@ -284,12 +297,59 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
   }
 
   Widget _buildUnifiedRecordingUI(CaptureProvider provider, Widget? header) {
+    bool isProcessing = provider.recordingState == RecordingState.processing;
     bool isDeviceRecording = provider.havingRecordingDevice &&
         (provider.recordingState == RecordingState.deviceRecord || provider.recordingState == RecordingState.pause);
     bool isPhoneRecording = provider.recordingState == RecordingState.record ||
         provider.recordingState == RecordingState.systemAudioRecord ||
         provider.recordingState == RecordingState.initialising ||
         _isPhoneMicPaused;
+
+    // Show processing UI when finalizing in background
+    if (isProcessing) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 8, right: 6),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF35343B),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        AppLocalizations.of(context)?.processing ?? 'Procesando...',
+                        style: const TextStyle(
+                          color: Color(0xFFC9CBCF),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFFC9CBCF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
 
     // Determine pause state based on recording type
     bool isPaused = false;
@@ -517,7 +577,8 @@ getPhoneMicRecordingButton(BuildContext context, VoidCallback toggleRecordingCb,
   final bool isDesktop = PlatformService.isDesktop;
   String text;
   Widget icon;
-  bool isLoading = currentActualState == RecordingState.initialising;
+  bool isLoading = currentActualState == RecordingState.initialising ||
+      currentActualState == RecordingState.processing;
 
   if (isDesktop) {
     if (isLoading) {

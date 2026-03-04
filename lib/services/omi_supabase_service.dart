@@ -7,7 +7,6 @@ import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/env/env.dart';
-import 'package:omi/services/supabase_auth_service.dart';
 
 /// Service for OMI wearable data storage in Supabase
 /// All operations go through Vercel backend which uses service_role key
@@ -44,7 +43,6 @@ class OmiSupabaseService {
               'Authorization': authHeader,
             },
             body: jsonEncode({
-              'user_id': userId,
               'started_at': startedAt.toUtc().toIso8601String(),
               'finished_at': finishedAt.toUtc().toIso8601String(),
               'structured': {
@@ -257,189 +255,11 @@ class OmiSupabaseService {
     }
   }
 
-  // ============ Incremental Save Methods ============
-
-  /// Create a draft conversation with status='recording'
-  /// Returns the draft conversation UUID or null on failure
-  static Future<String?> createDraftConversation({
-    required String userId,
-    required DateTime startedAt,
-    String source = 'omi',
-  }) async {
-    try {
-      debugPrint('[OmiSupabaseService] Creating draft conversation for user $userId');
-
-      final authHeader = await getAuthHeader();
-      final response = await http
-          .post(
-            Uri.parse('$_baseUrl/v1/omi/conversations/draft'),
-            headers: {
-              'Content-Type': 'application/json; charset=utf-8',
-              'Authorization': authHeader,
-            },
-            body: jsonEncode({
-              'user_id': userId,
-              'started_at': startedAt.toUtc().toIso8601String(),
-              'source': source,
-            }),
-          )
-          .timeout(_timeout);
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final draftId = data['id'] as String;
-        debugPrint('[OmiSupabaseService] Draft created: $draftId');
-        return draftId;
-      } else {
-        final body = response.body;
-        debugPrint('[OmiSupabaseService] Create draft error: ${response.statusCode} - $body');
-        throw Exception('Draft creation failed: HTTP ${response.statusCode} - $body');
-      }
-    } catch (e) {
-      debugPrint('[OmiSupabaseService] Error creating draft: $e');
-      rethrow;
-    }
-  }
-
-  /// Append segments to a draft conversation (idempotent via ON CONFLICT DO NOTHING)
-  /// Returns true on success
-  static Future<bool> appendSegments({
-    required String conversationId,
-    required List<TranscriptSegment> segments,
-    required int segmentOffset,
-  }) async {
-    if (segments.isEmpty) return true;
-
-    final userId = SupabaseAuthService.instance.maityUserId;
-    if (userId == null || userId.isEmpty) {
-      debugPrint('[OmiSupabaseService] Cannot append segments: no user ID');
-      return false;
-    }
-
-    try {
-      final authHeader = await getAuthHeader();
-      final response = await http
-          .post(
-            Uri.parse('$_baseUrl/v1/omi/conversations/$conversationId/segments'),
-            headers: {
-              'Content-Type': 'application/json; charset=utf-8',
-              'Authorization': authHeader,
-            },
-            body: jsonEncode({
-              'user_id': userId,
-              'segments': segments
-                  .map((s) => {
-                        'text': s.text,
-                        'speaker': s.speaker,
-                        'speaker_id': s.speakerId,
-                        'is_user': s.isUser,
-                        'person_id': s.personId,
-                        'start': s.start,
-                        'end': s.end,
-                      })
-                  .toList(),
-              'segment_offset': segmentOffset,
-            }),
-          )
-          .timeout(const Duration(seconds: 30));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        debugPrint('[OmiSupabaseService] Appended ${data['inserted']} segments (total: ${data['total_segments']})');
-        return true;
-      } else {
-        debugPrint('[OmiSupabaseService] Append segments error: ${response.statusCode}');
-        return false;
-      }
-    } catch (e) {
-      debugPrint('[OmiSupabaseService] Error appending segments: $e');
-      return false;
-    }
-  }
-
-  /// Finalize a draft conversation: backend rebuilds transcript, generates embeddings
-  /// Returns true on success
-  static Future<bool> finalizeConversation({
-    required String conversationId,
-    required String userId,
-    required DateTime finishedAt,
-    Map<String, dynamic>? structured,
-    bool generateEmbeddings = true,
-  }) async {
-    try {
-      debugPrint('[OmiSupabaseService] Finalizing conversation=$conversationId, '
-          'userId=$userId, hasStructured=${structured != null}');
-
-      final body = <String, dynamic>{
-        'user_id': userId,
-        'finished_at': finishedAt.toUtc().toIso8601String(),
-        'generate_embeddings': generateEmbeddings,
-      };
-
-      if (structured != null) {
-        body['structured'] = structured;
-      }
-
-      final authHeader = await getAuthHeader();
-      final response = await http
-          .post(
-            Uri.parse('$_baseUrl/v1/omi/conversations/$conversationId/finalize'),
-            headers: {
-              'Content-Type': 'application/json; charset=utf-8',
-              'Authorization': authHeader,
-            },
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 120)); // Longer timeout for finalize
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        debugPrint('[OmiSupabaseService] Finalized OK: ${data['words_count']} words, ${data['segment_count']} segments');
-        return true;
-      } else {
-        final responseBody = utf8.decode(response.bodyBytes);
-        debugPrint('[OmiSupabaseService] Finalize FAILED: status=${response.statusCode}, body=$responseBody');
-        return false;
-      }
-    } catch (e, stackTrace) {
-      debugPrint('[OmiSupabaseService] Finalize ERROR: $e');
-      debugPrint('[OmiSupabaseService] Stack trace: $stackTrace');
-      return false;
-    }
-  }
-
-  /// Mark a draft conversation as abandoned (used when monolithic fallback succeeds)
-  static Future<void> markDraftAbandoned({required String conversationId}) async {
-    try {
-      final authHeader = await getAuthHeader();
-      final response = await http
-          .patch(
-            Uri.parse('$_baseUrl/v1/omi/conversations/$conversationId/status'),
-            headers: {
-              'Content-Type': 'application/json; charset=utf-8',
-              'Authorization': authHeader,
-            },
-            body: jsonEncode({'status': 'abandoned'}),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        debugPrint('[OmiSupabaseService] Draft $conversationId marked as abandoned');
-      } else {
-        debugPrint('[OmiSupabaseService] Failed to mark draft abandoned: ${response.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('[OmiSupabaseService] Error marking draft abandoned: $e');
-    }
-  }
-
   /// Clean up orphan draft conversations (status='recording' with last_segment_at > 1h ago)
-  /// Finalizes drafts with segments, marks empty ones as abandoned
-  static Future<void> cleanupOrphanDrafts({required String userId}) async {
+  /// Finalizes drafts with segments, marks empty ones as failed+deleted
+  static Future<void> cleanupOrphanDrafts() async {
     try {
-      final uri = Uri.parse('$_baseUrl/v1/omi/conversations/cleanup-orphans').replace(
-        queryParameters: {'user_id': userId},
-      );
+      final uri = Uri.parse('$_baseUrl/v1/omi/conversations/cleanup-orphans');
 
       debugPrint('[OmiSupabaseService] POST $uri');
 
@@ -454,7 +274,7 @@ class OmiSupabaseService {
         final cleaned = data['cleaned'] ?? 0;
         if (cleaned > 0) {
           debugPrint('[OmiSupabaseService] Cleaned up $cleaned orphan drafts '
-              '(finalized: ${data['finalized']?.length ?? 0}, abandoned: ${data['abandoned']?.length ?? 0})');
+              '(finalized: ${data['finalized']?.length ?? 0}, failed: ${data['failed']?.length ?? 0})');
         }
       } else {
         debugPrint('[OmiSupabaseService] Cleanup orphans error: ${response.statusCode}');

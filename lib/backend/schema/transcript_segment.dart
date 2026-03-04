@@ -182,17 +182,17 @@ class TranscriptSegment {
 
   /// Fusiona segmentos consecutivos del mismo speaker si el gap de tiempo es pequeño
   /// Útil para streaming donde Deepgram envía segmentos fragmentados por pausas naturales
+  /// Single-pass forward: O(n) sin removeAt shifts
   static void mergeConsecutiveSegmentsByTime(
     List<TranscriptSegment> segments, {
     double maxTimeGapSeconds = 3.0,
   }) {
     if (segments.length < 2) return;
 
-    int i = 0;
-    while (i < segments.length - 1) {
-      final current = segments[i];
-      final next = segments[i + 1];
-
+    final merged = <TranscriptSegment>[segments.first];
+    for (int i = 1; i < segments.length; i++) {
+      final current = merged.last;
+      final next = segments[i];
       final sameSpeaker = current.speaker == next.speaker;
       final sameIsUser = current.isUser == next.isUser;
       final timeGap = next.start - current.end;
@@ -201,30 +201,34 @@ class TranscriptSegment {
       if (shouldMerge) {
         current.text = '${current.text} ${next.text}'.trim();
         current.end = next.end;
-        segments.removeAt(i + 1);
-        // No incrementar i, verificar si se puede seguir fusionando
       } else {
-        i++;
+        merged.add(next);
       }
+    }
+
+    if (merged.length != segments.length) {
+      segments.clear();
+      segments.addAll(merged);
     }
   }
 
   /// Merge optimizado: solo checa el boundary entre segmentos existentes y nuevos.
   /// Precondición: segments[0..insertStartIndex-1] ya están merged de llamadas previas.
-  /// Complejidad: O(k) donde k = segmentos nuevos, en lugar de O(n) de la lista completa.
+  /// Single-pass forward desde startCheck: O(k) sin removeAt shifts.
   static void mergeNewSegmentsAtBoundary(
     List<TranscriptSegment> segments, {
     required int insertStartIndex,
     double maxTimeGapSeconds = 3.0,
   }) {
     if (segments.length < 2 || insertStartIndex <= 0) return;
-    int startCheck = insertStartIndex - 1;
+    final startCheck = insertStartIndex - 1;
     if (startCheck >= segments.length - 1) return;
 
-    int i = startCheck;
-    while (i < segments.length - 1) {
-      final current = segments[i];
-      final next = segments[i + 1];
+    // Build merged tail from startCheck onward
+    final mergedTail = <TranscriptSegment>[segments[startCheck]];
+    for (int i = startCheck + 1; i < segments.length; i++) {
+      final current = mergedTail.last;
+      final next = segments[i];
       final sameSpeaker = current.speaker == next.speaker;
       final sameIsUser = current.isUser == next.isUser;
       final timeGap = next.start - current.end;
@@ -233,10 +237,16 @@ class TranscriptSegment {
       if (shouldMerge) {
         current.text = '${current.text} ${next.text}'.trim();
         current.end = next.end;
-        segments.removeAt(i + 1);
       } else {
-        i++;
+        mergedTail.add(next);
       }
+    }
+
+    // Only mutate if merges actually happened
+    final originalTailLength = segments.length - startCheck;
+    if (mergedTail.length != originalTailLength) {
+      segments.removeRange(startCheck, segments.length);
+      segments.addAll(mergedTail);
     }
   }
 

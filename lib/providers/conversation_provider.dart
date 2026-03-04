@@ -9,6 +9,7 @@ import 'package:omi/services/local_conversations_service.dart';
 import 'package:omi/services/maity_api_service.dart';
 import 'package:omi/services/omi_supabase_service.dart';
 import 'package:omi/services/supabase_auth_service.dart';
+import 'package:omi/services/background_upload_service.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/services/app_review_service.dart';
 
@@ -51,6 +52,13 @@ class ConversationProvider extends ChangeNotifier {
 
   ConversationProvider() {
     _preload();
+    // Listen for background upload completions to auto-refresh conversations
+    BackgroundUploadService.instance.uploadCompleted.addListener(_onUploadCompleted);
+  }
+
+  void _onUploadCompleted() {
+    debugPrint('[ConversationProvider] Background upload completed, refreshing conversations');
+    forceRefreshConversations();
   }
 
   _preload() async {
@@ -585,7 +593,7 @@ class ConversationProvider extends ChangeNotifier {
         debugPrint('[ConversationProvider] Fetching conversations from Supabase for user: $userId');
         final supabaseConvos = await OmiSupabaseService.getConversations(
           userId: userId,
-          limit: 50,
+          limit: 10,
           includeDiscarded: showDiscardedConversations,
         );
         debugPrint('[ConversationProvider] Received ${supabaseConvos.length} conversations from Supabase');
@@ -865,6 +873,7 @@ class ConversationProvider extends ChangeNotifier {
   void dispose() {
     _processingConversationWatchTimer?.cancel();
     _refreshDebounceTimer?.cancel();
+    BackgroundUploadService.instance.uploadCompleted.removeListener(_onUploadCompleted);
     super.dispose();
   }
 

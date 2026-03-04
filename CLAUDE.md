@@ -42,7 +42,7 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
 ### Providers (`lib/providers/`)
 - `auth_provider.dart` - Auth Supabase
 - `conversation_provider.dart` - Estado conversaciones + busqueda semantica
-- `capture_provider.dart` - Grabacion, transcripcion, guardado, health monitor, recovery
+- `capture_provider.dart` - Orquesta grabacion via 5 servicios: FSM, AudioTransport, TranscriptionPipeline, PersistenceManager, AppLifecycleManager
 - `usage_provider.dart` - Estadisticas
 - `memories_provider.dart` - CRUD memorias + revision
 - `action_items_provider.dart` - Tareas
@@ -52,12 +52,17 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
 ### Services (`lib/services/`)
 - `supabase_auth_service.dart` - Auth (Google Sign-In)
 - `maity_api_service.dart` - API backend Vercel
-- `omi_supabase_service.dart` - Operaciones Supabase (createDraft, appendSegments, finalize)
+- `omi_supabase_service.dart` - Operaciones Supabase (queries, search, delete)
+- `background_upload_service.dart` - Cola persistente, upload en background
+- `recording/persistence_manager.dart` - Guardado local, finalizacion con mutex
+- `recording/recording_state_machine.dart` - FSM estados de grabacion
+- `recording/audio_transport_service.dart` - Phone mic, BLE, system audio
+- `recording/transcription_pipeline.dart` - Socket lifecycle, buffering segmentos
+- `recording/app_lifecycle_manager.dart` - Background/foreground handling
 - `voice_profile_service.dart` - Enrollment y verificacion voz
 - `feedback_service.dart` - Feedback usuarios
 - `conversation_processor.dart` - Procesamiento local con OpenAI
 - `transcript_recovery_service.dart` - Recovery de conversaciones interrumpidas
-- `incremental_save_service.dart` - Guardado incremental a Supabase
 - `daily_report_service.dart` - HTTP para reportes diarios
 
 ### Otros
@@ -133,20 +138,15 @@ Extraidos por OpenAI de conversaciones, guardados en `omi_conversations.action_i
 
 ## Data Persistence (Grabacion)
 
-### Incremental Save (3 fases)
-1. **Draft**: primer segmento → `POST /v1/omi/conversations/draft` → row `status='recording'`
-2. **Segments**: cada 30s o 20 segmentos → `POST /v1/omi/conversations/{id}/segments` (upsert idempotente, ON CONFLICT DO NOTHING)
-3. **Finalize**: al detener → `POST /v1/omi/conversations/{id}/finalize` → rebuild transcript, embeddings, memorias, status='completed'
-
-**Reprocess**: `POST /v1/omi/conversations/{id}/reprocess` para re-analizar existentes.
+### Local-First Recording + Background Upload
+1. **During recording**: Segments saved to local JSON every 5s (recovery file only). Zero network calls.
+2. **On stop**: State → `processing`, fire-and-forget background finalize
+3. **Background upload**: `BackgroundUploadService` queues → `POST /v1/omi/conversations/store-and-process`
+4. **Retry**: Exponential backoff (5s, 10s, 20s), max 3 retries, persists across app restarts
 
 **Procesamiento**: ≤6,000 chars local (Flutter+OpenAI), >6,000 chars backend chunked (~5,000 chars/chunk, max 3 concurrentes).
 
-**Health monitor**: timer cada 10s, alerta si >60s sin segmentos. Notificacion ID: 3.
-
-**Fallback**: si incremental falla, `store_conversation` monolitico funciona. `get_conversations` filtra `status='completed'`.
-
-**Archivos backend**: `api/routers/omi.py`, `api/services/supabase_client.py`, `api/services/chunked_processor.py`, `api/services/utils.py`. **Flutter**: `lib/services/incremental_save_service.dart`, `lib/services/omi_supabase_service.dart`, `lib/providers/capture_provider.dart`.
+**Archivos**: `lib/services/background_upload_service.dart`, `lib/services/recording/persistence_manager.dart`, `lib/providers/capture_provider.dart`. **Backend**: `api/routers/omi.py`, `api/services/supabase_client.py`.
 
 ### Transcript Recovery (crash/kill)
 Segmentos se guardan a archivo JSON cada 5s (debounce) o 5 nuevos segmentos. Al reiniciar, `RecoveryDialog` ofrece recuperar o descartar. Expiracion: 24h. Minimo recuperable: 5 palabras. 3 reintentos con backoff.
@@ -158,12 +158,12 @@ Segmentos se guardan a archivo JSON cada 5s (debounce) o 5 nuevos segmentos. Al 
 - `mergeConsecutiveSegmentsByTime()`: mismo speaker, gap <3s
 - Auto-guardado por silencio: default 120s → `_onSilenceTimeout()`
 
-**Proteccion doble guardado**: Flag `_conversationFinalized` en CaptureProvider.
+**Proteccion doble guardado**: Mutex en PersistenceManager + `_backgroundFinalize` fire-and-forget pattern.
 
 ## App Lifecycle Handling
 
 ### Manejo de Estados del Ciclo de Vida
-`CaptureProvider` implementa `WidgetsBindingObserver` en **todas las plataformas** (mobile + desktop) para manejar correctamente cuando la app va a background/foreground.
+`AppLifecycleManager` maneja background/foreground en **todas las plataformas** (mobile + desktop). Delegado desde `CaptureProvider`.
 
 **Estados manejados**:
 - `paused`: App en background (pantalla bloqueada, minimizada)
@@ -223,10 +223,11 @@ Timer de 15s que intenta reconectar socket desconectado.
 | `/v1/omi/conversations/search` | POST | Busqueda semantica |
 | `/v1/omi/conversations` | GET | Listar (status='completed') |
 | `/v1/omi/conversations/{id}` | GET | Obtener con segmentos |
-| `/v1/omi/conversations/draft` | POST | Crear draft |
-| `/v1/omi/conversations/{id}/segments` | POST | Upsert segmentos |
-| `/v1/omi/conversations/{id}/finalize` | POST | Finalizar conversacion |
+| `/v1/omi/conversations/draft` | POST | ~~Crear draft~~ (deprecated) |
+| `/v1/omi/conversations/{id}/segments` | POST | ~~Upsert segmentos~~ (deprecated) |
+| `/v1/omi/conversations/{id}/finalize` | POST | ~~Finalizar conversacion~~ (deprecated) |
 | `/v1/omi/conversations/{id}/reprocess` | POST | Re-analizar |
+| `/v1/omi/conversations/store-and-process` | POST | Upload + procesamiento single-call |
 | `/v1/users/{id}/metrics` | GET | Metricas por periodo |
 | `/v1/users/{id}/metrics/summary` | GET | Resumen metricas |
 | `/v2/messages` | POST | Chat con function calling |

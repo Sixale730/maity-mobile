@@ -26,28 +26,21 @@ class ConversationCapturingPage extends StatefulWidget {
   State<ConversationCapturingPage> createState() => _ConversationCapturingPageState();
 }
 
-class _ConversationCapturingPageState extends State<ConversationCapturingPage> with TickerProviderStateMixin {
+class _ConversationCapturingPageState extends State<ConversationCapturingPage> with SingleTickerProviderStateMixin {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   TabController? _controller;
   late bool showSummarizeConfirmation;
-  late AnimationController _animationController;
 
   @override
   void initState() {
     _controller = TabController(length: 2, vsync: this, initialIndex: 0);
-    _controller!.addListener(() => setState(() {}));
     showSummarizeConfirmation = SharedPreferencesUtil().showSummarizeConfirmation;
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    )..repeat(reverse: true);
     super.initState();
   }
 
   @override
   void dispose() {
     _controller?.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -80,16 +73,15 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
 
   Future<void> _stopConversation(CaptureProvider provider) async {
     if (provider.segments.isNotEmpty || provider.photos.isNotEmpty) {
-      // Helper function to stop recording and process conversation
+      // Helper function to stop recording (finalization runs in background)
       Future<void> stopRecordingAndProcess() async {
         // Stop any active recording (phone mic or system audio)
+        // The stop methods now transition to processing state and finalize in background
         if (provider.recordingState == RecordingState.record) {
           await provider.stopStreamRecording();
         } else if (provider.recordingState == RecordingState.systemAudioRecord) {
           await provider.stopSystemAudioRecording();
         }
-        // Then process the conversation
-        provider.forceProcessingCurrentConversation();
       }
 
       if (!showSummarizeConfirmation) {
@@ -143,8 +135,17 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<CaptureProvider, DeviceProvider>(
-      builder: (context, provider, deviceProvider, child) {
+    return Selector<CaptureProvider, ({int segmentsVersion, int photosCount, bool hasData, RecordingState recordingState})>(
+      selector: (_, p) => (
+        segmentsVersion: p.segmentsVersion,
+        photosCount: p.photos.length,
+        hasData: p.hasTranscripts || p.photos.isNotEmpty,
+        recordingState: p.recordingState,
+      ),
+      builder: (context, snapshot, child) {
+        final provider = context.read<CaptureProvider>();
+        final deviceProvider = context.read<DeviceProvider>();
+        final isProcessing = snapshot.recordingState == RecordingState.processing;
         return PopScope(
           canPop: true,
           child: Scaffold(
@@ -166,9 +167,11 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
                     icon: const Icon(Icons.arrow_back_rounded, size: 24.0),
                   ),
                   const SizedBox(width: 4),
-                  Text(provider.photos.isNotEmpty ? "📸" : "🎙️"),
+                  Text(isProcessing ? "" : (provider.photos.isNotEmpty ? "" : "")),
                   const SizedBox(width: 4),
-                  Expanded(child: Text(AppLocalizations.of(context)?.listening ?? "Listening")),
+                  Expanded(child: Text(isProcessing
+                      ? (AppLocalizations.of(context)?.processing ?? "Procesando...")
+                      : (AppLocalizations.of(context)?.listening ?? "Listening"))),
                 ],
               ),
             ),
@@ -253,12 +256,12 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
               ],
             ),
             floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-            floatingActionButton: (provider.segments.isNotEmpty || provider.photos.isNotEmpty)
+            floatingActionButton: isProcessing
                 ? Container(
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
-                      color: Colors.red,
+                      color: const Color(0xFF35343B),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -269,17 +272,41 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
                         ),
                       ],
                     ),
-                    child: IconButton(
-                      onPressed: () => _stopConversation(provider),
-                      icon: const FaIcon(
-                        FontAwesomeIcons.stop,
+                    child: const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: CircularProgressIndicator(
                         color: Colors.white,
-                        size: 20.0,
+                        strokeWidth: 2.5,
                       ),
-                      padding: EdgeInsets.zero,
                     ),
                   )
-                : null,
+                : (provider.segments.isNotEmpty || provider.photos.isNotEmpty)
+                    ? Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              spreadRadius: 2,
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          onPressed: () => _stopConversation(provider),
+                          icon: const FaIcon(
+                            FontAwesomeIcons.stop,
+                            color: Colors.white,
+                            size: 20.0,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                      )
+                    : null,
           ),
         );
       },

@@ -183,3 +183,49 @@ def get_user_from_token(authorization: str = Header(...)) -> dict:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
+
+
+async def resolve_maity_user_id(auth_id: str) -> str:
+    """Resolve auth.users.id (from JWT sub) to maity.users.id.
+
+    Queries maity.users by auth_id and returns the maity user UUID.
+    Raises 403 if the user is not found in maity.users.
+    """
+    from .supabase_client import get_supabase
+
+    supabase = get_supabase()
+    result = (
+        supabase.schema("maity")
+        .table("users")
+        .select("id")
+        .eq("auth_id", auth_id)
+        .single()
+        .execute()
+    )
+    if not result.data or not result.data.get("id"):
+        raise HTTPException(status_code=403, detail="User not found in maity.users")
+    return result.data["id"]
+
+
+async def verify_conversation_ownership(conversation_id: str, maity_user_id: str) -> dict:
+    """Verify that a conversation belongs to the authenticated user.
+
+    Returns the conversation row if ownership is confirmed.
+    Raises 404 if conversation not found, 403 if not owned by user.
+    """
+    from .supabase_client import get_supabase
+
+    supabase = get_supabase()
+    result = (
+        supabase.schema("maity")
+        .table("omi_conversations")
+        .select("id, user_id, status")
+        .eq("id", conversation_id)
+        .single()
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if result.data.get("user_id") != maity_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this conversation")
+    return result.data
