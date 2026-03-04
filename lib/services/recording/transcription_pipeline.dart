@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/env/env.dart';
+import 'package:omi/models/stt_provider.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/message_event.dart';
@@ -183,6 +185,23 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     // Check codec compatibility for custom STT - fallback to default
     CustomSttConfig? effectiveConfig =
         customSttConfig.isEnabled ? customSttConfig : null;
+
+    // Fallback: if Omi backend URL is not configured, use Deepgram directly
+    if (effectiveConfig == null) {
+      final apiBaseUrl = Env.apiBaseUrl;
+      if (apiBaseUrl == null || apiBaseUrl.isEmpty) {
+        final deepgramKey = Env.deepgramApiKey;
+        if (deepgramKey != null && deepgramKey.isNotEmpty) {
+          debugPrint('[TranscriptionPipeline] API_BASE_URL empty, falling back to Deepgram Live');
+          effectiveConfig = CustomSttConfig(
+            provider: SttProvider.deepgramLive,
+            apiKey: deepgramKey,
+            language: language,
+          );
+        }
+      }
+    }
+
     if (effectiveConfig != null &&
         !TranscriptSocketServiceFactory.isCodecSupportedForCustomStt(codec)) {
       debugPrint('[CustomSTT] Codec $codec not supported, falling back to Omi');

@@ -18,8 +18,11 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:omi/env/env.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/main.dart';
+import 'package:omi/models/custom_stt_config.dart';
+import 'package:omi/models/stt_provider.dart';
 import 'package:omi/providers/role_provider.dart';
 import 'package:omi/pages/settings/feedback_page.dart';
 import 'package:omi/pages/settings/feedback_list_page.dart';
@@ -320,6 +323,109 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
     );
   }
 
+  String _getTranscriptionLanguageLabel() {
+    final config = SharedPreferencesUtil().customSttConfig;
+    if (!config.isEnabled) return 'Multi';
+    final lang = config.language ?? 'multi';
+    switch (lang) {
+      case 'es':
+        return 'Español';
+      case 'en':
+        return 'English';
+      default:
+        return 'Multi';
+    }
+  }
+
+  void _showTranscriptionSettings(BuildContext context) {
+    final config = SharedPreferencesUtil().customSttConfig;
+    final currentLang = config.isEnabled ? (config.language ?? 'multi') : 'multi';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 4,
+                width: 36,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3C3C43),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Text(
+                'Transcripción',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    FaIcon(FontAwesomeIcons.boltLightning, color: Color(0xFF8E8E93), size: 16),
+                    SizedBox(width: 8),
+                    Text('Proveedor: ', style: TextStyle(color: Color(0xFF8E8E93), fontSize: 14)),
+                    Text('Deepgram', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Idioma de transcripción',
+                    style: TextStyle(color: Color(0xFF8E8E93), fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildLanguageOption(ctx, 'Español', 'es', currentLang),
+              _buildLanguageOption(ctx, 'English', 'en', currentLang),
+              _buildLanguageOption(ctx, 'Auto-detect (Multi)', 'multi', currentLang),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLanguageOption(BuildContext ctx, String label, String langCode, String currentLang) {
+    final isSelected = currentLang == langCode;
+    return ListTile(
+      title: Text(label, style: const TextStyle(color: Colors.white)),
+      trailing: isSelected ? const Icon(Icons.check, color: Color(0xFFFF0050)) : null,
+      onTap: () {
+        final deepgramKey = Env.deepgramApiKey ?? '';
+        final newConfig = CustomSttConfig(
+          provider: SttProvider.deepgramLive,
+          apiKey: deepgramKey,
+          language: langCode,
+        );
+        SharedPreferencesUtil().saveCustomSttConfig(newConfig);
+        SharedPreferencesUtil().userPrimaryLanguage = langCode;
+        SharedPreferencesUtil().hasSetPrimaryLanguage = true;
+        Navigator.pop(ctx);
+        setState(() {});
+      },
+    );
+  }
+
   /// Closes the settings drawer and navigates to a page.
   /// Uses the global navigator key since the modal bottom sheet's context
   /// becomes invalid after pop (unlike a Drawer, a modal is a separate route).
@@ -461,6 +567,16 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                   style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 14),
                 ),
                 onTap: () => _showLanguageSelector(context),
+              ),
+              const Divider(height: 1, color: Color(0xFF3C3C43)),
+              _buildSettingsItem(
+                title: 'Transcripción',
+                icon: const FaIcon(FontAwesomeIcons.microphone, color: Color(0xFF8E8E93), size: 20),
+                trailingChip: Text(
+                  _getTranscriptionLanguageLabel(),
+                  style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 14),
+                ),
+                onTap: () => _showTranscriptionSettings(context),
               ),
               // Developer Settings - Admin only
               if (roleProvider.isAdmin) ...[
