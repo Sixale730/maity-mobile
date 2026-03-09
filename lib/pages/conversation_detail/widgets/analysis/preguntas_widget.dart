@@ -22,15 +22,15 @@ class PreguntasWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               FaIcon(
                 FontAwesomeIcons.circleQuestion,
                 color: Colors.amber,
                 size: 18,
               ),
-              const SizedBox(width: 10),
-              const Text(
+              SizedBox(width: 10),
+              Text(
                 'Análisis de Preguntas',
                 style: TextStyle(
                   color: Colors.white,

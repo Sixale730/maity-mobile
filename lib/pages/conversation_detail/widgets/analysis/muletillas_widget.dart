@@ -26,15 +26,15 @@ class MuletillasWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               FaIcon(
                 FontAwesomeIcons.commentDots,
-                color: const Color(0xFF485DF4),
+                color: Color(0xFF485DF4),
                 size: 18,
               ),
-              const SizedBox(width: 10),
-              const Text(
+              SizedBox(width: 10),
+              Text(
                 'Muletillas Detectadas',
                 style: TextStyle(
                   color: Colors.white,

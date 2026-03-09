@@ -18,15 +18,15 @@ class InsightsWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Section title
-        Row(
+        const Row(
           children: [
-            const FaIcon(
+            FaIcon(
               FontAwesomeIcons.lightbulb,
               size: 14,
               color: Colors.amber,
             ),
-            const SizedBox(width: 8),
-            const Text(
+            SizedBox(width: 8),
+            Text(
               'Lo que quizas no notaste',
               style: TextStyle(
                 color: Colors.white,

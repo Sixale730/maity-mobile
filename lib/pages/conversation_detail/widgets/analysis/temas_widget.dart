@@ -24,15 +24,15 @@ class TemasWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               FaIcon(
                 FontAwesomeIcons.listCheck,
                 color: Colors.green,
                 size: 18,
               ),
-              const SizedBox(width: 10),
-              const Text(
+              SizedBox(width: 10),
+              Text(
                 'Temas y Compromisos',
                 style: TextStyle(
                   color: Colors.white,

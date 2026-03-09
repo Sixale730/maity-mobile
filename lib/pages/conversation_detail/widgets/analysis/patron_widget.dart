@@ -25,15 +25,15 @@ class PatronWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               FaIcon(
                 FontAwesomeIcons.route,
-                color: const Color(0xFF9B4DCA),
+                color: Color(0xFF9B4DCA),
                 size: 18,
               ),
-              const SizedBox(width: 10),
-              const Text(
+              SizedBox(width: 10),
+              Text(
                 'Patrón de Comunicación',
                 style: TextStyle(
                   color: Colors.white,

@@ -39,8 +39,8 @@ class RadiografiaWidget extends StatelessWidget {
               color: Colors.teal,
               size: 16,
             ),
-            const SizedBox(width: 8),
-            const Text(
+            SizedBox(width: 8),
+            Text(
               'Radiografia Rapida',
               style: TextStyle(
                 fontSize: 18,

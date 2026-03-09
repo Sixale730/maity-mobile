@@ -20,15 +20,15 @@ class CompetencyScoresWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        const Row(
           children: [
             FaIcon(
               FontAwesomeIcons.chartBar,
-              color: const Color(0xFF485DF4),
+              color: Color(0xFF485DF4),
               size: 18,
             ),
-            const SizedBox(width: 8),
-            const Text(
+            SizedBox(width: 8),
+            Text(
               'Competencias de Comunicaci\u00f3n',
               style: TextStyle(
                 color: Colors.white,
