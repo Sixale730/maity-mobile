@@ -33,6 +33,8 @@ abstract interface class ITransctiptSegmentSocketServiceListener {
   void onConnected();
 
   void onClosed([int? closeCode]);
+
+  void onTerminalFailure(String reason);
 }
 
 class SpeechProfileTranscriptSegmentSocketService extends TranscriptSegmentSocketService {
@@ -231,6 +233,11 @@ class TranscriptSegmentSocketService implements IPureSocketListener {
       body: 'Your device is offline. Transcription is paused until connection is restored.',
     );
     DebugLogManager.logEvent('internet_connection_lost', {});
+
+    // Propagate to listeners so the pipeline can auto-finalize
+    _listeners.forEach((k, v) {
+      v.onTerminalFailure('internet_connection_failed');
+    });
   }
 
   @override
@@ -249,6 +256,11 @@ class TranscriptSegmentSocketService implements IPureSocketListener {
           ' Please restart the app or contact support if the problem persists.',
     );
     DebugLogManager.logEvent('transcription_socket_max_retries', {});
+
+    // Propagate to listeners so the pipeline can auto-finalize
+    _listeners.forEach((k, v) {
+      v.onTerminalFailure('max_retries_reached');
+    });
   }
 
   @override

@@ -448,6 +448,24 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _processNewSegmentReceived(newSegments);
   }
 
+  @override
+  void onTerminalFailure(String reason) {
+    _captureLog.log('socket', 'terminal_failure',
+        severity: 'error', details: {'reason': reason});
+
+    _transcriptServiceReady = false;
+
+    // Cancel keep-alive and health monitor — the socket won't recover
+    _keepAliveTimer?.cancel();
+    _keepAliveTimer = null;
+    stopHealthMonitor();
+
+    // Trigger auto-finalize to save whatever we have
+    onAutoFinalizeNeeded?.call();
+
+    onNotifyListeners?.call();
+  }
+
   // ---------------------------------------------------------------------------
   // Segment processing
   // ---------------------------------------------------------------------------

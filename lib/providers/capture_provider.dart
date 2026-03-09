@@ -953,6 +953,9 @@ class CaptureProvider extends ChangeNotifier
   /// Fire-and-forget finalize: runs finalization in background and transitions
   /// to stop state when complete. Logs errors but always transitions to stop.
   void _backgroundFinalize() {
+    // Capture sessionId so we can detect if a new recording started mid-finalize
+    final sessionId = _stateMachine.currentSessionId;
+
     _finalizeLocalConversation().then((_) {
       debugPrint('[CaptureProvider] Background finalize completed successfully');
     }).catchError((e) {
@@ -960,9 +963,15 @@ class CaptureProvider extends ChangeNotifier
       _captureLog.log('recording', 'background_finalize_error',
           severity: 'error', details: {'error': e.toString()});
     }).whenComplete(() {
-      _resetStateVariables();
-      updateRecordingState(RecordingState.stop);
-      _captureLog.endSession();
+      // Only reset if the session hasn't changed (no new recording started)
+      if (_stateMachine.currentSessionId == sessionId) {
+        _resetStateVariables();
+        updateRecordingState(RecordingState.stop);
+        _captureLog.endSession();
+      } else {
+        debugPrint('[CaptureProvider] Skipping reset: new session started '
+            '(old=$sessionId, new=${_stateMachine.currentSessionId})');
+      }
     });
   }
 
