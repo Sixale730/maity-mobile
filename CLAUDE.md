@@ -21,7 +21,7 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
 
 ## Database Schema
 
-**maity.users**: `id` (UUID PK), `auth_id` (FK auth.users), `email`, `name`, `company_id`, `status` (ACTIVE default), `level`, `role`. Trigger `handle_new_auth_user()` crea registro en signup. Nota: columnas `company_id`, `status`, `level`, `role` agregadas por web platform.
+**maity.users**: `id` (UUID PK), `auth_id` (FK auth.users), `email`, `first_name` (NOT NULL, default ''), `last_name` (default ''), `company_id`, `status` (PENDING default), `level`, `role`, `nickname`, `phone`, `skill`, `registration_form_completed`, `onboarding_completed_at`, `onboarding_token`, `total_xp`. Trigger `on_auth_user_created` en `auth.users` ejecuta `handle_new_auth_user()` que crea registro en signup parseando `full_name`/`name` de Google metadata. Nota: columnas `company_id`, `status`, `level`, `role`, etc. agregadas por web platform.
 
 **maity.omi_conversations**: `id`, `user_id` (FK), `title`, `overview`, `emoji`, `category`, `action_items`/`events` (JSONB), `transcript_text`, `embedding` (vector(1536)), `words_count`, `duration_seconds`, `discarded` (bool default false), `last_segment_at`, `segment_count`, `status`, `firebase_uid` (legacy, siempre NULL). Check constraint `omi_conversations_valid_status`: status IN ('recording','in_progress','processing','completed','failed'). Indices HNSW.
 
