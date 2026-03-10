@@ -7,6 +7,7 @@ import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/env/env.dart';
 import 'package:omi/services/capture_log_service.dart';
+import 'package:omi/services/notifications/notification_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -210,6 +211,30 @@ class BackgroundUploadService {
           debugPrint(
               '[BackgroundUpload] Upload ${upload.id} failed (attempt ${upload.retryCount}/$_maxRetries)');
         }
+      }
+
+      // Clean up permanently failed uploads (dead letter removal)
+      final deadItems =
+          _queue.where((u) => u.retryCount >= _maxRetries).toList();
+      for (final dead in deadItems) {
+        debugPrint(
+            '[BackgroundUpload] Removing permanently failed upload: ${dead.id}');
+        _captureLog.log('upload', 'upload_permanently_failed',
+            severity: 'error', details: {
+          'id': dead.id,
+          'retry_count': dead.retryCount,
+        });
+        await _deleteUploadFile(dead.filePath);
+        _queue.remove(dead);
+      }
+      if (deadItems.isNotEmpty) {
+        await _saveQueue();
+        NotificationService.instance.createNotification(
+          title: 'Upload Failed',
+          body:
+              '${deadItems.length} recording(s) could not be uploaded after multiple attempts.',
+          notificationId: 4,
+        );
       }
 
       // Schedule retry if there are still pending items

@@ -13,6 +13,7 @@ import 'package:omi/services/notifications.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
+import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/device.dart';
 import 'package:omi/utils/logger.dart';
 import 'package:omi/utils/other/debouncer.dart';
@@ -69,6 +70,7 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
   String get latestFirmwareVersion => _latestFirmwareVersion;
 
   Timer? _disconnectNotificationTimer;
+  Timer? _bleDisconnectRecordingTimer;
   final Debouncer _disconnectDebouncer = Debouncer(delay: const Duration(milliseconds: 500));
   final Debouncer _connectDebouncer = Debouncer(delay: const Duration(milliseconds: 100));
 
@@ -349,6 +351,7 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
   void dispose() {
     _bleBatteryLevelListener?.cancel();
     _reconnectionTimer?.cancel();
+    _bleDisconnectRecordingTimer?.cancel();
     _disconnectDebouncer.cancel();
     _connectDebouncer.cancel();
     ServiceManager.instance().device.unsubscribe(this);
@@ -371,6 +374,18 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
     _reconnectRetries = 0;
 
     captureProvider?.updateRecordingDevice(null);
+
+    // Debounce: wait 3s before stopping recording (allow BLE flicker reconnection)
+    _bleDisconnectRecordingTimer?.cancel();
+    if (captureProvider?.recordingState == RecordingState.deviceRecord) {
+      _bleDisconnectRecordingTimer = Timer(const Duration(seconds: 3), () {
+        // If still disconnected after 3s, stop recording
+        if (connectedDevice == null) {
+          debugPrint('[DeviceProvider] BLE still disconnected after 3s, stopping recording');
+          captureProvider?.stopStreamDeviceRecording();
+        }
+      });
+    }
 
     // Wals
     ServiceManager.instance().wal.getSyncs().sdcard.setDevice(null);
@@ -418,6 +433,7 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
       'device_name': device.name,
       'device_type': device.type.name,
     });
+    _bleDisconnectRecordingTimer?.cancel();
     _disconnectNotificationTimer?.cancel();
     NotificationService.instance.clearNotification(1);
 

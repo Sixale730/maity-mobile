@@ -654,13 +654,15 @@ class CaptureProvider extends ChangeNotifier
   @override
   void cancelSilenceTimer() => _pipeline.cancelSilenceTimer();
   @override
+  void resetSilenceTimer() => _pipeline.resetSilenceTimer();
+  @override
   void startMetricsTracking() => _audioTransport.startMetricsTracking();
   @override
   Future<void> startHealthMonitor() async => _pipeline.startHealthMonitor();
   @override
   Future<void> reconnectSocket() async => _reconnectForStall();
   @override
-  void startKeepAlive() {} // Handled internally by pipeline
+  void startKeepAlive() => _pipeline.startKeepAlive();
   @override
   Future<void> saveRecoveryData({bool synchronous = false}) async {
     if (segments.isNotEmpty && _stateMachine.currentSessionId != null) {
@@ -866,6 +868,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   Future<void> _reconnectForStall() async {
+    _pipeline.stopKeepAlive();  // Cancel any running keep-alive before reconnecting
     _pipeline.setReconnecting(true);
     await _pipeline.stopSocket('transcription stalled');
     try {
@@ -921,6 +924,8 @@ class CaptureProvider extends ChangeNotifier
     }
 
     await _pipeline.stopSocket('connection lost - auto finalizing');
+    await _audioTransport.closeBleStream();
+    _pipeline.flushVad();
     ServiceManager.instance().mic.stop();
     CaptureProvider.isRecordingWithPhoneMic = false;
     _pipeline.stopHealthMonitor();

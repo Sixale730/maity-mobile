@@ -60,6 +60,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   DateTime? _lastAudioBytesSentAt;
 
   // ---------------------------------------------------------------------------
+  // Token refresh
+  // ---------------------------------------------------------------------------
+  Timer? _tokenRefreshTimer;
+
+  // ---------------------------------------------------------------------------
   // Silence timer
   // ---------------------------------------------------------------------------
   Timer? _silenceTimer;
@@ -254,6 +259,13 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _socket?.subscribe(this, this);
     _transcriptServiceReady = true;
 
+    // Proactive token refresh: reconnect before JWT expires (~1hr)
+    _tokenRefreshTimer?.cancel();
+    _tokenRefreshTimer = Timer(const Duration(minutes: 50), () {
+      _captureLog.log('socket', 'token_refresh_reconnect', details: {});
+      onTranscriptionStalled?.call();
+    });
+
     // Initialize VAD if enabled and using custom STT with PCM16 codec
     await initializeVadService(codec, effectiveConfig);
 
@@ -270,6 +282,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
   /// Stop the socket cleanly.
   Future<void> stopSocket(String reason) async {
+    _tokenRefreshTimer?.cancel();
     _captureLog.log('socket', 'socket_stopping',
         details: {'reason': reason});
     await _socket?.stop(reason: reason);
@@ -411,13 +424,15 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       return;
     }
 
-    // Temporal errors - retry via keep-alive
+    // Temporal errors - attempt immediate reconnect, fall back to keep-alive
     _captureLog.log('socket', 'socket_error_temporal',
         severity: 'warning', details: {'error': errorStr});
     _transcriptionServiceStatuses = [];
     _transcriptServiceReady = false;
     onNotifyListeners?.call();
-    _startKeepAlive();
+
+    // Try immediate reconnect; if it fails, fall back to keep-alive timer
+    onTranscriptionStalled?.call();
   }
 
   @override
@@ -620,6 +635,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       // by calling initiateWebsocket through the stall handler
       await onTranscriptionStalled?.call();
     });
+  }
+
+  /// Start keep-alive timer (public entry point for delegate).
+  void startKeepAlive() {
+    _startKeepAlive();
   }
 
   /// Stop the keep-alive timer.
@@ -909,6 +929,9 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   Future<void> dispose() async {
     _keepAliveTimer?.cancel();
     _keepAliveTimer = null;
+
+    _tokenRefreshTimer?.cancel();
+    _tokenRefreshTimer = null;
 
     _socketHealthTimer?.cancel();
     _socketHealthTimer = null;

@@ -30,6 +30,7 @@ abstract class AppLifecycleDelegate {
   Future<void> stopHealthMonitor();
   void cancelKeepAlive();
   void cancelSilenceTimer();
+  void resetSilenceTimer();
   void startMetricsTracking();
   Future<void> startHealthMonitor();
   Future<void> reconnectSocket();
@@ -253,6 +254,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
       } else {
         // Socket still connected, just restart health monitor
         delegate.startHealthMonitor();
+        delegate.resetSilenceTimer();
       }
     }
   }
@@ -330,6 +332,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
     } finally {
       _isReconnectingSocket = false;
       delegate.startHealthMonitor(); // Start health monitor AFTER reconnection
+      delegate.resetSilenceTimer();
       delegate.notifyListenersCallback();
     }
   }
