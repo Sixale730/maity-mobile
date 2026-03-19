@@ -76,6 +76,8 @@ class CaptureProvider extends ChangeNotifier
   bool _isWalSupported = false;
   bool get isWalSupported => _isWalSupported;
 
+  bool _isFinalizing = false;
+
   CaptureLogService get _captureLog => CaptureLogService.instance;
 
   // ---------------------------------------------------------------------------
@@ -905,7 +907,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   Future<void> _autoFinalizeOnConnectionLost() async {
-    if (segments.isEmpty || _stateMachine.conversationFinalized) return;
+    if (segments.isEmpty || _stateMachine.conversationFinalized || _isFinalizing) return;
 
     _captureLog.log('recording', 'auto_finalize_connection_lost',
         severity: 'warning',
@@ -939,25 +941,38 @@ class CaptureProvider extends ChangeNotifier
   }
 
   Future<void> _finalizeLocalConversation() async {
-    final success = await _persistence.finalizeConversation(
-      segments: List.from(segments),
-      userId: _stateMachine.cachedRecordingUserId ??
-          SupabaseAuthService.instance.maityUserId,
-      startedAt: _stateMachine.recordingStartTime,
-      isSpeechProfileMode: _stateMachine.isSpeechProfileMode,
-      onSuccess: () {
-        conversationProvider?.refreshConversations();
-      },
-    );
+    if (_isFinalizing) {
+      debugPrint('[CaptureProvider] Finalize already in progress, skipping');
+      return;
+    }
+    _isFinalizing = true;
+    try {
+      final success = await _persistence.finalizeConversation(
+        segments: List.from(segments),
+        userId: _stateMachine.cachedRecordingUserId ??
+            SupabaseAuthService.instance.maityUserId,
+        startedAt: _stateMachine.recordingStartTime,
+        isSpeechProfileMode: _stateMachine.isSpeechProfileMode,
+        onSuccess: () {
+          conversationProvider?.refreshConversations();
+        },
+      );
 
-    if (success) {
-      _stateMachine.conversationFinalized = true;
+      if (success) {
+        _stateMachine.conversationFinalized = true;
+      }
+    } finally {
+      _isFinalizing = false;
     }
   }
 
   /// Fire-and-forget finalize: runs finalization in background and transitions
   /// to stop state when complete. Logs errors but always transitions to stop.
   void _backgroundFinalize() {
+    if (_isFinalizing) {
+      debugPrint('[CaptureProvider] Finalize already in progress, skipping background finalize');
+      return;
+    }
     // Capture sessionId so we can detect if a new recording started mid-finalize
     final sessionId = _stateMachine.currentSessionId;
 
