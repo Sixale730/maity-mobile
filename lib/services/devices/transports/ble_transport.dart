@@ -22,6 +22,18 @@ class BleTransport extends DeviceTransport {
     _bleConnectionSubscription = _bleDevice.connectionState.listen((state) {
       switch (state) {
         case BluetoothConnectionState.disconnected:
+          // Clear stale stream resources on unexpected disconnect
+          if (_state == DeviceTransportState.connected || _state == DeviceTransportState.connecting) {
+            debugPrint('[BleTransport] Unexpected disconnect while ${_state.name}, clearing stale resources');
+            for (final sub in _characteristicSubscriptions.values) {
+              sub.cancel();
+            }
+            _characteristicSubscriptions.clear();
+            for (final controller in _streamControllers.values) {
+              controller.close();
+            }
+            _streamControllers.clear();
+          }
           _updateState(DeviceTransportState.disconnected);
           break;
         case BluetoothConnectionState.connecting:
@@ -52,7 +64,8 @@ class BleTransport extends DeviceTransport {
 
   @override
   Future<void> connect() async {
-    if (_state == DeviceTransportState.connected) {
+    if (_state == DeviceTransportState.connected || _state == DeviceTransportState.connecting) {
+      debugPrint('[BleTransport] Already ${_state.name}, skipping connect');
       return;
     }
 
@@ -71,8 +84,15 @@ class BleTransport extends DeviceTransport {
         throw Exception('Bluetooth adapter not ready');
       }
 
-      // Connect to device
-      await _bleDevice.connect();
+      // Connect to device with 15s timeout to prevent hanging connections
+      try {
+        await _bleDevice.connect(autoConnect: false, mtu: null)
+            .timeout(const Duration(seconds: 15));
+      } on TimeoutException {
+        debugPrint('[BleTransport] Connection timeout after 15s');
+        _updateState(DeviceTransportState.disconnected);
+        throw Exception('BLE connection timeout');
+      }
       await _bleDevice.connectionState.where((val) => val == BluetoothConnectionState.connected).first;
 
       // Request larger MTU for better performance on Android
