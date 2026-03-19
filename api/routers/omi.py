@@ -173,6 +173,7 @@ class StoreAndProcessRequest(BaseModel):
     source: str = "omi"
     structured: Optional[StructuredInput] = None
     generate_embeddings: bool = True
+    idempotency_key: Optional[str] = None
 
 
 class StoreAndProcessResponse(BaseModel):
@@ -1029,6 +1030,67 @@ async def cleanup_orphan_drafts(
         raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
 
 
+@router.post("/conversations/cleanup-processing-orphans")
+async def cleanup_processing_orphans(
+    authorization: str = Header(...),
+):
+    """
+    Find conversations stuck in 'processing' status for more than 30 minutes
+    and mark them as 'failed'.
+
+    Called by Vercel cron job. Requires CRON_SECRET in Authorization header.
+    """
+    import os
+    from datetime import timedelta, timezone
+
+    cron_secret = os.getenv("CRON_SECRET")
+    if not cron_secret:
+        raise HTTPException(status_code=500, detail="CRON_SECRET not configured")
+
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if token != cron_secret:
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+
+    try:
+        supabase = get_supabase()
+        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+
+        result = (
+            supabase.schema("maity")
+            .table("omi_conversations")
+            .select("id, user_id, created_at")
+            .eq("status", "processing")
+            .lt("created_at", cutoff)
+            .execute()
+        )
+        orphans = result.data if result.data else []
+
+        if not orphans:
+            print("[OMI Router] cleanup-processing-orphans: no orphans found")
+            return {"cleaned": 0, "conversation_ids": []}
+
+        cleaned_ids = []
+        for orphan in orphans:
+            orphan_id = orphan["id"]
+            try:
+                supabase.schema("maity").table("omi_conversations").update({
+                    "status": "failed",
+                }).eq("id", orphan_id).execute()
+                cleaned_ids.append(orphan_id)
+                print(f"[OMI Router] Marked processing orphan {orphan_id} as failed (created_at: {orphan.get('created_at')})")
+            except Exception as e:
+                print(f"[OMI Router] Failed to update processing orphan {orphan_id}: {e}")
+
+        print(f"[OMI Router] cleanup-processing-orphans: cleaned {len(cleaned_ids)} conversations")
+        return {"cleaned": len(cleaned_ids), "conversation_ids": cleaned_ids}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[OMI Router] cleanup-processing-orphans failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+
+
 # ============ New Combined Endpoint ============
 
 
@@ -1048,6 +1110,44 @@ async def store_and_process_conversation(
     try:
         user_id = await resolve_maity_user_id(auth_id)
         supabase = get_supabase()
+
+        # Idempotency check: if a key is provided, look for an existing conversation
+        if request.idempotency_key:
+            existing_result = (
+                supabase.schema("maity")
+                .table("omi_conversations")
+                .select("id, status, title, emoji, category, overview, discarded, words_count, duration_seconds, segment_count")
+                .eq("user_id", user_id)
+                .eq("idempotency_key", request.idempotency_key)
+                .limit(1)
+                .execute()
+            )
+            if existing_result.data:
+                existing = existing_result.data[0]
+                existing_status = existing.get("status", "")
+                if existing_status == "completed":
+                    print(f"[OMI Router] Idempotent hit: conversation {existing['id']} already completed for key {request.idempotency_key}")
+                    return StoreAndProcessResponse(
+                        id=existing["id"],
+                        title=existing.get("title", ""),
+                        emoji=existing.get("emoji", ""),
+                        category=existing.get("category", "other"),
+                        overview=existing.get("overview", ""),
+                        discarded=existing.get("discarded", False),
+                        words_count=existing.get("words_count", 0),
+                        duration_seconds=existing.get("duration_seconds", 0),
+                        segment_count=existing.get("segment_count", 0),
+                        embedding_generated=True,
+                        chunked_processing=False,
+                    )
+                elif existing_status == "processing":
+                    print(f"[OMI Router] Idempotent hit: conversation {existing['id']} still processing for key {request.idempotency_key}")
+                    raise HTTPException(
+                        status_code=202,
+                        detail=f"Conversation {existing['id']} is still processing",
+                        headers={"X-Conversation-Id": existing["id"]},
+                    )
+                # If status is 'failed', allow re-processing by falling through
 
         transcript_text = "\n".join([s.text for s in request.segments])
         words_count = sum(len(s.text.split()) for s in request.segments)
@@ -1090,6 +1190,8 @@ async def store_and_process_conversation(
             "deleted": False,
             "segment_count": segment_count,
         }
+        if request.idempotency_key:
+            conv_data["idempotency_key"] = request.idempotency_key
         supabase.schema("maity").table("omi_conversations").insert(conv_data).execute()
 
         # Insert all segments in batch
