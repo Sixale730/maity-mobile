@@ -251,6 +251,7 @@ class CaptureProvider extends ChangeNotifier
     });
 
     _pipeline.startHealthMonitor();
+    _pipeline.setWalEnabled(true);
 
     // Set up socket sender for audio transport
     _audioTransport.setSocketSender((bytes) {
@@ -332,6 +333,7 @@ class CaptureProvider extends ChangeNotifier
     });
 
     _pipeline.startHealthMonitor();
+    _pipeline.setWalEnabled(true);
 
     try {
       bool wasPaused = _stateMachine.isPaused;
@@ -417,6 +419,7 @@ class CaptureProvider extends ChangeNotifier
     });
 
     _pipeline.startHealthMonitor();
+    _pipeline.setWalEnabled(true);
 
     try {
       await _audioTransport.startSystemAudioRecording(

@@ -100,6 +100,16 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   TranscriptSegmentSocketService? get socket => _socket;
 
   // ---------------------------------------------------------------------------
+  // WAL (Write-Ahead Log) support
+  // ---------------------------------------------------------------------------
+  bool _walEnabled = false;
+
+  /// Enable or disable WAL audio buffering.
+  void setWalEnabled(bool enabled) {
+    _walEnabled = enabled;
+  }
+
+  // ---------------------------------------------------------------------------
   // Reconnection flags
   // ---------------------------------------------------------------------------
   bool _isReconnecting = false;
@@ -288,9 +298,19 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   }
 
   /// Send raw bytes to the socket (used by AudioTransportService).
+  /// WAL captures all audio frames; only marks as synced what the socket received.
   void sendToSocket(dynamic data) {
+    // Always capture to WAL (Write-Ahead Log) for recovery on reconnect
+    if (_walEnabled && data is List<int>) {
+      ServiceManager.instance().wal.getSyncs().phone.onByteStream(data);
+    }
+
     if (_socket?.state == SocketServiceState.connected) {
       _socket?.send(data);
+      // Mark as synced in WAL only after successful send
+      if (_walEnabled && data is List<int>) {
+        ServiceManager.instance().wal.getSyncs().phone.onBytesSync(data);
+      }
     }
   }
 
