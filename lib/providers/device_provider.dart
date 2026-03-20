@@ -400,7 +400,8 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
 
     PlatformManager.instance.crashReporter.logInfo('Maity Device Disconnected');
     _disconnectNotificationTimer?.cancel();
-    _disconnectNotificationTimer = Timer(const Duration(seconds: 5), () {
+    _disconnectNotificationTimer = Timer(const Duration(seconds: 20), () {
+      if (connectedDevice != null) return;
       final lang = SharedPreferencesUtil().appLanguage;
       final messages = _deviceNotificationMessages[lang] ?? _deviceNotificationMessages['en']!;
       NotificationService.instance.createNotification(
