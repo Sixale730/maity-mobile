@@ -22,6 +22,7 @@ class PendingUpload {
   int retryCount;
   DateTime? lastRetryAt;
   final String? structuredJson;
+  final String idempotencyKey;
 
   PendingUpload({
     required this.id,
@@ -33,6 +34,7 @@ class PendingUpload {
     this.retryCount = 0,
     this.lastRetryAt,
     this.structuredJson,
+    required this.idempotencyKey,
   });
 
   Map<String, dynamic> toJson() => {
@@ -45,6 +47,7 @@ class PendingUpload {
         'retry_count': retryCount,
         'last_retry_at': lastRetryAt?.toUtc().toIso8601String(),
         'structured_json': structuredJson,
+        'idempotency_key': idempotencyKey,
       };
 
   factory PendingUpload.fromJson(Map<String, dynamic> json) => PendingUpload(
@@ -59,6 +62,7 @@ class PendingUpload {
             ? DateTime.parse(json['last_retry_at'] as String)
             : null,
         structuredJson: json['structured_json'] as String?,
+        idempotencyKey: (json['idempotency_key'] as String?) ?? const Uuid().v4(),
       );
 }
 
@@ -123,6 +127,7 @@ class BackgroundUploadService {
     Map<String, dynamic>? structured,
   }) async {
     final id = const Uuid().v4();
+    final idempotencyKey = const Uuid().v4();
 
     // Save segments to a dedicated JSON file
     final dir = await _getUploadsDirectory();
@@ -139,6 +144,7 @@ class BackgroundUploadService {
       userId: userId,
       source: source,
       structuredJson: structured != null ? jsonEncode(structured) : null,
+      idempotencyKey: idempotencyKey,
     );
 
     _queue.add(upload);
@@ -297,6 +303,7 @@ class BackgroundUploadService {
         'started_at': upload.startedAt.toUtc().toIso8601String(),
         'finished_at': upload.finishedAt.toUtc().toIso8601String(),
         'source': upload.source,
+        'idempotency_key': upload.idempotencyKey,
       };
 
       if (upload.userId != null) {
