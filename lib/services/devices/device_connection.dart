@@ -147,15 +147,19 @@ abstract class DeviceConnection {
   }
 
   Future<void> disconnect() async {
+    // 1. Cancel transport state listener first to prevent echo events
+    await _transportStateSubscription?.cancel();
+    _transportStateSubscription = null;
+
+    // 2. Actually disconnect the transport (BLE GATT teardown)
+    await transport.disconnect();
+
+    // 3. Only THEN update state and notify
     _connectionState = DeviceConnectionState.disconnected;
     if (_connectionStateChangedCallback != null) {
       _connectionStateChangedCallback!(device.id, _connectionState);
       _connectionStateChangedCallback = null;
     }
-
-    await transport.disconnect();
-    await _transportStateSubscription?.cancel();
-    _transportStateSubscription = null;
   }
 
   Future<bool> ping() async {

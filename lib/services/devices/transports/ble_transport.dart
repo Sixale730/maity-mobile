@@ -131,6 +131,10 @@ class BleTransport extends DeviceTransport {
 
       await _bleDevice.disconnect();
 
+      // Cancel BLE connection state listener to prevent ghost events after disconnect
+      await _bleConnectionSubscription?.cancel();
+      _bleConnectionSubscription = null;
+
       _updateState(DeviceTransportState.disconnected);
     } catch (e) {
       _updateState(DeviceTransportState.disconnected);

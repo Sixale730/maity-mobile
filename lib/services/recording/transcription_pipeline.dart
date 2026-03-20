@@ -19,7 +19,6 @@ import 'package:omi/services/vad/vad_state.dart';
 import 'package:omi/services/vad/vad_metrics.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 import 'package:omi/utils/logger.dart';
-import 'package:omi/backend/http/api/conversations.dart';
 
 /// Callback for when new segments are received.
 typedef OnSegmentsReceived = void Function(List<TranscriptSegment> newSegments);
@@ -269,8 +268,6 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     // Initialize VAD if enabled and using custom STT with PCM16 codec
     await initializeVadService(codec, effectiveConfig);
 
-    _loadInProgressConversation();
-
     onNotifyListeners?.call();
   }
 
@@ -363,28 +360,6 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// Flush VAD buffers (call when recording ends).
   void flushVad() {
     _vadService?.flush();
-  }
-
-  // ---------------------------------------------------------------------------
-  // In-progress conversation loading
-  // ---------------------------------------------------------------------------
-
-  /// Load any existing in-progress conversation from the server.
-  Future<void> _loadInProgressConversation() async {
-    var convos = await getConversations(
-        statuses: [ConversationStatus.in_progress], limit: 1);
-    if (convos.isNotEmpty) {
-      segments = convos.first.transcriptSegments;
-    }
-    // NOTE: Don't reset segments if no server conversation.
-    // Local segments (custom STT) accumulate correctly without server.
-    setHasTranscripts(segments.isNotEmpty);
-    onNotifyListeners?.call();
-  }
-
-  /// Refresh in-progress conversations (public entry point).
-  Future<void> refreshInProgressConversations() async {
-    await _loadInProgressConversation();
   }
 
   // ---------------------------------------------------------------------------
@@ -498,8 +473,6 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       _captureLog.log('segment', 'first_segment_received', details: {
         'new_count': newSegments.length,
       });
-      // Trigger in-progress load for first segment
-      _loadInProgressConversation();
     }
 
     _captureLog.log('segment', 'segments_received',
