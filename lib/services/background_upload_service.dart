@@ -342,6 +342,13 @@ class BackgroundUploadService {
     try {
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/$_queueFileName');
+      final tempFile = File('${dir.path}/$_queueFileName.tmp');
+
+      // Recovery: if main file is missing but temp exists (crash between delete+rename on Windows)
+      if (!await file.exists() && await tempFile.exists()) {
+        debugPrint('[BackgroundUpload] Recovering queue from .tmp file');
+        await tempFile.rename(file.path);
+      }
 
       if (!await file.exists()) {
         _queue = [];
@@ -358,6 +365,14 @@ class BackgroundUploadService {
       _queue = list
           .map((e) => PendingUpload.fromJson(e as Map<String, dynamic>))
           .toList();
+
+      // Separate dead letter items (already exceeded max retries) from active queue
+      final dead = _queue.where((u) => u.retryCount >= _maxRetries).toList();
+      if (dead.isNotEmpty) {
+        _deadLetterQueue.addAll(dead);
+        _queue.removeWhere((u) => u.retryCount >= _maxRetries);
+        debugPrint('[BackgroundUpload] Restored ${dead.length} dead letter items from disk');
+      }
     } catch (e) {
       debugPrint('[BackgroundUpload] Error loading queue: $e');
       _queue = [];
@@ -370,7 +385,9 @@ class BackgroundUploadService {
       final queueFile = File('${dir.path}/$_queueFileName');
       final tempFile = File('${dir.path}/$_queueFileName.tmp');
 
-      final data = _queue.map((u) => u.toJson()).toList();
+      // Persist both active queue and dead letter items
+      final allItems = [..._queue, ..._deadLetterQueue];
+      final data = allItems.map((u) => u.toJson()).toList();
       await tempFile.writeAsString(jsonEncode(data));
 
       // Windows: rename fails if target exists, so delete first
@@ -379,6 +396,9 @@ class BackgroundUploadService {
       }
       await tempFile.rename(queueFile.path);
     } catch (e) {
+      _captureLog.log('upload', 'queue_save_failed', severity: 'error', details: {
+        'error': e.toString(),
+      });
       debugPrint('[BackgroundUpload] Error saving queue: $e');
     }
   }

@@ -157,11 +157,20 @@ class TranscriptRecoveryService {
     }
   }
 
-  /// Check if a recovery file exists (quick check without parsing)
+  /// Check if a recovery file exists (quick check without parsing).
+  /// Also recovers from Windows crash window where .tmp exists but main file doesn't.
   static Future<bool> hasRecoveryData() async {
     try {
       final file = await _getRecoveryFile();
-      return await file.exists();
+      if (await file.exists()) return true;
+
+      // Recovery: .tmp file exists but main file doesn't (crash between delete+rename on Windows)
+      final tmpFile = File('${file.path}.tmp');
+      if (await tmpFile.exists()) {
+        await tmpFile.rename(file.path);
+        return true;
+      }
+      return false;
     } catch (e) {
       return false;
     }

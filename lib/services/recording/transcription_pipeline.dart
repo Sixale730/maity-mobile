@@ -336,14 +336,22 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   void sendToSocket(dynamic data) {
     // Always capture to WAL (Write-Ahead Log) for recovery on reconnect
     if (_walEnabled && data is List<int>) {
-      ServiceManager.instance().wal.getSyncs().phone.onByteStream(data);
+      try {
+        ServiceManager.instance().wal.getSyncs().phone.onByteStream(data);
+      } catch (e) {
+        debugPrint('[TranscriptionPipeline] WAL onByteStream error: $e');
+      }
     }
 
     if (_socket?.state == SocketServiceState.connected) {
       _socket?.send(data);
       // Mark as synced in WAL only after successful send
       if (_walEnabled && data is List<int>) {
-        ServiceManager.instance().wal.getSyncs().phone.onBytesSync(data);
+        try {
+          ServiceManager.instance().wal.getSyncs().phone.onBytesSync(data);
+        } catch (e) {
+          debugPrint('[TranscriptionPipeline] WAL onBytesSync error: $e');
+        }
       }
     }
   }
@@ -955,6 +963,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _lastSegmentReceivedAt = null;
     _sttReconnectAttempts = 0;
     _transcriptionServiceStatuses = [];
+    _walEnabled = false;
     resetTimestampOffset();
   }
 
