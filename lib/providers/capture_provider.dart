@@ -849,7 +849,13 @@ class CaptureProvider extends ChangeNotifier
 
   void _onSilenceTimeout() async {
     if (segments.isEmpty) {
-      await stopStreamRecording();
+      debugPrint('[CaptureProvider] Silence timeout with no segments, stopping without finalize');
+      _pipeline.stopHealthMonitor();
+      await _cleanupCurrentState();
+      _audioTransport.stopPhoneMicRecording();
+      _pipeline.stopSocket('silence timeout - no segments');
+      updateRecordingState(RecordingState.stop);
+      await _resetStateVariables();
       return;
     }
 
