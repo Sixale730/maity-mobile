@@ -627,14 +627,6 @@ class CaptureProvider extends ChangeNotifier
   }
 
   // ---------------------------------------------------------------------------
-  // Refresh
-  // ---------------------------------------------------------------------------
-
-  Future<void> refreshInProgressConversations() async {
-    await _pipeline.refreshInProgressConversations();
-  }
-
-  // ---------------------------------------------------------------------------
   // AppLifecycleDelegate implementation
   // ---------------------------------------------------------------------------
 
