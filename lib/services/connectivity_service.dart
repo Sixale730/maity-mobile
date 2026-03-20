@@ -34,9 +34,15 @@ class ConnectivityService {
   final _connectionChangeController = StreamController<bool>.broadcast();
   Stream<bool> get onConnectionChange => _connectionChangeController.stream;
 
-  bool _isConnected = true;
+  bool _isConnected = false; // Start pessimistic until first check confirms
   bool get isConnected => _isConnected;
   bool _isInitialized = false;
+
+  final Completer<void> _initCompleter = Completer<void>();
+
+  /// Future that completes when the first connectivity check is done.
+  /// Consumers should await this before relying on [isConnected].
+  Future<void> get initialized => _initCompleter.future;
 
   Future<void> init() async {
     if (_isInitialized) return;
@@ -51,6 +57,12 @@ class ConnectivityService {
 
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_handleConnectivityChange);
     _isInitialized = true;
+
+    if (!_initCompleter.isCompleted) {
+      _initCompleter.complete();
+    }
+    // Emit initial state so listeners know the resolved connectivity
+    _connectionChangeController.add(_isConnected);
   }
 
   void dispose() {
