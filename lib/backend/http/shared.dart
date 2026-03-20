@@ -87,6 +87,80 @@ Future<http.StreamedResponse> makeRawApiCall({
   return ApiClient._client.send(request);
 }
 
+/// Result classification for upload retry logic.
+enum ApiCallResultType {
+  success, // 2xx
+  retryable, // Network error, timeout, 5xx
+  authFailure, // 401
+  permanent, // 400, 422 (bad data, will never succeed)
+}
+
+class ApiCallResult {
+  final ApiCallResultType type;
+  final http.Response? response;
+  final String? errorMessage;
+
+  ApiCallResult({required this.type, this.response, this.errorMessage});
+
+  bool get isSuccess => type == ApiCallResultType.success;
+}
+
+Future<ApiCallResult> makeApiCallClassified({
+  required String url,
+  required Map<String, String> headers,
+  required String body,
+  required String method,
+}) async {
+  try {
+    final bool requireAuthCheck = _isRequiredAuthCheck(url);
+    final builtHeaders = await buildHeaders(
+      requireAuthCheck: requireAuthCheck,
+      fromHeaders: headers,
+    );
+
+    http.Response response = await _performRequest(url, builtHeaders, body, method);
+
+    if (requireAuthCheck && response.statusCode == 401) {
+      // Try token refresh
+      final newToken = await SupabaseAuthService.instance.getAccessToken();
+      SharedPreferencesUtil().authToken = newToken ?? '';
+      if (SharedPreferencesUtil().authToken.isNotEmpty) {
+        final refreshedHeaders = await buildHeaders(
+          requireAuthCheck: requireAuthCheck,
+          fromHeaders: headers,
+        );
+        response = await _performRequest(url, refreshedHeaders, body, method);
+        if (response.statusCode == 401) {
+          return ApiCallResult(type: ApiCallResultType.authFailure, response: response);
+        }
+      } else {
+        return ApiCallResult(type: ApiCallResultType.authFailure, response: response);
+      }
+    }
+
+    // Classify by status code
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return ApiCallResult(type: ApiCallResultType.success, response: response);
+    } else if (response.statusCode == 400 || response.statusCode == 422) {
+      return ApiCallResult(
+        type: ApiCallResultType.permanent,
+        response: response,
+        errorMessage: 'Server rejected data: ${response.statusCode}',
+      );
+    } else if (response.statusCode >= 500) {
+      return ApiCallResult(type: ApiCallResultType.retryable, response: response);
+    } else {
+      return ApiCallResult(type: ApiCallResultType.retryable, response: response);
+    }
+  } on SocketException catch (e) {
+    return ApiCallResult(type: ApiCallResultType.retryable, errorMessage: 'Network error: $e');
+  } on TimeoutException catch (e) {
+    return ApiCallResult(type: ApiCallResultType.retryable, errorMessage: 'Timeout: $e');
+  } catch (e) {
+    return ApiCallResult(type: ApiCallResultType.retryable, errorMessage: 'Unknown error: $e');
+  }
+}
+
 Future<http.Response?> makeApiCall({
   required String url,
   required Map<String, String> headers,

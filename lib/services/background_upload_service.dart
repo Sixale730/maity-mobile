@@ -187,9 +187,9 @@ class BackgroundUploadService {
           }
         }
 
-        final success = await _uploadConversation(upload);
+        final resultType = await _uploadConversation(upload);
 
-        if (success) {
+        if (resultType == ApiCallResultType.success) {
           _queue.removeWhere((u) => u.id == upload.id);
           await _deleteUploadFile(upload.filePath);
           await _saveQueue();
@@ -201,7 +201,25 @@ class BackgroundUploadService {
 
           // Notify listeners that an upload completed
           uploadCompleted.value = !uploadCompleted.value;
+        } else if (resultType == ApiCallResultType.permanent) {
+          // Bad data — remove immediately, don't waste retries
+          debugPrint(
+              '[BackgroundUpload] Upload ${upload.id} permanently rejected (bad data), removing');
+          _captureLog.log('upload', 'upload_permanent_failure',
+              severity: 'error', details: {
+            'upload_id': upload.id,
+          });
+          await _deleteUploadFile(upload.filePath);
+          _queue.remove(upload);
+          await _saveQueue();
+        } else if (resultType == ApiCallResultType.authFailure) {
+          // Auth issue — don't increment retry count
+          debugPrint(
+              '[BackgroundUpload] Upload ${upload.id} auth failure, will retry without incrementing');
+          upload.lastRetryAt = DateTime.now();
+          await _saveQueue();
         } else {
+          // retryable — increment retry count
           upload.retryCount++;
           upload.lastRetryAt = DateTime.now();
           await _saveQueue();
@@ -259,14 +277,15 @@ class BackgroundUploadService {
   }
 
   /// Upload a single conversation to the backend.
-  Future<bool> _uploadConversation(PendingUpload upload) async {
+  /// Returns classified result type for retry decisions.
+  Future<ApiCallResultType> _uploadConversation(PendingUpload upload) async {
     try {
       // Read segments from file
       final file = File(upload.filePath);
       if (!await file.exists()) {
         debugPrint(
             '[BackgroundUpload] File not found: ${upload.filePath}, removing from queue');
-        return true; // Remove from queue since file is gone
+        return ApiCallResultType.success; // Remove from queue since file is gone
       }
 
       final content = await file.readAsString();
@@ -288,25 +307,23 @@ class BackgroundUploadService {
         body['structured'] = jsonDecode(upload.structuredJson!);
       }
 
-      final response = await makeApiCall(
+      final result = await makeApiCallClassified(
         url: '$_baseUrl/v1/omi/conversations/store-and-process',
         headers: {},
         body: jsonEncode(body),
         method: 'POST',
       );
 
-      if (response == null) return false;
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return true;
+      if (!result.isSuccess) {
+        debugPrint(
+            '[BackgroundUpload] Server returned ${result.response?.statusCode}: '
+            '${result.errorMessage ?? result.response?.body}');
       }
 
-      debugPrint(
-          '[BackgroundUpload] Server returned ${response.statusCode}: ${response.body}');
-      return false;
+      return result.type;
     } catch (e) {
       debugPrint('[BackgroundUpload] Upload error: $e');
-      return false;
+      return ApiCallResultType.retryable;
     }
   }
 
@@ -343,10 +360,17 @@ class BackgroundUploadService {
   Future<void> _saveQueue() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/$_queueFileName');
-      final jsonString =
-          jsonEncode(_queue.map((u) => u.toJson()).toList());
-      await file.writeAsString(jsonString);
+      final queueFile = File('${dir.path}/$_queueFileName');
+      final tempFile = File('${dir.path}/$_queueFileName.tmp');
+
+      final data = _queue.map((u) => u.toJson()).toList();
+      await tempFile.writeAsString(jsonEncode(data));
+
+      // Windows: rename fails if target exists, so delete first
+      if (Platform.isWindows && await queueFile.exists()) {
+        await queueFile.delete();
+      }
+      await tempFile.rename(queueFile.path);
     } catch (e) {
       debugPrint('[BackgroundUpload] Error saving queue: $e');
     }
