@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/env/env.dart';
 import 'package:omi/services/capture_log_service.dart';
-import 'package:omi/services/notifications/notification_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -68,7 +68,7 @@ class PendingUpload {
 /// 1. Conversations are saved to local JSON files when recording finishes
 /// 2. Queued for background upload via `enqueue()`
 /// 3. Uploaded to `POST /v1/omi/conversations/store-and-process`
-/// 4. On failure, retried with exponential backoff (max 3 retries)
+/// 4. On failure, retried with exponential backoff (max 10 retries, ~37 min window)
 /// 5. On app launch, pending uploads are processed automatically
 class BackgroundUploadService {
   BackgroundUploadService._();
@@ -78,13 +78,14 @@ class BackgroundUploadService {
   static String get _baseUrl =>
       Env.maityBackendUrl ?? 'https://maity-mobile.vercel.app';
 
-  static const int _maxRetries = 3;
+  static const int _maxRetries = 10;
   static const String _queueFileName = 'pending_uploads.json';
   static const String _uploadsDir = 'pending_conversations';
 
   final ValueNotifier<bool> uploadCompleted = ValueNotifier(false);
 
   List<PendingUpload> _queue = [];
+  final List<PendingUpload> _deadLetterQueue = [];
   bool _isProcessing = false;
   Timer? _retryTimer;
 
@@ -92,6 +93,9 @@ class BackgroundUploadService {
 
   /// Number of items currently in the queue.
   int get pendingCount => _queue.length;
+
+  /// Number of permanently failed uploads preserved for manual retry.
+  int get deadLetterCount => _deadLetterQueue.length;
 
   /// Whether the service is currently processing uploads.
   bool get isProcessing => _isProcessing;
@@ -213,28 +217,23 @@ class BackgroundUploadService {
         }
       }
 
-      // Clean up permanently failed uploads (dead letter removal)
+      // Move permanently failed uploads to dead letter (keep files for manual retry)
       final deadItems =
           _queue.where((u) => u.retryCount >= _maxRetries).toList();
       for (final dead in deadItems) {
         debugPrint(
-            '[BackgroundUpload] Removing permanently failed upload: ${dead.id}');
-        _captureLog.log('upload', 'upload_permanently_failed',
+            '[BackgroundUpload] Moving permanently failed upload to dead letter: ${dead.id}');
+        _captureLog.log('upload', 'upload_moved_to_dead_letter',
             severity: 'error', details: {
           'id': dead.id,
           'retry_count': dead.retryCount,
         });
-        await _deleteUploadFile(dead.filePath);
+        // Don't delete the file — keep it for potential manual retry
         _queue.remove(dead);
+        _deadLetterQueue.add(dead);
       }
       if (deadItems.isNotEmpty) {
         await _saveQueue();
-        NotificationService.instance.createNotification(
-          title: 'Upload Failed',
-          body:
-              '${deadItems.length} recording(s) could not be uploaded after multiple attempts.',
-          notificationId: 4,
-        );
       }
 
       // Schedule retry if there are still pending items
@@ -244,6 +243,19 @@ class BackgroundUploadService {
     } finally {
       _isProcessing = false;
     }
+  }
+
+  /// Re-enqueue all dead letter items for retry.
+  Future<void> retryDeadLetterItems() async {
+    if (_deadLetterQueue.isEmpty) return;
+    for (final item in _deadLetterQueue) {
+      item.retryCount = 0;
+      item.lastRetryAt = null;
+      _queue.add(item);
+    }
+    _deadLetterQueue.clear();
+    await _saveQueue();
+    processQueue();
   }
 
   /// Upload a single conversation to the backend.
@@ -365,8 +377,8 @@ class BackgroundUploadService {
   }
 
   int _getBackoffSeconds(int retryCount) {
-    // Exponential backoff: 5s, 15s, 45s
-    return 5 * (1 << retryCount);
+    // Exponential backoff capped at 10 min: 5s, 10s, 20s, 40s, 80s, 160s, 600s...
+    return min(600, 5 * pow(2, min(retryCount, 5)).toInt());
   }
 
   void _scheduleRetry() {
