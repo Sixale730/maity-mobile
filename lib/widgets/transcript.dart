@@ -112,9 +112,9 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
     // Notify parent about scroll controller
     widget.onScrollControllerReady?.call(_scrollController);
 
-    if (widget.segments.isNotEmpty && widget.isConversationDetail) {
+    if (widget.segments.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottomGently();
+        _scrollToBottomIfReady();
       });
     }
   }
@@ -206,6 +206,20 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
     }
   }
 
+  /// Scrolls to bottom, retrying one frame if the ListView hasn't mounted yet.
+  void _scrollToBottomIfReady() {
+    if (_scrollController.hasClients) {
+      _scrollToBottomGently();
+      return;
+    }
+    // Retry next frame — the ListView should have mounted by then
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollToBottomGently();
+      }
+    });
+  }
+
   void _scrollToBottomGently() {
     if (!_scrollController.hasClients) {
       return;
@@ -226,15 +240,6 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
     )
         .then((_) {
       _isAutoScrolling = false;
-    });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToBottomGently();
     });
   }
 
