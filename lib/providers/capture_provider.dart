@@ -35,6 +35,18 @@ import 'package:omi/services/recording/audio_transport_service.dart';
 import 'package:omi/services/recording/transcription_pipeline.dart';
 import 'package:omi/services/recording/persistence_manager.dart';
 import 'package:omi/services/recording/app_lifecycle_manager.dart';
+import 'package:omi/services/notifications/notification_service.dart';
+
+const _autoSaveNotificationMessages = {
+  'en': {
+    'title': 'Conversation Saved',
+    'body': 'Your conversation was saved automatically due to silence and is being processed.',
+  },
+  'es': {
+    'title': 'Conversación Guardada',
+    'body': 'Tu conversación fue guardada automáticamente por silencio y se está procesando.',
+  },
+};
 
 /// Slim coordinator that delegates to 5 focused services.
 ///
@@ -77,6 +89,8 @@ class CaptureProvider extends ChangeNotifier
   bool get isWalSupported => _isWalSupported;
 
   bool _isFinalizing = false;
+
+  final ValueNotifier<String?> autoSaveMessage = ValueNotifier(null);
 
   CaptureLogService get _captureLog => CaptureLogService.instance;
 
@@ -854,8 +868,12 @@ class CaptureProvider extends ChangeNotifier
       return;
     }
 
-    // Save recovery data before silence timeout finalize
-    if (segments.isNotEmpty && _stateMachine.currentSessionId != null) {
+    _captureLog.log('recording', 'silence_timeout_auto_save', details: {
+      'segments_count': segments.length,
+    });
+
+    // Save recovery data as backup
+    if (_stateMachine.currentSessionId != null) {
       await _persistence.saveRecoveryData(
         segments,
         _stateMachine.currentSessionId!,
@@ -863,11 +881,34 @@ class CaptureProvider extends ChangeNotifier
       );
     }
 
-    await _finalizeLocalConversation();
-    if (!_stateMachine.finalizeInProgress) {
-      _resetStateVariables();
-    }
-    updateRecordingState(RecordingState.stop);
+    // Full cleanup (mirrors stopStreamDeviceRecording / stopStreamRecording)
+    _pipeline.stopHealthMonitor();
+    updateRecordingState(RecordingState.processing);
+    await _cleanupCurrentState();
+    _audioTransport.stopPhoneMicRecording();
+    CaptureProvider.isRecordingWithPhoneMic = false;
+    _pipeline.stopSocket('silence timeout auto-save');
+
+    // Notify user
+    _showAutoSaveNotification();
+    final lang = SharedPreferencesUtil().appLanguage;
+    autoSaveMessage.value = lang == 'es'
+        ? 'Conversación guardada por silencio'
+        : 'Conversation saved due to silence';
+
+    // Fire-and-forget finalize (transitions to stop when done)
+    _backgroundFinalize();
+  }
+
+  void _showAutoSaveNotification() {
+    final lang = SharedPreferencesUtil().appLanguage;
+    final messages = _autoSaveNotificationMessages[lang] ??
+        _autoSaveNotificationMessages['en']!;
+    NotificationService.instance.createNotification(
+      title: messages['title']!,
+      body: messages['body']!,
+      notificationId: 4,
+    );
   }
 
   Future<void> _reconnectForStall() async {

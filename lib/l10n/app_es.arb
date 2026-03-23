@@ -767,5 +767,9 @@
 
   "regenerateAnalysis": "Regenerar Análisis",
   "legacyFeedback": "Feedback Anterior",
-  "newAnalysisAvailable": "Un análisis más detallado está disponible. Toca para regenerar."
+  "newAnalysisAvailable": "Un análisis más detallado está disponible. Toca para regenerar.",
+
+  "conversationAutoSavedTitle": "Conversación Guardada",
+  "conversationAutoSavedBody": "Tu conversación fue guardada automáticamente por silencio y se está procesando.",
+  "conversationAutoSavedSnackbar": "Conversación guardada por silencio"
 }

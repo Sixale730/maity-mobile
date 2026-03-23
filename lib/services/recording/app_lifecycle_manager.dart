@@ -157,6 +157,14 @@ class AppLifecycleManager with WidgetsBindingObserver {
       debugPrint('[AppLifecycleManager] Saving recovery data before pause');
       delegate.saveRecoveryData(synchronous: true);
     }
+
+    // Update foreground notification to reflect background state
+    final isRecordingForNotification = delegate.recordingState == RecordingState.record ||
+        delegate.recordingState == RecordingState.deviceRecord ||
+        delegate.recordingState == RecordingState.systemAudioRecord;
+    if (isRecordingForNotification) {
+      updateForegroundNotification('processing');
+    }
   }
 
   /// Handle app being terminated.
@@ -191,6 +199,9 @@ class AppLifecycleManager with WidgetsBindingObserver {
 
     // Stop socket cleanly
     delegate.stopSocket('app detached');
+
+    // Update foreground notification before app dies
+    updateForegroundNotification('waiting');
   }
 
   /// Handle app returning from background.
@@ -283,6 +294,9 @@ class AppLifecycleManager with WidgetsBindingObserver {
         });
         debugPrint('[AppLifecycleManager] Background timer: socket dead for 3 min, auto-finalizing');
         d.autoFinalizeOnConnectionLost();
+
+        // Update notification after background auto-finalize
+        updateForegroundNotification('waiting');
       }
     });
   }

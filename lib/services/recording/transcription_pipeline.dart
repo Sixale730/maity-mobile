@@ -808,12 +808,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   // ---------------------------------------------------------------------------
 
   /// Reset the silence timer - called when new segments arrive.
-  /// Only active for custom STT mode.
   void resetSilenceTimer({bool isSpeechProfileMode = false}) {
     if (isSpeechProfileMode) return;
-
-    final customSttConfig = SharedPreferencesUtil().customSttConfig;
-    if (!customSttConfig.isEnabled) return;
 
     _silenceTimer?.cancel();
 

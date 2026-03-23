@@ -91,6 +91,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   ForegroundUtil foregroundUtil = ForegroundUtil();
   List<Widget> screens = [Container(), const SizedBox(), const SizedBox(), const SizedBox()];
 
+  VoidCallback? _autoSaveListener;
+  CaptureProvider? _captureProviderRef;
+
   final _upgrader = MyUpgrader(debugLogging: false, debugDisplayOnce: false);
   bool scriptsInProgress = false;
 
@@ -342,6 +345,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     });
 
     _listenToMessagesFromNotification();
+    _setupAutoSaveListener();
     super.initState();
 
     // After init
@@ -494,6 +498,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         // chatPageKey.currentState?.scrollToBottom();
       }
     });
+  }
+
+  void _setupAutoSaveListener() {
+    _captureProviderRef = Provider.of<CaptureProvider>(context, listen: false);
+    _autoSaveListener = () {
+      final msg = _captureProviderRef?.autoSaveMessage.value;
+      if (msg != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), duration: const Duration(seconds: 4)),
+        );
+        _captureProviderRef?.autoSaveMessage.value = null;
+      }
+    };
+    _captureProviderRef?.autoSaveMessage.addListener(_autoSaveListener!);
   }
 
   @override
@@ -994,6 +1012,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
 
   @override
   void dispose() {
+    if (_autoSaveListener != null) {
+      _captureProviderRef?.autoSaveMessage.removeListener(_autoSaveListener!);
+    }
     WidgetsBinding.instance.removeObserver(this);
     ForegroundUtil.stopForegroundTask();
     super.dispose();

@@ -1040,5 +1040,9 @@
 
   "regenerateAnalysis": "Regenerate Analysis",
   "legacyFeedback": "Legacy Feedback",
-  "newAnalysisAvailable": "A more detailed analysis is available. Tap to regenerate."
+  "newAnalysisAvailable": "A more detailed analysis is available. Tap to regenerate.",
+
+  "conversationAutoSavedTitle": "Conversation Saved",
+  "conversationAutoSavedBody": "Your conversation was saved automatically due to silence and is being processed.",
+  "conversationAutoSavedSnackbar": "Conversation saved due to silence"
 }
