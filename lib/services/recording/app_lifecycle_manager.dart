@@ -104,7 +104,9 @@ class AppLifecycleManager with WidgetsBindingObserver {
         _handleAppPaused();
         break;
       case AppLifecycleState.resumed:
-        _handleAppResumed();
+        _handleAppResumed().catchError((e) {
+          debugPrint('[AppLifecycleManager] Error in _handleAppResumed: $e');
+        });
         break;
       case AppLifecycleState.detached:
         _handleAppDetached();
@@ -192,7 +194,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
   }
 
   /// Handle app returning from background.
-  void _handleAppResumed() async {
+  Future<void> _handleAppResumed() async {
     final delegate = _delegate;
     if (delegate == null) return;
 

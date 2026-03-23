@@ -57,6 +57,9 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
   static const int _maxBackoffMs = 60000; // 60 seconds
   static const int _maxReconnectRetries = 8;
 
+  // Track stable connections to avoid resetting backoff on flapping
+  DateTime? _lastStableConnectionTime;
+
   bool _havingNewFirmware = false;
   bool get havingNewFirmware => _havingNewFirmware && pairedDevice != null && isConnected;
 
@@ -187,7 +190,6 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
 
   Future periodicConnect(String printer, {bool boundDeviceOnly = false}) async {
     _reconnectionTimer?.cancel();
-    _reconnectRetries = 0; // Reset retries on new connection attempt
 
     Future<void> attemptReconnect() async {
       // Skip BLE reconnection during phone mic recording to avoid unnecessary overhead
@@ -370,8 +372,14 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
     setIsConnected(false);
     updateConnectingStatus(false);
 
-    // Reset reconnection retries on disconnect to start fresh
-    _reconnectRetries = 0;
+    // Only reset reconnection retries if the connection was stable (>5s)
+    // This prevents backoff reset during rapid connect/disconnect flapping
+    final wasStable = _lastStableConnectionTime != null &&
+        DateTime.now().difference(_lastStableConnectionTime!).inSeconds > 5;
+    if (wasStable) {
+      _reconnectRetries = 0;
+    }
+    _lastStableConnectionTime = null;
 
     captureProvider?.updateRecordingDevice(null);
 
@@ -392,7 +400,8 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
 
     PlatformManager.instance.crashReporter.logInfo('Maity Device Disconnected');
     _disconnectNotificationTimer?.cancel();
-    _disconnectNotificationTimer = Timer(const Duration(seconds: 5), () {
+    _disconnectNotificationTimer = Timer(const Duration(seconds: 20), () {
+      if (connectedDevice != null) return;
       final lang = SharedPreferencesUtil().appLanguage;
       final messages = _deviceNotificationMessages[lang] ?? _deviceNotificationMessages['en']!;
       NotificationService.instance.createNotification(
@@ -433,6 +442,7 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
       'device_name': device.name,
       'device_type': device.type.name,
     });
+    _lastStableConnectionTime = DateTime.now();
     _bleDisconnectRecordingTimer?.cancel();
     _disconnectNotificationTimer?.cancel();
     NotificationService.instance.clearNotification(1);

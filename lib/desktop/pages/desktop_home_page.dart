@@ -163,7 +163,6 @@ class _DesktopHomePageState extends State<DesktopHomePage> with WidgetsBindingOb
       // // Reload convos
       if (mounted) {
         Provider.of<ConversationProvider>(context, listen: false).refreshConversations();
-        Provider.of<CaptureProvider>(context, listen: false).refreshInProgressConversations();
       }
     } else if (state == AppLifecycleState.hidden) {
       event = 'App is hidden';

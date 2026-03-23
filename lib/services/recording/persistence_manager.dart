@@ -135,6 +135,10 @@ class PersistenceManager {
       await tempFile.writeAsString(jsonString);
     }
 
+    // Windows: File.rename fails if target exists (unlike POSIX atomic rename)
+    if (Platform.isWindows && await targetFile.exists()) {
+      await targetFile.delete();
+    }
     await tempFile.rename(targetFile.path);
   }
 

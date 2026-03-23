@@ -6,7 +6,6 @@ import 'package:omi/backend/preferences.dart';
 import 'package:omi/env/env.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
-import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/message_event.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/models/custom_stt_config.dart';
@@ -19,7 +18,6 @@ import 'package:omi/services/vad/vad_state.dart';
 import 'package:omi/services/vad/vad_metrics.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 import 'package:omi/utils/logger.dart';
-import 'package:omi/backend/http/api/conversations.dart';
 
 /// Callback for when new segments are received.
 typedef OnSegmentsReceived = void Function(List<TranscriptSegment> newSegments);
@@ -101,6 +99,26 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   TranscriptSegmentSocketService? get socket => _socket;
 
   // ---------------------------------------------------------------------------
+  // WAL (Write-Ahead Log) support
+  // ---------------------------------------------------------------------------
+  bool _walEnabled = false;
+
+  /// Enable or disable WAL audio buffering.
+  void setWalEnabled(bool enabled) {
+    _walEnabled = enabled;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Timestamp offset for Deepgram reconnections
+  // ---------------------------------------------------------------------------
+  /// Cumulative time offset for Deepgram timestamp correction across reconnections.
+  /// Each new Deepgram session starts at t=0; we offset by the elapsed recording time.
+  Duration _cumulativeOffset = Duration.zero;
+
+  /// Timestamp of the recording start (set when first socket connects).
+  DateTime? _recordingStartTime;
+
+  // ---------------------------------------------------------------------------
   // Reconnection flags
   // ---------------------------------------------------------------------------
   bool _isReconnecting = false;
@@ -164,6 +182,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     String? source,
   }) async {
     Logger.debug('initiateWebsocket in TranscriptionPipeline');
+
+    // Update timestamp offset on reconnection (not first connection)
+    if (_recordingStartTime != null) {
+      _updateTimestampOffset();
+    }
 
     BleAudioCodec codec = audioCodec;
     sampleRate ??= mapCodecToSampleRate(codec);
@@ -259,6 +282,9 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _socket?.subscribe(this, this);
     _transcriptServiceReady = true;
 
+    // Track recording start time for timestamp offset calculation
+    _recordingStartTime ??= DateTime.now();
+
     // Proactive token refresh: reconnect before JWT expires (~1hr)
     _tokenRefreshTimer?.cancel();
     _tokenRefreshTimer = Timer(const Duration(minutes: 50), () {
@@ -268,8 +294,6 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
     // Initialize VAD if enabled and using custom STT with PCM16 codec
     await initializeVadService(codec, effectiveConfig);
-
-    _loadInProgressConversation();
 
     onNotifyListeners?.call();
   }
@@ -290,10 +314,45 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _transcriptServiceReady = false;
   }
 
+  /// Updates the cumulative timestamp offset based on elapsed recording time.
+  /// Called before reconnecting the socket so new Deepgram segments (which
+  /// restart at t=0) are shifted to the correct position in the timeline.
+  void _updateTimestampOffset() {
+    if (_recordingStartTime != null) {
+      _cumulativeOffset = DateTime.now().difference(_recordingStartTime!);
+      debugPrint(
+          '[TranscriptionPipeline] Updated timestamp offset: ${_cumulativeOffset.inSeconds}s');
+    }
+  }
+
+  /// Resets the timestamp offset state. Called when recording fully stops.
+  void resetTimestampOffset() {
+    _cumulativeOffset = Duration.zero;
+    _recordingStartTime = null;
+  }
+
   /// Send raw bytes to the socket (used by AudioTransportService).
+  /// WAL captures all audio frames; only marks as synced what the socket received.
   void sendToSocket(dynamic data) {
+    // Always capture to WAL (Write-Ahead Log) for recovery on reconnect
+    if (_walEnabled && data is List<int>) {
+      try {
+        ServiceManager.instance().wal.getSyncs().phone.onByteStream(data);
+      } catch (e) {
+        debugPrint('[TranscriptionPipeline] WAL onByteStream error: $e');
+      }
+    }
+
     if (_socket?.state == SocketServiceState.connected) {
       _socket?.send(data);
+      // Mark as synced in WAL only after successful send
+      if (_walEnabled && data is List<int>) {
+        try {
+          ServiceManager.instance().wal.getSyncs().phone.onBytesSync(data);
+        } catch (e) {
+          debugPrint('[TranscriptionPipeline] WAL onBytesSync error: $e');
+        }
+      }
     }
   }
 
@@ -363,28 +422,6 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// Flush VAD buffers (call when recording ends).
   void flushVad() {
     _vadService?.flush();
-  }
-
-  // ---------------------------------------------------------------------------
-  // In-progress conversation loading
-  // ---------------------------------------------------------------------------
-
-  /// Load any existing in-progress conversation from the server.
-  Future<void> _loadInProgressConversation() async {
-    var convos = await getConversations(
-        statuses: [ConversationStatus.in_progress], limit: 1);
-    if (convos.isNotEmpty) {
-      segments = convos.first.transcriptSegments;
-    }
-    // NOTE: Don't reset segments if no server conversation.
-    // Local segments (custom STT) accumulate correctly without server.
-    setHasTranscripts(segments.isNotEmpty);
-    onNotifyListeners?.call();
-  }
-
-  /// Refresh in-progress conversations (public entry point).
-  Future<void> refreshInProgressConversations() async {
-    await _loadInProgressConversation();
   }
 
   // ---------------------------------------------------------------------------
@@ -488,6 +525,15 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   void _processNewSegmentReceived(List<TranscriptSegment> newSegments) {
     if (newSegments.isEmpty) return;
 
+    // Apply cumulative offset for reconnection timestamp correction
+    if (_cumulativeOffset > Duration.zero) {
+      final offsetSeconds = _cumulativeOffset.inMilliseconds / 1000.0;
+      for (final segment in newSegments) {
+        segment.start += offsetSeconds;
+        segment.end += offsetSeconds;
+      }
+    }
+
     assert(() {
       debugPrint(
           '[TranscriptionPipeline] Received ${newSegments.length} new segments, current total: ${segments.length}');
@@ -498,8 +544,6 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       _captureLog.log('segment', 'first_segment_received', details: {
         'new_count': newSegments.length,
       });
-      // Trigger in-progress load for first segment
-      _loadInProgressConversation();
     }
 
     _captureLog.log('segment', 'segments_received',
@@ -919,6 +963,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _lastSegmentReceivedAt = null;
     _sttReconnectAttempts = 0;
     _transcriptionServiceStatuses = [];
+    _walEnabled = false;
+    resetTimestampOffset();
   }
 
   // ---------------------------------------------------------------------------
@@ -949,5 +995,6 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     await _socket?.stop(reason: 'pipeline disposed');
     _socket = null;
     _transcriptServiceReady = false;
+    resetTimestampOffset();
   }
 }

@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/env/env.dart';
 import 'package:omi/services/capture_log_service.dart';
-import 'package:omi/services/notifications/notification_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -22,6 +22,7 @@ class PendingUpload {
   int retryCount;
   DateTime? lastRetryAt;
   final String? structuredJson;
+  final String idempotencyKey;
 
   PendingUpload({
     required this.id,
@@ -33,6 +34,7 @@ class PendingUpload {
     this.retryCount = 0,
     this.lastRetryAt,
     this.structuredJson,
+    required this.idempotencyKey,
   });
 
   Map<String, dynamic> toJson() => {
@@ -45,6 +47,7 @@ class PendingUpload {
         'retry_count': retryCount,
         'last_retry_at': lastRetryAt?.toUtc().toIso8601String(),
         'structured_json': structuredJson,
+        'idempotency_key': idempotencyKey,
       };
 
   factory PendingUpload.fromJson(Map<String, dynamic> json) => PendingUpload(
@@ -59,6 +62,7 @@ class PendingUpload {
             ? DateTime.parse(json['last_retry_at'] as String)
             : null,
         structuredJson: json['structured_json'] as String?,
+        idempotencyKey: (json['idempotency_key'] as String?) ?? const Uuid().v4(),
       );
 }
 
@@ -68,7 +72,7 @@ class PendingUpload {
 /// 1. Conversations are saved to local JSON files when recording finishes
 /// 2. Queued for background upload via `enqueue()`
 /// 3. Uploaded to `POST /v1/omi/conversations/store-and-process`
-/// 4. On failure, retried with exponential backoff (max 3 retries)
+/// 4. On failure, retried with exponential backoff (max 10 retries, ~37 min window)
 /// 5. On app launch, pending uploads are processed automatically
 class BackgroundUploadService {
   BackgroundUploadService._();
@@ -78,13 +82,14 @@ class BackgroundUploadService {
   static String get _baseUrl =>
       Env.maityBackendUrl ?? 'https://maity-mobile.vercel.app';
 
-  static const int _maxRetries = 3;
+  static const int _maxRetries = 10;
   static const String _queueFileName = 'pending_uploads.json';
   static const String _uploadsDir = 'pending_conversations';
 
   final ValueNotifier<bool> uploadCompleted = ValueNotifier(false);
 
   List<PendingUpload> _queue = [];
+  final List<PendingUpload> _deadLetterQueue = [];
   bool _isProcessing = false;
   Timer? _retryTimer;
 
@@ -92,6 +97,9 @@ class BackgroundUploadService {
 
   /// Number of items currently in the queue.
   int get pendingCount => _queue.length;
+
+  /// Number of permanently failed uploads preserved for manual retry.
+  int get deadLetterCount => _deadLetterQueue.length;
 
   /// Whether the service is currently processing uploads.
   bool get isProcessing => _isProcessing;
@@ -119,6 +127,7 @@ class BackgroundUploadService {
     Map<String, dynamic>? structured,
   }) async {
     final id = const Uuid().v4();
+    final idempotencyKey = const Uuid().v4();
 
     // Save segments to a dedicated JSON file
     final dir = await _getUploadsDirectory();
@@ -135,6 +144,7 @@ class BackgroundUploadService {
       userId: userId,
       source: source,
       structuredJson: structured != null ? jsonEncode(structured) : null,
+      idempotencyKey: idempotencyKey,
     );
 
     _queue.add(upload);
@@ -183,9 +193,9 @@ class BackgroundUploadService {
           }
         }
 
-        final success = await _uploadConversation(upload);
+        final resultType = await _uploadConversation(upload);
 
-        if (success) {
+        if (resultType == ApiCallResultType.success) {
           _queue.removeWhere((u) => u.id == upload.id);
           await _deleteUploadFile(upload.filePath);
           await _saveQueue();
@@ -197,7 +207,25 @@ class BackgroundUploadService {
 
           // Notify listeners that an upload completed
           uploadCompleted.value = !uploadCompleted.value;
+        } else if (resultType == ApiCallResultType.permanent) {
+          // Bad data — remove immediately, don't waste retries
+          debugPrint(
+              '[BackgroundUpload] Upload ${upload.id} permanently rejected (bad data), removing');
+          _captureLog.log('upload', 'upload_permanent_failure',
+              severity: 'error', details: {
+            'upload_id': upload.id,
+          });
+          await _deleteUploadFile(upload.filePath);
+          _queue.remove(upload);
+          await _saveQueue();
+        } else if (resultType == ApiCallResultType.authFailure) {
+          // Auth issue — don't increment retry count
+          debugPrint(
+              '[BackgroundUpload] Upload ${upload.id} auth failure, will retry without incrementing');
+          upload.lastRetryAt = DateTime.now();
+          await _saveQueue();
         } else {
+          // retryable — increment retry count
           upload.retryCount++;
           upload.lastRetryAt = DateTime.now();
           await _saveQueue();
@@ -213,28 +241,23 @@ class BackgroundUploadService {
         }
       }
 
-      // Clean up permanently failed uploads (dead letter removal)
+      // Move permanently failed uploads to dead letter (keep files for manual retry)
       final deadItems =
           _queue.where((u) => u.retryCount >= _maxRetries).toList();
       for (final dead in deadItems) {
         debugPrint(
-            '[BackgroundUpload] Removing permanently failed upload: ${dead.id}');
-        _captureLog.log('upload', 'upload_permanently_failed',
+            '[BackgroundUpload] Moving permanently failed upload to dead letter: ${dead.id}');
+        _captureLog.log('upload', 'upload_moved_to_dead_letter',
             severity: 'error', details: {
           'id': dead.id,
           'retry_count': dead.retryCount,
         });
-        await _deleteUploadFile(dead.filePath);
+        // Don't delete the file — keep it for potential manual retry
         _queue.remove(dead);
+        _deadLetterQueue.add(dead);
       }
       if (deadItems.isNotEmpty) {
         await _saveQueue();
-        NotificationService.instance.createNotification(
-          title: 'Upload Failed',
-          body:
-              '${deadItems.length} recording(s) could not be uploaded after multiple attempts.',
-          notificationId: 4,
-        );
       }
 
       // Schedule retry if there are still pending items
@@ -246,15 +269,29 @@ class BackgroundUploadService {
     }
   }
 
+  /// Re-enqueue all dead letter items for retry.
+  Future<void> retryDeadLetterItems() async {
+    if (_deadLetterQueue.isEmpty) return;
+    for (final item in _deadLetterQueue) {
+      item.retryCount = 0;
+      item.lastRetryAt = null;
+      _queue.add(item);
+    }
+    _deadLetterQueue.clear();
+    await _saveQueue();
+    processQueue();
+  }
+
   /// Upload a single conversation to the backend.
-  Future<bool> _uploadConversation(PendingUpload upload) async {
+  /// Returns classified result type for retry decisions.
+  Future<ApiCallResultType> _uploadConversation(PendingUpload upload) async {
     try {
       // Read segments from file
       final file = File(upload.filePath);
       if (!await file.exists()) {
         debugPrint(
             '[BackgroundUpload] File not found: ${upload.filePath}, removing from queue');
-        return true; // Remove from queue since file is gone
+        return ApiCallResultType.success; // Remove from queue since file is gone
       }
 
       final content = await file.readAsString();
@@ -266,6 +303,7 @@ class BackgroundUploadService {
         'started_at': upload.startedAt.toUtc().toIso8601String(),
         'finished_at': upload.finishedAt.toUtc().toIso8601String(),
         'source': upload.source,
+        'idempotency_key': upload.idempotencyKey,
       };
 
       if (upload.userId != null) {
@@ -276,25 +314,23 @@ class BackgroundUploadService {
         body['structured'] = jsonDecode(upload.structuredJson!);
       }
 
-      final response = await makeApiCall(
+      final result = await makeApiCallClassified(
         url: '$_baseUrl/v1/omi/conversations/store-and-process',
         headers: {},
         body: jsonEncode(body),
         method: 'POST',
       );
 
-      if (response == null) return false;
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return true;
+      if (!result.isSuccess) {
+        debugPrint(
+            '[BackgroundUpload] Server returned ${result.response?.statusCode}: '
+            '${result.errorMessage ?? result.response?.body}');
       }
 
-      debugPrint(
-          '[BackgroundUpload] Server returned ${response.statusCode}: ${response.body}');
-      return false;
+      return result.type;
     } catch (e) {
       debugPrint('[BackgroundUpload] Upload error: $e');
-      return false;
+      return ApiCallResultType.retryable;
     }
   }
 
@@ -306,6 +342,13 @@ class BackgroundUploadService {
     try {
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/$_queueFileName');
+      final tempFile = File('${dir.path}/$_queueFileName.tmp');
+
+      // Recovery: if main file is missing but temp exists (crash between delete+rename on Windows)
+      if (!await file.exists() && await tempFile.exists()) {
+        debugPrint('[BackgroundUpload] Recovering queue from .tmp file');
+        await tempFile.rename(file.path);
+      }
 
       if (!await file.exists()) {
         _queue = [];
@@ -322,6 +365,14 @@ class BackgroundUploadService {
       _queue = list
           .map((e) => PendingUpload.fromJson(e as Map<String, dynamic>))
           .toList();
+
+      // Separate dead letter items (already exceeded max retries) from active queue
+      final dead = _queue.where((u) => u.retryCount >= _maxRetries).toList();
+      if (dead.isNotEmpty) {
+        _deadLetterQueue.addAll(dead);
+        _queue.removeWhere((u) => u.retryCount >= _maxRetries);
+        debugPrint('[BackgroundUpload] Restored ${dead.length} dead letter items from disk');
+      }
     } catch (e) {
       debugPrint('[BackgroundUpload] Error loading queue: $e');
       _queue = [];
@@ -331,11 +382,23 @@ class BackgroundUploadService {
   Future<void> _saveQueue() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/$_queueFileName');
-      final jsonString =
-          jsonEncode(_queue.map((u) => u.toJson()).toList());
-      await file.writeAsString(jsonString);
+      final queueFile = File('${dir.path}/$_queueFileName');
+      final tempFile = File('${dir.path}/$_queueFileName.tmp');
+
+      // Persist both active queue and dead letter items
+      final allItems = [..._queue, ..._deadLetterQueue];
+      final data = allItems.map((u) => u.toJson()).toList();
+      await tempFile.writeAsString(jsonEncode(data));
+
+      // Windows: rename fails if target exists, so delete first
+      if (Platform.isWindows && await queueFile.exists()) {
+        await queueFile.delete();
+      }
+      await tempFile.rename(queueFile.path);
     } catch (e) {
+      _captureLog.log('upload', 'queue_save_failed', severity: 'error', details: {
+        'error': e.toString(),
+      });
       debugPrint('[BackgroundUpload] Error saving queue: $e');
     }
   }
@@ -365,8 +428,8 @@ class BackgroundUploadService {
   }
 
   int _getBackoffSeconds(int retryCount) {
-    // Exponential backoff: 5s, 15s, 45s
-    return 5 * (1 << retryCount);
+    // Exponential backoff capped at 10 min: 5s, 10s, 20s, 40s, 80s, 160s, 600s...
+    return min(600, 5 * pow(2, min(retryCount, 5)).toInt());
   }
 
   void _scheduleRetry() {

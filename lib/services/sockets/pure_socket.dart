@@ -51,6 +51,7 @@ class PureSocket implements IPureSocket {
   bool _isConnected = ConnectivityService().isConnected;
   Timer? _internetLostDelayTimer;
   bool _stopped = false; // Prevents reconnects after stop() is called
+  int _reconnectGeneration = 0; // Cancels stale reconnect chains when a new one starts
 
   WebSocketChannel? _channel;
   WebSocketChannel get channel {
@@ -245,10 +246,12 @@ class PureSocket implements IPureSocket {
   }
 
   void _reconnect() async {
+    final generation = ++_reconnectGeneration;
     DebugLogManager.logEvent('pure_socket_reconnect_attempt', {
       'status': _status.name,
       'stopped': _stopped,
       'retries': _retries,
+      'generation': generation,
     });
 
     if (_stopped) {
@@ -267,6 +270,8 @@ class PureSocket implements IPureSocket {
 
     await _cleanUp();
 
+    if (generation != _reconnectGeneration || _stopped) return;
+
     var ok = await _connect();
     if (ok) {
       DebugLogManager.logEvent('pure_socket_reconnect_success', {
@@ -280,9 +285,9 @@ class PureSocket implements IPureSocket {
     debugPrint("[Socket] Waiting ${waitInMilliseconds}ms before retry...");
     await Future.delayed(Duration(milliseconds: waitInMilliseconds));
 
-    // Double-check stopped flag after delay
-    if (_stopped) {
-      debugPrint("[Socket] Reconnect aborted after delay - socket was stopped");
+    // Abort if a newer reconnect chain started or socket was stopped
+    if (generation != _reconnectGeneration || _stopped) {
+      debugPrint("[Socket] Reconnect aborted after delay - generation stale or socket stopped");
       return;
     }
 

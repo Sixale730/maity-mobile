@@ -104,6 +104,7 @@ class AudioTransportService {
   DateTime? _voiceCommandSession;
   List<List<int>> _commandBytes = [];
   bool _isProcessingButtonEvent = false;
+  Timer? _voiceCommandTimer;
 
   // ---------------------------------------------------------------------------
   // Audio tracking
@@ -677,6 +678,8 @@ class AudioTransportService {
     _blePhotoStream = null;
     _bleButtonStream?.cancel();
     _bleButtonStream = null;
+    _voiceCommandTimer?.cancel();
+    _voiceCommandTimer = null;
     stopMetricsTracking();
 
     if (_recordingDevice != null) {
@@ -708,6 +711,8 @@ class AudioTransportService {
     _metricsTimer?.cancel();
     _reconnectTimer?.cancel();
     _recordingTimer?.cancel();
+    _voiceCommandTimer?.cancel();
+    _voiceCommandTimer = null;
     _audioBuffer = null;
   }
 
@@ -777,7 +782,8 @@ class AudioTransportService {
   }
 
   void _watchVoiceCommands(String deviceId, DateTime session) {
-    Timer.periodic(const Duration(seconds: 3), (t) async {
+    _voiceCommandTimer?.cancel();
+    _voiceCommandTimer = Timer.periodic(const Duration(seconds: 3), (t) async {
       if (session != _voiceCommandSession) {
         t.cancel();
         return;

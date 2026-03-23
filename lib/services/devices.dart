@@ -219,37 +219,47 @@ class DeviceService implements IDeviceService {
   final Mutex _mutex = Mutex();
   @override
   Future<DeviceConnection?> ensureConnection(String deviceId, {bool force = false}) async {
-    await _mutex.acquire();
+    bool mutexAcquired = false;
     try {
-      debugPrint("ensureConnection ${_connection?.device.id} ${_connection?.status} $force");
+      return await Future<DeviceConnection?>(() async {
+        await _mutex.acquire();
+        mutexAcquired = true;
 
-      // Not force
-      if (!force && _connection != null) {
-        if (_connection?.device.id != deviceId || _connection?.status != DeviceConnectionState.connected) {
+        debugPrint("ensureConnection ${_connection?.device.id} ${_connection?.status} $force");
+
+        // Not force
+        if (!force && _connection != null) {
+          if (_connection?.device.id != deviceId || _connection?.status != DeviceConnectionState.connected) {
+            return null;
+          }
+
+          // Connected
+          return _connection;
+        }
+
+        // Force
+        if (deviceId == _connection?.device.id && _connection?.status == DeviceConnectionState.connected) {
+          return _connection;
+        }
+
+        // Connect
+        try {
+          await _connectToDevice(deviceId);
+        } on DeviceConnectionException catch (e) {
+          debugPrint(e.cause);
           return null;
         }
 
-        // Connected
+        _firstConnectedAt ??= DateTime.now();
         return _connection;
-      }
-
-      // Force
-      if (deviceId == _connection?.device.id && _connection?.status == DeviceConnectionState.connected) {
-        return _connection;
-      }
-
-      // Connect
-      try {
-        await _connectToDevice(deviceId);
-      } on DeviceConnectionException catch (e) {
-        debugPrint(e.cause);
-        return null;
-      }
-
-      _firstConnectedAt ??= DateTime.now();
-      return _connection;
+      }).timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      debugPrint('[DeviceService] ensureConnection timed out after 30s');
+      return null;
     } finally {
-      _mutex.release();
+      if (mutexAcquired) {
+        _mutex.release();
+      }
     }
   }
 

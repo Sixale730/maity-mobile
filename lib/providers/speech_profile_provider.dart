@@ -466,4 +466,9 @@ class SpeechProfileProvider extends ChangeNotifier
 
   @override
   void onConnected() {}
+
+  @override
+  void onTerminalFailure(String reason) {
+    debugPrint('[SpeechProfileProvider] Terminal failure: $reason');
+  }
 }

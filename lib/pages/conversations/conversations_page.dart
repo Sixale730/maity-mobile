@@ -8,7 +8,6 @@ import 'package:omi/pages/conversations/widgets/search_result_header_widget.dart
 import 'package:omi/pages/conversations/widgets/category_filter_bar.dart';
 import 'package:omi/pages/conversations/widgets/search_widget.dart';
 import 'package:omi/pages/conversations/widgets/semantic_search_result_card.dart';
-import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/conversation_provider.dart';
 import 'package:omi/services/app_review_service.dart';
 import 'package:omi/services/local_conversations_service.dart';
@@ -145,7 +144,6 @@ class _ConversationsPageState extends State<ConversationsPage> with AutomaticKee
       return RefreshIndicator(
         onRefresh: () async {
           HapticFeedback.mediumImpact();
-          Provider.of<CaptureProvider>(context, listen: false).refreshInProgressConversations();
           await convoProvider.getInitialConversations();
           return;
         },

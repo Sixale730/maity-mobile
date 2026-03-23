@@ -34,23 +34,40 @@ class ConnectivityService {
   final _connectionChangeController = StreamController<bool>.broadcast();
   Stream<bool> get onConnectionChange => _connectionChangeController.stream;
 
-  bool _isConnected = true;
+  bool _isConnected = false; // Start pessimistic until first check confirms
   bool get isConnected => _isConnected;
   bool _isInitialized = false;
+
+  final Completer<void> _initCompleter = Completer<void>();
+
+  /// Future that completes when the first connectivity check is done.
+  /// Consumers should await this before relying on [isConnected].
+  Future<void> get initialized => _initCompleter.future;
 
   Future<void> init() async {
     if (_isInitialized) return;
 
-    final connectivityResult = await _connectivity.checkConnectivity();
-    if (connectivityResult.contains(ConnectivityResult.none)) {
-      _isConnected = false;
-    } else {
-      _isConnected = await _internetConnection.hasInternetAccess;
-      _internetSubscription = _internetConnection.onStatusChange.listen(_handleInternetStatusChange);
-    }
+    try {
+      final connectivityResult = await _connectivity.checkConnectivity();
+      if (connectivityResult.contains(ConnectivityResult.none)) {
+        _isConnected = false;
+      } else {
+        _isConnected = await _internetConnection.hasInternetAccess;
+        _internetSubscription = _internetConnection.onStatusChange.listen(_handleInternetStatusChange);
+      }
 
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_handleConnectivityChange);
-    _isInitialized = true;
+      _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_handleConnectivityChange);
+    } catch (e) {
+      print('[ConnectivityService] init() error: $e');
+      _isConnected = false;
+    } finally {
+      _isInitialized = true;
+      if (!_initCompleter.isCompleted) {
+        _initCompleter.complete();
+      }
+      // Emit initial state so listeners know the resolved connectivity
+      _connectionChangeController.add(_isConnected);
+    }
   }
 
   void dispose() {
