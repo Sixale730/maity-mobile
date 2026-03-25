@@ -51,7 +51,7 @@ class ParakeetModelManifest {
     ParakeetModelFile(
       fileName: 'silero_vad.onnx',
       url:
-          'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx',
+          'https://huggingface.co/csukuangfj/vad/resolve/main/silero_vad.onnx',
       expectedBytes: 2 * 1024 * 1024, // ~2 MB
     ),
   ];
