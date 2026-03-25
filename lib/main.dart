@@ -47,6 +47,8 @@ import 'package:omi/providers/daily_report_provider.dart';
 import 'package:omi/providers/role_provider.dart';
 import 'package:omi/services/auth_service.dart';
 import 'package:omi/services/background_upload_service.dart';
+import 'package:omi/services/local_stt/model_download_service.dart';
+import 'package:omi/providers/local_stt_provider.dart';
 import 'package:omi/services/desktop_update_service.dart';
 import 'package:omi/services/notifications.dart';
 import 'package:omi/services/services.dart';
@@ -158,6 +160,9 @@ Future _init() async {
 
   // Initialize background upload service (processes pending conversation uploads)
   await BackgroundUploadService.instance.initialize();
+
+  // Initialize local STT model service (checks if model already downloaded)
+  await ModelDownloadService.instance.initialize();
 
   await ServiceManager.instance().start();
   return;
@@ -398,6 +403,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           ChangeNotifierProvider(create: (context) => TaskIntegrationProvider()),
           ChangeNotifierProvider(create: (context) => IntegrationProvider()),
           ChangeNotifierProvider(create: (context) => RoleProvider()),
+          ChangeNotifierProvider(create: (context) => LocalSttProvider()),
         ],
         builder: (context, child) {
           return WithForegroundTask(

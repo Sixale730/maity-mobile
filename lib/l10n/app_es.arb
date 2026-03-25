@@ -771,5 +771,17 @@
 
   "conversationAutoSavedTitle": "Conversación Guardada",
   "conversationAutoSavedBody": "Tu conversación fue guardada automáticamente por silencio y se está procesando.",
-  "conversationAutoSavedSnackbar": "Conversación guardada por silencio"
+  "conversationAutoSavedSnackbar": "Conversación guardada por silencio",
+
+  "localSttOnDevice": "En Dispositivo",
+  "localSttDownloadModel": "Descargar Modelo",
+  "localSttDownloading": "Descargando...",
+  "localSttReady": "Listo",
+  "localSttDeleteModel": "Eliminar Modelo",
+  "localSttDeleteConfirm": "¿Eliminar el modelo de STT local? Esto liberará ~640 MB de almacenamiento.",
+  "localSttRamWarning": "Este dispositivo tiene menos de 6 GB de RAM. La transcripción local puede ser lenta o fallar.",
+  "localSttAutoFallback": "Usar sin conexión",
+  "localSttAutoFallbackDesc": "Usar automáticamente transcripción local cuando no haya conexión a internet",
+  "localSttModelSize": "Tamaño del modelo: ~640 MB",
+  "localSttDescription": "NVIDIA Parakeet - Transcripción offline rápida con soporte para 25 idiomas"
 }

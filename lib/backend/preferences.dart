@@ -125,6 +125,16 @@ class SharedPreferencesUtil {
 
   bool get vadEnabled => vadConfig.enabled;
 
+  // Local STT (Parakeet) configuration
+  bool get localSttModelDownloaded => getBool('localSttModelDownloaded');
+  set localSttModelDownloaded(bool value) => saveBool('localSttModelDownloaded', value);
+
+  String get localSttModelPath => getString('localSttModelPath');
+  set localSttModelPath(String value) => saveString('localSttModelPath', value);
+
+  bool get localSttAutoFallback => getBool('localSttAutoFallback', defaultValue: true);
+  set localSttAutoFallback(bool value) => saveBool('localSttAutoFallback', value);
+
   // Per-provider config storage
   CustomSttConfig? getConfigForProvider(SttProvider provider) {
     final json = getString('sttConfig_${provider.name}');

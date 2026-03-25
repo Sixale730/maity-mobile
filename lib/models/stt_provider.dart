@@ -11,6 +11,7 @@ enum SttProvider {
   gemini,
   geminiLive,
   localWhisper,
+  localParakeet,
   custom,
   customLive;
 
@@ -233,6 +234,16 @@ class SttProviderConfig {
       apiKeyUrl: 'https://aistudio.google.com/apikey',
       docsUrl: 'https://ai.google.dev/gemini-api/docs/models/gemini',
     ),
+    SttProvider.localParakeet: const SttProviderConfig(
+      provider: SttProvider.localParakeet,
+      displayName: 'On Device',
+      description: 'NVIDIA Parakeet - Fast offline transcription (25 languages)',
+      icon: FontAwesomeIcons.microchip,
+      requestType: SttRequestType.streaming,
+      supportedLanguages: ['multi'],
+      defaultLanguage: 'multi',
+      responseSchema: SttResponseSchema(),
+    ),
     SttProvider.localWhisper: const SttProviderConfig(
       provider: SttProvider.localWhisper,
       displayName: 'Local Whisper',
@@ -409,6 +420,12 @@ class SttProviderConfig {
           'model': mdl.isNotEmpty ? mdl : 'gemini-2.0-flash-live-001',
           'language': lang,
         };
+        break;
+
+      case SttProvider.localParakeet:
+        // On-device model — no remote URL needed
+        config['url'] = 'local://parakeet';
+        config['params'] = {'language': lang};
         break;
 
       case SttProvider.localWhisper:

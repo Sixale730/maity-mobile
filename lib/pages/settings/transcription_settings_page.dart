@@ -13,6 +13,7 @@ import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
 import 'package:omi/services/custom_stt_log_service.dart';
+import 'package:omi/pages/settings/widgets/local_stt_model_card.dart';
 import 'package:provider/provider.dart';
 
 class TranscriptionSettingsPage extends StatefulWidget {
@@ -22,8 +23,10 @@ class TranscriptionSettingsPage extends StatefulWidget {
   State<TranscriptionSettingsPage> createState() => _TranscriptionSettingsPageState();
 }
 
+enum _SourceMode { maity, onDevice, custom }
+
 class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
-  bool _useCustomStt = false;
+  _SourceMode _sourceMode = _SourceMode.maity;
   SttProvider _selectedProvider = SttProvider.openai;
   bool _showAdvanced = false;
   bool _showLogs = false;
@@ -92,8 +95,16 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
   void _loadConfig() {
     final activeConfig = SharedPreferencesUtil().customSttConfig;
     setState(() {
-      _useCustomStt = activeConfig.isEnabled;
-      _selectedProvider = activeConfig.provider == SttProvider.omi ? SttProvider.openai : activeConfig.provider;
+      if (activeConfig.provider == SttProvider.localParakeet && activeConfig.isEnabled) {
+        _sourceMode = _SourceMode.onDevice;
+        _selectedProvider = SttProvider.openai;
+      } else if (activeConfig.isEnabled) {
+        _sourceMode = _SourceMode.custom;
+        _selectedProvider = activeConfig.provider == SttProvider.omi ? SttProvider.openai : activeConfig.provider;
+      } else {
+        _sourceMode = _SourceMode.maity;
+        _selectedProvider = activeConfig.provider == SttProvider.omi ? SttProvider.openai : activeConfig.provider;
+      }
 
       // Load all provider configs from preferences
       _loadAllProviderConfigs();
@@ -293,7 +304,7 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
 
   void _validateAndSetError() {
     setState(() {
-      if (!_useCustomStt) {
+      if (_sourceMode == _SourceMode.maity || _sourceMode == _SourceMode.onDevice) {
         _validationError = null;
         return;
       }
@@ -361,12 +372,20 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
     setState(() => _isSaving = true);
 
     try {
-      // Save current provider's complete config
-      await _saveCurrentProviderConfig();
+      // Save current provider's complete config (only for custom STT)
+      if (_sourceMode == _SourceMode.custom) {
+        await _saveCurrentProviderConfig();
+      }
 
-      // Build the active config (with correct provider based on _useCustomStt)
-      final currentConfig = _buildCurrentConfig();
-      final activeConfig = _useCustomStt ? currentConfig : const CustomSttConfig(provider: SttProvider.omi);
+      // Build the active config based on source mode
+      final CustomSttConfig activeConfig;
+      if (_sourceMode == _SourceMode.onDevice) {
+        activeConfig = const CustomSttConfig(provider: SttProvider.localParakeet);
+      } else if (_sourceMode == _SourceMode.custom) {
+        activeConfig = _buildCurrentConfig();
+      } else {
+        activeConfig = const CustomSttConfig(provider: SttProvider.omi);
+      }
 
       final previousConfig = SharedPreferencesUtil().customSttConfig;
       final configChanged = previousConfig.sttConfigId != activeConfig.sttConfigId;
@@ -413,13 +432,15 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
                 children: [
                   _buildSourceSelector(),
                   const SizedBox(height: 24),
-                  if (_useCustomStt) ...[
+                  if (_sourceMode == _SourceMode.custom) ...[
                     _buildProviderSection(),
                     const SizedBox(height: 20),
                     _buildConfigSection(),
                     const SizedBox(height: 10),
                     _buildAdvancedSection(),
                     _buildLogsSection(),
+                  ] else if (_sourceMode == _SourceMode.onDevice) ...[
+                    const LocalSttModelCard(),
                   ] else ...[
                     _buildOmiFeatures(),
                   ],
@@ -441,15 +462,22 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
         const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(child: _buildSourceOption(false, 'Maity')),
-            const SizedBox(width: 10),
-            Expanded(child: _buildSourceOption(true, 'Bring your own')),
+            Expanded(child: _buildSourceOption(_SourceMode.maity, 'Maity')),
+            const SizedBox(width: 8),
+            Expanded(child: _buildSourceOption(_SourceMode.onDevice, 'On Device')),
+            const SizedBox(width: 8),
+            Expanded(child: _buildSourceOption(_SourceMode.custom, 'Custom')),
           ],
         ),
         const SizedBox(height: 12),
-        if (_useCustomStt)
+        if (_sourceMode == _SourceMode.custom)
           Text(
             'Freely use Maity. You only pay your STT provider directly.',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+          )
+        else if (_sourceMode == _SourceMode.onDevice)
+          Text(
+            'Transcribe offline using NVIDIA Parakeet. No internet required.',
             style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
           )
         else
@@ -484,17 +512,16 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
     );
   }
 
-  Widget _buildSourceOption(bool isCustom, String title) {
-    final isSelected = _useCustomStt == isCustom;
+  Widget _buildSourceOption(_SourceMode mode, String title) {
+    final isSelected = _sourceMode == mode;
     return GestureDetector(
       onTap: () {
-        if (_useCustomStt == isCustom) return;
+        if (_sourceMode == mode) return;
 
-        setState(() => _useCustomStt = isCustom);
+        setState(() => _sourceMode = mode);
 
-        // Track source selection: 'omi' vs 'custom'
         MixpanelManager().transcriptionSourceSelected(
-          source: isCustom ? 'custom' : 'omi',
+          source: mode.name,
         );
       },
       child: Container(
@@ -508,19 +535,13 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
           ),
         ),
         child: Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: isSelected ? Colors.black : Colors.grey.shade400,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+          child: Text(
+            title,
+            style: TextStyle(
+              color: isSelected ? Colors.black : Colors.grey.shade400,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ),
@@ -528,7 +549,7 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
   }
 
   Widget _buildCodecWarning() {
-    if (_isCodecCompatible || !_useCustomStt) return const SizedBox.shrink();
+    if (_isCodecCompatible || _sourceMode != _SourceMode.custom) return const SizedBox.shrink();
 
     final codecReason = _connectedDeviceCodec?.customSttUnsupportedReason ?? 'unsupported format';
     return Padding(
@@ -600,27 +621,6 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
                     ),
                   );
                 }),
-                DropdownMenuItem<SttProvider>(
-                  value: null,
-                  enabled: false,
-                  child: Row(
-                    children: [
-                      const Expanded(child: Text('On Device')),
-                      Container(
-                        margin: const EdgeInsets.only(left: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        child: Text(
-                          'Coming Soon',
-                          style: TextStyle(
-                            color: Colors.orange.withValues(alpha: 0.5),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
               onChanged: (provider) async {
                 if (provider != null) {

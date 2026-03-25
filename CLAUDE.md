@@ -11,7 +11,7 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
                OpenAI (analisis + embeddings)
 ```
 
-**Stack**: Flutter (iOS/Android/Desktop) · Vercel Serverless (Python/FastAPI) · Supabase PostgreSQL + pgvector · OpenAI (GPT-4o-mini, text-embedding-3-small) · Deepgram STT · Mixpanel/Firebase Analytics
+**Stack**: Flutter (iOS/Android/Desktop) · Vercel Serverless (Python/FastAPI) · Supabase PostgreSQL + pgvector · OpenAI (GPT-4o-mini, text-embedding-3-small) · Deepgram STT · sherpa_onnx (Parakeet local STT) · Mixpanel/Firebase Analytics
 
 ## Supabase
 - URL: `https://nhlrtflkxoojvhbyocet.supabase.co`
@@ -43,6 +43,7 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
 - `auth_provider.dart` - Auth Supabase
 - `conversation_provider.dart` - Estado conversaciones + busqueda semantica
 - `capture_provider.dart` - Orquesta grabacion via 5 servicios: FSM, AudioTransport, TranscriptionPipeline, PersistenceManager, AppLifecycleManager
+- `local_stt_provider.dart` - ChangeNotifier wrapping ModelDownloadService para UI de descarga modelo
 - `usage_provider.dart` - Estadisticas
 - `memories_provider.dart` - CRUD memorias + revision
 - `action_items_provider.dart` - Tareas
@@ -64,6 +65,10 @@ Flutter App → Vercel Backend (FastAPI) → Supabase (PostgreSQL + pgvector)
 - `conversation_processor.dart` - Procesamiento local con OpenAI
 - `transcript_recovery_service.dart` - Recovery de conversaciones interrumpidas
 - `daily_report_service.dart` - HTTP para reportes diarios
+- `local_stt/local_stt_engine.dart` - sherpa_onnx OfflineRecognizer + VAD wrapper
+- `local_stt/local_stt_socket.dart` - IPureSocket adapter para STT local (sin red)
+- `local_stt/model_download_service.dart` - Descarga on-demand del modelo Parakeet (~640MB)
+- `local_stt/model_manifest.dart` - URLs, tamaños y checksums de archivos del modelo
 
 ### Otros
 - `lib/backend/http/shared.dart` - Cliente HTTP con auth centralizada
@@ -342,6 +347,37 @@ Token en `.env` → `MIXPANEL_PROJECT_TOKEN`. Singleton `MixpanelManager` en `li
 Requiere: VAD habilitado + Custom STT (Deepgram) + PCM16. Estados: Silence → Pre-Roll → Speech → Hang-Over. Metricas en Developer Settings.
 
 **Archivos**: `lib/services/vad/vad_metrics.dart`, `lib/services/vad/vad_state.dart`, `lib/providers/capture_provider.dart` (`vadStateNotifier`, `vadMetrics`).
+
+## Local STT (Parakeet On-Device)
+
+NVIDIA Parakeet TDT 0.6B v3 via `sherpa_onnx` Flutter package (FFI, no HTTP/WebSocket). Multilingue 25 idiomas incl. español, autodeteccion. Modelo ~640MB descargado on-demand desde Settings.
+
+**Arquitectura**: `LocalSttSocket` implementa `IPureSocket` → se conecta al pipeline existente `TranscriptSegmentSocketService` sin modificar logica core. Audio PCM16 → Float32 → Silero VAD → segmentos speech → OfflineRecognizer decode → JSON segments via `onMessage()`.
+
+**Fallback automatico**:
+1. Pre-conexion: si offline + modelo ready + autoFallback → usa localParakeet directo
+2. Post-fallo: si cloud WebSocket falla + modelo ready → retry con localParakeet
+3. Mid-recording: NO cambia de provider (estabilidad de sesion)
+
+**Restricciones**:
+- Provider forzado a `cpu` (CoreML causa OOM 2.9GB en iPhone)
+- FFI pointers no cruzan isolate boundaries → decode sincrono en main isolate (~200ms para chunks de 3s)
+- RAM warning para devices <6GB (iPhone SE, 12 mini, etc.)
+
+**Storage**: `getApplicationSupportDirectory()/parakeet-tdt-0.6b-v3/` (no purgeable por iOS). 5 archivos: encoder.int8 (652MB), decoder.int8 (12MB), joiner.int8 (6.4MB), tokens.txt (94KB), silero_vad (2MB).
+
+**Preferences**: `localSttModelDownloaded` (bool), `localSttModelPath` (String), `localSttAutoFallback` (bool, default true).
+
+**Archivos**:
+- `lib/services/local_stt/local_stt_engine.dart` - sherpa_onnx OfflineRecognizer + VoiceActivityDetector
+- `lib/services/local_stt/local_stt_socket.dart` - IPureSocket adapter, buffer 3s, PCM16→Float32
+- `lib/services/local_stt/model_download_service.dart` - Singleton, dio con resume, validacion, ValueNotifier<DownloadProgress>
+- `lib/services/local_stt/model_manifest.dart` - URLs, tamaños, checksums, low-RAM device list
+- `lib/providers/local_stt_provider.dart` - ChangeNotifier wrapping ModelDownloadService
+- `lib/pages/settings/widgets/local_stt_model_card.dart` - UI descarga/estado/delete/fallback toggle
+- `lib/models/stt_provider.dart` - Enum `localParakeet` + SttProviderConfig
+- `lib/services/sockets/transcription_service.dart` - Factory `createLocalStt()`
+- `lib/services/recording/transcription_pipeline.dart` - Fallback logic en `initiateWebsocket()`
 
 ## Backend
 

@@ -1044,5 +1044,17 @@
 
   "conversationAutoSavedTitle": "Conversation Saved",
   "conversationAutoSavedBody": "Your conversation was saved automatically due to silence and is being processed.",
-  "conversationAutoSavedSnackbar": "Conversation saved due to silence"
+  "conversationAutoSavedSnackbar": "Conversation saved due to silence",
+
+  "localSttOnDevice": "On Device",
+  "localSttDownloadModel": "Download Model",
+  "localSttDownloading": "Downloading...",
+  "localSttReady": "Ready",
+  "localSttDeleteModel": "Delete Model",
+  "localSttDeleteConfirm": "Delete the local STT model? This will free up ~640 MB of storage.",
+  "localSttRamWarning": "This device has less than 6 GB of RAM. Local transcription may be slow or crash.",
+  "localSttAutoFallback": "Use when offline",
+  "localSttAutoFallbackDesc": "Automatically use local transcription when there is no internet connection",
+  "localSttModelSize": "Model size: ~640 MB",
+  "localSttDescription": "NVIDIA Parakeet - Fast offline transcription supporting 25 languages"
 }

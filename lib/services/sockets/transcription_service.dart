@@ -10,6 +10,8 @@ import 'package:omi/env/env.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/services/capture_log_service.dart';
+import 'package:omi/services/local_stt/local_stt_engine.dart';
+import 'package:omi/services/local_stt/local_stt_socket.dart';
 import 'package:omi/services/notifications.dart';
 import 'package:omi/services/sockets/pure_socket.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
@@ -340,6 +342,11 @@ class TranscriptSocketServiceFactory {
       return createDefault(sampleRate, codec, language, source: source);
     }
 
+    // Local Parakeet: purely on-device, no composite wrapper needed
+    if (config.provider == SttProvider.localParakeet) {
+      return createLocalStt(sampleRate, codec, language, source: source);
+    }
+
     final sttConfigId = config.sttConfigId;
     final effectiveLang = config.effectiveLanguage;
     final effectiveModel = config.effectiveModel;
@@ -378,6 +385,11 @@ class TranscriptSocketServiceFactory {
       return createDefault(sampleRate, codec, language, source: source);
     }
 
+    // Local Parakeet: use on-device engine, no network
+    if (config.provider == SttProvider.localParakeet) {
+      return createLocalStt(sampleRate, codec, language, source: source);
+    }
+
     final sttConfigId = config.sttConfigId;
     debugPrint(
         "[STTFactory] Creating DIRECT socket (no composite): provider=${config.provider.name}, isLive=${config.isLive}");
@@ -397,6 +409,38 @@ class TranscriptSocketServiceFactory {
       source: source,
       customSttMode: true,
       sttConfigId: sttConfigId,
+    );
+  }
+
+  // Shared engine instance: initialized once, reused across sessions.
+  static LocalSttEngine? _localEngine;
+
+  /// Create a local STT transcription service using the on-device Parakeet model.
+  /// No network required -- audio is decoded locally via sherpa_onnx.
+  static TranscriptSegmentSocketService createLocalStt(
+    int sampleRate,
+    BleAudioCodec codec,
+    String language, {
+    String? source,
+  }) {
+    final modelPath = SharedPreferencesUtil().localSttModelPath;
+    debugPrint('[STTFactory] Creating LocalSttSocket, model: $modelPath');
+
+    // Reuse a shared engine instance across sessions
+    _localEngine ??= LocalSttEngine();
+
+    // Pass modelPath so connect() can initialize the engine lazily
+    final localSocket = LocalSttSocket(_localEngine!, modelPath: modelPath);
+
+    return TranscriptSegmentSocketService.withSocket(
+      sampleRate,
+      codec,
+      language,
+      localSocket,
+      includeSpeechProfile: false,
+      source: source,
+      customSttMode: true,
+      sttConfigId: 'localParakeet:ondevice',
     );
   }
 

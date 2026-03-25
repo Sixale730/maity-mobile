@@ -10,6 +10,8 @@ import 'package:omi/backend/schema/message_event.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/services/capture_log_service.dart';
+import 'package:omi/services/connectivity_service.dart';
+import 'package:omi/services/local_stt/model_download_service.dart';
 import 'package:omi/services/notifications/notification_service.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
@@ -214,6 +216,17 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     CustomSttConfig? effectiveConfig =
         customSttConfig.isEnabled ? customSttConfig : null;
 
+    // Auto-fallback to local STT when offline and model is ready
+    if (effectiveConfig == null &&
+        !ConnectivityService().isConnected &&
+        SharedPreferencesUtil().localSttAutoFallback &&
+        ModelDownloadService.instance.isModelReady) {
+      effectiveConfig =
+          const CustomSttConfig(provider: SttProvider.localParakeet);
+      debugPrint(
+          '[TranscriptionPipeline] Offline + model ready -> using local Parakeet');
+    }
+
     // Fallback: if Omi backend URL is not configured, use Deepgram directly
     if (effectiveConfig == null) {
       final apiBaseUrl = Env.apiBaseUrl;
@@ -265,8 +278,31 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
             'custom_stt': effectiveConfig != null,
           });
       debugPrint('[TranscriptionPipeline] WebSocket connection failed: $e');
-      _startKeepAlive();
-      return;
+
+      // Fallback to local STT if cloud connection failed and model is ready
+      if (effectiveConfig?.provider != SttProvider.localParakeet &&
+          ModelDownloadService.instance.isModelReady) {
+        debugPrint(
+            '[TranscriptionPipeline] Cloud failed, falling back to local Parakeet');
+        try {
+          _socket = await ServiceManager.instance().socket.conversation(
+                codec: codec,
+                sampleRate: sampleRate,
+                language: language,
+                force: true,
+                source: source,
+                customSttConfig: const CustomSttConfig(
+                    provider: SttProvider.localParakeet),
+              );
+        } catch (_) {
+          // Local also failed -- give up
+        }
+      }
+
+      if (_socket == null) {
+        _startKeepAlive();
+        return;
+      }
     }
     if (_socket == null) {
       _captureLog.log('socket', 'websocket_creation_failed',
@@ -275,9 +311,30 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
             'codec': codec.name,
             'custom_stt': effectiveConfig != null,
           });
-      _startKeepAlive();
-      debugPrint("Can not create new conversation socket");
-      return;
+
+      // Fallback to local STT if cloud socket creation returned null and model is ready
+      if (effectiveConfig?.provider != SttProvider.localParakeet &&
+          ModelDownloadService.instance.isModelReady) {
+        debugPrint(
+            '[TranscriptionPipeline] Socket null, falling back to local Parakeet');
+        try {
+          _socket = await ServiceManager.instance().socket.conversation(
+                codec: codec,
+                sampleRate: sampleRate,
+                language: language,
+                force: true,
+                source: source,
+                customSttConfig: const CustomSttConfig(
+                    provider: SttProvider.localParakeet),
+              );
+        } catch (_) {}
+      }
+
+      if (_socket == null) {
+        _startKeepAlive();
+        debugPrint("Can not create new conversation socket");
+        return;
+      }
     }
     _socket?.subscribe(this, this);
     _transcriptServiceReady = true;
