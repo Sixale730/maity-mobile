@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/local_stt_provider.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
@@ -77,7 +78,7 @@ class LocalSttModelCard extends StatelessWidget {
       case DownloadState.ready:
         return _buildReadyState(context, provider, l10n);
       case DownloadState.error:
-        return _buildErrorState(provider, l10n);
+        return _buildErrorState(context, provider, l10n);
       default:
         return _buildIdleState(provider, l10n);
     }
@@ -227,7 +228,7 @@ class LocalSttModelCard extends StatelessWidget {
     );
   }
 
-  Widget _buildErrorState(LocalSttProvider provider, AppLocalizations l10n) {
+  Widget _buildErrorState(BuildContext context, LocalSttProvider provider, AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -246,10 +247,26 @@ class LocalSttModelCard extends StatelessWidget {
                 child: Text(
                   provider.errorMessage ?? l10n.error,
                   style: TextStyle(color: Colors.red.shade300, fontSize: 13),
-                  maxLines: 2,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (provider.errorLog != null)
+                IconButton(
+                  icon: Icon(Icons.copy_rounded, color: Colors.grey.shade500, size: 18),
+                  tooltip: l10n.copiedToClipboard,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: provider.errorLog!));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.copiedToClipboard),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
           const SizedBox(height: 12),

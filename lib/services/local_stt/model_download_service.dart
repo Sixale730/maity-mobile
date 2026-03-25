@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/services/local_stt/model_manifest.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
 enum DownloadState { idle, downloading, paused, validating, ready, error }
@@ -18,6 +19,7 @@ class DownloadProgress {
   final double speedBytesPerSec;
   final String? errorMessage;
   final String? currentFile;
+  final String? errorLog; // Detailed log for clipboard copy
 
   const DownloadProgress({
     this.state = DownloadState.idle,
@@ -27,6 +29,7 @@ class DownloadProgress {
     this.speedBytesPerSec = 0.0,
     this.errorMessage,
     this.currentFile,
+    this.errorLog,
   });
 
   DownloadProgress copyWith({
@@ -37,6 +40,7 @@ class DownloadProgress {
     double? speedBytesPerSec,
     String? errorMessage,
     String? currentFile,
+    String? errorLog,
   }) {
     return DownloadProgress(
       state: state ?? this.state,
@@ -46,6 +50,7 @@ class DownloadProgress {
       speedBytesPerSec: speedBytesPerSec ?? this.speedBytesPerSec,
       errorMessage: errorMessage ?? this.errorMessage,
       currentFile: currentFile ?? this.currentFile,
+      errorLog: errorLog ?? this.errorLog,
     );
   }
 }
@@ -235,23 +240,50 @@ class ModelDownloadService {
           );
           return false;
         }
-        debugPrint('[ModelDownload] Error downloading ${modelFile.fileName}: $e');
+        final status = e.response?.statusCode;
+        final dioType = e.type.name;
+        final bodyStr = e.response?.data?.toString();
+        debugPrint(
+            '[ModelDownload] DioError ${modelFile.fileName}: type=$dioType, '
+            'status=$status, uri=${e.requestOptions.uri}, '
+            'message=${e.message}, innerError=${e.error}');
+        final log = await _buildErrorLog(
+          fileName: modelFile.fileName,
+          url: modelFile.url,
+          bytesDownloaded: cumulativeBytes,
+          errorMessage: e.message,
+          dioErrorType: dioType,
+          httpStatus: status,
+          responseBody: bodyStr,
+          redirects: e.response?.redirects,
+          rawError: e.error?.toString(),
+        );
         downloadProgress.value = DownloadProgress(
           state: DownloadState.error,
-          errorMessage: 'Failed to download ${modelFile.fileName}: ${e.message}',
+          errorMessage: '${modelFile.fileName}: ${_shortErrorMessage(e)}',
           bytesDownloaded: cumulativeBytes,
           totalBytes: totalBytes,
           currentFile: modelFile.fileName,
+          errorLog: log,
         );
         return false;
-      } catch (e) {
-        debugPrint('[ModelDownload] Error downloading ${modelFile.fileName}: $e');
+      } catch (e, stackTrace) {
+        debugPrint(
+            '[ModelDownload] Error downloading ${modelFile.fileName}: $e\n$stackTrace');
+        final log = await _buildErrorLog(
+          fileName: modelFile.fileName,
+          url: modelFile.url,
+          bytesDownloaded: cumulativeBytes,
+          errorMessage: e.toString(),
+          rawError: '$e\n$stackTrace',
+        );
         downloadProgress.value = DownloadProgress(
           state: DownloadState.error,
-          errorMessage: 'Failed to download ${modelFile.fileName}: $e',
+          errorMessage: 'Failed: ${modelFile.fileName} — $e',
           bytesDownloaded: cumulativeBytes,
           totalBytes: totalBytes,
           currentFile: modelFile.fileName,
+          errorLog: log,
         );
         return false;
       }
@@ -276,9 +308,16 @@ class ModelDownloadService {
           '[ModelDownload] All files downloaded and validated in ${stopwatch.elapsed.inSeconds}s');
       return true;
     } else {
-      downloadProgress.value = const DownloadProgress(
+      final log = await _buildErrorLog(
+        fileName: '(all files)',
+        url: '(validation pass)',
+        bytesDownloaded: cumulativeBytes,
+        errorMessage: 'Final validation failed after download',
+      );
+      downloadProgress.value = DownloadProgress(
         state: DownloadState.error,
         errorMessage: 'Final validation failed after download',
+        errorLog: log,
       );
       return false;
     }
@@ -315,6 +354,96 @@ class ModelDownloadService {
     final iosInfo = await deviceInfo.iosInfo;
     final model = iosInfo.utsname.machine;
     return ParakeetModelManifest.lowRamModels.contains(model);
+  }
+
+  /// Build a short, user-readable error message from a DioException.
+  String _shortErrorMessage(DioException e) {
+    final status = e.response?.statusCode;
+    if (status != null) return 'HTTP $status (${e.type.name})';
+    if (e.type == DioExceptionType.connectionTimeout) return 'Connection timeout';
+    if (e.type == DioExceptionType.receiveTimeout) return 'Download timeout';
+    if (e.type == DioExceptionType.connectionError) {
+      return 'Connection error — check network';
+    }
+    return e.message ?? e.type.name;
+  }
+
+  /// Build a detailed error log string for clipboard copy.
+  Future<String> _buildErrorLog({
+    required String fileName,
+    required String url,
+    required int bytesDownloaded,
+    String? errorMessage,
+    String? dioErrorType,
+    int? httpStatus,
+    String? responseBody,
+    List<RedirectRecord>? redirects,
+    String? rawError,
+  }) async {
+    final buf = StringBuffer();
+    try {
+      buf.writeln('=== Maity Model Download Error ===');
+      buf.writeln('Timestamp: ${DateTime.now().toUtc().toIso8601String()}');
+
+      // App version
+      try {
+        final pkg = await PackageInfo.fromPlatform();
+        buf.writeln('App: ${pkg.appName} ${pkg.version}+${pkg.buildNumber}');
+      } catch (_) {
+        buf.writeln('App: (could not read version)');
+      }
+
+      // Device info
+      try {
+        final deviceInfo = DeviceInfoPlugin();
+        if (Platform.isIOS) {
+          final ios = await deviceInfo.iosInfo;
+          buf.writeln('Device: ${ios.utsname.machine} (${ios.model})');
+          buf.writeln('OS: iOS ${ios.systemVersion}');
+        } else if (Platform.isAndroid) {
+          final android = await deviceInfo.androidInfo;
+          buf.writeln('Device: ${android.manufacturer} ${android.model}');
+          buf.writeln('OS: Android ${android.version.release} (SDK ${android.version.sdkInt})');
+        } else {
+          buf.writeln('Platform: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}');
+        }
+      } catch (_) {
+        buf.writeln('Device: ${Platform.operatingSystem}');
+      }
+
+      // Download context
+      buf.writeln('');
+      buf.writeln('--- Download Context ---');
+      buf.writeln('File: $fileName');
+      buf.writeln('URL: $url');
+      buf.writeln('Bytes downloaded: $bytesDownloaded');
+      buf.writeln('Model dir: ${_modelDirPath ?? "(not set)"}');
+
+      // Error details
+      buf.writeln('');
+      buf.writeln('--- Error Details ---');
+      if (errorMessage != null) buf.writeln('Message: $errorMessage');
+      if (dioErrorType != null) buf.writeln('Dio error type: $dioErrorType');
+      if (httpStatus != null) buf.writeln('HTTP status: $httpStatus');
+      if (redirects != null && redirects.isNotEmpty) {
+        buf.writeln('Redirects: ${redirects.length}');
+        for (final r in redirects) {
+          buf.writeln('  ${r.statusCode} → ${r.location}');
+        }
+      }
+      if (responseBody != null && responseBody.isNotEmpty) {
+        final truncated = responseBody.length > 500
+            ? '${responseBody.substring(0, 500)}...(truncated)'
+            : responseBody;
+        buf.writeln('Response body: $truncated');
+      }
+      if (rawError != null) {
+        buf.writeln('Raw error: $rawError');
+      }
+    } catch (e) {
+      buf.writeln('(error building log: $e)');
+    }
+    return buf.toString();
   }
 
   /// Validate that all model files exist and meet minimum size thresholds.

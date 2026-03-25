@@ -9,6 +9,7 @@ class LocalSttProvider extends ChangeNotifier {
   int _totalBytes = 0;
   double _speedBytesPerSec = 0.0;
   String? _errorMessage;
+  String? _errorLog;
   String? _currentFile;
   bool _deviceRamWarning = false;
 
@@ -18,6 +19,7 @@ class LocalSttProvider extends ChangeNotifier {
   int get totalBytes => _totalBytes;
   double get speedBytesPerSec => _speedBytesPerSec;
   String? get errorMessage => _errorMessage;
+  String? get errorLog => _errorLog;
   String? get currentFile => _currentFile;
   bool get deviceRamWarning => _deviceRamWarning;
 
@@ -50,6 +52,7 @@ class LocalSttProvider extends ChangeNotifier {
     _totalBytes = progress.totalBytes;
     _speedBytesPerSec = progress.speedBytesPerSec;
     _errorMessage = progress.errorMessage;
+    _errorLog = progress.errorLog;
     _currentFile = progress.currentFile;
     notifyListeners();
   }

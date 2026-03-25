@@ -52,7 +52,7 @@ class ParakeetModelManifest {
       fileName: 'silero_vad.onnx',
       url:
           'https://huggingface.co/csukuangfj/vad/resolve/main/silero_vad.onnx',
-      expectedBytes: 2 * 1024 * 1024, // ~2 MB
+      expectedBytes: 1808 * 1024, // ~1.81 MB (actual size on HuggingFace)
     ),
   ];
 
