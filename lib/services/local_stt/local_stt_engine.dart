@@ -50,14 +50,16 @@ class LocalSttEngine {
       final sherpa.OfflineRecognizerConfig config;
 
       if (modelType == LocalSttModelType.moonshine) {
-        // Moonshine v2: OfflineMoonshineModelConfig (preprocessor + encoder + decoders)
+        // Moonshine v2: merged decoder format (.ort files)
+        // Refs: PR #3232, #3245, Issue #3223 — v2 uses encoder + mergedDecoder
         config = sherpa.OfflineRecognizerConfig(
           model: sherpa.OfflineModelConfig(
             moonshine: sherpa.OfflineMoonshineModelConfig(
-              preprocessor: '$modelDir/preprocess.onnx',
-              encoder: '$modelDir/encode.int8.onnx',
-              uncachedDecoder: '$modelDir/uncached_decode.int8.onnx',
-              cachedDecoder: '$modelDir/cached_decode.int8.onnx',
+              preprocessor: '', // empty for v2
+              encoder: '$modelDir/encoder_model.ort',
+              uncachedDecoder: '', // empty for v2 (merged)
+              cachedDecoder: '', // empty for v2 (merged)
+              mergedDecoder: '$modelDir/decoder_model_merged.ort',
             ),
             tokens: '$modelDir/tokens.txt',
             numThreads: 2,

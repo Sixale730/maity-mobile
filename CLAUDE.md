@@ -355,7 +355,7 @@ Sistema multi-modelo on-device via `sherpa_onnx` Flutter package (FFI, no HTTP/W
 | Modelo | Tipo | Tamaño | Idiomas | Config sherpa_onnx |
 |--------|------|--------|---------|-------------------|
 | **Parakeet TDT 0.6B v3** | OfflineTransducerModelConfig | ~640 MB (archivos individuales) | 25 idiomas, auto-detect | `modelType: 'nemo_transducer'` |
-| **Moonshine v2 Base ES** | OfflineMoonshineModelConfig | ~50 MB (tar.bz2 comprimido) | Español optimizado | Auto-detect |
+| **Moonshine v2 Base ES** | OfflineMoonshineModelConfig (v2: encoder + mergedDecoder `.ort`) | ~50 MB (tar.bz2 comprimido) | Español optimizado | Auto-detect |
 
 **Arquitectura**: `LocalSttSocket` implementa `IPureSocket` → se conecta al pipeline existente `TranscriptSegmentSocketService` sin modificar logica core. Audio PCM16 → Float32 → Silero VAD → segmentos speech → OfflineRecognizer decode → JSON segments via `onMessage()`. El `LocalSttModelType` enum determina que config de modelo usar en `LocalSttEngine.initialize()`.
 
@@ -372,9 +372,9 @@ Sistema multi-modelo on-device via `sherpa_onnx` Flutter package (FFI, no HTTP/W
 
 **Storage**:
 - Parakeet: `getApplicationSupportDirectory()/parakeet-tdt-0.6b-v3/` — 5 archivos individuales (~640MB)
-- Moonshine: `getApplicationSupportDirectory()/moonshine-base-es/` — tar.bz2 extraido (~50MB) + silero_vad.onnx
+- Moonshine: `getApplicationSupportDirectory()/moonshine-base-es/` — 3 archivos: encoder_model.ort (20MB), decoder_model_merged.ort (41MB), tokens.txt (520KB) + silero_vad.onnx
 
-**Descarga Moonshine**: Archivo tar.bz2 desde GitHub releases → extraido via `package:archive` (BZip2Decoder + TarDecoder). Silero VAD se copia del directorio Parakeet si ya existe, sino se descarga aparte.
+**Descarga Moonshine**: Archivo tar.bz2 desde GitHub releases → extraido via `package:archive` (BZip2Decoder + TarDecoder). Formato v2: `encoder_model.ort` + `decoder_model_merged.ort` (NO v1 con 4 archivos separados). Silero VAD se copia del directorio Parakeet si ya existe, sino se descarga aparte.
 
 **Preferences**:
 - `localSttModelDownloaded` (bool), `localSttModelPath` (String) — Parakeet

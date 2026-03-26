@@ -356,8 +356,13 @@ class ModelDownloadService {
         if (fileName.contains('/')) {
           fileName = fileName.split('/').last;
         }
-        // Skip hidden/metadata files
+        // Skip hidden files, metadata, and non-model files
         if (fileName.startsWith('.') || fileName.isEmpty) continue;
+        if (fileName == 'LICENSE' || fileName == 'README.md') continue;
+
+        // Only extract model files (.ort, .onnx, .txt)
+        final ext = fileName.split('.').last.toLowerCase();
+        if (!{'ort', 'onnx', 'txt'}.contains(ext)) continue;
 
         final outFile = File('$targetDir/$fileName');
         await outFile.writeAsBytes(file.content as List<int>);
