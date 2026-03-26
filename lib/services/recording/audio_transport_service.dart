@@ -212,16 +212,16 @@ class AudioTransportService {
     await ServiceManager.instance().mic.start(
       onByteReceived: (Uint8List bytes) {
         _lastAudioBytesSentAt = DateTime.now();
-        if (socketState() == SocketServiceState.connected) {
-          // Fix H1: `bytes` is already Uint8List from the background service IPC
-          // layer — pass directly to VAD/socket without an extra copy.
-          if (_vadService != null && _vadService!.isInitialized) {
-            _vadService!.processAudioFrame(bytes);
-          } else {
-            _socketSender?.call(bytes);
-          }
-          _audioBytesSent += bytes.length;
+        // Always send audio to pipeline — it handles buffering during reconnect.
+        // VAD only runs when socket is connected (Deepgram requires live connection).
+        if (_vadService != null &&
+            _vadService!.isInitialized &&
+            socketState() == SocketServiceState.connected) {
+          _vadService!.processAudioFrame(bytes);
+        } else {
+          _socketSender?.call(bytes);
         }
+        _audioBytesSent += bytes.length;
       },
       onRecording: () {
         onStateChange(RecordingState.record);

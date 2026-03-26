@@ -90,6 +90,9 @@ class CaptureProvider extends ChangeNotifier
 
   bool _isFinalizing = false;
 
+  /// Single-flight guard: all reconnect paths coalesce onto one in-flight Future.
+  Completer<void>? _reconnectInflight;
+
   final ValueNotifier<String?> autoSaveMessage = ValueNotifier(null);
 
   CaptureLogService get _captureLog => CaptureLogService.instance;
@@ -912,7 +915,13 @@ class CaptureProvider extends ChangeNotifier
   }
 
   Future<void> _reconnectForStall() async {
-    _pipeline.stopKeepAlive();  // Cancel any running keep-alive before reconnecting
+    // Single-flight: if a reconnect is already in progress, piggyback on it
+    if (_reconnectInflight != null) {
+      return _reconnectInflight!.future;
+    }
+    _reconnectInflight = Completer<void>();
+
+    _pipeline.stopKeepAlive();
     _pipeline.setReconnecting(true);
     await _pipeline.stopSocket('transcription stalled');
     try {
@@ -939,11 +948,14 @@ class CaptureProvider extends ChangeNotifier
           source: ConversationSource.desktop.name,
         );
       }
+      _reconnectInflight?.complete();
     } catch (e) {
       debugPrint('[CaptureProvider] _reconnectForStall failed: $e');
       _captureLog.log('recording', 'reconnect_for_stall_failed',
           severity: 'error', details: {'error': e.toString()});
+      _reconnectInflight?.completeError(e);
     } finally {
+      _reconnectInflight = null;
       _pipeline.setReconnecting(false);
     }
   }

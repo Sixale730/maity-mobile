@@ -151,6 +151,17 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   static const int maxAudioBufferBytes = 160000;
 
   // ---------------------------------------------------------------------------
+  // Reconnect audio buffer (B5 fix)
+  // ---------------------------------------------------------------------------
+  /// Audio bytes buffered during reconnection gap, replayed after socket connects.
+  final List<List<int>> _reconnectAudioBuffer = [];
+  int _reconnectAudioBufferBytes = 0;
+  bool _isBufferingForReconnect = false;
+
+  /// Max reconnect buffer: ~5s of 16kHz 16-bit mono PCM = 160,000 bytes.
+  static const int _maxReconnectBufferBytes = 160000;
+
+  // ---------------------------------------------------------------------------
   // WS bytes sent counter (exposed for CaptureProvider metrics)
   // ---------------------------------------------------------------------------
   int wsSocketBytesSent = 0;
@@ -378,6 +389,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// Stop the socket cleanly.
   Future<void> stopSocket(String reason) async {
     _tokenRefreshTimer?.cancel();
+    _isBufferingForReconnect = true; // Buffer audio during reconnect gap
     _captureLog.log('socket', 'socket_stopping',
         details: {'reason': reason});
     await _socket?.stop(reason: reason);
@@ -423,6 +435,15 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
         } catch (e) {
           debugPrint('[TranscriptionPipeline] WAL onBytesSync error: $e');
         }
+      }
+    } else if (_isBufferingForReconnect && data is List<int>) {
+      // Buffer audio during reconnect gap for replay after new socket connects
+      _reconnectAudioBuffer.add(data);
+      _reconnectAudioBufferBytes += data.length;
+      // Trim oldest frames if buffer exceeds ~5 seconds
+      while (_reconnectAudioBufferBytes > _maxReconnectBufferBytes &&
+          _reconnectAudioBuffer.isNotEmpty) {
+        _reconnectAudioBufferBytes -= _reconnectAudioBuffer.removeAt(0).length;
       }
     }
   }
@@ -548,7 +569,27 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _captureLog.log('socket', 'socket_connected');
     _transcriptServiceReady = true;
     _keepAliveAttempts = 0;
+    _replayReconnectBuffer();
     onNotifyListeners?.call();
+  }
+
+  /// Replay audio buffered during the reconnect gap, then clear the buffer.
+  void _replayReconnectBuffer() {
+    if (_reconnectAudioBuffer.isEmpty) {
+      _isBufferingForReconnect = false;
+      return;
+    }
+
+    final buffered = List<List<int>>.from(_reconnectAudioBuffer);
+    _reconnectAudioBuffer.clear();
+    _reconnectAudioBufferBytes = 0;
+    _isBufferingForReconnect = false;
+
+    for (final chunk in buffered) {
+      _socket?.send(chunk);
+    }
+    debugPrint(
+        '[TranscriptionPipeline] Replayed ${buffered.length} audio chunks after reconnect');
   }
 
   @override
@@ -596,8 +637,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   void _processNewSegmentReceived(List<TranscriptSegment> newSegments) {
     if (newSegments.isEmpty) return;
 
-    // Apply cumulative offset for reconnection timestamp correction
-    if (_cumulativeOffset > Duration.zero) {
+    // Apply cumulative offset for reconnection timestamp correction.
+    // Skip for local STT: its timestamps are already absolute (VAD tracks
+    // cumulative sample index from recording start).
+    if (_cumulativeOffset > Duration.zero && !_isLocalStt) {
       final offsetSeconds = _cumulativeOffset.inMilliseconds / 1000.0;
       for (final segment in newSegments) {
         segment.start += offsetSeconds;
@@ -1032,6 +1075,9 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _transcriptionServiceStatuses = [];
     _walEnabled = false;
     _isLocalStt = false;
+    _reconnectAudioBuffer.clear();
+    _reconnectAudioBufferBytes = 0;
+    _isBufferingForReconnect = false;
     resetTimestampOffset();
   }
 
@@ -1064,6 +1110,9 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _socket = null;
     _transcriptServiceReady = false;
     _isLocalStt = false;
+    _reconnectAudioBuffer.clear();
+    _reconnectAudioBufferBytes = 0;
+    _isBufferingForReconnect = false;
     resetTimestampOffset();
   }
 }

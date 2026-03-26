@@ -1,41 +1,32 @@
 import 'dart:async';
-import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
-import 'package:omi/services/local_stt/local_stt_engine.dart';
+import 'package:omi/services/local_stt/local_stt_worker.dart';
 import 'package:omi/services/sockets/pure_socket.dart';
 
-/// IPureSocket adapter that bridges [LocalSttEngine] to the transcription
-/// pipeline. Receives PCM16 audio via [send], converts to Float32, buffers,
-/// and periodically flushes through the engine. Results are emitted as JSON
-/// via [onMessage] in the same segment format the pipeline expects.
+/// IPureSocket adapter that bridges a worker isolate running [LocalSttEngine]
+/// to the transcription pipeline. Receives PCM16 audio via [send] (non-blocking),
+/// forwards it to the worker isolate, and emits decoded segments as JSON via
+/// [onMessage] in the same format the pipeline expects.
 ///
-/// This adapter does NOT require network -- all processing is local.
-///
-/// NOTE: sherpa_onnx holds native FFI pointers that cannot cross isolate
-/// boundaries, so all decoding runs synchronously on the main isolate.
-/// For 3-second chunks the decode is typically <200ms on modern devices.
+/// All heavy FFI work (VAD + decode) runs in the worker isolate, so the main
+/// isolate is never blocked. Each [connect] spawns a fresh worker with a fresh
+/// engine, eliminating stale VAD state between reconnects.
 class LocalSttSocket implements IPureSocket {
-  final LocalSttEngine _engine;
-
   PureSocketStatus _status = PureSocketStatus.notConnected;
   IPureSocketListener? _listener;
-
-  Timer? _flushTimer;
-  final List<Uint8List> _audioFrames = [];
-  bool _isProcessing = false;
-  double _audioOffsetSeconds = 0;
-
-  /// Flush interval: decode buffered audio every 3 seconds.
-  static const Duration _flushInterval = Duration(seconds: 3);
-
-  /// Minimum bytes before we bother flushing (avoids decoding tiny scraps).
-  /// ~0.5s of 16 kHz 16-bit mono = 16000 bytes.
-  static const int _minBufferBytes = 16000;
-
   final String? _modelPath;
 
-  LocalSttSocket(this._engine, {String? modelPath}) : _modelPath = modelPath;
+  // Worker isolate communication
+  Isolate? _workerIsolate;
+  SendPort? _workerSendPort;
+  ReceivePort? _mainReceivePort;
+  StreamSubscription? _mainReceiveSubscription;
+  Completer<void>? _initCompleter;
+  Completer<void>? _flushCompleter;
+
+  LocalSttSocket({required String? modelPath}) : _modelPath = modelPath;
 
   @override
   PureSocketStatus get status => _status;
@@ -54,150 +45,101 @@ class LocalSttSocket implements IPureSocket {
 
     _status = PureSocketStatus.connecting;
 
-    // Validate model path
     if (_modelPath == null || _modelPath!.isEmpty) {
-      debugPrint('[LocalSttSocket] ERROR: model path is null/empty, cannot connect');
+      debugPrint(
+          '[LocalSttSocket] ERROR: model path is null/empty, cannot connect');
       _status = PureSocketStatus.notConnected;
       return false;
     }
-
-    // Lazily initialize the engine if not yet done
-    if (!_engine.isInitialized) {
-      try {
-        await _engine.initialize(_modelPath!);
-      } catch (e) {
-        debugPrint('[LocalSttSocket] Engine init failed: $e');
-        _status = PureSocketStatus.notConnected;
-        return false;
-      }
-    }
-
-    if (!_engine.isInitialized) {
-      debugPrint('[LocalSttSocket] Engine not initialized, cannot connect');
-      _status = PureSocketStatus.notConnected;
-      return false;
-    }
-
-    _status = PureSocketStatus.connected;
-    _audioOffsetSeconds = 0;
-    onConnected();
-    _startFlushTimer();
-    return true;
-  }
-
-  void _startFlushTimer() {
-    _flushTimer?.cancel();
-    _flushTimer = Timer.periodic(_flushInterval, (_) {
-      _flushBuffer();
-    });
-  }
-
-  int get _totalBufferBytes =>
-      _audioFrames.fold<int>(0, (sum, frame) => sum + frame.length);
-
-  void _flushBuffer() {
-    if (_audioFrames.isEmpty || _status != PureSocketStatus.connected) return;
-    if (_totalBufferBytes < _minBufferBytes || _isProcessing) return;
-
-    _isProcessing = true;
 
     try {
-      // Gather all buffered frames
-      final frames = List<Uint8List>.from(_audioFrames);
-      _audioFrames.clear();
+      // Set up communication channel
+      _mainReceivePort = ReceivePort();
+      _mainReceiveSubscription =
+          _mainReceivePort!.listen(_handleWorkerMessage);
 
-      // Concatenate PCM16 bytes
-      final totalLength =
-          frames.fold<int>(0, (sum, frame) => sum + frame.length);
-      final pcm16 = Uint8List(totalLength);
-      int offset = 0;
-      for (final frame in frames) {
-        pcm16.setRange(offset, offset + frame.length, frame);
-        offset += frame.length;
-      }
+      // Spawn worker isolate
+      _workerIsolate = await Isolate.spawn(
+        workerEntryPoint,
+        _mainReceivePort!.sendPort,
+        debugName: 'local-stt-worker',
+      );
 
-      // Convert PCM16 (little-endian signed int16) to Float32 [-1.0, 1.0]
-      final samples = _pcm16ToFloat32(pcm16);
+      // Wait for worker's SendPort (first message in handshake)
+      final handshakeCompleter = Completer<SendPort>();
+      _initCompleter = Completer<void>();
 
-      // Decode synchronously (native FFI pointers cannot cross isolate boundaries)
-      final results = _engine.processAudio(samples);
+      // Replace listener temporarily to capture the handshake
+      _mainReceiveSubscription!.onData((message) {
+        if (message is SendPort) {
+          handshakeCompleter.complete(message);
+          // Restore normal message handling
+          _mainReceiveSubscription!.onData(_handleWorkerMessage);
+        }
+      });
 
-      if (results.isNotEmpty) {
-        _emitResults(results);
-      } else {
-        // Even with no speech, advance offset by the duration of audio processed
-        final durationSeconds = samples.length / LocalSttEngine.sampleRate;
-        _audioOffsetSeconds += durationSeconds;
-      }
-    } catch (e, trace) {
-      debugPrint('[LocalSttSocket] Flush error: $e');
-      onError(e, trace);
-    } finally {
-      _isProcessing = false;
+      _workerSendPort = await handshakeCompleter.future
+          .timeout(const Duration(seconds: 10));
+
+      // Initialize engine in worker
+      _workerSendPort!.send(['init', _modelPath]);
+
+      // Wait for 'ready' response
+      await _initCompleter!.future.timeout(const Duration(seconds: 30));
+      _initCompleter = null;
+
+      _status = PureSocketStatus.connected;
+      onConnected();
+      return true;
+    } catch (e) {
+      debugPrint('[LocalSttSocket] Connect failed: $e');
+      _status = PureSocketStatus.notConnected;
+      _cleanup();
+      return false;
     }
-  }
-
-  /// Convert decode results to the JSON segment format and emit via [onMessage].
-  void _emitResults(List<LocalSttResult> results) {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    var index = 0;
-
-    final segmentsJson = results.map((r) {
-      final segmentId =
-          '${timestamp}_${(_audioOffsetSeconds + r.startTime).toStringAsFixed(2)}_$index';
-      index++;
-      return {
-        'id': segmentId,
-        'text': r.text,
-        'speaker': 'SPEAKER_0',
-        'speaker_id': 0,
-        'is_user': true,
-        'start': _audioOffsetSeconds + r.startTime,
-        'end': _audioOffsetSeconds + r.endTime,
-      };
-    }).toList();
-
-    // Advance offset to the end of the last segment
-    _audioOffsetSeconds += results.last.endTime;
-
-    if (segmentsJson.isNotEmpty) {
-      onMessage(jsonEncode(segmentsJson));
-    }
-  }
-
-  /// Convert PCM16 little-endian bytes to Float32 samples normalized to [-1, 1].
-  static Float32List _pcm16ToFloat32(Uint8List pcm16) {
-    final numSamples = pcm16.length ~/ 2;
-    final float32 = Float32List(numSamples);
-    final byteData = ByteData.sublistView(pcm16);
-    for (var i = 0; i < numSamples; i++) {
-      final int16 = byteData.getInt16(i * 2, Endian.little);
-      float32[i] = int16 / 32768.0;
-    }
-    return float32;
   }
 
   @override
   void send(dynamic message) {
+    if (_workerSendPort == null) return;
+
     if (message is Uint8List) {
-      _audioFrames.add(message);
+      _workerSendPort!.send(['audio', message]);
     } else if (message is List<int>) {
-      _audioFrames.add(Uint8List.fromList(message));
+      _workerSendPort!.send(['audio', Uint8List.fromList(message)]);
     } else {
       debugPrint(
           '[LocalSttSocket] Unsupported message type: ${message.runtimeType}');
     }
   }
 
+  /// Flush remaining audio and VAD tail. Waits for worker to finish processing.
+  Future<void> flushNow() async {
+    if (_workerSendPort == null) return;
+
+    _flushCompleter = Completer<void>();
+    _workerSendPort!.send(['flush']);
+
+    try {
+      await _flushCompleter!.future.timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      debugPrint('[LocalSttSocket] Flush timed out after 5s');
+    } finally {
+      _flushCompleter = null;
+    }
+  }
+
   @override
   Future disconnect() async {
-    _flushTimer?.cancel();
-
-    // Final flush to process remaining audio
-    if (_audioFrames.isNotEmpty && !_isProcessing) {
-      _flushBuffer();
+    if (_status == PureSocketStatus.disconnected ||
+        _status == PureSocketStatus.notConnected) {
+      return;
     }
 
+    // Flush remaining audio before disconnecting
+    await flushNow();
+
+    _shutdownWorker();
     _status = PureSocketStatus.disconnected;
     debugPrint('[LocalSttSocket] Disconnected');
     onClosed();
@@ -205,10 +147,67 @@ class LocalSttSocket implements IPureSocket {
 
   @override
   Future stop() async {
-    await disconnect();
-    _flushTimer?.cancel();
-    _audioFrames.clear();
-    _audioOffsetSeconds = 0;
+    _shutdownWorker();
+    _status = PureSocketStatus.disconnected;
+  }
+
+  void _shutdownWorker() {
+    _workerSendPort?.send(['shutdown']);
+
+    // Safety net: kill isolate after a brief delay
+    final isolate = _workerIsolate;
+    if (isolate != null) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        isolate.kill(priority: Isolate.beforeNextEvent);
+      });
+    }
+
+    _cleanup();
+  }
+
+  void _cleanup() {
+    _mainReceiveSubscription?.cancel();
+    _mainReceiveSubscription = null;
+    _mainReceivePort?.close();
+    _mainReceivePort = null;
+    _workerSendPort = null;
+    _workerIsolate = null;
+    _initCompleter = null;
+    _flushCompleter = null;
+  }
+
+  void _handleWorkerMessage(dynamic message) {
+    if (message is! List || message.isEmpty) return;
+
+    final type = message[0] as String;
+    switch (type) {
+      case 'ready':
+        _initCompleter?.complete();
+
+      case 'error':
+        final errorMsg = message.length > 1 ? message[1] as String : 'Unknown';
+        final stackStr = message.length > 2 ? message[2] as String? : null;
+        debugPrint('[LocalSttSocket] Worker error: $errorMsg');
+        final trace = stackStr != null
+            ? StackTrace.fromString(stackStr)
+            : StackTrace.current;
+        onError(Exception(errorMsg), trace);
+        // If init was pending, fail it
+        if (_initCompleter != null && !_initCompleter!.isCompleted) {
+          _initCompleter!.completeError(Exception(errorMsg));
+        }
+
+      case 'results':
+        if (message.length > 1 && message[1] is String) {
+          onMessage(message[1]);
+        }
+
+      case 'flushed':
+        if (message.length > 1 && message[1] is String) {
+          onMessage(message[1]);
+        }
+        _flushCompleter?.complete();
+    }
   }
 
   @override
@@ -236,47 +235,5 @@ class LocalSttSocket implements IPureSocket {
   @override
   void onConnectionStateChanged(bool isConnected) {
     // No-op: local STT does not depend on network connectivity.
-  }
-
-  /// Flush remaining audio now, including VAD tail (used before finalizing).
-  void flushNow() {
-    if (_audioFrames.isEmpty || !_engine.isInitialized) return;
-    if (_isProcessing) return;
-
-    _isProcessing = true;
-
-    try {
-      // Process any remaining buffered frames
-      if (_audioFrames.isNotEmpty) {
-        final frames = List<Uint8List>.from(_audioFrames);
-        _audioFrames.clear();
-
-        final totalLength =
-            frames.fold<int>(0, (sum, frame) => sum + frame.length);
-        final pcm16 = Uint8List(totalLength);
-        int offset = 0;
-        for (final frame in frames) {
-          pcm16.setRange(offset, offset + frame.length, frame);
-          offset += frame.length;
-        }
-
-        final samples = _pcm16ToFloat32(pcm16);
-        final results = _engine.processAudio(samples);
-        if (results.isNotEmpty) {
-          _emitResults(results);
-        }
-      }
-
-      // Flush VAD tail to catch any speech at the end of the buffer
-      final flushed = _engine.flush();
-      if (flushed.isNotEmpty) {
-        _emitResults(flushed);
-      }
-    } catch (e, trace) {
-      debugPrint('[LocalSttSocket] FlushNow error: $e');
-      onError(e, trace);
-    } finally {
-      _isProcessing = false;
-    }
   }
 }

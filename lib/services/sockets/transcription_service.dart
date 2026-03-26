@@ -10,7 +10,6 @@ import 'package:omi/env/env.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/services/capture_log_service.dart';
-import 'package:omi/services/local_stt/local_stt_engine.dart';
 import 'package:omi/services/local_stt/local_stt_socket.dart';
 import 'package:omi/services/notifications.dart';
 import 'package:omi/services/sockets/pure_socket.dart';
@@ -412,11 +411,12 @@ class TranscriptSocketServiceFactory {
     );
   }
 
-  // Shared engine instance: initialized once, reused across sessions.
-  static LocalSttEngine? _localEngine;
-
   /// Create a local STT transcription service using the on-device Parakeet model.
   /// No network required -- audio is decoded locally via sherpa_onnx.
+  ///
+  /// Each call creates a fresh [LocalSttSocket] whose [connect] spawns a new
+  /// worker isolate with its own engine instance.  This ensures a clean VAD
+  /// state on every reconnect.
   static TranscriptSegmentSocketService createLocalStt(
     int sampleRate,
     BleAudioCodec codec,
@@ -431,11 +431,7 @@ class TranscriptSocketServiceFactory {
       throw StateError('Local STT model path not configured. Download the model first.');
     }
 
-    // Reuse a shared engine instance across sessions
-    _localEngine ??= LocalSttEngine();
-
-    // Pass modelPath so connect() can initialize the engine lazily
-    final localSocket = LocalSttSocket(_localEngine!, modelPath: modelPath);
+    final localSocket = LocalSttSocket(modelPath: modelPath);
 
     return TranscriptSegmentSocketService.withSocket(
       sampleRate,
