@@ -52,6 +52,8 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
   final AppReviewService _appReviewService = AppReviewService();
   ConversationTab selectedTab = ConversationTab.summary;
 
+  bool _conversationInitialized = false;
+
   // Search functionality
   bool _isSearching = false;
   String _searchQuery = '';
@@ -125,6 +127,16 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_conversationInitialized) {
+      _conversationInitialized = true;
+      final provider = context.read<ConversationDetailProvider>();
+      provider.initCachedConversation(widget.conversation);
+    }
+  }
+
+  @override
   void initState() {
     super.initState();
 
@@ -162,9 +174,6 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
       var provider = Provider.of<ConversationDetailProvider>(context, listen: false);
       var conversationProvider = Provider.of<ConversationProvider>(context, listen: false);
 
-      // Ensure the provider has the conversation data from the widget parameter
-      provider.setCachedConversation(widget.conversation);
-
       // Find the proper date and index for this conversation in the grouped conversations
       var (date, index) = conversationProvider.getConversationDateAndIndex(widget.conversation);
       provider.conversationIdx = index >= 0 ? index : 0;
@@ -184,14 +193,6 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
         }
       }
     });
-    // _animationController = AnimationController(
-    //   vsync: this,
-    //   duration: const Duration(seconds: 60),
-    // )..repeat(reverse: true);
-    //
-    // _opacityAnimation = Tween<double>(begin: 1.0, end: 0.5).animate(_animationController);
-
-    super.initState();
   }
 
   @override

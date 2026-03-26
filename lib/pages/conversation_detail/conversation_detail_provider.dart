@@ -541,6 +541,13 @@ class ConversationDetailProvider extends ChangeNotifier with MessageNotifierMixi
     notifyListeners();
   }
 
+  /// Sets the cached conversation without notifying listeners.
+  /// Used during widget initialization (didChangeDependencies) where
+  /// notifyListeners would cause "setState called during build" error.
+  void initCachedConversation(ServerConversation conversation) {
+    _cachedConversation = conversation;
+  }
+
   String? _preferredSummarizationAppId;
 
   String? get preferredSummarizationAppId => _preferredSummarizationAppId;
