@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/message_event.dart';
 import 'package:omi/l10n/app_localizations.dart';
+import 'package:omi/models/stt_provider.dart';
 import 'package:omi/pages/capture/widgets/widgets.dart';
 import 'package:omi/pages/conversation_detail/page.dart';
 import 'package:omi/pages/conversation_detail/widgets/name_speaker_sheet.dart';
@@ -169,9 +170,17 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
                   const SizedBox(width: 4),
                   Text(isProcessing ? "" : (provider.photos.isNotEmpty ? "" : "")),
                   const SizedBox(width: 4),
-                  Expanded(child: Text(isProcessing
-                      ? (AppLocalizations.of(context)?.processing ?? "Procesando...")
-                      : (AppLocalizations.of(context)?.listening ?? "Listening"))),
+                  Expanded(child: Text(() {
+                    if (isProcessing) {
+                      return AppLocalizations.of(context)?.processing ?? "Procesando...";
+                    }
+                    final listeningText = AppLocalizations.of(context)?.listening ?? "Listening";
+                    final sttProvider = provider.activeSttProvider;
+                    if (sttProvider != null) {
+                      return '$listeningText · ${SttProviderConfig.get(sttProvider).displayName}';
+                    }
+                    return listeningText;
+                  }())),
                 ],
               ),
             ),

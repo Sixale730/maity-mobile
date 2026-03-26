@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/l10n/app_localizations.dart';
+import 'package:omi/models/stt_provider.dart';
 import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/message_event.dart';
 import 'package:omi/pages/conversations/widgets/capture.dart';
@@ -31,7 +32,7 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<CaptureProvider, ({RecordingState state, bool isPaused, bool hasSegments, bool hasPhotos, bool hasDevice, bool transcriptReady, int segmentsVersion})>(
+    return Selector<CaptureProvider, ({RecordingState state, bool isPaused, bool hasSegments, bool hasPhotos, bool hasDevice, bool transcriptReady, int segmentsVersion, SttProvider? activeSttProvider, int segmentCount})>(
       selector: (_, p) => (
         state: p.recordingState,
         isPaused: p.isPaused,
@@ -40,6 +41,8 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
         hasDevice: p.havingRecordingDevice,
         transcriptReady: p.transcriptServiceReady,
         segmentsVersion: p.segmentsVersion,
+        activeSttProvider: p.activeSttProvider,
+        segmentCount: p.segments.length,
       ),
       builder: (context, snapshot, child) {
         final provider = context.read<CaptureProvider>();
@@ -247,7 +250,13 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
       var lastEvent = captureProvider.transcriptionServiceStatuses.lastOrNull;
       if (lastEvent is MessageServiceStatusEvent) {
         if (lastEvent.status == "ready") {
-          stateText = AppLocalizations.of(context)?.listening ?? "Listening";
+          final listeningText = AppLocalizations.of(context)?.listening ?? "Listening";
+          final sttProvider = captureProvider.activeSttProvider;
+          if (sttProvider != null) {
+            stateText = '$listeningText · ${SttProviderConfig.get(sttProvider).displayName}';
+          } else {
+            stateText = listeningText;
+          }
           statusIndicator = const RecordingStatusIndicator();
         } else {
           bool transcriptionDiagnosticEnabled = SharedPreferencesUtil().transcriptionDiagnosticEnabled;
@@ -393,6 +402,16 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
+                      if (!isPaused && provider.activeSttProvider != null) ...[
+                        Text(
+                          ' · ${SttProviderConfig.get(provider.activeSttProvider!).displayName}',
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
                       const SizedBox(width: 6),
                       Container(
                         width: 6,
@@ -463,6 +482,18 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
             ),
           ),
           const SizedBox(height: 4),
+          if (provider.segments.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 12, top: 2),
+              child: Text(
+                '${provider.segments.length} ${provider.segments.length == 1 ? 'segmento' : 'segmentos'}',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ],
           if (provider.photos.isNotEmpty || provider.segments.isNotEmpty) ...[
             const SizedBox(height: 8),
             const LiteCaptureWidget(),

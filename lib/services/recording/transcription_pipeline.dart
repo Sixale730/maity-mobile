@@ -93,7 +93,12 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   // Socket state
   // ---------------------------------------------------------------------------
   bool _transcriptServiceReady = false;
-  bool _isLocalStt = false;
+  SttProvider? _activeSttProvider;
+  bool get _isLocalStt => _activeSttProvider == SttProvider.localParakeet;
+
+  /// The STT provider currently being used for transcription.
+  SttProvider? get activeSttProvider => _activeSttProvider;
+
   bool get transcriptServiceReady =>
       _transcriptServiceReady && (_isConnected || _isLocalStt);
 
@@ -364,7 +369,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     }
     _socket?.subscribe(this, this);
     _transcriptServiceReady = true;
-    _isLocalStt = effectiveConfig?.provider == SttProvider.localParakeet;
+    _activeSttProvider = effectiveConfig?.provider ?? SttProvider.deepgramLive;
     if (_isLocalStt) {
       _walEnabled = false;
     }
@@ -1086,7 +1091,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _sttReconnectAttempts = 0;
     _transcriptionServiceStatuses = [];
     _walEnabled = false;
-    _isLocalStt = false;
+    _activeSttProvider = null;
     _reconnectAudioBuffer.clear();
     _reconnectAudioBufferBytes = 0;
     _isBufferingForReconnect = false;
@@ -1121,7 +1126,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     await _socket?.stop(reason: 'pipeline disposed');
     _socket = null;
     _transcriptServiceReady = false;
-    _isLocalStt = false;
+    _activeSttProvider = null;
     _reconnectAudioBuffer.clear();
     _reconnectAudioBufferBytes = 0;
     _isBufferingForReconnect = false;
