@@ -110,10 +110,16 @@ class PersistenceManager {
     required List<TranscriptSegment> segments,
     bool synchronous = false,
   }) async {
-    final directory = await getApplicationDocumentsDirectory();
-    _cachedDocumentsPath = directory.path;
-    final targetFile = File('${directory.path}/transcript_recovery.json');
-    final tempFile = File('${directory.path}/transcript_recovery.json.tmp');
+    final String dirPath;
+    if (synchronous && _cachedDocumentsPath != null) {
+      dirPath = _cachedDocumentsPath!;
+    } else {
+      final directory = await getApplicationDocumentsDirectory();
+      dirPath = directory.path;
+      _cachedDocumentsPath = dirPath;
+    }
+    final targetFile = File('$dirPath/transcript_recovery.json');
+    final tempFile = File('$dirPath/transcript_recovery.json.tmp');
 
     final segmentMaps = segments.map((s) => s.toJson()).toList();
     final now = DateTime.now().toIso8601String();
