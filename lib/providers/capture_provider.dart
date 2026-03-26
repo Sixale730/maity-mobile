@@ -355,6 +355,12 @@ class CaptureProvider extends ChangeNotifier
     _pipeline.startHealthMonitor();
     _pipeline.setWalEnabled(true);
 
+    // Set up socket sender for BLE audio transport
+    _audioTransport.setSocketSender((bytes) {
+      _pipeline.sendToSocket(bytes);
+      _pipeline.updateLastAudioBytesSentAt();
+    });
+
     try {
       bool wasPaused = _stateMachine.isPaused;
       await _resetStateVariables();
