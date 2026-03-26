@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
+import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/local_stt_worker.dart';
 import 'package:omi/services/sockets/pure_socket.dart';
 
@@ -19,6 +20,7 @@ class LocalSttSocket implements IPureSocket {
   final String? _modelPath;
   final String? _speakerModelPath;
   final Uint8List? _userEmbeddingBytes;
+  final LocalSttModelType _modelType;
 
   // Worker isolate communication
   Isolate? _workerIsolate;
@@ -30,9 +32,11 @@ class LocalSttSocket implements IPureSocket {
 
   LocalSttSocket({
     required String? modelPath,
+    LocalSttModelType modelType = LocalSttModelType.parakeet,
     String? speakerModelPath,
     Uint8List? userEmbeddingBytes,
   })  : _modelPath = modelPath,
+        _modelType = modelType,
         _speakerModelPath = speakerModelPath,
         _userEmbeddingBytes = userEmbeddingBytes;
 
@@ -89,9 +93,14 @@ class LocalSttSocket implements IPureSocket {
       _workerSendPort = await handshakeCompleter.future
           .timeout(const Duration(seconds: 10));
 
-      // Initialize engine in worker (with optional speaker ID data)
-      _workerSendPort!
-          .send(['init', _modelPath, _speakerModelPath, _userEmbeddingBytes]);
+      // Initialize engine in worker (with optional speaker ID data + model type)
+      _workerSendPort!.send([
+        'init',
+        _modelPath,
+        _speakerModelPath,
+        _userEmbeddingBytes,
+        _modelType.name,
+      ]);
 
       // Wait for 'ready' response
       await _initCompleter!.future.timeout(const Duration(seconds: 30));

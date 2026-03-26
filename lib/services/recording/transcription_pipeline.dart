@@ -11,6 +11,7 @@ import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/connectivity_service.dart';
+import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
 import 'package:omi/services/notifications/notification_service.dart';
 import 'package:omi/services/services.dart';
@@ -94,7 +95,33 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   // ---------------------------------------------------------------------------
   bool _transcriptServiceReady = false;
   SttProvider? _activeSttProvider;
-  bool get _isLocalStt => _activeSttProvider == SttProvider.localParakeet;
+  bool get _isLocalStt =>
+      _activeSttProvider == SttProvider.localParakeet ||
+      _activeSttProvider == SttProvider.localMoonshine;
+
+  /// Whether a given provider is a local on-device STT.
+  static bool _isLocalSttProvider(SttProvider? p) =>
+      p == SttProvider.localParakeet || p == SttProvider.localMoonshine;
+
+  /// Pick the best available local STT provider (user's preferred first).
+  static SttProvider? _bestLocalSttProvider() {
+    final activeModel = LocalSttModelType.fromString(
+        SharedPreferencesUtil().activeLocalSttModel);
+    if (ModelDownloadService.instance.isModelReadyFor(activeModel)) {
+      return activeModel == LocalSttModelType.moonshine
+          ? SttProvider.localMoonshine
+          : SttProvider.localParakeet;
+    }
+    // Preferred not ready — use whichever is available
+    for (final type in LocalSttModelType.values) {
+      if (ModelDownloadService.instance.isModelReadyFor(type)) {
+        return type == LocalSttModelType.moonshine
+            ? SttProvider.localMoonshine
+            : SttProvider.localParakeet;
+      }
+    }
+    return null;
+  }
 
   /// The STT provider currently being used for transcription.
   SttProvider? get activeSttProvider => _activeSttProvider;
@@ -236,15 +263,34 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     CustomSttConfig? effectiveConfig =
         customSttConfig.isEnabled ? customSttConfig : null;
 
-    // Auto-fallback to local STT when offline and model is ready
+    // Auto-fallback to local STT when offline and any model is ready
     if (effectiveConfig == null &&
         !ConnectivityService().isConnected &&
         SharedPreferencesUtil().localSttAutoFallback &&
-        ModelDownloadService.instance.isModelReady) {
-      effectiveConfig =
-          const CustomSttConfig(provider: SttProvider.localParakeet);
-      debugPrint(
-          '[TranscriptionPipeline] Offline + model ready -> using local Parakeet');
+        ModelDownloadService.instance.isAnyModelReady) {
+      final activeModel = LocalSttModelType.fromString(
+          SharedPreferencesUtil().activeLocalSttModel);
+      if (ModelDownloadService.instance.isModelReadyFor(activeModel)) {
+        final provider = activeModel == LocalSttModelType.moonshine
+            ? SttProvider.localMoonshine
+            : SttProvider.localParakeet;
+        effectiveConfig = CustomSttConfig(provider: provider);
+        debugPrint(
+            '[TranscriptionPipeline] Offline + model ready -> using local ${activeModel.name}');
+      } else {
+        // Preferred model not ready, use whichever is available
+        for (final type in LocalSttModelType.values) {
+          if (ModelDownloadService.instance.isModelReadyFor(type)) {
+            final provider = type == LocalSttModelType.moonshine
+                ? SttProvider.localMoonshine
+                : SttProvider.localParakeet;
+            effectiveConfig = CustomSttConfig(provider: provider);
+            debugPrint(
+                '[TranscriptionPipeline] Offline, fallback to available ${type.name}');
+            break;
+          }
+        }
+      }
     }
 
     // Fallback: if Omi backend URL is not configured, use Deepgram directly
@@ -265,6 +311,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
     if (effectiveConfig != null &&
         effectiveConfig.provider != SttProvider.localParakeet &&
+        effectiveConfig.provider != SttProvider.localMoonshine &&
         !TranscriptSocketServiceFactory.isCodecSupportedForCustomStt(codec)) {
       debugPrint('[CustomSTT] Codec $codec not supported, falling back to Omi');
       effectiveConfig = null;
@@ -300,28 +347,31 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
           });
       debugPrint('[TranscriptionPipeline] WebSocket connection failed: $e');
 
-      // Fallback to local STT if cloud connection failed and model is ready
-      if (effectiveConfig?.provider != SttProvider.localParakeet &&
-          ModelDownloadService.instance.isModelReady) {
-        debugPrint(
-            '[TranscriptionPipeline] Cloud failed, falling back to local Parakeet');
-        try {
-          _socket = await ServiceManager.instance().socket.conversation(
-                codec: codec,
-                sampleRate: sampleRate,
-                language: language,
-                force: true,
-                source: source,
-                customSttConfig: const CustomSttConfig(
-                    provider: SttProvider.localParakeet),
-              );
-        } catch (_) {
-          // Local also failed -- give up
+      // Fallback to local STT if cloud connection failed and any local model is ready
+      if (!_isLocalSttProvider(effectiveConfig?.provider) &&
+          ModelDownloadService.instance.isAnyModelReady) {
+        final fallbackProvider = _bestLocalSttProvider();
+        if (fallbackProvider != null) {
+          debugPrint(
+              '[TranscriptionPipeline] Cloud failed, falling back to local ${fallbackProvider.name}');
+          try {
+            _socket = await ServiceManager.instance().socket.conversation(
+                  codec: codec,
+                  sampleRate: sampleRate,
+                  language: language,
+                  force: true,
+                  source: source,
+                  customSttConfig:
+                      CustomSttConfig(provider: fallbackProvider),
+                );
+          } catch (_) {
+            // Local also failed -- give up
+          }
         }
       }
 
       if (_socket == null) {
-        if (effectiveConfig?.provider == SttProvider.localParakeet) {
+        if (_isLocalSttProvider(effectiveConfig?.provider)) {
           debugPrint('[TranscriptionPipeline] Local STT failed to initialize — not retrying');
           _captureLog.log('socket', 'local_stt_init_failed', severity: 'error');
           return;
@@ -338,26 +388,29 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
             'custom_stt': effectiveConfig != null,
           });
 
-      // Fallback to local STT if cloud socket creation returned null and model is ready
-      if (effectiveConfig?.provider != SttProvider.localParakeet &&
-          ModelDownloadService.instance.isModelReady) {
-        debugPrint(
-            '[TranscriptionPipeline] Socket null, falling back to local Parakeet');
-        try {
-          _socket = await ServiceManager.instance().socket.conversation(
-                codec: codec,
-                sampleRate: sampleRate,
-                language: language,
-                force: true,
-                source: source,
-                customSttConfig: const CustomSttConfig(
-                    provider: SttProvider.localParakeet),
-              );
-        } catch (_) {}
+      // Fallback to local STT if cloud socket creation returned null and any local model is ready
+      if (!_isLocalSttProvider(effectiveConfig?.provider) &&
+          ModelDownloadService.instance.isAnyModelReady) {
+        final fallbackProvider = _bestLocalSttProvider();
+        if (fallbackProvider != null) {
+          debugPrint(
+              '[TranscriptionPipeline] Socket null, falling back to local ${fallbackProvider.name}');
+          try {
+            _socket = await ServiceManager.instance().socket.conversation(
+                  codec: codec,
+                  sampleRate: sampleRate,
+                  language: language,
+                  force: true,
+                  source: source,
+                  customSttConfig:
+                      CustomSttConfig(provider: fallbackProvider),
+                );
+          } catch (_) {}
+        }
       }
 
       if (_socket == null) {
-        if (effectiveConfig?.provider == SttProvider.localParakeet) {
+        if (_isLocalSttProvider(effectiveConfig?.provider)) {
           debugPrint('[TranscriptionPipeline] Local STT failed to initialize — not retrying');
           _captureLog.log('socket', 'local_stt_init_failed', severity: 'error');
           return;

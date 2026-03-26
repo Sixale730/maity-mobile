@@ -12,6 +12,7 @@ enum SttProvider {
   geminiLive,
   localWhisper,
   localParakeet,
+  localMoonshine,
   custom,
   customLive;
 
@@ -242,6 +243,16 @@ class SttProviderConfig {
       requestType: SttRequestType.streaming,
       supportedLanguages: ['multi'],
       defaultLanguage: 'multi',
+      responseSchema: SttResponseSchema(),
+    ),
+    SttProvider.localMoonshine: const SttProviderConfig(
+      provider: SttProvider.localMoonshine,
+      displayName: 'On Device (ES)',
+      description: 'Moonshine v2 - Optimized for Spanish offline transcription',
+      icon: FontAwesomeIcons.microchip,
+      requestType: SttRequestType.streaming,
+      supportedLanguages: ['es'],
+      defaultLanguage: 'es',
       responseSchema: SttResponseSchema(),
     ),
     SttProvider.localWhisper: const SttProviderConfig(

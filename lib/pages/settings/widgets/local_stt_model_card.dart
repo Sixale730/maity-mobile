@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/local_stt_provider.dart';
+import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
 import 'package:provider/provider.dart';
 
@@ -13,17 +14,24 @@ class LocalSttModelCard extends StatelessWidget {
     return Consumer<LocalSttProvider>(
       builder: (context, provider, _) {
         final l10n = AppLocalizations.of(context)!;
+        final selected = provider.selectedModel;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Description
+            // Model selector dropdown
+            _buildModelDropdown(context, provider, selected),
+            const SizedBox(height: 12),
+
+            // Description for selected model
             Text(
-              l10n.localSttDescription,
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 13, height: 1.4),
+              _descriptionFor(selected),
+              style: TextStyle(
+                  color: Colors.grey.shade500, fontSize: 13, height: 1.4),
             ),
             const SizedBox(height: 4),
             Text(
-              l10n.localSttModelSize,
+              _sizeTextFor(selected),
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
             const SizedBox(height: 16),
@@ -34,23 +42,104 @@ class LocalSttModelCard extends StatelessWidget {
               const SizedBox(height: 12),
             ],
 
-            // Main content based on state
-            _buildStateContent(context, provider, l10n),
+            // Main content based on selected model's state
+            _buildStateContent(context, provider, l10n, selected),
 
             const SizedBox(height: 16),
 
-            // Speaker ID model section (only when STT model is ready)
-            if (provider.isModelReady) ...[
+            // Speaker ID model section (only when any model is ready)
+            if (provider.isReadyFor(selected)) ...[
               _buildSpeakerIdSection(context, provider),
               const SizedBox(height: 16),
             ],
 
-            // Auto-fallback toggle (only when model is ready)
-            if (provider.isModelReady) _buildAutoFallbackToggle(provider, l10n),
+            // Auto-fallback toggle (only when any model is ready)
+            if (provider.isReadyFor(selected))
+              _buildAutoFallbackToggle(provider, l10n),
           ],
         );
       },
     );
+  }
+
+  Widget _buildModelDropdown(
+    BuildContext context,
+    LocalSttProvider provider,
+    LocalSttModelType selected,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade800),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<LocalSttModelType>(
+          value: selected,
+          isExpanded: true,
+          dropdownColor: const Color(0xFF1A1A1A),
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          icon: Icon(Icons.keyboard_arrow_down_rounded,
+              color: Colors.grey.shade400),
+          items: [
+            DropdownMenuItem(
+              value: LocalSttModelType.parakeet,
+              child: Row(
+                children: [
+                  Icon(Icons.memory_rounded,
+                      size: 18, color: Colors.blue.shade300),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('Parakeet (25 languages, ~640 MB)'),
+                  ),
+                  if (provider.isReadyFor(LocalSttModelType.parakeet))
+                    Icon(Icons.check_circle,
+                        size: 16, color: Colors.green.shade400),
+                ],
+              ),
+            ),
+            DropdownMenuItem(
+              value: LocalSttModelType.moonshine,
+              child: Row(
+                children: [
+                  Icon(Icons.nightlight_round,
+                      size: 18, color: Colors.purple.shade300),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('Moonshine ES (Spanish, ~50 MB)'),
+                  ),
+                  if (provider.isReadyFor(LocalSttModelType.moonshine))
+                    Icon(Icons.check_circle,
+                        size: 16, color: Colors.green.shade400),
+                ],
+              ),
+            ),
+          ],
+          onChanged: (type) {
+            if (type != null) provider.selectModel(type);
+          },
+        ),
+      ),
+    );
+  }
+
+  String _descriptionFor(LocalSttModelType type) {
+    switch (type) {
+      case LocalSttModelType.parakeet:
+        return 'NVIDIA Parakeet TDT 0.6B — Fast offline transcription supporting 25 languages with auto-detection.';
+      case LocalSttModelType.moonshine:
+        return 'Moonshine v2 Base — Optimized for Spanish offline transcription. Smaller and faster download.';
+    }
+  }
+
+  String _sizeTextFor(LocalSttModelType type) {
+    switch (type) {
+      case LocalSttModelType.parakeet:
+        return 'Model size: ~640 MB';
+      case LocalSttModelType.moonshine:
+        return 'Model size: ~50 MB (compressed)';
+    }
   }
 
   Widget _buildRamWarning(AppLocalizations l10n) {
@@ -63,12 +152,14 @@ class LocalSttModelCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: Colors.orange.shade400, size: 20),
+          Icon(Icons.warning_amber_rounded,
+              color: Colors.orange.shade400, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               l10n.localSttRamWarning,
-              style: TextStyle(color: Colors.orange.shade300, fontSize: 12, height: 1.3),
+              style: TextStyle(
+                  color: Colors.orange.shade300, fontSize: 12, height: 1.3),
             ),
           ),
         ],
@@ -76,43 +167,70 @@ class LocalSttModelCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStateContent(BuildContext context, LocalSttProvider provider, AppLocalizations l10n) {
-    switch (provider.downloadState) {
+  Widget _buildStateContent(
+    BuildContext context,
+    LocalSttProvider provider,
+    AppLocalizations l10n,
+    LocalSttModelType type,
+  ) {
+    final state = provider.stateFor(type);
+    switch (state) {
       case DownloadState.downloading:
       case DownloadState.validating:
-        return _buildDownloadingState(provider, l10n);
+        return _buildDownloadingState(provider, l10n, type);
       case DownloadState.ready:
-        return _buildReadyState(context, provider, l10n);
+        return _buildReadyState(context, provider, l10n, type);
       case DownloadState.error:
-        return _buildErrorState(context, provider, l10n);
+        return _buildErrorState(context, provider, l10n, type);
       default:
-        return _buildIdleState(provider, l10n);
+        return _buildIdleState(provider, l10n, type);
     }
   }
 
-  Widget _buildIdleState(LocalSttProvider provider, AppLocalizations l10n) {
+  Widget _buildIdleState(
+      LocalSttProvider provider, AppLocalizations l10n, LocalSttModelType type) {
     return SizedBox(
       width: double.infinity,
       height: 48,
       child: ElevatedButton.icon(
-        onPressed: () => provider.startDownload(),
+        onPressed: () => provider.startDownload(type),
         icon: const Icon(Icons.download_rounded, size: 20),
         label: Text(l10n.localSttDownloadModel),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           elevation: 0,
         ),
       ),
     );
   }
 
-  Widget _buildDownloadingState(LocalSttProvider provider, AppLocalizations l10n) {
-    final progress = provider.downloadProgress;
-    final speedMb = provider.speedBytesPerSec / (1024 * 1024);
-    final downloadedMb = provider.bytesDownloaded / (1024 * 1024);
-    final totalMb = provider.totalBytes / (1024 * 1024);
+  Widget _buildDownloadingState(
+      LocalSttProvider provider, AppLocalizations l10n, LocalSttModelType type) {
+    final double progress;
+    final double speedMb;
+    final double downloadedMb;
+    final double totalMb;
+    final DownloadState state;
+    final String? file;
+
+    if (type == LocalSttModelType.moonshine) {
+      progress = provider.moonshineDownloadProgress;
+      speedMb = provider.moonshineSpeedBytesPerSec / (1024 * 1024);
+      downloadedMb = provider.moonshineBytesDownloaded / (1024 * 1024);
+      totalMb = provider.moonshineTotalBytes / (1024 * 1024);
+      state = provider.moonshineDownloadState;
+      file = provider.moonshineCurrentFile;
+    } else {
+      progress = provider.downloadProgress;
+      speedMb = provider.speedBytesPerSec / (1024 * 1024);
+      downloadedMb = provider.bytesDownloaded / (1024 * 1024);
+      totalMb = provider.totalBytes / (1024 * 1024);
+      state = provider.downloadState;
+      file = provider.currentFile;
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -126,20 +244,29 @@ class LocalSttModelCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              if (provider.downloadState == DownloadState.validating)
+              if (state == DownloadState.validating)
                 Text(
-                  'Validating...',
-                  style: TextStyle(color: Colors.grey.shade300, fontSize: 14, fontWeight: FontWeight.w500),
+                  'Extracting...',
+                  style: TextStyle(
+                      color: Colors.grey.shade300,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500),
                 )
               else
                 Text(
                   l10n.localSttDownloading,
-                  style: TextStyle(color: Colors.grey.shade300, fontSize: 14, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                      color: Colors.grey.shade300,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500),
                 ),
               const Spacer(),
               Text(
                 '${(progress * 100).toStringAsFixed(1)}%',
-                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -168,11 +295,14 @@ class LocalSttModelCard extends StatelessWidget {
                 ),
             ],
           ),
-          if (provider.currentFile != null) ...[
+          if (file != null) ...[
             const SizedBox(height: 4),
             Text(
-              provider.currentFile!,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 10, fontFamily: 'monospace'),
+              file,
+              style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 10,
+                  fontFamily: 'monospace'),
             ),
           ],
           const SizedBox(height: 12),
@@ -184,7 +314,8 @@ class LocalSttModelCard extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.grey.shade400,
                 side: BorderSide(color: Colors.grey.shade700),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
               child: Text(l10n.cancel),
             ),
@@ -194,7 +325,8 @@ class LocalSttModelCard extends StatelessWidget {
     );
   }
 
-  Widget _buildReadyState(BuildContext context, LocalSttProvider provider, AppLocalizations l10n) {
+  Widget _buildReadyState(BuildContext context, LocalSttProvider provider,
+      AppLocalizations l10n, LocalSttModelType type) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -206,11 +338,15 @@ class LocalSttModelCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.green.shade400, size: 22),
+              Icon(Icons.check_circle,
+                  color: Colors.green.shade400, size: 22),
               const SizedBox(width: 10),
               Text(
                 l10n.localSttReady,
-                style: TextStyle(color: Colors.green.shade400, fontSize: 15, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    color: Colors.green.shade400,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -219,13 +355,15 @@ class LocalSttModelCard extends StatelessWidget {
             width: double.infinity,
             height: 40,
             child: OutlinedButton.icon(
-              onPressed: () => _confirmDelete(context, provider, l10n),
-              icon: Icon(Icons.delete_outline, size: 18, color: Colors.red.shade400),
+              onPressed: () => _confirmDelete(context, provider, l10n, type),
+              icon: Icon(Icons.delete_outline,
+                  size: 18, color: Colors.red.shade400),
               label: Text(l10n.localSttDeleteModel),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.red.shade400,
                 side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
             ),
           ),
@@ -234,7 +372,15 @@ class LocalSttModelCard extends StatelessWidget {
     );
   }
 
-  Widget _buildErrorState(BuildContext context, LocalSttProvider provider, AppLocalizations l10n) {
+  Widget _buildErrorState(BuildContext context, LocalSttProvider provider,
+      AppLocalizations l10n, LocalSttModelType type) {
+    final errorMsg = type == LocalSttModelType.moonshine
+        ? provider.moonshineErrorMessage
+        : provider.errorMessage;
+    final errorLog = type == LocalSttModelType.moonshine
+        ? provider.moonshineErrorLog
+        : provider.errorLog;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -247,24 +393,27 @@ class LocalSttModelCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.error_outline, color: Colors.red.shade400, size: 20),
+              Icon(Icons.error_outline,
+                  color: Colors.red.shade400, size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  provider.errorMessage ?? l10n.error,
+                  errorMsg ?? l10n.error,
                   style: TextStyle(color: Colors.red.shade300, fontSize: 13),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (provider.errorLog != null)
+              if (errorLog != null)
                 IconButton(
-                  icon: Icon(Icons.copy_rounded, color: Colors.grey.shade500, size: 18),
+                  icon: Icon(Icons.copy_rounded,
+                      color: Colors.grey.shade500, size: 18),
                   tooltip: l10n.copiedToClipboard,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: provider.errorLog!));
+                    Clipboard.setData(ClipboardData(text: errorLog));
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(l10n.copiedToClipboard),
@@ -280,11 +429,12 @@ class LocalSttModelCard extends StatelessWidget {
             width: double.infinity,
             height: 40,
             child: ElevatedButton(
-              onPressed: () => provider.startDownload(),
+              onPressed: () => provider.startDownload(type),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
                 elevation: 0,
               ),
               child: Text(l10n.retry),
@@ -295,7 +445,8 @@ class LocalSttModelCard extends StatelessWidget {
     );
   }
 
-  Widget _buildAutoFallbackToggle(LocalSttProvider provider, AppLocalizations l10n) {
+  Widget _buildAutoFallbackToggle(
+      LocalSttProvider provider, AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -311,12 +462,16 @@ class LocalSttModelCard extends StatelessWidget {
               children: [
                 Text(
                   l10n.localSttAutoFallback,
-                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   l10n.localSttAutoFallbackDesc,
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                  style:
+                      TextStyle(color: Colors.grey.shade500, fontSize: 12),
                 ),
               ],
             ),
@@ -332,7 +487,8 @@ class LocalSttModelCard extends StatelessWidget {
     );
   }
 
-  Widget _buildSpeakerIdSection(BuildContext context, LocalSttProvider provider) {
+  Widget _buildSpeakerIdSection(
+      BuildContext context, LocalSttProvider provider) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -379,7 +535,8 @@ class LocalSttModelCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.green.shade400, size: 18),
+              Icon(Icons.check_circle,
+                  color: Colors.green.shade400, size: 18),
               const SizedBox(width: 8),
               Text(
                 'Speaker Model Ready',
@@ -418,11 +575,13 @@ class LocalSttModelCard extends StatelessWidget {
             width: double.infinity,
             height: 36,
             child: OutlinedButton.icon(
-              onPressed: () => _confirmDeleteSpeakerModel(context, provider),
+              onPressed: () =>
+                  _confirmDeleteSpeakerModel(context, provider),
               icon: Icon(Icons.delete_outline,
                   size: 16, color: Colors.red.shade400),
               label: Text('Delete Speaker Model',
-                  style: TextStyle(fontSize: 12, color: Colors.red.shade400)),
+                  style:
+                      TextStyle(fontSize: 12, color: Colors.red.shade400)),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.red.shade400,
                 side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
@@ -517,8 +676,8 @@ class LocalSttModelCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child:
-                Text('Cancel', style: TextStyle(color: Colors.grey.shade400)),
+            child: Text('Cancel',
+                style: TextStyle(color: Colors.grey.shade400)),
           ),
           TextButton(
             onPressed: () {
@@ -533,24 +692,29 @@ class LocalSttModelCard extends StatelessWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, LocalSttProvider provider, AppLocalizations l10n) {
+  void _confirmDelete(BuildContext context, LocalSttProvider provider,
+      AppLocalizations l10n, LocalSttModelType type) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
-        title: Text(l10n.localSttDeleteModel, style: const TextStyle(color: Colors.white)),
-        content: Text(l10n.localSttDeleteConfirm, style: TextStyle(color: Colors.grey.shade300)),
+        title: Text(l10n.localSttDeleteModel,
+            style: const TextStyle(color: Colors.white)),
+        content: Text(l10n.localSttDeleteConfirm,
+            style: TextStyle(color: Colors.grey.shade300)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l10n.cancel, style: TextStyle(color: Colors.grey.shade400)),
+            child: Text(l10n.cancel,
+                style: TextStyle(color: Colors.grey.shade400)),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              provider.deleteModel();
+              provider.deleteModel(type);
             },
-            child: Text(l10n.delete, style: TextStyle(color: Colors.red.shade400)),
+            child: Text(l10n.delete,
+                style: TextStyle(color: Colors.red.shade400)),
           ),
         ],
       ),

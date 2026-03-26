@@ -1,12 +1,17 @@
-/// Manifest for Parakeet TDT 0.6B v3 model files.
-/// These are the ONNX model files needed for sherpa_onnx OfflineRecognizer.
-class ParakeetModelFile {
+import 'package:omi/services/local_stt/local_stt_model_type.dart';
+
+// ---------------------------------------------------------------------------
+// Abstract interface for any local STT model manifest
+// ---------------------------------------------------------------------------
+
+/// Describes a single downloadable model file.
+class LocalSttModelFile {
   final String fileName;
   final String url;
   final int expectedBytes;
   final double sizeThreshold; // 0.89 = 89% of expected
 
-  const ParakeetModelFile({
+  const LocalSttModelFile({
     required this.fileName,
     required this.url,
     required this.expectedBytes,
@@ -17,44 +22,77 @@ class ParakeetModelFile {
       actualBytes >= (expectedBytes * sizeThreshold).toInt();
 }
 
-class ParakeetModelManifest {
-  static const String modelName =
-      'sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8';
-  static const String baseUrl =
+/// Common interface for model manifests (Parakeet, Moonshine, etc.).
+abstract class LocalSttModelManifest {
+  String get modelName;
+  String get modelDirName;
+  int get totalExpectedBytes;
+  List<LocalSttModelFile> get files;
+  LocalSttModelType get modelType;
+
+  /// Whether this model is distributed as a single archive (tar.bz2)
+  /// rather than individual files.
+  bool get isArchiveDownload => false;
+
+  /// Archive download URL (only relevant when [isArchiveDownload] is true).
+  String get archiveUrl => '';
+
+  /// Archive file size in bytes (only relevant when [isArchiveDownload] is true).
+  int get archiveBytes => 0;
+
+  /// Directory name inside the archive after extraction.
+  String get archiveInnerDir => modelName;
+}
+
+// ---------------------------------------------------------------------------
+// Parakeet TDT 0.6B v3 manifest
+// ---------------------------------------------------------------------------
+
+class ParakeetModelManifest extends LocalSttModelManifest {
+  static const String _baseUrl =
       'https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/main';
-  static const String modelDirName = 'parakeet-tdt-0.6b-v3';
 
-  /// Total expected download size in bytes (~672 MB)
-  static const int totalExpectedBytes = 672 * 1024 * 1024;
+  @override
+  String get modelName => 'sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8';
 
-  static const List<ParakeetModelFile> files = [
-    ParakeetModelFile(
-      fileName: 'encoder.int8.onnx',
-      url: '$baseUrl/encoder.int8.onnx',
-      expectedBytes: 652 * 1024 * 1024, // ~652 MB
-    ),
-    ParakeetModelFile(
-      fileName: 'decoder.int8.onnx',
-      url: '$baseUrl/decoder.int8.onnx',
-      expectedBytes: 12 * 1024 * 1024, // ~12 MB
-    ),
-    ParakeetModelFile(
-      fileName: 'joiner.int8.onnx',
-      url: '$baseUrl/joiner.int8.onnx',
-      expectedBytes: 6 * 1024 * 1024, // ~6.4 MB
-    ),
-    ParakeetModelFile(
-      fileName: 'tokens.txt',
-      url: '$baseUrl/tokens.txt',
-      expectedBytes: 94 * 1024, // ~94 KB
-    ),
-    ParakeetModelFile(
-      fileName: 'silero_vad.onnx',
-      url:
-          'https://huggingface.co/csukuangfj/vad/resolve/main/silero_vad.onnx',
-      expectedBytes: 1808 * 1024, // ~1.81 MB (actual size on HuggingFace)
-    ),
-  ];
+  @override
+  String get modelDirName => 'parakeet-tdt-0.6b-v3';
+
+  @override
+  LocalSttModelType get modelType => LocalSttModelType.parakeet;
+
+  @override
+  int get totalExpectedBytes => 672 * 1024 * 1024; // ~672 MB
+
+  @override
+  List<LocalSttModelFile> get files => const [
+        LocalSttModelFile(
+          fileName: 'encoder.int8.onnx',
+          url: '$_baseUrl/encoder.int8.onnx',
+          expectedBytes: 652 * 1024 * 1024, // ~652 MB
+        ),
+        LocalSttModelFile(
+          fileName: 'decoder.int8.onnx',
+          url: '$_baseUrl/decoder.int8.onnx',
+          expectedBytes: 12 * 1024 * 1024, // ~12 MB
+        ),
+        LocalSttModelFile(
+          fileName: 'joiner.int8.onnx',
+          url: '$_baseUrl/joiner.int8.onnx',
+          expectedBytes: 6 * 1024 * 1024, // ~6.4 MB
+        ),
+        LocalSttModelFile(
+          fileName: 'tokens.txt',
+          url: '$_baseUrl/tokens.txt',
+          expectedBytes: 94 * 1024, // ~94 KB
+        ),
+        LocalSttModelFile(
+          fileName: 'silero_vad.onnx',
+          url:
+              'https://huggingface.co/csukuangfj/vad/resolve/main/silero_vad.onnx',
+          expectedBytes: 1808 * 1024, // ~1.81 MB
+        ),
+      ];
 
   /// Minimum device RAM in bytes to run the model comfortably
   static const int minimumRamBytes = 6 * 1024 * 1024 * 1024; // 6 GB

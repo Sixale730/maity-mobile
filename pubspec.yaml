@@ -94,6 +94,7 @@ dependencies:
   nordic_dfu: ^6.1.4+hotfix
   mcumgr_flutter: ^0.4.2
   flutter_archive: ^6.0.3
+  archive: ^4.0.7
   json_annotation: ^4.9.0
   json_serializable: ^6.9.5
   package_info_plus: ^8.0.1

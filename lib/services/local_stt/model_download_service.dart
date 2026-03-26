@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/model_manifest.dart';
+import 'package:omi/services/local_stt/moonshine_model_manifest.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -55,32 +58,62 @@ class DownloadProgress {
   }
 }
 
-/// Manages downloading, validating, and deleting the Parakeet TDT model files.
+/// Manages downloading, validating, and deleting local STT model files.
 ///
-/// Follows the singleton pattern from BackgroundUploadService.
-/// Uses dio for HTTP downloads with progress and resume support.
+/// Supports multiple models (Parakeet, Moonshine) with per-model progress tracking.
 /// Model files are stored in getApplicationSupportDirectory() (not purgeable on iOS).
 class ModelDownloadService {
   ModelDownloadService._();
   static final ModelDownloadService _instance = ModelDownloadService._();
   static ModelDownloadService get instance => _instance;
 
-  final ValueNotifier<DownloadProgress> downloadProgress =
-      ValueNotifier(const DownloadProgress());
+  // --- Per-model progress notifiers ---
+  final Map<LocalSttModelType, ValueNotifier<DownloadProgress>> _progressMap = {
+    LocalSttModelType.parakeet:
+        ValueNotifier(const DownloadProgress()),
+    LocalSttModelType.moonshine:
+        ValueNotifier(const DownloadProgress()),
+  };
+
+  /// Backward-compatible: progress for Parakeet (default/legacy).
+  ValueNotifier<DownloadProgress> get downloadProgress =>
+      _progressMap[LocalSttModelType.parakeet]!;
+
+  /// Get progress notifier for a specific model type.
+  ValueNotifier<DownloadProgress> progressFor(LocalSttModelType type) =>
+      _progressMap[type]!;
 
   late final Dio _dio;
   CancelToken? _cancelToken;
-  String? _modelDirPath;
+  final Map<LocalSttModelType, String> _modelDirPaths = {};
+  String? _appSupportPath;
   bool _initialized = false;
 
-  /// Whether all model files are present and pass size validation.
-  bool get isModelReady =>
-      downloadProgress.value.state == DownloadState.ready;
+  // --- Manifest registry ---
+  static final Map<LocalSttModelType, LocalSttModelManifest> _manifests = {
+    LocalSttModelType.parakeet: ParakeetModelManifest(),
+    LocalSttModelType.moonshine: MoonshineModelManifest(),
+  };
 
-  /// Absolute path to the model directory, or null if not yet initialized.
-  String? get modelPath => _modelDirPath;
+  LocalSttModelManifest manifestFor(LocalSttModelType type) => _manifests[type]!;
 
-  /// Initialize the service: resolve model directory and check existing files.
+  /// Whether the given model's files are present and pass validation.
+  bool isModelReadyFor(LocalSttModelType type) =>
+      _progressMap[type]!.value.state == DownloadState.ready;
+
+  /// Backward-compatible: whether the Parakeet model is ready.
+  bool get isModelReady => isModelReadyFor(LocalSttModelType.parakeet);
+
+  /// Whether ANY local STT model is ready (for offline fallback logic).
+  bool get isAnyModelReady => LocalSttModelType.values.any(isModelReadyFor);
+
+  /// Model path for a specific type, or null if not initialized.
+  String? modelPathFor(LocalSttModelType type) => _modelDirPaths[type];
+
+  /// Backward-compatible: path for Parakeet model.
+  String? get modelPath => modelPathFor(LocalSttModelType.parakeet);
+
+  /// Initialize the service: resolve model directories and check existing files.
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -92,70 +125,273 @@ class ModelDownloadService {
     ));
 
     final appSupport = await getApplicationSupportDirectory();
-    _modelDirPath =
-        '${appSupport.path}/${ParakeetModelManifest.modelDirName}';
+    _appSupportPath = appSupport.path;
+
+    for (final type in LocalSttModelType.values) {
+      final manifest = manifestFor(type);
+      _modelDirPaths[type] = '${appSupport.path}/${manifest.modelDirName}';
+    }
 
     _initialized = true;
 
-    // Check if model was previously downloaded and is still valid
-    if (SharedPreferencesUtil().localSttModelDownloaded) {
-      final valid = await _validateExistingFiles();
+    // Check existing models
+    await _checkExistingModel(LocalSttModelType.parakeet);
+    await _checkExistingModel(LocalSttModelType.moonshine);
+  }
+
+  Future<void> _checkExistingModel(LocalSttModelType type) async {
+    final prefs = SharedPreferencesUtil();
+    final isDownloaded = type == LocalSttModelType.parakeet
+        ? prefs.localSttModelDownloaded
+        : prefs.localSttMoonshineDownloaded;
+    final path = _modelDirPaths[type]!;
+
+    if (isDownloaded) {
+      final valid = await _validateExistingFiles(type);
       if (valid) {
-        downloadProgress.value =
+        _progressMap[type]!.value =
             const DownloadProgress(state: DownloadState.ready, progress: 1.0);
-        debugPrint('[ModelDownload] Model already downloaded and valid');
+        debugPrint('[ModelDownload] ${type.name} already downloaded and valid');
       } else {
-        // Files missing or corrupted — reset preference
-        SharedPreferencesUtil().localSttModelDownloaded = false;
-        SharedPreferencesUtil().localSttModelPath = '';
+        _setPrefs(type, downloaded: false, path: '');
         debugPrint(
-            '[ModelDownload] Previously downloaded model is invalid, reset preference');
+            '[ModelDownload] ${type.name} invalid, reset preference');
       }
     } else {
-      // Also check on disk in case preference was lost
-      final valid = await _validateExistingFiles();
+      final valid = await _validateExistingFiles(type);
       if (valid) {
-        SharedPreferencesUtil().localSttModelDownloaded = true;
-        SharedPreferencesUtil().localSttModelPath = _modelDirPath!;
-        downloadProgress.value =
+        _setPrefs(type, downloaded: true, path: path);
+        _progressMap[type]!.value =
             const DownloadProgress(state: DownloadState.ready, progress: 1.0);
-        debugPrint('[ModelDownload] Found valid model on disk, updated prefs');
+        debugPrint('[ModelDownload] Found valid ${type.name} on disk');
       }
     }
   }
 
-  /// Download all model files sequentially. Supports resume via Range headers.
-  Future<bool> downloadModel() async {
+  /// Download model files for [type]. Returns true on success.
+  Future<bool> downloadModel([
+    LocalSttModelType type = LocalSttModelType.parakeet,
+  ]) async {
     if (!_initialized) await initialize();
-    if (isModelReady) return true;
+    if (isModelReadyFor(type)) return true;
+
+    final manifest = manifestFor(type);
+    final progress = _progressMap[type]!;
 
     _cancelToken = CancelToken();
 
     // Ensure model directory exists
-    final modelDir = Directory(_modelDirPath!);
+    final modelDirPath = _modelDirPaths[type]!;
+    final modelDir = Directory(modelDirPath);
     if (!await modelDir.exists()) {
       await modelDir.create(recursive: true);
     }
 
-    const totalBytes = ParakeetModelManifest.totalExpectedBytes;
+    if (manifest.isArchiveDownload) {
+      return _downloadArchiveModel(type, manifest, modelDirPath, progress);
+    } else {
+      return _downloadIndividualFiles(type, manifest, modelDirPath, progress);
+    }
+  }
+
+  /// Download model distributed as a tar.bz2 archive (Moonshine).
+  Future<bool> _downloadArchiveModel(
+    LocalSttModelType type,
+    LocalSttModelManifest manifest,
+    String modelDirPath,
+    ValueNotifier<DownloadProgress> progress,
+  ) async {
+    final stopwatch = Stopwatch()..start();
+    final archivePath = '$_appSupportPath/${manifest.modelName}.tar.bz2';
+    final totalBytes = manifest.archiveBytes;
+
+    progress.value = DownloadProgress(
+      state: DownloadState.downloading,
+      totalBytes: totalBytes,
+      currentFile: '${manifest.modelName}.tar.bz2',
+    );
+
+    try {
+      // Download the archive
+      await _dio.download(
+        manifest.archiveUrl,
+        archivePath,
+        cancelToken: _cancelToken,
+        deleteOnError: false,
+        onReceiveProgress: (received, total) {
+          final elapsed = stopwatch.elapsedMilliseconds / 1000.0;
+          final speed = elapsed > 0 ? received / elapsed : 0.0;
+          progress.value = progress.value.copyWith(
+            bytesDownloaded: received,
+            progress: totalBytes > 0 ? received / totalBytes : 0.0,
+            speedBytesPerSec: speed,
+          );
+        },
+      );
+
+      // Extract the archive
+      progress.value = progress.value.copyWith(
+        state: DownloadState.validating,
+        currentFile: 'Extracting...',
+      );
+
+      await _extractTarBz2(archivePath, modelDirPath, manifest.archiveInnerDir);
+
+      // Download Silero VAD separately if needed
+      final vadFile = manifest.files.where((f) => f.fileName == 'silero_vad.onnx').firstOrNull;
+      if (vadFile != null && vadFile.url.isNotEmpty) {
+        final vadPath = '$modelDirPath/silero_vad.onnx';
+        if (!await File(vadPath).exists()) {
+          // Try to copy from Parakeet directory first
+          final parakeetVad = '${_modelDirPaths[LocalSttModelType.parakeet]}/silero_vad.onnx';
+          if (await File(parakeetVad).exists()) {
+            await File(parakeetVad).copy(vadPath);
+            debugPrint('[ModelDownload] Copied silero_vad.onnx from Parakeet');
+          } else {
+            progress.value = progress.value.copyWith(
+              currentFile: 'silero_vad.onnx',
+            );
+            await _dio.download(vadFile.url, vadPath, cancelToken: _cancelToken);
+            debugPrint('[ModelDownload] Downloaded silero_vad.onnx');
+          }
+        }
+      }
+
+      // Clean up archive file
+      try {
+        await File(archivePath).delete();
+      } catch (_) {}
+
+      stopwatch.stop();
+
+      // Final validation
+      final valid = await _validateExistingFiles(type);
+      if (valid) {
+        _setPrefs(type, downloaded: true, path: modelDirPath);
+        progress.value = const DownloadProgress(
+          state: DownloadState.ready,
+          progress: 1.0,
+        );
+        debugPrint(
+            '[ModelDownload] ${type.name} extracted and validated in ${stopwatch.elapsed.inSeconds}s');
+        return true;
+      } else {
+        final log = await _buildErrorLog(
+          fileName: '(validation)',
+          url: manifest.archiveUrl,
+          bytesDownloaded: totalBytes,
+          errorMessage: 'Validation failed after extraction',
+        );
+        progress.value = DownloadProgress(
+          state: DownloadState.error,
+          errorMessage: 'Validation failed after extraction',
+          errorLog: log,
+        );
+        return false;
+      }
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) {
+        progress.value = const DownloadProgress(
+          state: DownloadState.idle,
+          errorMessage: 'Download cancelled',
+        );
+        return false;
+      }
+      final log = await _buildErrorLog(
+        fileName: '${manifest.modelName}.tar.bz2',
+        url: manifest.archiveUrl,
+        bytesDownloaded: progress.value.bytesDownloaded,
+        errorMessage: e.message,
+        dioErrorType: e.type.name,
+        httpStatus: e.response?.statusCode,
+      );
+      progress.value = DownloadProgress(
+        state: DownloadState.error,
+        errorMessage: _shortErrorMessage(e),
+        errorLog: log,
+      );
+      return false;
+    } catch (e, stackTrace) {
+      debugPrint('[ModelDownload] Archive download error: $e\n$stackTrace');
+      final log = await _buildErrorLog(
+        fileName: '${manifest.modelName}.tar.bz2',
+        url: manifest.archiveUrl,
+        bytesDownloaded: progress.value.bytesDownloaded,
+        errorMessage: e.toString(),
+        rawError: '$e\n$stackTrace',
+      );
+      progress.value = DownloadProgress(
+        state: DownloadState.error,
+        errorMessage: 'Failed: $e',
+        errorLog: log,
+      );
+      return false;
+    }
+  }
+
+  /// Extract a tar.bz2 archive, moving files from [archiveInnerDir] to [targetDir].
+  Future<void> _extractTarBz2(
+    String archivePath,
+    String targetDir,
+    String archiveInnerDir,
+  ) async {
+    final archiveBytes = await File(archivePath).readAsBytes();
+
+    // Decompress bzip2
+    final decompressed = BZip2Decoder().decodeBytes(archiveBytes);
+
+    // Decode tar
+    final archive = TarDecoder().decodeBytes(decompressed);
+
+    final targetDirectory = Directory(targetDir);
+    if (!await targetDirectory.exists()) {
+      await targetDirectory.create(recursive: true);
+    }
+
+    for (final file in archive) {
+      if (file.isFile) {
+        // Files inside tar are usually like: archiveInnerDir/filename.onnx
+        // We want to flatten them to targetDir/filename.onnx
+        String fileName = file.name;
+        if (fileName.contains('/')) {
+          fileName = fileName.split('/').last;
+        }
+        // Skip hidden/metadata files
+        if (fileName.startsWith('.') || fileName.isEmpty) continue;
+
+        final outFile = File('$targetDir/$fileName');
+        await outFile.writeAsBytes(file.content as List<int>);
+        debugPrint('[ModelDownload] Extracted: $fileName (${file.size} bytes)');
+      }
+    }
+  }
+
+  /// Download model distributed as individual files (Parakeet).
+  Future<bool> _downloadIndividualFiles(
+    LocalSttModelType type,
+    LocalSttModelManifest manifest,
+    String modelDirPath,
+    ValueNotifier<DownloadProgress> progress,
+  ) async {
+    final totalBytes = manifest.totalExpectedBytes;
     int cumulativeBytes = 0;
     final stopwatch = Stopwatch()..start();
 
-    downloadProgress.value = const DownloadProgress(
+    progress.value = DownloadProgress(
       state: DownloadState.downloading,
-      totalBytes: ParakeetModelManifest.totalExpectedBytes,
+      totalBytes: totalBytes,
     );
 
-    for (final modelFile in ParakeetModelManifest.files) {
+    for (final modelFile in manifest.files) {
       if (_cancelToken?.isCancelled ?? false) {
-        downloadProgress.value = const DownloadProgress(
+        progress.value = const DownloadProgress(
           state: DownloadState.idle,
           errorMessage: 'Download cancelled',
         );
         return false;
       }
 
-      final filePath = '$_modelDirPath/${modelFile.fileName}';
+      final filePath = '$modelDirPath/${modelFile.fileName}';
       final tmpPath = '$filePath.tmp';
       final file = File(filePath);
 
@@ -170,7 +406,7 @@ class ModelDownloadService {
         }
       }
 
-      downloadProgress.value = downloadProgress.value.copyWith(
+      progress.value = progress.value.copyWith(
         currentFile: modelFile.fileName,
       );
 
@@ -200,7 +436,7 @@ class ModelDownloadService {
             final elapsed = stopwatch.elapsedMilliseconds / 1000.0;
             final speed = elapsed > 0 ? globalReceived / elapsed : 0.0;
 
-            downloadProgress.value = downloadProgress.value.copyWith(
+            progress.value = progress.value.copyWith(
               bytesDownloaded: globalReceived,
               progress: globalReceived / totalBytes,
               speedBytesPerSec: speed,
@@ -234,7 +470,7 @@ class ModelDownloadService {
             '[ModelDownload] ${modelFile.fileName} downloaded ($downloadedSize bytes)');
       } on DioException catch (e) {
         if (e.type == DioExceptionType.cancel) {
-          downloadProgress.value = const DownloadProgress(
+          progress.value = const DownloadProgress(
             state: DownloadState.idle,
             errorMessage: 'Download cancelled',
           );
@@ -258,7 +494,7 @@ class ModelDownloadService {
           redirects: e.response?.redirects,
           rawError: e.error?.toString(),
         );
-        downloadProgress.value = DownloadProgress(
+        progress.value = DownloadProgress(
           state: DownloadState.error,
           errorMessage: '${modelFile.fileName}: ${_shortErrorMessage(e)}',
           bytesDownloaded: cumulativeBytes,
@@ -277,7 +513,7 @@ class ModelDownloadService {
           errorMessage: e.toString(),
           rawError: '$e\n$stackTrace',
         );
-        downloadProgress.value = DownloadProgress(
+        progress.value = DownloadProgress(
           state: DownloadState.error,
           errorMessage: 'Failed: ${modelFile.fileName} — $e',
           bytesDownloaded: cumulativeBytes,
@@ -292,20 +528,19 @@ class ModelDownloadService {
     stopwatch.stop();
 
     // Final validation pass
-    downloadProgress.value = downloadProgress.value.copyWith(
+    progress.value = progress.value.copyWith(
       state: DownloadState.validating,
     );
 
-    final valid = await _validateExistingFiles();
+    final valid = await _validateExistingFiles(type);
     if (valid) {
-      SharedPreferencesUtil().localSttModelDownloaded = true;
-      SharedPreferencesUtil().localSttModelPath = _modelDirPath!;
-      downloadProgress.value = const DownloadProgress(
+      _setPrefs(type, downloaded: true, path: modelDirPath);
+      progress.value = const DownloadProgress(
         state: DownloadState.ready,
         progress: 1.0,
       );
       debugPrint(
-          '[ModelDownload] All files downloaded and validated in ${stopwatch.elapsed.inSeconds}s');
+          '[ModelDownload] ${type.name} downloaded and validated in ${stopwatch.elapsed.inSeconds}s');
       return true;
     } else {
       final log = await _buildErrorLog(
@@ -314,7 +549,7 @@ class ModelDownloadService {
         bytesDownloaded: cumulativeBytes,
         errorMessage: 'Final validation failed after download',
       );
-      downloadProgress.value = DownloadProgress(
+      progress.value = DownloadProgress(
         state: DownloadState.error,
         errorMessage: 'Final validation failed after download',
         errorLog: log,
@@ -329,22 +564,26 @@ class ModelDownloadService {
     _cancelToken = null;
   }
 
-  /// Delete all model files and reset preferences.
-  Future<void> deleteModel() async {
+  /// Delete model files for [type] and reset preferences.
+  Future<void> deleteModel([
+    LocalSttModelType type = LocalSttModelType.parakeet,
+  ]) async {
     if (!_initialized) await initialize();
 
     cancelDownload();
 
-    final modelDir = Directory(_modelDirPath!);
-    if (await modelDir.exists()) {
-      await modelDir.delete(recursive: true);
-      debugPrint('[ModelDownload] Model directory deleted');
+    final modelDirPath = _modelDirPaths[type];
+    if (modelDirPath != null) {
+      final modelDir = Directory(modelDirPath);
+      if (await modelDir.exists()) {
+        await modelDir.delete(recursive: true);
+        debugPrint('[ModelDownload] ${type.name} directory deleted');
+      }
     }
 
-    SharedPreferencesUtil().localSttModelDownloaded = false;
-    SharedPreferencesUtil().localSttModelPath = '';
-
-    downloadProgress.value = const DownloadProgress(state: DownloadState.idle);
+    _setPrefs(type, downloaded: false, path: '');
+    _progressMap[type]!.value =
+        const DownloadProgress(state: DownloadState.idle);
   }
 
   /// Check if this iOS device has insufficient RAM for the model.
@@ -356,7 +595,22 @@ class ModelDownloadService {
     return ParakeetModelManifest.lowRamModels.contains(model);
   }
 
-  /// Build a short, user-readable error message from a DioException.
+  // --- Preferences helpers ---
+
+  void _setPrefs(LocalSttModelType type,
+      {required bool downloaded, required String path}) {
+    final prefs = SharedPreferencesUtil();
+    if (type == LocalSttModelType.parakeet) {
+      prefs.localSttModelDownloaded = downloaded;
+      prefs.localSttModelPath = path;
+    } else if (type == LocalSttModelType.moonshine) {
+      prefs.localSttMoonshineDownloaded = downloaded;
+      prefs.localSttMoonshinePath = path;
+    }
+  }
+
+  // --- Error helpers ---
+
   String _shortErrorMessage(DioException e) {
     final status = e.response?.statusCode;
     if (status != null) return 'HTTP $status (${e.type.name})';
@@ -368,7 +622,6 @@ class ModelDownloadService {
     return e.message ?? e.type.name;
   }
 
-  /// Build a detailed error log string for clipboard copy.
   Future<String> _buildErrorLog({
     required String fileName,
     required String url,
@@ -385,7 +638,6 @@ class ModelDownloadService {
       buf.writeln('=== Maity Model Download Error ===');
       buf.writeln('Timestamp: ${DateTime.now().toUtc().toIso8601String()}');
 
-      // App version
       try {
         final pkg = await PackageInfo.fromPlatform();
         buf.writeln('App: ${pkg.appName} ${pkg.version}+${pkg.buildNumber}');
@@ -393,7 +645,6 @@ class ModelDownloadService {
         buf.writeln('App: (could not read version)');
       }
 
-      // Device info
       try {
         final deviceInfo = DeviceInfoPlugin();
         if (Platform.isIOS) {
@@ -403,23 +654,22 @@ class ModelDownloadService {
         } else if (Platform.isAndroid) {
           final android = await deviceInfo.androidInfo;
           buf.writeln('Device: ${android.manufacturer} ${android.model}');
-          buf.writeln('OS: Android ${android.version.release} (SDK ${android.version.sdkInt})');
+          buf.writeln(
+              'OS: Android ${android.version.release} (SDK ${android.version.sdkInt})');
         } else {
-          buf.writeln('Platform: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}');
+          buf.writeln(
+              'Platform: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}');
         }
       } catch (_) {
         buf.writeln('Device: ${Platform.operatingSystem}');
       }
 
-      // Download context
       buf.writeln('');
       buf.writeln('--- Download Context ---');
       buf.writeln('File: $fileName');
       buf.writeln('URL: $url');
       buf.writeln('Bytes downloaded: $bytesDownloaded');
-      buf.writeln('Model dir: ${_modelDirPath ?? "(not set)"}');
 
-      // Error details
       buf.writeln('');
       buf.writeln('--- Error Details ---');
       if (errorMessage != null) buf.writeln('Message: $errorMessage');
@@ -447,17 +697,21 @@ class ModelDownloadService {
   }
 
   /// Validate that all model files exist and meet minimum size thresholds.
-  Future<bool> _validateExistingFiles() async {
-    if (_modelDirPath == null) return false;
+  Future<bool> _validateExistingFiles([
+    LocalSttModelType type = LocalSttModelType.parakeet,
+  ]) async {
+    final modelDirPath = _modelDirPaths[type];
+    if (modelDirPath == null) return false;
 
-    final modelDir = Directory(_modelDirPath!);
+    final modelDir = Directory(modelDirPath);
     if (!await modelDir.exists()) return false;
 
-    for (final modelFile in ParakeetModelManifest.files) {
-      final file = File('$_modelDirPath/${modelFile.fileName}');
+    final manifest = manifestFor(type);
+    for (final modelFile in manifest.files) {
+      final file = File('$modelDirPath/${modelFile.fileName}');
       if (!await file.exists()) {
         debugPrint(
-            '[ModelDownload] Validation failed: ${modelFile.fileName} not found');
+            '[ModelDownload] Validation failed: ${modelFile.fileName} not found in ${type.name}');
         return false;
       }
       final size = await file.length();
@@ -472,7 +726,9 @@ class ModelDownloadService {
 
   void dispose() {
     cancelDownload();
-    downloadProgress.dispose();
+    for (final notifier in _progressMap.values) {
+      notifier.dispose();
+    }
     _dio.close();
   }
 }

@@ -135,6 +135,17 @@ class SharedPreferencesUtil {
   bool get localSttAutoFallback => getBool('localSttAutoFallback', defaultValue: true);
   set localSttAutoFallback(bool value) => saveBool('localSttAutoFallback', value);
 
+  // Local STT (Moonshine) configuration
+  bool get localSttMoonshineDownloaded => getBool('localSttMoonshineDownloaded');
+  set localSttMoonshineDownloaded(bool value) => saveBool('localSttMoonshineDownloaded', value);
+
+  String get localSttMoonshinePath => getString('localSttMoonshinePath');
+  set localSttMoonshinePath(String value) => saveString('localSttMoonshinePath', value);
+
+  // Active local STT model selection ('parakeet' or 'moonshine')
+  String get activeLocalSttModel => getString('activeLocalSttModel', defaultValue: 'parakeet');
+  set activeLocalSttModel(String value) => saveString('activeLocalSttModel', value);
+
   // Speaker embedding model (for on-device speaker identification)
   bool get speakerModelDownloaded => getBool('speakerModelDownloaded');
   set speakerModelDownloaded(bool value) => saveBool('speakerModelDownloaded', value);

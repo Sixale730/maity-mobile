@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 
 import 'package:omi/services/local_stt/local_stt_engine.dart';
+import 'package:omi/services/local_stt/local_stt_model_type.dart';
 
 /// Worker isolate entry point for local STT decode + speaker identification.
 ///
@@ -16,7 +17,7 @@ import 'package:omi/services/local_stt/local_stt_engine.dart';
 /// ## Protocol (tagged lists)
 ///
 /// **Commands (main → worker):**
-/// - `['init', String modelPath, String? speakerModelPath, Uint8List? userEmbeddingBytes]` — initialize engine + optional speaker ID
+/// - `['init', String modelPath, String? speakerModelPath, Uint8List? userEmbeddingBytes, String? modelTypeName]` — initialize engine + optional speaker ID
 /// - `['audio', Uint8List pcm16Bytes]` — feed audio
 /// - `['flush']` — process remaining audio + VAD tail
 /// - `['shutdown']` — dispose engine and exit
@@ -44,7 +45,10 @@ void workerEntryPoint(SendPort mainSendPort) {
             message.length > 2 ? message[2] as String? : null;
         final userEmbeddingBytes =
             message.length > 3 ? message[3] as Uint8List? : null;
-        worker.handleInit(modelPath, speakerModelPath, userEmbeddingBytes);
+        final modelTypeName =
+            message.length > 4 ? message[4] as String? : null;
+        worker.handleInit(
+            modelPath, speakerModelPath, userEmbeddingBytes, modelTypeName);
       case 'audio':
         worker.handleAudio(message[1] as Uint8List);
       case 'flush':
@@ -91,9 +95,13 @@ class _SttWorker {
     String modelPath, [
     String? speakerModelPath,
     Uint8List? userEmbeddingBytes,
+    String? modelTypeName,
   ]) async {
     try {
-      await _engine.initialize(modelPath);
+      final modelType = modelTypeName != null
+          ? LocalSttModelType.fromString(modelTypeName)
+          : LocalSttModelType.parakeet;
+      await _engine.initialize(modelPath, modelType: modelType);
 
       // Initialize speaker ID if both model and embedding are available
       if (speakerModelPath != null &&

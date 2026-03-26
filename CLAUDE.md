@@ -348,36 +348,53 @@ Requiere: VAD habilitado + Custom STT (Deepgram) + PCM16. Estados: Silence → P
 
 **Archivos**: `lib/services/vad/vad_metrics.dart`, `lib/services/vad/vad_state.dart`, `lib/providers/capture_provider.dart` (`vadStateNotifier`, `vadMetrics`).
 
-## Local STT (Parakeet On-Device)
+## Local STT (On-Device, Multi-Model)
 
-NVIDIA Parakeet TDT 0.6B v3 via `sherpa_onnx` Flutter package (FFI, no HTTP/WebSocket). Multilingue 25 idiomas incl. español, autodeteccion. Modelo ~640MB descargado on-demand desde Settings.
+Sistema multi-modelo on-device via `sherpa_onnx` Flutter package (FFI, no HTTP/WebSocket). Dos modelos disponibles seleccionables desde Settings via dropdown:
 
-**Arquitectura**: `LocalSttSocket` implementa `IPureSocket` → se conecta al pipeline existente `TranscriptSegmentSocketService` sin modificar logica core. Audio PCM16 → Float32 → Silero VAD → segmentos speech → OfflineRecognizer decode → JSON segments via `onMessage()`.
+| Modelo | Tipo | Tamaño | Idiomas | Config sherpa_onnx |
+|--------|------|--------|---------|-------------------|
+| **Parakeet TDT 0.6B v3** | OfflineTransducerModelConfig | ~640 MB (archivos individuales) | 25 idiomas, auto-detect | `modelType: 'nemo_transducer'` |
+| **Moonshine v2 Base ES** | OfflineMoonshineModelConfig | ~50 MB (tar.bz2 comprimido) | Español optimizado | Auto-detect |
 
-**Fallback automatico**:
-1. Pre-conexion: si offline + modelo ready + autoFallback → usa localParakeet directo
-2. Post-fallo: si cloud WebSocket falla + modelo ready → retry con localParakeet
+**Arquitectura**: `LocalSttSocket` implementa `IPureSocket` → se conecta al pipeline existente `TranscriptSegmentSocketService` sin modificar logica core. Audio PCM16 → Float32 → Silero VAD → segmentos speech → OfflineRecognizer decode → JSON segments via `onMessage()`. El `LocalSttModelType` enum determina que config de modelo usar en `LocalSttEngine.initialize()`.
+
+**Fallback automatico** (soporta ambos modelos):
+1. Pre-conexion: si offline + cualquier modelo ready + autoFallback → usa modelo activo (o cualquiera disponible)
+2. Post-fallo: si cloud WebSocket falla + modelo ready → retry con modelo local disponible
 3. Mid-recording: NO cambia de provider (estabilidad de sesion)
+4. Helper `_bestLocalSttProvider()` prioriza el modelo seleccionado por el usuario
 
 **Restricciones**:
 - Provider forzado a `cpu` (CoreML causa OOM 2.9GB en iPhone)
 - FFI pointers no cruzan isolate boundaries → decode sincrono en main isolate (~200ms para chunks de 3s)
 - RAM warning para devices <6GB (iPhone SE, 12 mini, etc.)
 
-**Storage**: `getApplicationSupportDirectory()/parakeet-tdt-0.6b-v3/` (no purgeable por iOS). 5 archivos: encoder.int8 (652MB), decoder.int8 (12MB), joiner.int8 (6.4MB), tokens.txt (94KB), silero_vad (2MB).
+**Storage**:
+- Parakeet: `getApplicationSupportDirectory()/parakeet-tdt-0.6b-v3/` — 5 archivos individuales (~640MB)
+- Moonshine: `getApplicationSupportDirectory()/moonshine-base-es/` — tar.bz2 extraido (~50MB) + silero_vad.onnx
 
-**Preferences**: `localSttModelDownloaded` (bool), `localSttModelPath` (String), `localSttAutoFallback` (bool, default true).
+**Descarga Moonshine**: Archivo tar.bz2 desde GitHub releases → extraido via `package:archive` (BZip2Decoder + TarDecoder). Silero VAD se copia del directorio Parakeet si ya existe, sino se descarga aparte.
+
+**Preferences**:
+- `localSttModelDownloaded` (bool), `localSttModelPath` (String) — Parakeet
+- `localSttMoonshineDownloaded` (bool), `localSttMoonshinePath` (String) — Moonshine
+- `localSttAutoFallback` (bool, default true) — compartido
+- `activeLocalSttModel` (String, default 'parakeet') — modelo activo seleccionado
 
 **Archivos**:
-- `lib/services/local_stt/local_stt_engine.dart` - sherpa_onnx OfflineRecognizer + VoiceActivityDetector
-- `lib/services/local_stt/local_stt_socket.dart` - IPureSocket adapter, buffer 3s, PCM16→Float32
-- `lib/services/local_stt/model_download_service.dart` - Singleton, dio con resume, validacion, ValueNotifier<DownloadProgress>
-- `lib/services/local_stt/model_manifest.dart` - URLs, tamaños, checksums, low-RAM device list
-- `lib/providers/local_stt_provider.dart` - ChangeNotifier wrapping ModelDownloadService
-- `lib/pages/settings/widgets/local_stt_model_card.dart` - UI descarga/estado/delete/fallback toggle
-- `lib/models/stt_provider.dart` - Enum `localParakeet` + SttProviderConfig
-- `lib/services/sockets/transcription_service.dart` - Factory `createLocalStt()`
-- `lib/services/recording/transcription_pipeline.dart` - Fallback logic en `initiateWebsocket()`
+- `lib/services/local_stt/local_stt_model_type.dart` - Enum `LocalSttModelType` (parakeet, moonshine)
+- `lib/services/local_stt/local_stt_engine.dart` - sherpa_onnx OfflineRecognizer + VAD, branch config por modelType
+- `lib/services/local_stt/local_stt_socket.dart` - IPureSocket adapter con modelType param
+- `lib/services/local_stt/local_stt_worker.dart` - Worker isolate, recibe modelType en init command
+- `lib/services/local_stt/model_download_service.dart` - Singleton model-aware, per-model progress, archive extraction
+- `lib/services/local_stt/model_manifest.dart` - Interfaz abstracta `LocalSttModelManifest` + `ParakeetModelManifest`
+- `lib/services/local_stt/moonshine_model_manifest.dart` - `MoonshineModelManifest` (tar.bz2 desde GitHub releases)
+- `lib/providers/local_stt_provider.dart` - ChangeNotifier con estado per-model + selectedModel
+- `lib/pages/settings/widgets/local_stt_model_card.dart` - Dropdown modelo + descarga/estado/delete per-model
+- `lib/models/stt_provider.dart` - Enums `localParakeet` + `localMoonshine` con SttProviderConfig
+- `lib/services/sockets/transcription_service.dart` - Factory `createLocalStt()` con modelType param
+- `lib/services/recording/transcription_pipeline.dart` - Fallback logic multi-modelo en `initiateWebsocket()`
 
 ## Backend
 

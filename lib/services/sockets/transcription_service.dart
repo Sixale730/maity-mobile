@@ -12,6 +12,7 @@ import 'package:omi/env/env.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/services/capture_log_service.dart';
+import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/local_stt_socket.dart';
 import 'package:omi/services/notifications.dart';
 import 'package:omi/services/sockets/pure_socket.dart';
@@ -343,9 +344,13 @@ class TranscriptSocketServiceFactory {
       return createDefault(sampleRate, codec, language, source: source);
     }
 
-    // Local Parakeet: purely on-device, no composite wrapper needed
+    // Local on-device: Parakeet or Moonshine, no composite wrapper needed
     if (config.provider == SttProvider.localParakeet) {
       return createLocalStt(sampleRate, codec, language, source: source);
+    }
+    if (config.provider == SttProvider.localMoonshine) {
+      return createLocalStt(sampleRate, codec, language,
+          source: source, modelType: LocalSttModelType.moonshine);
     }
 
     final sttConfigId = config.sttConfigId;
@@ -386,9 +391,13 @@ class TranscriptSocketServiceFactory {
       return createDefault(sampleRate, codec, language, source: source);
     }
 
-    // Local Parakeet: use on-device engine, no network
+    // Local on-device engine: Parakeet or Moonshine, no network
     if (config.provider == SttProvider.localParakeet) {
       return createLocalStt(sampleRate, codec, language, source: source);
+    }
+    if (config.provider == SttProvider.localMoonshine) {
+      return createLocalStt(sampleRate, codec, language,
+          source: source, modelType: LocalSttModelType.moonshine);
     }
 
     final sttConfigId = config.sttConfigId;
@@ -413,7 +422,7 @@ class TranscriptSocketServiceFactory {
     );
   }
 
-  /// Create a local STT transcription service using the on-device Parakeet model.
+  /// Create a local STT transcription service using an on-device model.
   /// No network required -- audio is decoded locally via sherpa_onnx.
   ///
   /// Each call creates a fresh [LocalSttSocket] whose [connect] spawns a new
@@ -424,21 +433,28 @@ class TranscriptSocketServiceFactory {
     BleAudioCodec codec,
     String language, {
     String? source,
+    LocalSttModelType modelType = LocalSttModelType.parakeet,
   }) {
-    final modelPath = SharedPreferencesUtil().localSttModelPath;
-    debugPrint('[STTFactory] Creating LocalSttSocket, model: $modelPath');
+    final prefs = SharedPreferencesUtil();
+    final modelPath = modelType == LocalSttModelType.moonshine
+        ? prefs.localSttMoonshinePath
+        : prefs.localSttModelPath;
+    debugPrint(
+        '[STTFactory] Creating LocalSttSocket, model: ${modelType.name}, path: $modelPath');
 
     if (modelPath.isEmpty) {
-      debugPrint('[STTFactory] ERROR: localSttModelPath is empty — cannot create local STT');
-      throw StateError('Local STT model path not configured. Download the model first.');
+      debugPrint(
+          '[STTFactory] ERROR: ${modelType.name} model path is empty — cannot create local STT');
+      throw StateError(
+          '${modelType.name} model path not configured. Download the model first.');
     }
 
     // Load speaker model path and user embedding for on-device speaker ID
     String? speakerModelPath;
     Uint8List? userEmbeddingBytes;
 
-    final speakerPath = SharedPreferencesUtil().speakerModelPath;
-    final embeddingPath = SharedPreferencesUtil().localSpeakerEmbeddingPath;
+    final speakerPath = prefs.speakerModelPath;
+    final embeddingPath = prefs.localSpeakerEmbeddingPath;
 
     if (speakerPath.isNotEmpty && embeddingPath.isNotEmpty) {
       final embeddingFile = File(embeddingPath);
@@ -454,6 +470,7 @@ class TranscriptSocketServiceFactory {
 
     final localSocket = LocalSttSocket(
       modelPath: modelPath,
+      modelType: modelType,
       speakerModelPath: speakerModelPath,
       userEmbeddingBytes: userEmbeddingBytes,
     );
@@ -466,7 +483,7 @@ class TranscriptSocketServiceFactory {
       includeSpeechProfile: false,
       source: source,
       customSttMode: true,
-      sttConfigId: 'localParakeet:ondevice',
+      sttConfigId: '${modelType.name}:ondevice',
     );
   }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 
+import 'package:omi/services/local_stt/local_stt_model_type.dart';
+
 /// Result from a local STT decode operation.
 class LocalSttResult {
   final String text;
@@ -34,36 +36,57 @@ class LocalSttEngine {
 
   /// Initialize the engine with model files located in [modelDir].
   ///
-  /// Expects the following files in modelDir:
-  /// - encoder.int8.onnx
-  /// - decoder.int8.onnx
-  /// - joiner.int8.onnx
-  /// - tokens.txt
-  /// - silero_vad.onnx
-  Future<void> initialize(String modelDir) async {
+  /// For Parakeet expects: encoder.int8.onnx, decoder.int8.onnx, joiner.int8.onnx, tokens.txt, silero_vad.onnx
+  /// For Moonshine expects: preprocess.onnx, encode.int8.onnx, uncached_decode.int8.onnx, cached_decode.int8.onnx, tokens.txt, silero_vad.onnx
+  Future<void> initialize(
+    String modelDir, {
+    LocalSttModelType modelType = LocalSttModelType.parakeet,
+  }) async {
     if (_isInitialized) return;
 
     try {
       sherpa.initBindings();
 
-      // Configure offline recognizer for NeMo Transducer
-      final config = sherpa.OfflineRecognizerConfig(
-        model: sherpa.OfflineModelConfig(
-          transducer: sherpa.OfflineTransducerModelConfig(
-            encoder: '$modelDir/encoder.int8.onnx',
-            decoder: '$modelDir/decoder.int8.onnx',
-            joiner: '$modelDir/joiner.int8.onnx',
+      final sherpa.OfflineRecognizerConfig config;
+
+      if (modelType == LocalSttModelType.moonshine) {
+        // Moonshine v2: OfflineMoonshineModelConfig (preprocessor + encoder + decoders)
+        config = sherpa.OfflineRecognizerConfig(
+          model: sherpa.OfflineModelConfig(
+            moonshine: sherpa.OfflineMoonshineModelConfig(
+              preprocessor: '$modelDir/preprocess.onnx',
+              encoder: '$modelDir/encode.int8.onnx',
+              uncachedDecoder: '$modelDir/uncached_decode.int8.onnx',
+              cachedDecoder: '$modelDir/cached_decode.int8.onnx',
+            ),
+            tokens: '$modelDir/tokens.txt',
+            numThreads: 2,
+            debug: false,
+            provider: 'cpu',
           ),
-          tokens: '$modelDir/tokens.txt',
-          modelType: 'nemo_transducer',
-          numThreads: 2,
-          debug: false,
-          provider: 'cpu',
-        ),
-        decodingMethod: 'greedy_search',
-      );
+          decodingMethod: 'greedy_search',
+        );
+      } else {
+        // Parakeet: OfflineTransducerModelConfig (NeMo Transducer)
+        config = sherpa.OfflineRecognizerConfig(
+          model: sherpa.OfflineModelConfig(
+            transducer: sherpa.OfflineTransducerModelConfig(
+              encoder: '$modelDir/encoder.int8.onnx',
+              decoder: '$modelDir/decoder.int8.onnx',
+              joiner: '$modelDir/joiner.int8.onnx',
+            ),
+            tokens: '$modelDir/tokens.txt',
+            modelType: 'nemo_transducer',
+            numThreads: 2,
+            debug: false,
+            provider: 'cpu',
+          ),
+          decodingMethod: 'greedy_search',
+        );
+      }
 
       _recognizer = sherpa.OfflineRecognizer(config);
+      debugPrint('[LocalSttEngine] Using model type: ${modelType.name}');
 
       // Configure Silero VAD
       final vadConfig = sherpa.VadModelConfig(
