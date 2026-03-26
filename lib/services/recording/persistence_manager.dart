@@ -25,6 +25,9 @@ class PersistenceManager {
   // --- Finalize mutex (C2: prevents race condition) ---
   final Mutex _finalizeMutex = Mutex();
 
+  // --- Cached directory for synchronous saves ---
+  String? _cachedDocumentsPath;
+
   // --- Recovery state ---
   Timer? _recoveryTimer;
   int _unsavedSegmentCount = 0;
@@ -108,6 +111,7 @@ class PersistenceManager {
     bool synchronous = false,
   }) async {
     final directory = await getApplicationDocumentsDirectory();
+    _cachedDocumentsPath = directory.path;
     final targetFile = File('${directory.path}/transcript_recovery.json');
     final tempFile = File('${directory.path}/transcript_recovery.json.tmp');
 
@@ -116,6 +120,7 @@ class PersistenceManager {
     final startedAtStr = startedAt.toIso8601String();
 
     if (synchronous) {
+      // Use sync I/O to guarantee completion before iOS suspends the app
       final json = <String, dynamic>{
         'session_id': sessionId,
         'started_at': startedAtStr,
@@ -123,17 +128,22 @@ class PersistenceManager {
         'segments': segmentMaps,
       };
       final jsonString = jsonEncode(json);
-      await tempFile.writeAsString(jsonString);
-    } else {
-      final payload = <String, dynamic>{
-        'session_id': sessionId,
-        'started_at': startedAtStr,
-        'last_updated_at': now,
-        'segments': segmentMaps,
-      };
-      final jsonString = await compute(_encodeJsonMap, payload);
-      await tempFile.writeAsString(jsonString);
+      tempFile.writeAsStringSync(jsonString);
+      if (Platform.isWindows && targetFile.existsSync()) {
+        targetFile.deleteSync();
+      }
+      tempFile.renameSync(targetFile.path);
+      return;
     }
+
+    final payload = <String, dynamic>{
+      'session_id': sessionId,
+      'started_at': startedAtStr,
+      'last_updated_at': now,
+      'segments': segmentMaps,
+    };
+    final jsonString = await compute(_encodeJsonMap, payload);
+    await tempFile.writeAsString(jsonString);
 
     // Windows: File.rename fails if target exists (unlike POSIX atomic rename)
     if (Platform.isWindows && await targetFile.exists()) {
