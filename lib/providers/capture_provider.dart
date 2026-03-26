@@ -114,6 +114,9 @@ class CaptureProvider extends ChangeNotifier
     _pipeline.onMessageEvent = _onMessageEvent;
     _pipeline.onAutoFinalizeNeeded = _autoFinalizeOnConnectionLost;
     _pipeline.onNotifyListeners = notifyListeners;
+    _pipeline.onSchedulePostFrame = (callback) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => callback());
+    };
     _pipeline.onSilenceTimeout = _onSilenceTimeout;
     _pipeline.onTranscriptionStalled = _reconnectForStall;
 

@@ -70,12 +70,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   Timer? _silenceTimer;
 
   // ---------------------------------------------------------------------------
-  // Segment notification throttling
+  // Segment notification coalescing (frame-aware)
   // ---------------------------------------------------------------------------
-  Timer? _segmentNotifyTimer;
-  DateTime? _lastSegmentNotifyTime;
-  static const Duration _segmentNotifyMinInterval =
-      Duration(milliseconds: 800);
+  bool _segmentNotifyPending = false;
+  bool _segmentFrameInFlight = false;
 
   // ---------------------------------------------------------------------------
   // Segments state
@@ -173,6 +171,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   OnMessageEvent? onMessageEvent;
   OnAutoFinalizeNeeded? onAutoFinalizeNeeded;
   OnNotifyListeners? onNotifyListeners;
+
+  /// Callback for scheduling work after the current frame is painted.
+  /// Set by CaptureProvider to bridge WidgetsBinding.addPostFrameCallback.
+  void Function(VoidCallback)? onSchedulePostFrame;
 
   /// Called on silence timeout to let CaptureProvider decide what to do.
   VoidCallback? onSilenceTimeout;
@@ -699,29 +701,34 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _notifySegmentUpdate();
   }
 
-  /// Throttled notification for segment updates.
-  /// Ensures at most ~1.25 rebuilds per second during rapid speech.
+  /// Frame-aware notification coalescing for segment updates.
+  /// Only dispatches a new notification after the previous frame has been
+  /// painted, preventing rebuild backlog when render time exceeds the
+  /// data arrival rate.
   void _notifySegmentUpdate() {
-    final now = DateTime.now();
-    if (_lastSegmentNotifyTime != null &&
-        now.difference(_lastSegmentNotifyTime!) < _segmentNotifyMinInterval) {
-      // Within throttle window — schedule a deferred notification
-      _segmentNotifyTimer?.cancel();
-      _segmentNotifyTimer = Timer(
-        _segmentNotifyMinInterval - now.difference(_lastSegmentNotifyTime!),
-        () {
-          _lastSegmentNotifyTime = DateTime.now();
-          _segmentNotifyTimer = null;
-          onNotifyListeners?.call();
-        },
-      );
-      return;
-    }
-    // Outside throttle window — notify immediately
-    _lastSegmentNotifyTime = now;
-    _segmentNotifyTimer?.cancel();
-    _segmentNotifyTimer = null;
+    _segmentNotifyPending = true;
+    if (_segmentFrameInFlight) return;
+    _dispatchSegmentNotification();
+  }
+
+  void _dispatchSegmentNotification() {
+    if (!_segmentNotifyPending) return;
+    _segmentNotifyPending = false;
+    _segmentFrameInFlight = true;
+
     onNotifyListeners?.call();
+
+    if (onSchedulePostFrame != null) {
+      onSchedulePostFrame!(() {
+        _segmentFrameInFlight = false;
+        if (_segmentNotifyPending) {
+          _dispatchSegmentNotification();
+        }
+      });
+    } else {
+      // Fallback if no post-frame scheduler is set
+      _segmentFrameInFlight = false;
+    }
   }
 
   void setHasTranscripts(bool value) {
@@ -1099,8 +1106,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _silenceTimer?.cancel();
     _silenceTimer = null;
 
-    _segmentNotifyTimer?.cancel();
-    _segmentNotifyTimer = null;
+    _segmentNotifyPending = false;
+    _segmentFrameInFlight = false;
 
     await _vadService?.dispose();
     _vadService = null;
