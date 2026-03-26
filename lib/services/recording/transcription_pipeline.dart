@@ -365,6 +365,9 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _socket?.subscribe(this, this);
     _transcriptServiceReady = true;
     _isLocalStt = effectiveConfig?.provider == SttProvider.localParakeet;
+    if (_isLocalStt) {
+      _walEnabled = false;
+    }
 
     // Track recording start time for timestamp offset calculation
     _recordingStartTime ??= DateTime.now();
