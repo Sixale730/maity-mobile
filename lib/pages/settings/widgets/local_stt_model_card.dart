@@ -4,6 +4,7 @@ import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/local_stt_provider.dart';
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
+import 'package:omi/pages/speech_profile/page.dart';
 import 'package:provider/provider.dart';
 
 class LocalSttModelCard extends StatelessWidget {
@@ -562,6 +563,29 @@ class LocalSttModelCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 40,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const SpeechProfilePage()),
+                  );
+                },
+                icon: const Icon(Icons.record_voice_over_rounded, size: 18),
+                label: const Text('Crear perfil de voz'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+              ),
             ),
           ] else ...[
             const SizedBox(height: 4),

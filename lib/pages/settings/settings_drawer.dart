@@ -26,6 +26,8 @@ import 'package:omi/models/stt_provider.dart';
 import 'package:omi/providers/role_provider.dart';
 import 'package:omi/pages/settings/feedback_page.dart';
 import 'package:omi/pages/settings/feedback_list_page.dart';
+import 'package:omi/pages/settings/transcription_settings_page.dart';
+import 'package:omi/pages/speech_profile/page.dart';
 import 'device_settings.dart';
 import '../conversations/sync_page.dart';
 
@@ -338,8 +340,20 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
   }
 
   void _showTranscriptionSettings(BuildContext context) {
+    final roleProvider = context.read<RoleProvider>();
+
+    // Admins get the full TranscriptionSettingsPage with model selection
+    if (roleProvider.isAdmin) {
+      _navigateAfterClose(context, const TranscriptionSettingsPage());
+      return;
+    }
+
+    // Regular users get language selector + voice profile status
     final config = SharedPreferencesUtil().customSttConfig;
     final currentLang = config.isEnabled ? (config.language ?? 'multi') : 'multi';
+    final hasVoiceProfile = SharedPreferencesUtil().hasSpeakerProfile;
+    final hasLocalEmbedding = SharedPreferencesUtil().localSpeakerEmbeddingPath.isNotEmpty;
+    final hasSpeakerModel = SharedPreferencesUtil().speakerModelDownloaded;
 
     showModalBottomSheet(
       context: context,
@@ -397,10 +411,100 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               _buildLanguageOption(ctx, 'Español', 'es', currentLang),
               _buildLanguageOption(ctx, 'English', 'en', currentLang),
               _buildLanguageOption(ctx, 'Auto-detect (Multi)', 'multi', currentLang),
+              const SizedBox(height: 12),
+
+              // Voice profile section
+              const Divider(height: 1, color: Color(0xFF3C3C43)),
+              const SizedBox(height: 12),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Perfil de voz',
+                    style: TextStyle(color: Color(0xFF8E8E93), fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              if (!hasVoiceProfile) ...[
+                // No voice profile — show enroll button
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        MyApp.navigatorKey.currentState?.push(
+                          MaterialPageRoute(builder: (_) => const SpeechProfilePage()),
+                        );
+                      },
+                      icon: const Icon(Icons.record_voice_over_rounded, size: 20),
+                      label: const Text('Crear perfil de voz'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ),
+              ] else ...[
+                // Has voice profile — show status checks
+                _buildVoiceProfileStatus(
+                  icon: Icons.check_circle,
+                  color: Colors.green.shade400,
+                  label: 'Cloud speaker verification',
+                ),
+                if (hasLocalEmbedding)
+                  _buildVoiceProfileStatus(
+                    icon: Icons.check_circle,
+                    color: Colors.green.shade400,
+                    label: 'On-device speaker ID',
+                  )
+                else if (hasSpeakerModel)
+                  _buildVoiceProfileStatus(
+                    icon: Icons.info_outline,
+                    color: Colors.orange.shade400,
+                    label: 'Re-enroll voice to enable on-device speaker ID',
+                  )
+                else
+                  _buildVoiceProfileStatus(
+                    icon: Icons.info_outline,
+                    color: Colors.grey.shade500,
+                    label: 'Download speaker model for on-device ID',
+                  ),
+              ],
               const SizedBox(height: 8),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildVoiceProfileStatus({
+    required IconData icon,
+    required Color color,
+    required String label,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(color: color, fontSize: 13),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -572,10 +676,12 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               _buildSettingsItem(
                 title: 'Transcripción',
                 icon: const FaIcon(FontAwesomeIcons.microphone, color: Color(0xFF8E8E93), size: 20),
-                trailingChip: Text(
-                  _getTranscriptionLanguageLabel(),
-                  style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 14),
-                ),
+                trailingChip: roleProvider.isAdmin
+                    ? const Icon(Icons.chevron_right, color: Color(0xFF8E8E93), size: 20)
+                    : Text(
+                        _getTranscriptionLanguageLabel(),
+                        style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 14),
+                      ),
                 onTap: () => _showTranscriptionSettings(context),
               ),
               // Developer Settings - Admin only
