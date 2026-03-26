@@ -443,6 +443,13 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
     );
   }
 
+  Widget _wrapWithSelectionArea({required Widget child}) {
+    if (widget.isConversationDetail) {
+      return SelectionArea(child: child);
+    }
+    return child;
+  }
+
   Widget _buildSegmentItem(int segmentIdx) {
     final data = widget.segments[segmentIdx];
     final Person? person = data.personId != null ? _getPersonById(data.personId) : null;
@@ -577,7 +584,7 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
                                   ),
                                 ],
                               ),
-                              child: SelectionArea(
+                              child: _wrapWithSelectionArea(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
