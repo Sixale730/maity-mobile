@@ -268,28 +268,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
         !ConnectivityService().isConnected &&
         SharedPreferencesUtil().localSttAutoFallback &&
         ModelDownloadService.instance.isAnyModelReady) {
-      final activeModel = LocalSttModelType.fromString(
-          SharedPreferencesUtil().activeLocalSttModel);
-      if (ModelDownloadService.instance.isModelReadyFor(activeModel)) {
-        final provider = activeModel == LocalSttModelType.moonshine
-            ? SttProvider.localMoonshine
-            : SttProvider.localParakeet;
-        effectiveConfig = CustomSttConfig(provider: provider);
+      final fallbackProvider = _bestLocalSttProvider();
+      if (fallbackProvider != null) {
+        effectiveConfig = CustomSttConfig(provider: fallbackProvider);
         debugPrint(
-            '[TranscriptionPipeline] Offline + model ready -> using local ${activeModel.name}');
-      } else {
-        // Preferred model not ready, use whichever is available
-        for (final type in LocalSttModelType.values) {
-          if (ModelDownloadService.instance.isModelReadyFor(type)) {
-            final provider = type == LocalSttModelType.moonshine
-                ? SttProvider.localMoonshine
-                : SttProvider.localParakeet;
-            effectiveConfig = CustomSttConfig(provider: provider);
-            debugPrint(
-                '[TranscriptionPipeline] Offline, fallback to available ${type.name}');
-            break;
-          }
-        }
+            '[TranscriptionPipeline] Offline -> using local ${fallbackProvider.name}');
       }
     }
 
@@ -354,6 +337,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
         if (fallbackProvider != null) {
           debugPrint(
               '[TranscriptionPipeline] Cloud failed, falling back to local ${fallbackProvider.name}');
+          final fallbackConfig = CustomSttConfig(provider: fallbackProvider);
           try {
             _socket = await ServiceManager.instance().socket.conversation(
                   codec: codec,
@@ -361,9 +345,9 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
                   language: language,
                   force: true,
                   source: source,
-                  customSttConfig:
-                      CustomSttConfig(provider: fallbackProvider),
+                  customSttConfig: fallbackConfig,
                 );
+            if (_socket != null) effectiveConfig = fallbackConfig;
           } catch (_) {
             // Local also failed -- give up
           }
@@ -395,6 +379,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
         if (fallbackProvider != null) {
           debugPrint(
               '[TranscriptionPipeline] Socket null, falling back to local ${fallbackProvider.name}');
+          final fallbackConfig = CustomSttConfig(provider: fallbackProvider);
           try {
             _socket = await ServiceManager.instance().socket.conversation(
                   codec: codec,
@@ -402,9 +387,9 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
                   language: language,
                   force: true,
                   source: source,
-                  customSttConfig:
-                      CustomSttConfig(provider: fallbackProvider),
+                  customSttConfig: fallbackConfig,
                 );
+            if (_socket != null) effectiveConfig = fallbackConfig;
           } catch (_) {}
         }
       }

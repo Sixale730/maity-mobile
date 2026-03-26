@@ -15,6 +15,7 @@ import 'package:omi/services/services.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
 import 'package:omi/services/custom_stt_log_service.dart';
 import 'package:omi/pages/settings/widgets/local_stt_model_card.dart';
+import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
 import 'package:provider/provider.dart';
 
@@ -97,7 +98,9 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
   void _loadConfig() {
     final activeConfig = SharedPreferencesUtil().customSttConfig;
     setState(() {
-      if (activeConfig.provider == SttProvider.localParakeet && activeConfig.isEnabled) {
+      if ((activeConfig.provider == SttProvider.localParakeet ||
+           activeConfig.provider == SttProvider.localMoonshine) &&
+          activeConfig.isEnabled) {
         _sourceMode = _SourceMode.onDevice;
         _selectedProvider = SttProvider.openai;
       } else if (activeConfig.isEnabled) {
@@ -373,8 +376,11 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
 
     setState(() => _isSaving = true);
 
-    // Guard: On Device requires the model to be downloaded
-    if (_sourceMode == _SourceMode.onDevice && !ModelDownloadService.instance.isModelReady) {
+    // Guard: On Device requires the selected model to be downloaded
+    final selectedLocalModel = LocalSttModelType.fromString(
+        SharedPreferencesUtil().activeLocalSttModel);
+    if (_sourceMode == _SourceMode.onDevice &&
+        !ModelDownloadService.instance.isModelReadyFor(selectedLocalModel)) {
       final l10n = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.localSttDownloadFirst), backgroundColor: Colors.red.shade700),
@@ -392,7 +398,10 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
       // Build the active config based on source mode
       final CustomSttConfig activeConfig;
       if (_sourceMode == _SourceMode.onDevice) {
-        activeConfig = const CustomSttConfig(provider: SttProvider.localParakeet);
+        final provider = selectedLocalModel == LocalSttModelType.moonshine
+            ? SttProvider.localMoonshine
+            : SttProvider.localParakeet;
+        activeConfig = CustomSttConfig(provider: provider);
       } else if (_sourceMode == _SourceMode.custom) {
         activeConfig = _buildCurrentConfig();
       } else {

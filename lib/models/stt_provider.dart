@@ -237,7 +237,7 @@ class SttProviderConfig {
     ),
     SttProvider.localParakeet: const SttProviderConfig(
       provider: SttProvider.localParakeet,
-      displayName: 'On Device',
+      displayName: 'Parakeet',
       description: 'NVIDIA Parakeet - Fast offline transcription (25 languages)',
       icon: FontAwesomeIcons.microchip,
       requestType: SttRequestType.streaming,
@@ -247,7 +247,7 @@ class SttProviderConfig {
     ),
     SttProvider.localMoonshine: const SttProviderConfig(
       provider: SttProvider.localMoonshine,
-      displayName: 'On Device (ES)',
+      displayName: 'Moonshine ES',
       description: 'Moonshine v2 - Optimized for Spanish offline transcription',
       icon: FontAwesomeIcons.microchip,
       requestType: SttRequestType.streaming,
