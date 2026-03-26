@@ -99,7 +99,8 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
     final activeConfig = SharedPreferencesUtil().customSttConfig;
     setState(() {
       if ((activeConfig.provider == SttProvider.localParakeet ||
-           activeConfig.provider == SttProvider.localMoonshine) &&
+           activeConfig.provider == SttProvider.localMoonshine ||
+           activeConfig.provider == SttProvider.localCanary) &&
           activeConfig.isEnabled) {
         _sourceMode = _SourceMode.onDevice;
         _selectedProvider = SttProvider.openai;
@@ -398,9 +399,11 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
       // Build the active config based on source mode
       final CustomSttConfig activeConfig;
       if (_sourceMode == _SourceMode.onDevice) {
-        final provider = selectedLocalModel == LocalSttModelType.moonshine
-            ? SttProvider.localMoonshine
-            : SttProvider.localParakeet;
+        final provider = switch (selectedLocalModel) {
+          LocalSttModelType.moonshine => SttProvider.localMoonshine,
+          LocalSttModelType.canary => SttProvider.localCanary,
+          LocalSttModelType.parakeet => SttProvider.localParakeet,
+        };
         activeConfig = CustomSttConfig(provider: provider);
       } else if (_sourceMode == _SourceMode.custom) {
         activeConfig = _buildCurrentConfig();
