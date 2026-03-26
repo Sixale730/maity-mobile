@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -106,9 +107,7 @@ Future onStart(ServiceInstance service) async {
     recorder = MicRecorderService(isInBG: Platform.isAndroid ? true : false);
     recorder?.start(onByteReceived: (bytes) {
       try {
-        Uint8List audioBytes = bytes;
-        List<dynamic> audioBytesList = audioBytes.toList();
-        service.invoke("recorder.ui.audioBytes", {"data": audioBytesList});
+        service.invoke("recorder.ui.audioBytes", {"data": base64Encode(bytes)});
       } catch (e) {
         recorder?.stop();
       }
@@ -237,7 +236,7 @@ class BackgroundService {
     Function()? onInitializing,
   }) {
     StreamSubscription? recordAudioByteStream = _service.on('recorder.ui.audioBytes').listen((event) {
-      Uint8List bytes = Uint8List.fromList(event!['data'].cast<int>());
+      Uint8List bytes = base64Decode(event!['data'] as String);
       onByteReceived(bytes);
     });
     StreamSubscription? recordStateStream;
