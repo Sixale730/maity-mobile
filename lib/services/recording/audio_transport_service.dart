@@ -330,10 +330,6 @@ class AudioTransportService {
           _isWalSupported = checkWalSupported;
           // UI updates via _calculateMetricsRates() every 5s — sufficient for WAL indicator
         }
-        if (_isWalSupported) {
-          _wal.getSyncs().phone.onByteStream(snapshot);
-        }
-
         // Send to websocket — sublist on Uint8List returns a view, no copy.
         if (_socketSender != null) {
           final paddingLeft =
@@ -343,10 +339,9 @@ class AudioTransportService {
           _socketSender!.call(trimmedValue);
 
           _wsSocketBytesSent += trimmedValue.length;
-
-          if (_isWalSupported) {
-            _wal.getSyncs().phone.onBytesSync(snapshot);
-          }
+        } else if (_isWalSupported) {
+          // WAL only when audio does NOT go through sendToSocket (which has its own WAL)
+          _wal.getSyncs().phone.onByteStream(snapshot);
         }
       },
     );
