@@ -843,6 +843,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// Check if transcription has stalled.
   void _checkSocketHealth() {
     try {
+      if (_socket == null) return;
+
       // Only for custom STT mode
       final customSttConfig = SharedPreferencesUtil().customSttConfig;
       if (!customSttConfig.isEnabled) return;
