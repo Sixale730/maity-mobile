@@ -42,48 +42,50 @@ class ConversationBottomBar extends StatelessWidget {
   }
 
   Widget _buildBottomBar(BuildContext context) {
-    return Material(
-      elevation: 8,
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(28),
-      child: Container(
-        height: 56,
-        width: mode == ConversationBottomBarMode.recording ? 180 : null,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A0B2E), // Very deep purple
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              spreadRadius: 1,
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Transcript tab
-            _buildTranscriptTab(),
+    return SizedBox(
+      height: 56,
+      child: Material(
+        elevation: 8,
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          width: mode == ConversationBottomBarMode.recording ? 180 : null,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A0B2E), // Very deep purple
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                spreadRadius: 1,
+                blurRadius: 5,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Transcript tab
+              _buildTranscriptTab(),
 
-            // Add minimal spacing between tabs
-            const SizedBox(width: 4),
+              // Add minimal spacing between tabs
+              const SizedBox(width: 4),
 
-            // Stop button or Summary/Action Items tabs
-            ...switch (mode) {
-              ConversationBottomBarMode.recording => [_buildStopButton()],
-              ConversationBottomBarMode.detail => [
-                  _buildSummaryTab(context),
-                  if (hasActionItems) ...[
-                    const SizedBox(width: 4),
-                    _buildActionItemsTab(),
+              // Stop button or Summary/Action Items tabs
+              ...switch (mode) {
+                ConversationBottomBarMode.recording => [_buildStopButton()],
+                ConversationBottomBarMode.detail => [
+                    _buildSummaryTab(context),
+                    if (hasActionItems) ...[
+                      const SizedBox(width: 4),
+                      _buildActionItemsTab(),
+                    ],
                   ],
-                ],
-            },
-          ],
+              },
+            ],
+          ),
         ),
       ),
     );
