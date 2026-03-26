@@ -352,6 +352,10 @@ class TranscriptSocketServiceFactory {
       return createLocalStt(sampleRate, codec, language,
           source: source, modelType: LocalSttModelType.moonshine);
     }
+    if (config.provider == SttProvider.localCanary) {
+      return createLocalStt(sampleRate, codec, language,
+          source: source, modelType: LocalSttModelType.canary);
+    }
 
     final sttConfigId = config.sttConfigId;
     final effectiveLang = config.effectiveLanguage;
@@ -398,6 +402,10 @@ class TranscriptSocketServiceFactory {
     if (config.provider == SttProvider.localMoonshine) {
       return createLocalStt(sampleRate, codec, language,
           source: source, modelType: LocalSttModelType.moonshine);
+    }
+    if (config.provider == SttProvider.localCanary) {
+      return createLocalStt(sampleRate, codec, language,
+          source: source, modelType: LocalSttModelType.canary);
     }
 
     final sttConfigId = config.sttConfigId;

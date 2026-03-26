@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
+import 'package:omi/services/local_stt/canary_model_manifest.dart';
 import 'package:omi/services/local_stt/model_manifest.dart';
 import 'package:omi/services/local_stt/moonshine_model_manifest.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -73,6 +74,8 @@ class ModelDownloadService {
         ValueNotifier(const DownloadProgress()),
     LocalSttModelType.moonshine:
         ValueNotifier(const DownloadProgress()),
+    LocalSttModelType.canary:
+        ValueNotifier(const DownloadProgress()),
   };
 
   /// Backward-compatible: progress for Parakeet (default/legacy).
@@ -93,6 +96,7 @@ class ModelDownloadService {
   static final Map<LocalSttModelType, LocalSttModelManifest> _manifests = {
     LocalSttModelType.parakeet: ParakeetModelManifest(),
     LocalSttModelType.moonshine: MoonshineModelManifest(),
+    LocalSttModelType.canary: CanaryModelManifest(),
   };
 
   LocalSttModelManifest manifestFor(LocalSttModelType type) => _manifests[type]!;
@@ -137,13 +141,20 @@ class ModelDownloadService {
     // Check existing models
     await _checkExistingModel(LocalSttModelType.parakeet);
     await _checkExistingModel(LocalSttModelType.moonshine);
+    await _checkExistingModel(LocalSttModelType.canary);
   }
 
   Future<void> _checkExistingModel(LocalSttModelType type) async {
     final prefs = SharedPreferencesUtil();
-    final isDownloaded = type == LocalSttModelType.parakeet
-        ? prefs.localSttModelDownloaded
-        : prefs.localSttMoonshineDownloaded;
+    final bool isDownloaded;
+    switch (type) {
+      case LocalSttModelType.parakeet:
+        isDownloaded = prefs.localSttModelDownloaded;
+      case LocalSttModelType.moonshine:
+        isDownloaded = prefs.localSttMoonshineDownloaded;
+      case LocalSttModelType.canary:
+        isDownloaded = prefs.localSttCanaryDownloaded;
+    }
     final path = _modelDirPaths[type]!;
 
     if (isDownloaded) {
@@ -611,6 +622,9 @@ class ModelDownloadService {
     } else if (type == LocalSttModelType.moonshine) {
       prefs.localSttMoonshineDownloaded = downloaded;
       prefs.localSttMoonshinePath = path;
+    } else if (type == LocalSttModelType.canary) {
+      prefs.localSttCanaryDownloaded = downloaded;
+      prefs.localSttCanaryPath = path;
     }
   }
 

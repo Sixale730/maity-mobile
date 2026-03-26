@@ -68,6 +68,24 @@ class LocalSttEngine {
           ),
           decodingMethod: 'greedy_search',
         );
+      } else if (modelType == LocalSttModelType.canary) {
+        // Canary 180M Flash: OfflineCanaryModelConfig (en/es/de/fr)
+        // Requires explicit srcLang/tgtLang (no auto-detect)
+        config = sherpa.OfflineRecognizerConfig(
+          model: sherpa.OfflineModelConfig(
+            canary: sherpa.OfflineCanaryModelConfig(
+              encoder: '$modelDir/encoder.int8.onnx',
+              decoder: '$modelDir/decoder.int8.onnx',
+              srcLang: 'es',
+              tgtLang: 'es',
+            ),
+            tokens: '$modelDir/tokens.txt',
+            numThreads: 2,
+            debug: false,
+            provider: 'cpu',
+          ),
+          decodingMethod: 'greedy_search',
+        );
       } else {
         // Parakeet: OfflineTransducerModelConfig (NeMo Transducer)
         config = sherpa.OfflineRecognizerConfig(

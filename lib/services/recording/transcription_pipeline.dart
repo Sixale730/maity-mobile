@@ -97,27 +97,38 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   SttProvider? _activeSttProvider;
   bool get _isLocalStt =>
       _activeSttProvider == SttProvider.localParakeet ||
-      _activeSttProvider == SttProvider.localMoonshine;
+      _activeSttProvider == SttProvider.localMoonshine ||
+      _activeSttProvider == SttProvider.localCanary;
 
   /// Whether a given provider is a local on-device STT.
   static bool _isLocalSttProvider(SttProvider? p) =>
-      p == SttProvider.localParakeet || p == SttProvider.localMoonshine;
+      p == SttProvider.localParakeet ||
+      p == SttProvider.localMoonshine ||
+      p == SttProvider.localCanary;
+
+  /// Map a LocalSttModelType to its corresponding SttProvider.
+  static SttProvider _providerForModelType(LocalSttModelType type) {
+    switch (type) {
+      case LocalSttModelType.moonshine:
+        return SttProvider.localMoonshine;
+      case LocalSttModelType.canary:
+        return SttProvider.localCanary;
+      case LocalSttModelType.parakeet:
+        return SttProvider.localParakeet;
+    }
+  }
 
   /// Pick the best available local STT provider (user's preferred first).
   static SttProvider? _bestLocalSttProvider() {
     final activeModel = LocalSttModelType.fromString(
         SharedPreferencesUtil().activeLocalSttModel);
     if (ModelDownloadService.instance.isModelReadyFor(activeModel)) {
-      return activeModel == LocalSttModelType.moonshine
-          ? SttProvider.localMoonshine
-          : SttProvider.localParakeet;
+      return _providerForModelType(activeModel);
     }
     // Preferred not ready — use whichever is available
     for (final type in LocalSttModelType.values) {
       if (ModelDownloadService.instance.isModelReadyFor(type)) {
-        return type == LocalSttModelType.moonshine
-            ? SttProvider.localMoonshine
-            : SttProvider.localParakeet;
+        return _providerForModelType(type);
       }
     }
     return null;

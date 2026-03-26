@@ -142,7 +142,14 @@ class SharedPreferencesUtil {
   String get localSttMoonshinePath => getString('localSttMoonshinePath');
   set localSttMoonshinePath(String value) => saveString('localSttMoonshinePath', value);
 
-  // Active local STT model selection ('parakeet' or 'moonshine')
+  // Local STT (Canary) configuration
+  bool get localSttCanaryDownloaded => getBool('localSttCanaryDownloaded');
+  set localSttCanaryDownloaded(bool value) => saveBool('localSttCanaryDownloaded', value);
+
+  String get localSttCanaryPath => getString('localSttCanaryPath');
+  set localSttCanaryPath(String value) => saveString('localSttCanaryPath', value);
+
+  // Active local STT model selection ('parakeet', 'moonshine', or 'canary')
   String get activeLocalSttModel => getString('activeLocalSttModel', defaultValue: 'parakeet');
   set activeLocalSttModel(String value) => saveString('activeLocalSttModel', value);
 

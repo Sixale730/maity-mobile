@@ -116,6 +116,22 @@ class LocalSttModelCard extends StatelessWidget {
                 ],
               ),
             ),
+            DropdownMenuItem(
+              value: LocalSttModelType.canary,
+              child: Row(
+                children: [
+                  Icon(Icons.pets_rounded,
+                      size: 18, color: Colors.amber.shade300),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('Canary (es/en/de/fr, ~208 MB)'),
+                  ),
+                  if (provider.isReadyFor(LocalSttModelType.canary))
+                    Icon(Icons.check_circle,
+                        size: 16, color: Colors.green.shade400),
+                ],
+              ),
+            ),
           ],
           onChanged: (type) {
             if (type != null) provider.selectModel(type);
@@ -131,6 +147,8 @@ class LocalSttModelCard extends StatelessWidget {
         return 'NVIDIA Parakeet TDT 0.6B — Fast offline transcription supporting 25 languages with auto-detection.';
       case LocalSttModelType.moonshine:
         return 'Moonshine v2 Base — Optimized for Spanish offline transcription. Smaller and faster download.';
+      case LocalSttModelType.canary:
+        return 'NVIDIA Canary 180M Flash — Best Spanish accuracy (3.17% WER). Supports en/es/de/fr.';
     }
   }
 
@@ -140,6 +158,8 @@ class LocalSttModelCard extends StatelessWidget {
         return 'Model size: ~640 MB';
       case LocalSttModelType.moonshine:
         return 'Model size: ~50 MB (compressed)';
+      case LocalSttModelType.canary:
+        return 'Model size: ~208 MB';
     }
   }
 
@@ -217,21 +237,12 @@ class LocalSttModelCard extends StatelessWidget {
     final DownloadState state;
     final String? file;
 
-    if (type == LocalSttModelType.moonshine) {
-      progress = provider.moonshineDownloadProgress;
-      speedMb = provider.moonshineSpeedBytesPerSec / (1024 * 1024);
-      downloadedMb = provider.moonshineBytesDownloaded / (1024 * 1024);
-      totalMb = provider.moonshineTotalBytes / (1024 * 1024);
-      state = provider.moonshineDownloadState;
-      file = provider.moonshineCurrentFile;
-    } else {
-      progress = provider.downloadProgress;
-      speedMb = provider.speedBytesPerSec / (1024 * 1024);
-      downloadedMb = provider.bytesDownloaded / (1024 * 1024);
-      totalMb = provider.totalBytes / (1024 * 1024);
-      state = provider.downloadState;
-      file = provider.currentFile;
-    }
+    progress = provider.progressFor(type);
+    speedMb = provider.speedFor(type) / (1024 * 1024);
+    downloadedMb = provider.bytesDownloadedFor(type) / (1024 * 1024);
+    totalMb = provider.totalBytesFor(type) / (1024 * 1024);
+    state = provider.stateFor(type);
+    file = provider.currentFileFor(type);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -375,12 +386,8 @@ class LocalSttModelCard extends StatelessWidget {
 
   Widget _buildErrorState(BuildContext context, LocalSttProvider provider,
       AppLocalizations l10n, LocalSttModelType type) {
-    final errorMsg = type == LocalSttModelType.moonshine
-        ? provider.moonshineErrorMessage
-        : provider.errorMessage;
-    final errorLog = type == LocalSttModelType.moonshine
-        ? provider.moonshineErrorLog
-        : provider.errorLog;
+    final errorMsg = provider.errorMessageFor(type);
+    final errorLog = provider.errorLogFor(type);
 
     return Container(
       padding: const EdgeInsets.all(16),

@@ -350,12 +350,13 @@ Requiere: VAD habilitado + Custom STT (Deepgram) + PCM16. Estados: Silence → P
 
 ## Local STT (On-Device, Multi-Model)
 
-Sistema multi-modelo on-device via `sherpa_onnx` Flutter package (FFI, no HTTP/WebSocket). Dos modelos disponibles seleccionables desde Settings via dropdown:
+Sistema multi-modelo on-device via `sherpa_onnx` Flutter package (FFI, no HTTP/WebSocket). Tres modelos disponibles seleccionables desde Settings via dropdown:
 
 | Modelo | Tipo | Tamaño | Idiomas | Config sherpa_onnx |
 |--------|------|--------|---------|-------------------|
 | **Parakeet TDT 0.6B v3** | OfflineTransducerModelConfig | ~640 MB (archivos individuales) | 25 idiomas, auto-detect | `modelType: 'nemo_transducer'` |
 | **Moonshine v2 Base ES** | OfflineMoonshineModelConfig (v2: encoder + mergedDecoder `.ort`) | ~50 MB (tar.bz2 comprimido) | Español optimizado | Auto-detect |
+| **Canary 180M Flash** | OfflineCanaryModelConfig | ~208 MB (archivos individuales) | en/es/de/fr | `srcLang: 'es', tgtLang: 'es'` |
 
 **Arquitectura**: `LocalSttSocket` implementa `IPureSocket` → se conecta al pipeline existente `TranscriptSegmentSocketService` sin modificar logica core. Audio PCM16 → Float32 → Silero VAD → segmentos speech → OfflineRecognizer decode → JSON segments via `onMessage()`. El `LocalSttModelType` enum determina que config de modelo usar en `LocalSttEngine.initialize()`.
 

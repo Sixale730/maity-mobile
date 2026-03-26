@@ -13,6 +13,7 @@ enum SttProvider {
   localWhisper,
   localParakeet,
   localMoonshine,
+  localCanary,
   custom,
   customLive;
 
@@ -252,6 +253,16 @@ class SttProviderConfig {
       icon: FontAwesomeIcons.microchip,
       requestType: SttRequestType.streaming,
       supportedLanguages: ['es'],
+      defaultLanguage: 'es',
+      responseSchema: SttResponseSchema(),
+    ),
+    SttProvider.localCanary: const SttProviderConfig(
+      provider: SttProvider.localCanary,
+      displayName: 'Canary',
+      description: 'NVIDIA Canary 180M - Best Spanish accuracy (en/es/de/fr)',
+      icon: FontAwesomeIcons.microchip,
+      requestType: SttRequestType.streaming,
+      supportedLanguages: ['es', 'en', 'de', 'fr'],
       defaultLanguage: 'es',
       responseSchema: SttResponseSchema(),
     ),
