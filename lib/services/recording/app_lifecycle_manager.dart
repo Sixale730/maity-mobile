@@ -163,7 +163,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
         delegate.recordingState == RecordingState.deviceRecord ||
         delegate.recordingState == RecordingState.systemAudioRecord;
     if (isRecordingForNotification) {
-      updateForegroundNotification('processing');
+      updateForegroundNotification('recording');
     }
   }
 
