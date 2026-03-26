@@ -426,6 +426,11 @@ class TranscriptSocketServiceFactory {
     final modelPath = SharedPreferencesUtil().localSttModelPath;
     debugPrint('[STTFactory] Creating LocalSttSocket, model: $modelPath');
 
+    if (modelPath.isEmpty) {
+      debugPrint('[STTFactory] ERROR: localSttModelPath is empty — cannot create local STT');
+      throw StateError('Local STT model path not configured. Download the model first.');
+    }
+
     // Reuse a shared engine instance across sessions
     _localEngine ??= LocalSttEngine();
 

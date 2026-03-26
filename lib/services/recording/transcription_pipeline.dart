@@ -95,7 +95,9 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   // Socket state
   // ---------------------------------------------------------------------------
   bool _transcriptServiceReady = false;
-  bool get transcriptServiceReady => _transcriptServiceReady && _isConnected;
+  bool _isLocalStt = false;
+  bool get transcriptServiceReady =>
+      _transcriptServiceReady && (_isConnected || _isLocalStt);
 
   /// Access the underlying socket for sending audio bytes.
   TranscriptSegmentSocketService? get socket => _socket;
@@ -244,6 +246,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     }
 
     if (effectiveConfig != null &&
+        effectiveConfig.provider != SttProvider.localParakeet &&
         !TranscriptSocketServiceFactory.isCodecSupportedForCustomStt(codec)) {
       debugPrint('[CustomSTT] Codec $codec not supported, falling back to Omi');
       effectiveConfig = null;
@@ -300,6 +303,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       }
 
       if (_socket == null) {
+        if (effectiveConfig?.provider == SttProvider.localParakeet) {
+          debugPrint('[TranscriptionPipeline] Local STT failed to initialize — not retrying');
+          _captureLog.log('socket', 'local_stt_init_failed', severity: 'error');
+          return;
+        }
         _startKeepAlive();
         return;
       }
@@ -331,6 +339,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       }
 
       if (_socket == null) {
+        if (effectiveConfig?.provider == SttProvider.localParakeet) {
+          debugPrint('[TranscriptionPipeline] Local STT failed to initialize — not retrying');
+          _captureLog.log('socket', 'local_stt_init_failed', severity: 'error');
+          return;
+        }
         _startKeepAlive();
         debugPrint("Can not create new conversation socket");
         return;
@@ -338,6 +351,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     }
     _socket?.subscribe(this, this);
     _transcriptServiceReady = true;
+    _isLocalStt = effectiveConfig?.provider == SttProvider.localParakeet;
 
     // Track recording start time for timestamp offset calculation
     _recordingStartTime ??= DateTime.now();
@@ -1017,6 +1031,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _sttReconnectAttempts = 0;
     _transcriptionServiceStatuses = [];
     _walEnabled = false;
+    _isLocalStt = false;
     resetTimestampOffset();
   }
 
@@ -1048,6 +1063,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     await _socket?.stop(reason: 'pipeline disposed');
     _socket = null;
     _transcriptServiceReady = false;
+    _isLocalStt = false;
     resetTimestampOffset();
   }
 }

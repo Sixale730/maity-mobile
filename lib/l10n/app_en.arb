@@ -1055,6 +1055,7 @@
   "localSttRamWarning": "This device has less than 6 GB of RAM. Local transcription may be slow or crash.",
   "localSttAutoFallback": "Use when offline",
   "localSttAutoFallbackDesc": "Automatically use local transcription when there is no internet connection",
+  "localSttDownloadFirst": "Download the model first",
   "localSttModelSize": "Model size: ~640 MB",
   "localSttDescription": "NVIDIA Parakeet - Fast offline transcription supporting 25 languages"
 }

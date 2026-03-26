@@ -116,28 +116,32 @@ class LocalSttEngine {
     while (!_vad!.isEmpty()) {
       final segment = _vad!.front();
 
-      final startTime = segment.start.toDouble() / sampleRate;
-      final endTime =
-          (segment.start + segment.samples.length).toDouble() / sampleRate;
+      try {
+        final startTime = segment.start.toDouble() / sampleRate;
+        final endTime =
+            (segment.start + segment.samples.length).toDouble() / sampleRate;
 
-      // Decode the speech segment
-      final stream = _recognizer!.createStream();
-      stream.acceptWaveform(
-        samples: segment.samples,
-        sampleRate: sampleRate,
-      );
-      _recognizer!.decode(stream);
+        // Decode the speech segment
+        final stream = _recognizer!.createStream();
+        stream.acceptWaveform(
+          samples: segment.samples,
+          sampleRate: sampleRate,
+        );
+        _recognizer!.decode(stream);
 
-      final result = _recognizer!.getResult(stream);
-      final text = result.text.trim();
-      stream.free();
+        final result = _recognizer!.getResult(stream);
+        final text = result.text.trim();
+        stream.free();
 
-      if (text.isNotEmpty) {
-        results.add(LocalSttResult(
-          text: text,
-          startTime: startTime,
-          endTime: endTime,
-        ));
+        if (text.isNotEmpty) {
+          results.add(LocalSttResult(
+            text: text,
+            startTime: startTime,
+            endTime: endTime,
+          ));
+        }
+      } catch (e) {
+        debugPrint('[LocalSttEngine] Decode error for segment: $e');
       }
 
       _vad!.pop();

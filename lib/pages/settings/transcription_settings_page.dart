@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:omi/backend/preferences.dart';
@@ -14,6 +15,7 @@ import 'package:omi/services/services.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
 import 'package:omi/services/custom_stt_log_service.dart';
 import 'package:omi/pages/settings/widgets/local_stt_model_card.dart';
+import 'package:omi/services/local_stt/model_download_service.dart';
 import 'package:provider/provider.dart';
 
 class TranscriptionSettingsPage extends StatefulWidget {
@@ -370,6 +372,16 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
     }
 
     setState(() => _isSaving = true);
+
+    // Guard: On Device requires the model to be downloaded
+    if (_sourceMode == _SourceMode.onDevice && !ModelDownloadService.instance.isModelReady) {
+      final l10n = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.localSttDownloadFirst), backgroundColor: Colors.red.shade700),
+      );
+      setState(() => _isSaving = false);
+      return;
+    }
 
     try {
       // Save current provider's complete config (only for custom STT)

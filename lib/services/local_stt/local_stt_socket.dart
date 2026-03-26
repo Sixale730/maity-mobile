@@ -54,8 +54,15 @@ class LocalSttSocket implements IPureSocket {
 
     _status = PureSocketStatus.connecting;
 
+    // Validate model path
+    if (_modelPath == null || _modelPath!.isEmpty) {
+      debugPrint('[LocalSttSocket] ERROR: model path is null/empty, cannot connect');
+      _status = PureSocketStatus.notConnected;
+      return false;
+    }
+
     // Lazily initialize the engine if not yet done
-    if (!_engine.isInitialized && _modelPath != null) {
+    if (!_engine.isInitialized) {
       try {
         await _engine.initialize(_modelPath!);
       } catch (e) {
@@ -233,7 +240,7 @@ class LocalSttSocket implements IPureSocket {
 
   /// Flush remaining audio now, including VAD tail (used before finalizing).
   void flushNow() {
-    if (_audioFrames.isEmpty && !_engine.isInitialized) return;
+    if (_audioFrames.isEmpty || !_engine.isInitialized) return;
     if (_isProcessing) return;
 
     _isProcessing = true;
