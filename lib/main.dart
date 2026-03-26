@@ -48,6 +48,7 @@ import 'package:omi/providers/role_provider.dart';
 import 'package:omi/services/auth_service.dart';
 import 'package:omi/services/background_upload_service.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
+import 'package:omi/services/local_stt/speaker_model_download_service.dart';
 import 'package:omi/providers/local_stt_provider.dart';
 import 'package:omi/services/desktop_update_service.dart';
 import 'package:omi/services/notifications.dart';
@@ -163,6 +164,9 @@ Future _init() async {
 
   // Initialize local STT model service (checks if model already downloaded)
   await ModelDownloadService.instance.initialize();
+
+  // Initialize speaker embedding model service (checks if speaker model downloaded)
+  await SpeakerModelDownloadService.instance.initialize();
 
   await ServiceManager.instance().start();
   return;

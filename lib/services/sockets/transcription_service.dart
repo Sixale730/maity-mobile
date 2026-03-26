@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:omi/backend/preferences.dart';
@@ -431,7 +433,30 @@ class TranscriptSocketServiceFactory {
       throw StateError('Local STT model path not configured. Download the model first.');
     }
 
-    final localSocket = LocalSttSocket(modelPath: modelPath);
+    // Load speaker model path and user embedding for on-device speaker ID
+    String? speakerModelPath;
+    Uint8List? userEmbeddingBytes;
+
+    final speakerPath = SharedPreferencesUtil().speakerModelPath;
+    final embeddingPath = SharedPreferencesUtil().localSpeakerEmbeddingPath;
+
+    if (speakerPath.isNotEmpty && embeddingPath.isNotEmpty) {
+      final embeddingFile = File(embeddingPath);
+      if (embeddingFile.existsSync()) {
+        final bytes = embeddingFile.readAsBytesSync();
+        if (bytes.length == 192 * 4) {
+          speakerModelPath = speakerPath;
+          userEmbeddingBytes = bytes;
+          debugPrint('[STTFactory] Speaker ID enabled for local STT');
+        }
+      }
+    }
+
+    final localSocket = LocalSttSocket(
+      modelPath: modelPath,
+      speakerModelPath: speakerModelPath,
+      userEmbeddingBytes: userEmbeddingBytes,
+    );
 
     return TranscriptSegmentSocketService.withSocket(
       sampleRate,

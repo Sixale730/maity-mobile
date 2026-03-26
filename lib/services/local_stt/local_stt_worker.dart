@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
+
 import 'package:omi/services/local_stt/local_stt_engine.dart';
 
-/// Worker isolate entry point for local STT decode.
+/// Worker isolate entry point for local STT decode + speaker identification.
 ///
 /// Receives PCM16 audio via [SendPort], buffers it, and periodically flushes
 /// through [LocalSttEngine] (sherpa_onnx VAD + OfflineRecognizer). All FFI
@@ -14,7 +16,7 @@ import 'package:omi/services/local_stt/local_stt_engine.dart';
 /// ## Protocol (tagged lists)
 ///
 /// **Commands (main → worker):**
-/// - `['init', String modelPath]` — initialize engine
+/// - `['init', String modelPath, String? speakerModelPath, Uint8List? userEmbeddingBytes]` — initialize engine + optional speaker ID
 /// - `['audio', Uint8List pcm16Bytes]` — feed audio
 /// - `['flush']` — process remaining audio + VAD tail
 /// - `['shutdown']` — dispose engine and exit
@@ -37,7 +39,12 @@ void workerEntryPoint(SendPort mainSendPort) {
     final command = message[0] as String;
     switch (command) {
       case 'init':
-        worker.handleInit(message[1] as String);
+        final modelPath = message[1] as String;
+        final speakerModelPath =
+            message.length > 2 ? message[2] as String? : null;
+        final userEmbeddingBytes =
+            message.length > 3 ? message[3] as Uint8List? : null;
+        worker.handleInit(modelPath, speakerModelPath, userEmbeddingBytes);
       case 'audio':
         worker.handleAudio(message[1] as Uint8List);
       case 'flush':
@@ -49,13 +56,28 @@ void workerEntryPoint(SendPort mainSendPort) {
   });
 }
 
-/// Internal worker state — manages engine, buffer, and periodic flush.
+/// Internal worker state — manages engine, buffer, periodic flush, and speaker ID.
 class _SttWorker {
   final SendPort _mainSendPort;
   final LocalSttEngine _engine = LocalSttEngine();
   final List<Uint8List> _audioFrames = [];
   Timer? _flushTimer;
   bool _isProcessing = false;
+
+  // Speaker identification (nullable = disabled)
+  sherpa.SpeakerEmbeddingExtractor? _speakerExtractor;
+  sherpa.SpeakerEmbeddingManager? _speakerManager;
+  bool _speakerIdEnabled = false;
+
+  static const String _userName = 'user';
+
+  /// Cosine similarity threshold for CAM++ speaker verification.
+  /// Lower = more permissive (fewer false negatives, more false positives).
+  /// Typical range for CAM++ 16k: 0.4–0.55.
+  static const double _speakerThreshold = 0.45;
+
+  /// Minimum samples for reliable embedding (~0.5s at 16 kHz).
+  static const int _minSamplesForSpeakerId = 8000;
 
   /// Flush every 2 seconds (reduced from 3s for smaller chunks = faster decode).
   static const Duration _flushInterval = Duration(seconds: 2);
@@ -65,13 +87,90 @@ class _SttWorker {
 
   _SttWorker(this._mainSendPort);
 
-  Future<void> handleInit(String modelPath) async {
+  Future<void> handleInit(
+    String modelPath, [
+    String? speakerModelPath,
+    Uint8List? userEmbeddingBytes,
+  ]) async {
     try {
       await _engine.initialize(modelPath);
+
+      // Initialize speaker ID if both model and embedding are available
+      if (speakerModelPath != null &&
+          speakerModelPath.isNotEmpty &&
+          userEmbeddingBytes != null &&
+          userEmbeddingBytes.length == 192 * 4) {
+        _initSpeakerId(speakerModelPath, userEmbeddingBytes);
+      }
+
       _startFlushTimer();
       _mainSendPort.send(['ready']);
     } catch (e, trace) {
       _mainSendPort.send(['error', e.toString(), trace.toString()]);
+    }
+  }
+
+  void _initSpeakerId(String modelPath, Uint8List embeddingBytes) {
+    try {
+      final config = sherpa.SpeakerEmbeddingExtractorConfig(
+        model: modelPath,
+        numThreads: 1,
+        debug: false,
+        provider: 'cpu',
+      );
+      _speakerExtractor = sherpa.SpeakerEmbeddingExtractor(config: config);
+
+      _speakerManager =
+          sherpa.SpeakerEmbeddingManager(_speakerExtractor!.dim);
+
+      // Deserialize user embedding from raw little-endian Float32 bytes
+      final byteData = ByteData.sublistView(embeddingBytes);
+      final embedding = Float32List(192);
+      for (var i = 0; i < 192; i++) {
+        embedding[i] = byteData.getFloat32(i * 4, Endian.little);
+      }
+
+      _speakerManager!.add(name: _userName, embedding: embedding);
+      _speakerIdEnabled = true;
+      // debugPrint not available in isolate, use print for debugging
+      print('[SttWorker] Speaker ID initialized (dim=${_speakerExtractor!.dim})');
+    } catch (e) {
+      print('[SttWorker] Speaker ID init failed: $e — falling back to no speaker ID');
+      _speakerExtractor?.free();
+      _speakerManager?.free();
+      _speakerExtractor = null;
+      _speakerManager = null;
+      _speakerIdEnabled = false;
+    }
+  }
+
+  /// Identify whether a speech segment belongs to the enrolled user.
+  bool _identifySpeaker(Float32List samples) {
+    if (!_speakerIdEnabled) return true;
+
+    try {
+      final stream = _speakerExtractor!.createStream();
+      stream.acceptWaveform(samples: samples, sampleRate: 16000);
+      stream.inputFinished();
+
+      if (!_speakerExtractor!.isReady(stream)) {
+        stream.free();
+        return true; // Not enough audio, default to user
+      }
+
+      final embedding = _speakerExtractor!.compute(stream);
+      stream.free();
+
+      if (embedding.isEmpty) return true;
+
+      final name = _speakerManager!.search(
+        embedding: embedding,
+        threshold: _speakerThreshold,
+      );
+
+      return name == _userName;
+    } catch (e) {
+      return true; // On error, default to user
     }
   }
 
@@ -104,6 +203,11 @@ class _SttWorker {
     _flushTimer?.cancel();
     _flushTimer = null;
     _audioFrames.clear();
+    _speakerExtractor?.free();
+    _speakerManager?.free();
+    _speakerExtractor = null;
+    _speakerManager = null;
+    _speakerIdEnabled = false;
     _engine.dispose();
   }
 
@@ -170,12 +274,28 @@ class _SttWorker {
       final segmentId =
           '${timestamp}_${r.startTime.toStringAsFixed(2)}_$index';
       index++;
+
+      // Speaker identification per segment
+      bool isUser = true;
+      String speaker = 'SPEAKER_0';
+      int speakerId = 0;
+
+      if (_speakerIdEnabled &&
+          r.samples != null &&
+          r.samples!.length >= _minSamplesForSpeakerId) {
+        isUser = _identifySpeaker(r.samples!);
+        if (!isUser) {
+          speaker = 'SPEAKER_1';
+          speakerId = 1;
+        }
+      }
+
       return {
         'id': segmentId,
         'text': r.text,
-        'speaker': 'SPEAKER_0',
-        'speaker_id': 0,
-        'is_user': true,
+        'speaker': speaker,
+        'speaker_id': speakerId,
+        'is_user': isUser,
         'start': r.startTime,
         'end': r.endTime,
       };

@@ -39,6 +39,12 @@ class LocalSttModelCard extends StatelessWidget {
 
             const SizedBox(height: 16),
 
+            // Speaker ID model section (only when STT model is ready)
+            if (provider.isModelReady) ...[
+              _buildSpeakerIdSection(context, provider),
+              const SizedBox(height: 16),
+            ],
+
             // Auto-fallback toggle (only when model is ready)
             if (provider.isModelReady) _buildAutoFallbackToggle(provider, l10n),
           ],
@@ -320,6 +326,207 @@ class LocalSttModelCard extends StatelessWidget {
             onChanged: (_) => provider.toggleAutoFallback(),
             activeThumbColor: Colors.white,
             activeTrackColor: Colors.green,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpeakerIdSection(BuildContext context, LocalSttProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade800),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.record_voice_over_rounded,
+                  color: Colors.grey.shade300, size: 20),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Speaker Identification',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Identify who is speaking during local transcription',
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          _buildSpeakerModelState(context, provider),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpeakerModelState(
+      BuildContext context, LocalSttProvider provider) {
+    if (provider.isSpeakerModelReady) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green.shade400, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Speaker Model Ready',
+                style: TextStyle(
+                    color: Colors.green.shade400,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          if (!provider.hasLocalSpeakerEmbedding) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.info_outline,
+                    color: Colors.orange.shade400, size: 16),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Enroll your voice profile to enable speaker identification',
+                    style: TextStyle(
+                        color: Colors.orange.shade400, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            const SizedBox(height: 4),
+            Text(
+              'Your voice profile is enrolled for local identification',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+            ),
+          ],
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 36,
+            child: OutlinedButton.icon(
+              onPressed: () => _confirmDeleteSpeakerModel(context, provider),
+              icon: Icon(Icons.delete_outline,
+                  size: 16, color: Colors.red.shade400),
+              label: Text('Delete Speaker Model',
+                  style: TextStyle(fontSize: 12, color: Colors.red.shade400)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red.shade400,
+                side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (provider.isSpeakerModelDownloading) {
+      return Column(
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Downloading...',
+                style: TextStyle(color: Colors.white, fontSize: 13),
+              ),
+              const Spacer(),
+              Text(
+                '${(provider.speakerDownloadProgress * 100).toStringAsFixed(0)}%',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: provider.speakerDownloadProgress,
+              backgroundColor: Colors.grey.shade800,
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              minHeight: 4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 32,
+            child: OutlinedButton(
+              onPressed: () => provider.cancelSpeakerModelDownload(),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.grey.shade400,
+                side: BorderSide(color: Colors.grey.shade700),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Cancel', style: TextStyle(fontSize: 12)),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Idle or error state — show download button
+    return SizedBox(
+      width: double.infinity,
+      height: 40,
+      child: ElevatedButton.icon(
+        onPressed: () => provider.startSpeakerModelDownload(),
+        icon: const Icon(Icons.download_rounded, size: 18),
+        label: const Text('Download Speaker Model (28 MB)'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.grey.shade800,
+          foregroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 0,
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteSpeakerModel(
+      BuildContext context, LocalSttProvider provider) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Text('Delete Speaker Model',
+            style: TextStyle(color: Colors.white)),
+        content: Text(
+          'This will remove the speaker identification model and your local voice embedding.',
+          style: TextStyle(color: Colors.grey.shade300),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child:
+                Text('Cancel', style: TextStyle(color: Colors.grey.shade400)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              provider.deleteSpeakerModel();
+            },
+            child: Text('Delete',
+                style: TextStyle(color: Colors.red.shade400)),
           ),
         ],
       ),

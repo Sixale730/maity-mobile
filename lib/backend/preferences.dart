@@ -135,6 +135,16 @@ class SharedPreferencesUtil {
   bool get localSttAutoFallback => getBool('localSttAutoFallback', defaultValue: true);
   set localSttAutoFallback(bool value) => saveBool('localSttAutoFallback', value);
 
+  // Speaker embedding model (for on-device speaker identification)
+  bool get speakerModelDownloaded => getBool('speakerModelDownloaded');
+  set speakerModelDownloaded(bool value) => saveBool('speakerModelDownloaded', value);
+
+  String get speakerModelPath => getString('speakerModelPath');
+  set speakerModelPath(String value) => saveString('speakerModelPath', value);
+
+  String get localSpeakerEmbeddingPath => getString('localSpeakerEmbeddingPath');
+  set localSpeakerEmbeddingPath(String value) => saveString('localSpeakerEmbeddingPath', value);
+
   // Per-provider config storage
   CustomSttConfig? getConfigForProvider(SttProvider provider) {
     final json = getString('sttConfig_${provider.name}');

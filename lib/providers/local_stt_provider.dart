@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
+import 'package:omi/services/local_stt/speaker_model_download_service.dart';
 
 class LocalSttProvider extends ChangeNotifier {
   DownloadState _downloadState = DownloadState.idle;
@@ -12,6 +13,10 @@ class LocalSttProvider extends ChangeNotifier {
   String? _errorLog;
   String? _currentFile;
   bool _deviceRamWarning = false;
+
+  // Speaker model state
+  DownloadState _speakerDownloadState = DownloadState.idle;
+  double _speakerDownloadProgress = 0.0;
 
   DownloadState get downloadState => _downloadState;
   double get downloadProgress => _downloadProgress;
@@ -27,6 +32,15 @@ class LocalSttProvider extends ChangeNotifier {
   bool get isDownloading => _downloadState == DownloadState.downloading;
   bool get autoFallbackEnabled => SharedPreferencesUtil().localSttAutoFallback;
 
+  // Speaker model getters
+  DownloadState get speakerDownloadState => _speakerDownloadState;
+  double get speakerDownloadProgress => _speakerDownloadProgress;
+  bool get isSpeakerModelReady => _speakerDownloadState == DownloadState.ready;
+  bool get isSpeakerModelDownloading =>
+      _speakerDownloadState == DownloadState.downloading;
+  bool get hasLocalSpeakerEmbedding =>
+      SharedPreferencesUtil().localSpeakerEmbeddingPath.isNotEmpty;
+
   LocalSttProvider() {
     _init();
   }
@@ -35,10 +49,19 @@ class LocalSttProvider extends ChangeNotifier {
     // Listen to ModelDownloadService progress
     ModelDownloadService.instance.downloadProgress.addListener(_onProgressChanged);
 
+    // Listen to SpeakerModelDownloadService progress
+    SpeakerModelDownloadService.instance.downloadProgress
+        .addListener(_onSpeakerProgressChanged);
+
     // Sync initial state
     final current = ModelDownloadService.instance.downloadProgress.value;
     _downloadState = current.state;
     _downloadProgress = current.progress;
+
+    final speakerCurrent =
+        SpeakerModelDownloadService.instance.downloadProgress.value;
+    _speakerDownloadState = speakerCurrent.state;
+    _speakerDownloadProgress = speakerCurrent.progress;
 
     // Check RAM on init
     _checkDeviceRam();
@@ -80,9 +103,32 @@ class LocalSttProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Speaker model methods
+  void _onSpeakerProgressChanged() {
+    final progress =
+        SpeakerModelDownloadService.instance.downloadProgress.value;
+    _speakerDownloadState = progress.state;
+    _speakerDownloadProgress = progress.progress;
+    notifyListeners();
+  }
+
+  Future<void> startSpeakerModelDownload() async {
+    await SpeakerModelDownloadService.instance.downloadModel();
+  }
+
+  void cancelSpeakerModelDownload() {
+    SpeakerModelDownloadService.instance.cancelDownload();
+  }
+
+  Future<void> deleteSpeakerModel() async {
+    await SpeakerModelDownloadService.instance.deleteModel();
+  }
+
   @override
   void dispose() {
     ModelDownloadService.instance.downloadProgress.removeListener(_onProgressChanged);
+    SpeakerModelDownloadService.instance.downloadProgress
+        .removeListener(_onSpeakerProgressChanged);
     super.dispose();
   }
 }

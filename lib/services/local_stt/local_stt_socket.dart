@@ -17,6 +17,8 @@ class LocalSttSocket implements IPureSocket {
   PureSocketStatus _status = PureSocketStatus.notConnected;
   IPureSocketListener? _listener;
   final String? _modelPath;
+  final String? _speakerModelPath;
+  final Uint8List? _userEmbeddingBytes;
 
   // Worker isolate communication
   Isolate? _workerIsolate;
@@ -26,7 +28,13 @@ class LocalSttSocket implements IPureSocket {
   Completer<void>? _initCompleter;
   Completer<void>? _flushCompleter;
 
-  LocalSttSocket({required String? modelPath}) : _modelPath = modelPath;
+  LocalSttSocket({
+    required String? modelPath,
+    String? speakerModelPath,
+    Uint8List? userEmbeddingBytes,
+  })  : _modelPath = modelPath,
+        _speakerModelPath = speakerModelPath,
+        _userEmbeddingBytes = userEmbeddingBytes;
 
   @override
   PureSocketStatus get status => _status;
@@ -81,8 +89,9 @@ class LocalSttSocket implements IPureSocket {
       _workerSendPort = await handshakeCompleter.future
           .timeout(const Duration(seconds: 10));
 
-      // Initialize engine in worker
-      _workerSendPort!.send(['init', _modelPath]);
+      // Initialize engine in worker (with optional speaker ID data)
+      _workerSendPort!
+          .send(['init', _modelPath, _speakerModelPath, _userEmbeddingBytes]);
 
       // Wait for 'ready' response
       await _initCompleter!.future.timeout(const Duration(seconds: 30));

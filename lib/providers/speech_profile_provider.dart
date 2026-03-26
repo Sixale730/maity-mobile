@@ -16,8 +16,11 @@ import 'package:omi/services/devices.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
 import 'package:omi/services/supabase_auth_service.dart';
+import 'package:omi/services/local_stt/speaker_embedding_service.dart';
+import 'package:omi/services/local_stt/speaker_model_manifest.dart';
 import 'package:omi/services/voice_profile_service.dart';
 import 'package:omi/utils/audio/wav_bytes.dart';
+import 'package:path_provider/path_provider.dart';
 
 class SpeechProfileProvider extends ChangeNotifier
     with MessageNotifierMixin
@@ -266,9 +269,15 @@ class SpeechProfileProvider extends ChangeNotifier
 
       updateLoadingText('Personalizing your experience...');
       SharedPreferencesUtil().hasSpeakerProfile = true;
-      // if (_isFromOnboarding) {
-      //   await createMemory();
-      // }
+
+      // Extract and save local speaker embedding (for on-device speaker ID)
+      try {
+        await _extractAndSaveLocalEmbedding();
+      } catch (e) {
+        debugPrint('[SpeechProfile] Local embedding extraction failed: $e');
+        // Non-fatal: cloud enrollment already succeeded
+      }
+
       uploadingProfile = false;
       profileCompleted = true;
       text = '';
@@ -278,6 +287,57 @@ class SpeechProfileProvider extends ChangeNotifier
       if (_finalizedCallback != null) {
         _finalizedCallback!();
       }
+    }
+  }
+
+  /// Extract a local speaker embedding from enrollment audio using the
+  /// on-device CAM++ model and save it to disk for use during local STT.
+  Future<void> _extractAndSaveLocalEmbedding() async {
+    final speakerModelPath = SharedPreferencesUtil().speakerModelPath;
+    if (speakerModelPath.isEmpty) {
+      debugPrint(
+          '[SpeechProfile] Speaker model not downloaded, skipping local embedding');
+      return;
+    }
+
+    final allFrames = audioStorage.frames;
+    if (allFrames.isEmpty) {
+      debugPrint(
+          '[SpeechProfile] No audio frames available for local embedding');
+      return;
+    }
+
+    // Concatenate all PCM16 frames into one buffer
+    final totalBytes = allFrames.fold<int>(0, (sum, f) => sum + f.length);
+    final pcm16 = Uint8List(totalBytes);
+    int offset = 0;
+    for (final frame in allFrames) {
+      pcm16.setRange(offset, offset + frame.length, frame);
+      offset += frame.length;
+    }
+
+    debugPrint(
+        '[SpeechProfile] Extracting local embedding from $totalBytes bytes of audio');
+
+    final service = SpeakerEmbeddingService();
+    try {
+      service.initialize(speakerModelPath);
+      final embedding = service.extractEmbeddingFromPcm16(pcm16);
+
+      if (embedding.isEmpty) {
+        debugPrint('[SpeechProfile] Failed to extract local embedding');
+        return;
+      }
+
+      final appSupport = await getApplicationSupportDirectory();
+      final embeddingPath =
+          '${appSupport.path}/${SpeakerModelManifest.modelDirName}/${SpeakerModelManifest.embeddingFileName}';
+      await service.saveEmbeddingToFile(embedding, embeddingPath);
+
+      SharedPreferencesUtil().localSpeakerEmbeddingPath = embeddingPath;
+      debugPrint('[SpeechProfile] Local speaker embedding saved');
+    } finally {
+      service.dispose();
     }
   }
 

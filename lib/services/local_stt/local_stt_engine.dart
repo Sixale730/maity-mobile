@@ -7,10 +7,15 @@ class LocalSttResult {
   final double startTime;
   final double endTime;
 
+  /// Raw VAD segment audio for speaker identification.
+  /// Null when speaker ID is not needed.
+  final Float32List? samples;
+
   const LocalSttResult({
     required this.text,
     required this.startTime,
     required this.endTime,
+    this.samples,
   });
 }
 
@@ -138,6 +143,7 @@ class LocalSttEngine {
             text: text,
             startTime: startTime,
             endTime: endTime,
+            samples: Float32List.fromList(segment.samples),
           ));
         }
       } catch (e) {
