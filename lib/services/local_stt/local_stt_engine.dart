@@ -29,6 +29,16 @@ class LocalSttEngine {
   sherpa.OfflineRecognizer? _recognizer;
   sherpa.VoiceActivityDetector? _vad;
   bool _isInitialized = false;
+  double _maxSpeechDuration = 30.0;
+
+  /// Cumulative samples fed since last segment was drained.
+  /// Used for application-level force-flush: sherpa_onnx's native
+  /// maxSpeechDuration only makes the VAD more aggressive at finding
+  /// pauses (threshold→0.9, minSilence→0.1s) but does NOT hard-split
+  /// continuous speech. This counter + flush() guarantees segment
+  /// emission at bounded intervals.
+  /// Refs: sherpa-onnx PR #1099 (flush API), Silero VAD Issue #518
+  int _samplesSinceLastDrain = 0;
 
   bool get isInitialized => _isInitialized;
 
@@ -44,6 +54,7 @@ class LocalSttEngine {
     double maxSpeechDuration = 30.0,
   }) async {
     if (_isInitialized) return;
+    _maxSpeechDuration = maxSpeechDuration;
 
     try {
       sherpa.initBindings();
@@ -153,13 +164,30 @@ class LocalSttEngine {
 
     _processCallCount++;
     _vad!.acceptWaveform(samples);
+    _samplesSinceLastDrain += samples.length;
+
+    // Force-flush: the native VAD's maxSpeechDuration only raises the
+    // detection threshold but won't hard-split continuous speech without
+    // pauses. Calling flush() forces emission of any accumulated speech,
+    // guaranteeing segments at bounded intervals for real-time display.
+    final maxSamples = (_maxSpeechDuration * sampleRate).toInt();
+    if (_samplesSinceLastDrain >= maxSamples) {
+      debugPrint('[LocalSttEngine] Force-flushing VAD after '
+          '${(_samplesSinceLastDrain / sampleRate).toStringAsFixed(1)}s');
+      _vad!.flush();
+      _samplesSinceLastDrain = 0;
+    }
 
     final vadEmpty = _vad!.isEmpty();
     if (_processCallCount % 5 == 1 || !vadEmpty) {
       debugPrint('[LocalSttEngine] processAudio #$_processCallCount: ${samples.length} samples, vadEmpty=$vadEmpty');
     }
 
-    return _drainSegments();
+    final results = _drainSegments();
+    if (results.isNotEmpty) {
+      _samplesSinceLastDrain = 0;
+    }
+    return results;
   }
 
   /// Flush any remaining audio in the VAD buffer and decode residual speech.
