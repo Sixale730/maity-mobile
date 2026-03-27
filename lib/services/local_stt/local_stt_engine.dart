@@ -214,17 +214,25 @@ class LocalSttEngine {
 
         debugPrint('[LocalSttEngine] VAD segment #$segCount: ${segment.samples.length} samples (${durationMs}ms), start=${startTime.toStringAsFixed(2)}s');
 
+        // Append silence padding so the decoder sees end-of-utterance.
+        // Without this, encoder-decoder models (Canary) enter repetition
+        // loops when audio is truncated mid-speech by force-flush.
+        final paddedSamples = _padWithSilence(segment.samples);
+
         // Decode the speech segment
         final stream = _recognizer!.createStream();
         stream.acceptWaveform(
-          samples: segment.samples,
+          samples: paddedSamples,
           sampleRate: sampleRate,
         );
         _recognizer!.decode(stream);
 
         final result = _recognizer!.getResult(stream);
-        final text = result.text.trim();
+        var text = result.text.trim();
         stream.free();
+
+        // Truncate decoder repetition loops (e.g. "mil doce mil doce mil doce...")
+        text = _truncateRepetitions(text);
 
         debugPrint('[LocalSttEngine] Decode result: "${text.isEmpty ? "(EMPTY)" : text}" (${durationMs}ms segment)');
 
@@ -244,6 +252,55 @@ class LocalSttEngine {
     }
 
     return results;
+  }
+
+  /// Pad audio with silence so the decoder detects end-of-utterance.
+  /// 0.3s of zeros at 16 kHz = 4800 samples — negligible decode overhead.
+  static Float32List _padWithSilence(Float32List samples) {
+    const silenceSamples = 4800; // 0.3s at 16 kHz
+    final padded = Float32List(samples.length + silenceSamples);
+    padded.setRange(0, samples.length, samples);
+    // Remaining samples are already 0.0 (Float32List default)
+    return padded;
+  }
+
+  /// Detect and truncate repetition loops from the decoder output.
+  ///
+  /// Encoder-decoder models can enter loops when force-flushed mid-speech,
+  /// producing text like "mil doce mil doce mil doce mil doce...".
+  /// This checks for repeated N-gram patterns at the tail and truncates.
+  static String _truncateRepetitions(String text) {
+    if (text.isEmpty) return text;
+    final words = text.split(' ');
+    if (words.length < 6) return text;
+
+    // Check patterns of 1 to 5 words
+    for (int patLen = 1; patLen <= 5; patLen++) {
+      if (words.length < patLen * 3) continue;
+
+      final pattern = words.sublist(words.length - patLen).join(' ');
+      int repeats = 0;
+      int pos = words.length - patLen;
+
+      while (pos >= patLen) {
+        final chunk = words.sublist(pos - patLen, pos).join(' ');
+        if (chunk == pattern) {
+          repeats++;
+          pos -= patLen;
+        } else {
+          break;
+        }
+      }
+
+      // 3+ consecutive repetitions = hallucination, keep first occurrence
+      if (repeats >= 3) {
+        final truncated = words.sublist(0, pos + patLen).join(' ');
+        debugPrint('[LocalSttEngine] Truncated ${repeats} repetitions of "$pattern"');
+        return truncated;
+      }
+    }
+
+    return text;
   }
 
   void dispose() {
