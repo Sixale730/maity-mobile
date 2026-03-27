@@ -31,8 +31,8 @@ class LiteCaptureWidgetState extends State<LiteCaptureWidget> with AutomaticKeep
     super.build(context);
     // Use Selector on segmentsVersion to only rebuild when segments actually change,
     // not on every notifyListeners() call (e.g., metrics, connection state).
-    return Selector<CaptureProvider, int>(
-      selector: (_, p) => p.segmentsVersion,
+    return Selector<CaptureProvider, (int, int)>(
+      selector: (_, p) => (p.segmentsVersion, p.previewVersion),
       builder: (context, _, child) {
         final provider = context.read<CaptureProvider>();
         final deviceProvider = context.read<DeviceProvider>();
@@ -40,6 +40,7 @@ class LiteCaptureWidgetState extends State<LiteCaptureWidget> with AutomaticKeep
           provider.segments,
           provider.photos,
           deviceProvider.connectedDevice,
+          previewText: provider.previewText,
         );
       },
     );

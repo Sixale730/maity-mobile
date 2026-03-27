@@ -41,6 +41,12 @@ abstract interface class ITransctiptSegmentSocketServiceListener {
   void onTerminalFailure(String reason);
 }
 
+/// Optional mixin for listeners that want to receive live preview text
+/// from local STT. Listeners that don't implement this are simply skipped.
+mixin ILocalSttPreviewListener {
+  void onPreviewTextReceived(String? text);
+}
+
 class SpeechProfileTranscriptSegmentSocketService extends TranscriptSegmentSocketService {
   SpeechProfileTranscriptSegmentSocketService.create(super.sampleRate, super.codec, super.language,
       {super.source, super.customSttMode})
@@ -130,6 +136,15 @@ class TranscriptSegmentSocketService implements IPureSocketListener {
 
   void unsubscribe(Object context) {
     _listeners.remove(context.hashCode);
+  }
+
+  /// Forward live preview text from local STT to listeners that support it.
+  void notifyPreview(String? text) {
+    for (final listener in _listeners.values) {
+      if (listener is ILocalSttPreviewListener) {
+        (listener as ILocalSttPreviewListener).onPreviewTextReceived(text);
+      }
+    }
   }
 
   Future start() async {
@@ -491,7 +506,7 @@ class TranscriptSocketServiceFactory {
       maxSpeechDuration: maxSpeechDuration,
     );
 
-    return TranscriptSegmentSocketService.withSocket(
+    final service = TranscriptSegmentSocketService.withSocket(
       sampleRate,
       codec,
       language,
@@ -501,6 +516,11 @@ class TranscriptSocketServiceFactory {
       customSttMode: true,
       sttConfigId: '${modelType.name}:ondevice',
     );
+
+    // Wire live preview from local socket to pipeline listeners
+    localSocket.onPreviewText = (text) => service.notifyPreview(text);
+
+    return service;
   }
 
   /// Create streaming WebSocket for live STT

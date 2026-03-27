@@ -303,6 +303,32 @@ class LocalSttEngine {
     return text;
   }
 
+  /// Whether the VAD is currently detecting speech.
+  /// Used by the worker isolate to decide when to emit preview transcriptions.
+  bool get isSpeechDetected => _vad?.isDetected() ?? false;
+
+  /// Decode a preview from accumulated speech samples without affecting VAD state.
+  ///
+  /// Uses the same [OfflineRecognizer] as [_drainSegments] — works identically
+  /// with Canary, Parakeet, and Moonshine since the decode API is model-agnostic.
+  /// Returns decoded text, or null if too short / empty / failed.
+  String? generatePreview(Float32List samples) {
+    if (!_isInitialized || _recognizer == null || samples.length < 1600) {
+      return null;
+    }
+    try {
+      final stream = _recognizer!.createStream();
+      stream.acceptWaveform(samples: samples, sampleRate: sampleRate);
+      _recognizer!.decode(stream);
+      final text = _recognizer!.getResult(stream).text.trim();
+      stream.free();
+      return text.isEmpty ? null : text;
+    } catch (e) {
+      debugPrint('[LocalSttEngine] Preview decode error: $e');
+      return null;
+    }
+  }
+
   void dispose() {
     _vad?.free();
     _vad = null;

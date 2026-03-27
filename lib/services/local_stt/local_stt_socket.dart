@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
@@ -22,6 +23,10 @@ class LocalSttSocket implements IPureSocket {
   final Uint8List? _userEmbeddingBytes;
   final LocalSttModelType _modelType;
   final double? _maxSpeechDuration;
+
+  /// Callback for live preview text during active speech (local STT only).
+  /// Called with the partial transcription text, or null to clear the preview.
+  void Function(String? previewText)? onPreviewText;
 
   // Worker isolate communication
   Isolate? _workerIsolate;
@@ -229,6 +234,18 @@ class LocalSttSocket implements IPureSocket {
           onMessage(message[1]);
         }
         _flushCompleter?.complete();
+
+      case 'preview':
+        if (message.length > 1 && message[1] is String) {
+          try {
+            final decoded = jsonDecode(message[1]) as Map<String, dynamic>;
+            onPreviewText?.call(decoded['text'] as String?);
+          } catch (_) {
+            onPreviewText?.call(null);
+          }
+        } else {
+          onPreviewText?.call(null);
+        }
     }
   }
 

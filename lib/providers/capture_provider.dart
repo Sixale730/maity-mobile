@@ -173,6 +173,10 @@ class CaptureProvider extends ChangeNotifier
   bool get hasTranscripts => _pipeline.hasTranscripts;
   set hasTranscripts(bool value) => _pipeline.setHasTranscripts(value);
 
+  /// Live preview text from local STT (null when not in active speech).
+  String? get previewText => _pipeline.previewText;
+  int get previewVersion => _pipeline.previewVersion;
+
   List<ConversationPhoto> get photos => _audioTransport.photos;
 
   List<MessageEvent> get transcriptionServiceStatuses =>

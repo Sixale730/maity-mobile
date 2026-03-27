@@ -40,7 +40,7 @@ typedef OnNotifyListeners = void Function();
 /// This service does NOT directly call persistence or recovery services.
 /// Those are PersistenceManager's responsibility and are triggered via
 /// the [onSegmentsReceived] callback.
-class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
+class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, ILocalSttPreviewListener {
   TranscriptSegmentSocketService? _socket;
 
   // ---------------------------------------------------------------------------
@@ -83,6 +83,14 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   int _segmentsVersion = 0;
   int get segmentsVersion => _segmentsVersion;
   bool hasTranscripts = false;
+
+  // ---------------------------------------------------------------------------
+  // Live preview state (local STT only)
+  // ---------------------------------------------------------------------------
+  String? _previewText;
+  String? get previewText => _previewText;
+  int _previewVersion = 0;
+  int get previewVersion => _previewVersion;
 
   // ---------------------------------------------------------------------------
   // Connection state
@@ -696,6 +704,12 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   void _processNewSegmentReceived(List<TranscriptSegment> newSegments) {
     if (newSegments.isEmpty) return;
 
+    // Final segment supersedes any live preview
+    if (_previewText != null) {
+      _previewText = null;
+      _previewVersion++;
+    }
+
     // Apply cumulative offset for reconnection timestamp correction.
     // Skip for local STT: its timestamps are already absolute (VAD tracks
     // cumulative sample index from recording start).
@@ -790,6 +804,17 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
   void setHasTranscripts(bool value) {
     hasTranscripts = value;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Live preview (local STT)
+  // ---------------------------------------------------------------------------
+
+  @override
+  void onPreviewTextReceived(String? text) {
+    _previewText = text;
+    _previewVersion++;
+    onNotifyListeners?.call();
   }
 
   // ---------------------------------------------------------------------------

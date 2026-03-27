@@ -251,8 +251,9 @@ getTranscriptWidget(
 getLiteTranscriptWidget(
   List<TranscriptSegment> segments,
   List<ConversationPhoto> photos,
-  BtDevice? btDevice,
-) {
+  BtDevice? btDevice, {
+  String? previewText,
+}) {
   return Column(
     children: [
       if (photos.isNotEmpty) PhotosPreviewWidget(photos: photos),
@@ -260,6 +261,20 @@ getLiteTranscriptWidget(
       if (segments.isNotEmpty)
         LiteTranscriptWidget(
           segments: segments,
+        ),
+      if (previewText != null && previewText.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            '$previewText…',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontStyle: FontStyle.italic,
+              fontSize: 13,
+            ),
+          ),
         ),
     ],
   );

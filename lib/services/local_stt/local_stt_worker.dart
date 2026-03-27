@@ -27,6 +27,7 @@ import 'package:omi/services/local_stt/local_stt_model_type.dart';
 /// - `['error', String message, String? stackTrace]` — error occurred
 /// - `['results', String jsonSegments]` — decoded segments
 /// - `['flushed', String? jsonSegments]` — flush complete
+/// - `['preview', String? json]` — live preview text during active speech (null = clear)
 @pragma('vm:entry-point')
 void workerEntryPoint(SendPort mainSendPort) {
   final workerReceivePort = ReceivePort();
@@ -91,6 +92,19 @@ class _SttWorker {
   /// Minimum bytes before flushing (~0.5s of 16 kHz 16-bit mono).
   static const int _minBufferBytes = 16000;
 
+  // --- Live preview state ---
+  /// Float32 audio chunks accumulated for preview decode.
+  final List<Float32List> _previewChunks = [];
+  int _previewSampleCount = 0;
+  Timer? _previewTimer;
+  bool _previewInFlight = false;
+
+  /// Max preview buffer: 3 seconds at 16 kHz.
+  static const int _maxPreviewSamples = 48000;
+
+  /// Preview decode interval — fires every 1s to check for speech and emit preview.
+  static const Duration _previewInterval = Duration(seconds: 1);
+
   _SttWorker(this._mainSendPort);
 
   Future<void> handleInit(
@@ -117,6 +131,7 @@ class _SttWorker {
       }
 
       _startFlushTimer();
+      _startPreviewTimer();
       _mainSendPort.send(['ready']);
     } catch (e, trace) {
       _mainSendPort.send(['error', e.toString(), trace.toString()]);
@@ -197,6 +212,14 @@ class _SttWorker {
     if (_audioFrameCount % 50 == 1) {
       print('[SttWorker] Audio frame #$_audioFrameCount, totalBytes=$_totalAudioBytes, frameSize=${pcm16Bytes.length}');
     }
+
+    // Accumulate Float32 samples for preview decode (independent of _audioFrames)
+    final float32 = _pcm16ToFloat32(pcm16Bytes);
+    _previewChunks.add(float32);
+    _previewSampleCount += float32.length;
+    while (_previewSampleCount > _maxPreviewSamples && _previewChunks.isNotEmpty) {
+      _previewSampleCount -= _previewChunks.removeAt(0).length;
+    }
   }
 
   void handleFlush() {
@@ -223,6 +246,10 @@ class _SttWorker {
   void handleShutdown() {
     _flushTimer?.cancel();
     _flushTimer = null;
+    _previewTimer?.cancel();
+    _previewTimer = null;
+    _previewChunks.clear();
+    _previewSampleCount = 0;
     _audioFrames.clear();
     _speakerExtractor?.free();
     _speakerManager?.free();
@@ -237,6 +264,54 @@ class _SttWorker {
     _flushTimer = Timer.periodic(_flushInterval, (_) {
       _flushBuffer();
     });
+  }
+
+  void _startPreviewTimer() {
+    _previewTimer?.cancel();
+    _previewTimer = Timer.periodic(_previewInterval, (_) {
+      _checkAndEmitPreview();
+    });
+  }
+
+  /// Check if the VAD detects active speech and emit a preview transcription.
+  /// Runs every [_previewInterval] (1s). Skips if a previous decode is still
+  /// in flight or if there's not enough audio accumulated.
+  void _checkAndEmitPreview() {
+    if (!_engine.isInitialized || _previewInFlight) return;
+
+    if (!_engine.isSpeechDetected) {
+      // Not in speech — clear preview if it was showing
+      if (_previewChunks.isNotEmpty) {
+        _previewChunks.clear();
+        _previewSampleCount = 0;
+        _mainSendPort.send(['preview', null]);
+      }
+      return;
+    }
+
+    // Need at least 0.25s of audio for a meaningful preview
+    if (_previewSampleCount < 4000) return;
+
+    _previewInFlight = true;
+    try {
+      // Concatenate preview chunks into a single Float32List
+      final samples = Float32List(_previewSampleCount);
+      int offset = 0;
+      for (final chunk in _previewChunks) {
+        samples.setRange(offset, offset + chunk.length, chunk);
+        offset += chunk.length;
+      }
+
+      final text = _engine.generatePreview(samples);
+      if (text != null) {
+        final json = jsonEncode({'text': text});
+        _mainSendPort.send(['preview', json]);
+      }
+    } catch (e) {
+      print('[SttWorker] Preview error: $e');
+    } finally {
+      _previewInFlight = false;
+    }
   }
 
   int _flushCount = 0;
@@ -291,6 +366,11 @@ class _SttWorker {
         }
         final json = _encodeResults(results);
         _mainSendPort.send(['results', json]);
+
+        // Final segment supersedes preview — clear buffer and notify UI
+        _previewChunks.clear();
+        _previewSampleCount = 0;
+        _mainSendPort.send(['preview', null]);
       }
     } catch (e, trace) {
       print('[SttWorker] _processBuffer ERROR: $e');
