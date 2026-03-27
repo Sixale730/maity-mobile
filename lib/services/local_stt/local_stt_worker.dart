@@ -182,8 +182,16 @@ class _SttWorker {
     }
   }
 
+  int _audioFrameCount = 0;
+  int _totalAudioBytes = 0;
+
   void handleAudio(Uint8List pcm16Bytes) {
     _audioFrames.add(pcm16Bytes);
+    _audioFrameCount++;
+    _totalAudioBytes += pcm16Bytes.length;
+    if (_audioFrameCount % 50 == 1) {
+      print('[SttWorker] Audio frame #$_audioFrameCount, totalBytes=$_totalAudioBytes, frameSize=${pcm16Bytes.length}');
+    }
   }
 
   void handleFlush() {
@@ -226,13 +234,25 @@ class _SttWorker {
     });
   }
 
+  int _flushCount = 0;
+
   void _flushBuffer() {
-    if (_audioFrames.isEmpty || !_engine.isInitialized) return;
+    _flushCount++;
+    if (_audioFrames.isEmpty || !_engine.isInitialized) {
+      if (_flushCount % 5 == 1) {
+        print('[SttWorker] _flushBuffer #$_flushCount: empty=${_audioFrames.isEmpty}, initialized=${_engine.isInitialized}');
+      }
+      return;
+    }
 
     final totalBytes =
         _audioFrames.fold<int>(0, (sum, frame) => sum + frame.length);
-    if (totalBytes < _minBufferBytes || _isProcessing) return;
+    if (totalBytes < _minBufferBytes || _isProcessing) {
+      print('[SttWorker] _flushBuffer #$_flushCount: skipped (totalBytes=$totalBytes, minRequired=$_minBufferBytes, isProcessing=$_isProcessing)');
+      return;
+    }
 
+    print('[SttWorker] _flushBuffer #$_flushCount: processing $totalBytes bytes from ${_audioFrames.length} frames');
     _processBuffer();
   }
 
@@ -256,13 +276,20 @@ class _SttWorker {
 
       // Convert PCM16 to Float32 and decode
       final samples = _pcm16ToFloat32(pcm16);
+      print('[SttWorker] _processBuffer: ${samples.length} float32 samples (${(samples.length / 16000.0).toStringAsFixed(2)}s audio)');
       final results = _engine.processAudio(samples);
+      print('[SttWorker] _processBuffer: engine returned ${results.length} results');
 
       if (results.isNotEmpty) {
+        for (final r in results) {
+          print('[SttWorker] Result: "${r.text}" (${r.startTime.toStringAsFixed(2)}-${r.endTime.toStringAsFixed(2)}s)');
+        }
         final json = _encodeResults(results);
         _mainSendPort.send(['results', json]);
       }
     } catch (e, trace) {
+      print('[SttWorker] _processBuffer ERROR: $e');
+
       _mainSendPort.send(['error', e.toString(), trace.toString()]);
     } finally {
       _isProcessing = false;

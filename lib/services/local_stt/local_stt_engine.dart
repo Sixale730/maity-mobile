@@ -142,10 +142,21 @@ class LocalSttEngine {
   ///
   /// [samples] must be Float32 PCM at 16 kHz, normalized to [-1, 1].
   /// Returns a list of decoded results (may be empty if no speech detected).
-  List<LocalSttResult> processAudio(Float32List samples) {
-    if (!_isInitialized || _vad == null || _recognizer == null) return [];
+  int _processCallCount = 0;
 
+  List<LocalSttResult> processAudio(Float32List samples) {
+    if (!_isInitialized || _vad == null || _recognizer == null) {
+      debugPrint('[LocalSttEngine] processAudio: not initialized!');
+      return [];
+    }
+
+    _processCallCount++;
     _vad!.acceptWaveform(samples);
+
+    final vadEmpty = _vad!.isEmpty();
+    if (_processCallCount % 5 == 1 || !vadEmpty) {
+      debugPrint('[LocalSttEngine] processAudio #$_processCallCount: ${samples.length} samples, vadEmpty=$vadEmpty');
+    }
 
     return _drainSegments();
   }
@@ -160,14 +171,19 @@ class LocalSttEngine {
   /// Drain all queued speech segments from VAD and decode each one.
   List<LocalSttResult> _drainSegments() {
     final results = <LocalSttResult>[];
+    int segCount = 0;
 
     while (!_vad!.isEmpty()) {
       final segment = _vad!.front();
+      segCount++;
 
       try {
         final startTime = segment.start.toDouble() / sampleRate;
         final endTime =
             (segment.start + segment.samples.length).toDouble() / sampleRate;
+        final durationMs = ((endTime - startTime) * 1000).toInt();
+
+        debugPrint('[LocalSttEngine] VAD segment #$segCount: ${segment.samples.length} samples (${durationMs}ms), start=${startTime.toStringAsFixed(2)}s');
 
         // Decode the speech segment
         final stream = _recognizer!.createStream();
@@ -180,6 +196,8 @@ class LocalSttEngine {
         final result = _recognizer!.getResult(stream);
         final text = result.text.trim();
         stream.free();
+
+        debugPrint('[LocalSttEngine] Decode result: "${text.isEmpty ? "(EMPTY)" : text}" (${durationMs}ms segment)');
 
         if (text.isNotEmpty) {
           results.add(LocalSttResult(
