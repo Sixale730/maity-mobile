@@ -82,7 +82,10 @@ class LocalSttEngine {
         );
       } else if (modelType == LocalSttModelType.canary) {
         // Canary 180M Flash: OfflineCanaryModelConfig (en/es/de/fr)
-        // Requires explicit srcLang/tgtLang (no auto-detect)
+        // Requires explicit srcLang/tgtLang (no auto-detect).
+        // usePnc enables punctuation & capitalization via <|pnc|> decoder token.
+        // decodingMethod is ignored — Canary uses hardcoded greedy (argmax) in C++.
+        // Ref: sherpa-onnx/csrc/offline-recognizer-canary-impl.h
         config = sherpa.OfflineRecognizerConfig(
           model: sherpa.OfflineModelConfig(
             canary: sherpa.OfflineCanaryModelConfig(
@@ -90,13 +93,13 @@ class LocalSttEngine {
               decoder: '$modelDir/decoder.int8.onnx',
               srcLang: 'es',
               tgtLang: 'es',
+              usePnc: true,
             ),
             tokens: '$modelDir/tokens.txt',
             numThreads: 2,
             debug: false,
             provider: 'cpu',
           ),
-          decodingMethod: 'greedy_search',
         );
       } else {
         // Parakeet: OfflineTransducerModelConfig (NeMo Transducer)
@@ -120,11 +123,14 @@ class LocalSttEngine {
       _recognizer = sherpa.OfflineRecognizer(config);
       debugPrint('[LocalSttEngine] Using model type: ${modelType.name}, maxSpeechDuration: ${maxSpeechDuration}s');
 
-      // Configure Silero VAD
+      // Configure Silero VAD.
+      // minSpeechDuration 0.8s for Canary filters short noise segments that
+      // produce empty decodes; 0.25s (default) is fine for transducer models.
+      final minSpeech = modelType == LocalSttModelType.canary ? 0.8 : 0.25;
       final vadConfig = sherpa.VadModelConfig(
         sileroVad: sherpa.SileroVadModelConfig(
           model: '$modelDir/silero_vad.onnx',
-          minSpeechDuration: 0.25,
+          minSpeechDuration: minSpeech,
           minSilenceDuration: 0.5,
           threshold: 0.5,
           windowSize: 512,
