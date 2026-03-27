@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:omi/backend/preferences.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/local_stt_provider.dart';
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
@@ -57,6 +58,11 @@ class LocalSttModelCard extends StatelessWidget {
             // Auto-fallback toggle (only when any model is ready)
             if (provider.isReadyFor(selected))
               _buildAutoFallbackToggle(provider, l10n),
+
+            // Canary max speech duration slider
+            if (selected == LocalSttModelType.canary &&
+                provider.isReadyFor(LocalSttModelType.canary))
+              _buildCanaryMaxDurationSlider(),
           ],
         );
       },
@@ -492,6 +498,70 @@ class LocalSttModelCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCanaryMaxDurationSlider() {
+    final prefs = SharedPreferencesUtil();
+    return StatefulBuilder(
+      builder: (context, setLocalState) {
+        double value = prefs.localSttCanaryMaxSpeechDuration;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.shade800),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Duración máx. segmento: ${value.toInt()}s',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  if (value != 5.0)
+                    GestureDetector(
+                      onTap: () {
+                        prefs.localSttCanaryMaxSpeechDuration = 5.0;
+                        setLocalState(() {});
+                      },
+                      child: Text(
+                        'Default',
+                        style: TextStyle(
+                            color: Colors.blue.shade400, fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Segmentos más cortos = transcripción más rápida',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              ),
+              Slider(
+                value: value,
+                min: 3,
+                max: 30,
+                divisions: 27,
+                label: '${value.toInt()}s',
+                activeColor: Colors.blue,
+                onChanged: (v) {
+                  prefs.localSttCanaryMaxSpeechDuration = v.roundToDouble();
+                  setLocalState(() {});
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

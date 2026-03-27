@@ -41,6 +41,7 @@ class LocalSttEngine {
   Future<void> initialize(
     String modelDir, {
     LocalSttModelType modelType = LocalSttModelType.parakeet,
+    double maxSpeechDuration = 30.0,
   }) async {
     if (_isInitialized) return;
 
@@ -106,7 +107,7 @@ class LocalSttEngine {
       }
 
       _recognizer = sherpa.OfflineRecognizer(config);
-      debugPrint('[LocalSttEngine] Using model type: ${modelType.name}');
+      debugPrint('[LocalSttEngine] Using model type: ${modelType.name}, maxSpeechDuration: ${maxSpeechDuration}s');
 
       // Configure Silero VAD
       final vadConfig = sherpa.VadModelConfig(
@@ -116,7 +117,7 @@ class LocalSttEngine {
           minSilenceDuration: 0.5,
           threshold: 0.5,
           windowSize: 512,
-          maxSpeechDuration: 30.0,
+          maxSpeechDuration: maxSpeechDuration,
         ),
         sampleRate: sampleRate,
         numThreads: 1,

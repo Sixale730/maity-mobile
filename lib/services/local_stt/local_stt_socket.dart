@@ -21,6 +21,7 @@ class LocalSttSocket implements IPureSocket {
   final String? _speakerModelPath;
   final Uint8List? _userEmbeddingBytes;
   final LocalSttModelType _modelType;
+  final double? _maxSpeechDuration;
 
   // Worker isolate communication
   Isolate? _workerIsolate;
@@ -35,10 +36,12 @@ class LocalSttSocket implements IPureSocket {
     LocalSttModelType modelType = LocalSttModelType.parakeet,
     String? speakerModelPath,
     Uint8List? userEmbeddingBytes,
+    double? maxSpeechDuration,
   })  : _modelPath = modelPath,
         _modelType = modelType,
         _speakerModelPath = speakerModelPath,
-        _userEmbeddingBytes = userEmbeddingBytes;
+        _userEmbeddingBytes = userEmbeddingBytes,
+        _maxSpeechDuration = maxSpeechDuration;
 
   @override
   PureSocketStatus get status => _status;
@@ -100,6 +103,7 @@ class LocalSttSocket implements IPureSocket {
         _speakerModelPath,
         _userEmbeddingBytes,
         _modelType.name,
+        _maxSpeechDuration,
       ]);
 
       // Wait for 'ready' response

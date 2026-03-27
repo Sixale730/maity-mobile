@@ -153,6 +153,15 @@ class SharedPreferencesUtil {
   String get activeLocalSttModel => getString('activeLocalSttModel', defaultValue: 'parakeet');
   set activeLocalSttModel(String value) => saveString('activeLocalSttModel', value);
 
+  // Canary VAD max speech duration in seconds (default 5s for fast decode)
+  double get localSttCanaryMaxSpeechDuration {
+    final v = getString('localSttCanaryMaxSpeechDuration');
+    if (v.isEmpty) return 5.0;
+    return double.tryParse(v) ?? 5.0;
+  }
+  set localSttCanaryMaxSpeechDuration(double value) =>
+      saveString('localSttCanaryMaxSpeechDuration', value.toString());
+
   // Speaker embedding model (for on-device speaker identification)
   bool get speakerModelDownloaded => getBool('speakerModelDownloaded');
   set speakerModelDownloaded(bool value) => saveBool('speakerModelDownloaded', value);

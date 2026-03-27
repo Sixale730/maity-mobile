@@ -478,11 +478,17 @@ class TranscriptSocketServiceFactory {
       }
     }
 
+    // Canary uses shorter maxSpeechDuration for faster decode (configurable)
+    final maxSpeechDuration = modelType == LocalSttModelType.canary
+        ? prefs.localSttCanaryMaxSpeechDuration
+        : null;
+
     final localSocket = LocalSttSocket(
       modelPath: modelPath,
       modelType: modelType,
       speakerModelPath: speakerModelPath,
       userEmbeddingBytes: userEmbeddingBytes,
+      maxSpeechDuration: maxSpeechDuration,
     );
 
     return TranscriptSegmentSocketService.withSocket(
