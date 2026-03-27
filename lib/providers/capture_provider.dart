@@ -327,6 +327,37 @@ class CaptureProvider extends ChangeNotifier
     _backgroundFinalize();
   }
 
+  /// Cancel an active recording that has no segments.
+  /// Cleans up all recording resources without attempting finalization.
+  /// If segments arrived in the meantime, delegates to the normal stop flow.
+  Future<void> cancelRecording() async {
+    if (segments.isNotEmpty) {
+      if (recordingState == RecordingState.systemAudioRecord) {
+        await stopSystemAudioRecording();
+      } else {
+        await stopStreamRecording();
+      }
+      return;
+    }
+
+    debugPrint('[CaptureProvider] cancelRecording: no segments, stopping without finalize');
+    _captureLog.log('recording', 'recording_cancelled',
+        details: {'reason': 'user_cancel_no_segments'});
+
+    _pipeline.stopHealthMonitor();
+    _pipeline.cancelSilenceTimer();
+    await _cleanupCurrentState();
+    _audioTransport.stopPhoneMicRecording();
+    if (PlatformService.isDesktop) {
+      _audioTransport.stopSystemAudioRecording();
+    }
+    CaptureProvider.isRecordingWithPhoneMic = false;
+    _pipeline.stopSocket('user cancel - no segments');
+    updateRecordingState(RecordingState.stop);
+    await _resetStateVariables();
+    _captureLog.endSession();
+  }
+
   // ---------------------------------------------------------------------------
   // BLE device recording
   // ---------------------------------------------------------------------------

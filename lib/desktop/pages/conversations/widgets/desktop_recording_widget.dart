@@ -94,9 +94,13 @@ class _DesktopRecordingWidgetState extends State<DesktopRecordingWidget> {
 
   Future<void> _stopRecording(BuildContext context, CaptureProvider provider) async {
     if (PlatformService.isDesktop) {
-      await provider.stopSystemAudioRecording();
-      // Force processing and shrink container
-      await provider.forceProcessingCurrentConversation();
+      if (provider.segments.isEmpty) {
+        await provider.cancelRecording();
+      } else {
+        await provider.stopSystemAudioRecording();
+        // Force processing and shrink container
+        await provider.forceProcessingCurrentConversation();
+      }
     }
   }
 
@@ -234,7 +238,7 @@ class _DesktopRecordingWidgetState extends State<DesktopRecordingWidget> {
                   ? null
                   : () => _toggleRecording(context, captureProvider),
             ),
-            if (hasTranscripts) ...[
+            ...[
               const SizedBox(width: 12),
               _controlButton(
                 icon: Icons.stop_rounded,
@@ -742,7 +746,7 @@ class _DesktopRecordingWidgetState extends State<DesktopRecordingWidget> {
                           : () => _toggleRecording(context, captureProvider),
                     ),
 
-                  if ((isRecording || isPaused) && hasTranscripts) ...[
+                  if (isRecording || isPaused) ...[
                     const SizedBox(width: 16),
                     _controlButton(
                       icon: Icons.stop_rounded,

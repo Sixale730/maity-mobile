@@ -131,6 +131,10 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
           );
         },
       );
+    } else {
+      // No content: cancel recording cleanly and navigate back
+      await provider.cancelRecording();
+      if (mounted) Navigator.of(context).pop();
     }
   }
 
@@ -148,7 +152,19 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
         final deviceProvider = context.read<DeviceProvider>();
         final isProcessing = snapshot.recordingState == RecordingState.processing;
         return PopScope(
-          canPop: true,
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) async {
+            if (didPop) return;
+            final state = provider.recordingState;
+            final isActiveRecording = state == RecordingState.record ||
+                state == RecordingState.deviceRecord ||
+                state == RecordingState.systemAudioRecord ||
+                state == RecordingState.initialising;
+            if (isActiveRecording && provider.segments.isEmpty && provider.photos.isEmpty) {
+              await provider.cancelRecording();
+            }
+            if (context.mounted) Navigator.of(context).pop();
+          },
           child: Scaffold(
             key: scaffoldKey,
             backgroundColor: Theme.of(context).colorScheme.primary,
@@ -162,8 +178,7 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
                 children: [
                   IconButton(
                     onPressed: () {
-                      Navigator.pop(context);
-                      return;
+                      Navigator.maybePop(context);
                     },
                     icon: const Icon(Icons.arrow_back_rounded, size: 24.0),
                   ),
@@ -289,7 +304,10 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
                       ),
                     ),
                   )
-                : (provider.segments.isNotEmpty || provider.photos.isNotEmpty)
+                : (snapshot.recordingState == RecordingState.record ||
+                        snapshot.recordingState == RecordingState.deviceRecord ||
+                        snapshot.recordingState == RecordingState.systemAudioRecord ||
+                        snapshot.recordingState == RecordingState.initialising)
                     ? Container(
                         width: 60,
                         height: 60,
