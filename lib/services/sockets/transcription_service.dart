@@ -444,9 +444,11 @@ class TranscriptSocketServiceFactory {
     LocalSttModelType modelType = LocalSttModelType.parakeet,
   }) {
     final prefs = SharedPreferencesUtil();
-    final modelPath = modelType == LocalSttModelType.moonshine
-        ? prefs.localSttMoonshinePath
-        : prefs.localSttModelPath;
+    final modelPath = switch (modelType) {
+      LocalSttModelType.moonshine => prefs.localSttMoonshinePath,
+      LocalSttModelType.canary => prefs.localSttCanaryPath,
+      LocalSttModelType.parakeet => prefs.localSttModelPath,
+    };
     debugPrint(
         '[STTFactory] Creating LocalSttSocket, model: ${modelType.name}, path: $modelPath');
 
