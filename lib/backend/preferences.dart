@@ -153,11 +153,16 @@ class SharedPreferencesUtil {
   String get activeLocalSttModel => getString('activeLocalSttModel', defaultValue: 'parakeet');
   set activeLocalSttModel(String value) => saveString('activeLocalSttModel', value);
 
-  // Canary VAD max speech duration in seconds (default 5s for fast decode)
+  // Canary VAD max speech duration in seconds (default 20s — lets sherpa-onnx's
+  // native mechanism find natural pauses by raising threshold to 0.9).
+  // Force-flush kicks in at this threshold as a hard cap.
   double get localSttCanaryMaxSpeechDuration {
     final v = getString('localSttCanaryMaxSpeechDuration');
-    if (v.isEmpty) return 5.0;
-    return double.tryParse(v) ?? 5.0;
+    if (v.isEmpty) return 20.0;
+    final parsed = double.tryParse(v) ?? 20.0;
+    // Migrate old default: 5.0 was too aggressive, treat as unconfigured
+    if (parsed == 5.0) return 20.0;
+    return parsed;
   }
   set localSttCanaryMaxSpeechDuration(double value) =>
       saveString('localSttCanaryMaxSpeechDuration', value.toString());

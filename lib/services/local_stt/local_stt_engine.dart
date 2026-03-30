@@ -129,11 +129,14 @@ class LocalSttEngine {
       // minSpeechDuration 0.8s for Canary filters short noise segments that
       // produce empty decodes; 0.25s (default) is fine for transducer models.
       final minSpeech = modelType == LocalSttModelType.canary ? 0.8 : 0.25;
+      // Canary benefits from faster silence detection (0.3s) for natural
+      // conversational segmentation; default 0.5s for other models.
+      final minSilence = modelType == LocalSttModelType.canary ? 0.3 : 0.5;
       final vadConfig = sherpa.VadModelConfig(
         sileroVad: sherpa.SileroVadModelConfig(
           model: '$modelDir/silero_vad.onnx',
           minSpeechDuration: minSpeech,
-          minSilenceDuration: 0.5,
+          minSilenceDuration: minSilence,
           threshold: 0.5,
           windowSize: 512,
           maxSpeechDuration: maxSpeechDuration,
@@ -173,12 +176,13 @@ class LocalSttEngine {
     _processCallCount++;
     _vad!.acceptWaveform(samples);
 
-    // Force-flush safety net for continuous speech without pauses.
-    // Only count samples while VAD detects active speech — this prevents
-    // flushing during silence/noise (which creates garbage segments that
-    // encoder-decoder models like Canary decode as "(EMPTY)").
-    // Ref: sherpa-onnx flutter-examples/non_streaming_vad_asr uses
-    // flush() only on stop; we add it during speech for bounded latency.
+    // Force-flush safety net: if continuous speech exceeds maxSpeechDuration
+    // without natural pauses, force a segment boundary. sherpa-onnx's native
+    // mechanism (threshold→0.9, minSilence→0.1s) runs first at maxSpeechDuration;
+    // this flush() is the hard cap if it still can't find a pause.
+    // Parakeet (transducer, 20s default): tolerates arbitrary cuts, no "(EMPTY)".
+    // Canary (encoder-decoder, 10s default): may produce "(EMPTY)" on cuts.
+    // Refs: sherpa-onnx c-api.cc (default 20s), Issue #2148, Silero VAD #155
     if (_vad!.isDetected()) {
       _samplesSinceLastDrain += samples.length;
     }
@@ -188,8 +192,12 @@ class LocalSttEngine {
           '${(_samplesSinceLastDrain / sampleRate).toStringAsFixed(1)}s of speech');
       _vad!.flush();
       _samplesSinceLastDrain = 0;
+      // NOTE: Do NOT call _vad!.reset() here — it clears the LSTM state and
+      // circular buffer, causing the VAD to need ~4s warmup to re-detect speech.
+      // The VAD maintains valid state across flush() calls.
     }
 
+    // Drain all segments (force-flushed + naturally-detected)
     final vadEmpty = _vad!.isEmpty();
     if (_processCallCount % 5 == 1 || !vadEmpty) {
       debugPrint('[LocalSttEngine] processAudio #$_processCallCount: ${samples.length} samples, vadEmpty=$vadEmpty');
@@ -227,9 +235,9 @@ class LocalSttEngine {
         debugPrint('[LocalSttEngine] VAD segment #$segCount: ${segment.samples.length} samples (${durationMs}ms), start=${startTime.toStringAsFixed(2)}s');
 
         // Append silence padding so the decoder sees end-of-utterance.
-        // Without this, encoder-decoder models (Canary) enter repetition
-        // loops when audio is truncated mid-speech by force-flush.
-        final paddedSamples = _padWithSilence(segment.samples);
+        // Canary needs more padding (0.5s) than transducer models (0.3s)
+        // because encoder-decoder attention needs clear end-of-utterance signal.
+        final paddedSamples = _padWithSilence(segment.samples, _modelType);
 
         // Decode the speech segment
         final stream = _recognizer!.createStream();
@@ -266,13 +274,23 @@ class LocalSttEngine {
     return results;
   }
 
-  /// Pad audio with silence so the decoder detects end-of-utterance.
-  /// 0.3s of zeros at 16 kHz = 4800 samples — negligible decode overhead.
-  static Float32List _padWithSilence(Float32List samples) {
-    const silenceSamples = 4800; // 0.3s at 16 kHz
-    final padded = Float32List(samples.length + silenceSamples);
-    padded.setRange(0, samples.length, samples);
-    // Remaining samples are already 0.0 (Float32List default)
+  /// Pad audio with silence at BOTH sides so the encoder-decoder sees clean
+  /// utterance boundaries.
+  ///
+  /// Pre-pad: silence before speech gives the encoder a clean onset boundary
+  /// (silence→speech transition). Without this, force-flushed segments that
+  /// start mid-speech cause Canary to decode as "(EMPTY)".
+  ///
+  /// Post-pad: silence after speech signals end-of-utterance to the decoder.
+  ///
+  /// Refs: NVIDIA Canary pads symmetrically to 1s minimum.
+  ///       Whisper expects zero-padded boundaries (trained on 30s chunks).
+  static Float32List _padWithSilence(Float32List samples, LocalSttModelType modelType) {
+    final prePad = modelType == LocalSttModelType.canary ? 6400 : 3200;  // 0.4s / 0.2s
+    final postPad = modelType == LocalSttModelType.canary ? 8000 : 4800; // 0.5s / 0.3s
+    final padded = Float32List(prePad + samples.length + postPad);
+    padded.setRange(prePad, prePad + samples.length, samples);
+    // Pre-pad and post-pad are already 0.0 (Float32List default)
     return padded;
   }
 

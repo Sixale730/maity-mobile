@@ -493,10 +493,16 @@ class TranscriptSocketServiceFactory {
       }
     }
 
-    // Canary uses shorter maxSpeechDuration for faster decode (configurable)
-    final maxSpeechDuration = modelType == LocalSttModelType.canary
-        ? prefs.localSttCanaryMaxSpeechDuration
-        : null;
+    // maxSpeechDuration per model: VAD native mechanism (threshold→0.9) activates
+    // at this threshold, force-flush is the hard cap if no pause is found.
+    // Parakeet (transducer): 20s — tolerates arbitrary cuts, aligned with
+    //   sherpa-onnx C API default. Ref: c-api.cc SHERPA_ONNX_OR(..., 20)
+    // Canary (encoder-decoder): 10s — needs complete utterances, configurable.
+    final double? maxSpeechDuration = switch (modelType) {
+      LocalSttModelType.canary => prefs.localSttCanaryMaxSpeechDuration,
+      LocalSttModelType.parakeet => 20.0,
+      LocalSttModelType.moonshine => null, // uses engine default (30s)
+    };
 
     final localSocket = LocalSttSocket(
       modelPath: modelPath,
