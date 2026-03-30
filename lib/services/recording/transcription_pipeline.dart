@@ -12,6 +12,7 @@ import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/connectivity_service.dart';
 import 'package:omi/services/local_stt/audio_chunk_writer.dart';
+import 'package:omi/utils/audio/audio_transcoder.dart';
 import 'package:omi/services/local_stt/chunk_queue_manager.dart';
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/local_stt_socket.dart';
@@ -93,6 +94,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   // ---------------------------------------------------------------------------
   AudioChunkWriter? _chunkWriter;
   UISegmentController? _segmentController;
+
+  /// Audio transcoder for non-PCM16 codecs (e.g., Opus from BLE/OMI devices).
+  /// Decodes to PCM16 before writing to chunk writer. Null for PCM16 (no-op).
+  IAudioTranscoder? _audioTranscoder;
 
   /// VAD activity indicator — replaces preview text.
   /// True when the worker's VAD detects active speech.
@@ -515,9 +520,12 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// For cloud STT: sends directly to the WebSocket (unchanged behavior).
   /// WAL captures all audio frames; only marks as synced what the socket received.
   void sendToSocket(dynamic data) {
-    // Local STT: route to chunk writer (audio goes to disk, not socket)
+    // Local STT: route to chunk writer (audio goes to disk, not socket).
+    // Transcode if needed (e.g., Opus from BLE/OMI → PCM16 for VAD + decode).
     if (_isLocalStt && _chunkWriter != null && data is List<int>) {
-      _chunkWriter!.addBytes(data is Uint8List ? data : Uint8List.fromList(data));
+      final bytes = data is Uint8List ? data : Uint8List.fromList(data);
+      final pcmBytes = _audioTranscoder != null ? _audioTranscoder!.transcode(bytes) : bytes;
+      _chunkWriter!.addBytes(pcmBytes);
       return;
     }
 
@@ -594,6 +602,18 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       onChunkWritten: (meta) => queueManager.enqueueChunk(meta),
     );
     _chunkWriter!.start();
+
+    // Create audio transcoder for non-PCM16 codecs (BLE/OMI sends Opus)
+    final codec = _socket?.codec ?? BleAudioCodec.pcm16;
+    if (codec != BleAudioCodec.pcm16) {
+      _audioTranscoder = AudioTranscoderFactory.createToRawPcm(
+        sourceCodec: codec,
+        sampleRate: 16000,
+      );
+      debugPrint('[TranscriptionPipeline] Audio transcoder: ${codec.name} → PCM16');
+    } else {
+      _audioTranscoder = null;
+    }
 
     // Create bounded segment controller
     _segmentController = UISegmentController();
@@ -1318,6 +1338,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _transcriptionServiceStatuses = [];
     _walEnabled = false;
     _activeSttProvider = null;
+    _audioTranscoder = null;
     _reconnectAudioBuffer.clear();
     _reconnectAudioBufferBytes = 0;
     _isBufferingForReconnect = false;
@@ -1351,6 +1372,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _chunkWriter = null;
     _segmentController?.dispose();
     _segmentController = null;
+    _audioTranscoder = null;
 
     await _vadService?.dispose();
     _vadService = null;
