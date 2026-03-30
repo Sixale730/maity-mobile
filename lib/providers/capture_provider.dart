@@ -393,6 +393,7 @@ class CaptureProvider extends ChangeNotifier
     _pipeline.startHealthMonitor();
     _pipeline.setWalEnabled(true);
     _pipeline.chunkSessionId = sessionId;
+    _pipeline.setBleSource(true);
 
     // Set up socket sender for BLE audio transport
     _audioTransport.setSocketSender((bytes) {
@@ -842,6 +843,7 @@ class CaptureProvider extends ChangeNotifier
 
   Future<void> _resetStateVariables() async {
     _pipeline.clearSegments();
+    _pipeline.setBleSource(false);
     _audioTransport.photos.clear();
     suggestionsBySegmentId = {};
     taggingSegmentIds = [];

@@ -739,7 +739,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                   child: Selector<CaptureProvider, ({RecordingState state, bool reconnecting})>(
                                     selector: (_, p) => (state: p.recordingState, reconnecting: p.isReconnectingSocket),
                                     builder: (context, value, child) {
-                                      bool isRecording = value.state == RecordingState.record;
+                                      bool isRecording = value.state == RecordingState.record ||
+                                          value.state == RecordingState.deviceRecord ||
+                                          value.state == RecordingState.systemAudioRecord;
                                       bool isInitializing = value.state == RecordingState.initialising;
                                       bool isProcessing = value.state == RecordingState.processing;
                                       bool isReconnecting = value.reconnecting;
@@ -829,7 +831,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     if (recordingState == RecordingState.processing) {
       // Processing in background, do nothing
       return;
-    } else if (recordingState == RecordingState.record) {
+    } else if (recordingState == RecordingState.record ||
+        recordingState == RecordingState.deviceRecord ||
+        recordingState == RecordingState.systemAudioRecord) {
       // Re-open the live transcript page (stop is done from within it)
       if (context.mounted) {
         var topConvoId = (captureProvider.conversationProvider?.conversations ?? []).isNotEmpty

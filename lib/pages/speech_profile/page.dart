@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:flutter_provider_utilities/flutter_provider_utilities.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
@@ -558,7 +560,11 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                   ],
                                 ),
                             const SizedBox(height: 24),
-                            const SizedBox(), // Listen to profile and Recognizing others removed (not functional)
+                            SharedPreferencesUtil().getString('speechProfileAudioPath').isNotEmpty
+                                ? _PlayEnrollmentAudioButton(
+                                    audioPath: SharedPreferencesUtil().getString('speechProfileAudioPath'),
+                                  )
+                                : const SizedBox(),
                           ],
                         )
                       : provider.profileCompleted
@@ -615,6 +621,75 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
           ),
         );
       }),
+    );
+  }
+}
+
+/// Button to play the locally saved enrollment audio for verification.
+class _PlayEnrollmentAudioButton extends StatefulWidget {
+  final String audioPath;
+  const _PlayEnrollmentAudioButton({required this.audioPath});
+
+  @override
+  State<_PlayEnrollmentAudioButton> createState() => _PlayEnrollmentAudioButtonState();
+}
+
+class _PlayEnrollmentAudioButtonState extends State<_PlayEnrollmentAudioButton> {
+  final AudioPlayer _player = AudioPlayer();
+  bool _isPlaying = false;
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _togglePlayback() async {
+    if (_isPlaying) {
+      await _player.stop();
+      setState(() => _isPlaying = false);
+      return;
+    }
+
+    final file = File(widget.audioPath);
+    if (!await file.exists()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Audio file not found. Re-record your voice profile.')),
+        );
+      }
+      return;
+    }
+
+    try {
+      await _player.setFilePath(widget.audioPath);
+      setState(() => _isPlaying = true);
+      _player.playerStateStream.listen((state) {
+        if (state.processingState == ProcessingState.completed) {
+          if (mounted) setState(() => _isPlaying = false);
+        }
+      });
+      await _player.play();
+    } catch (e) {
+      debugPrint('[PlayEnrollment] Error: $e');
+      if (mounted) setState(() => _isPlaying = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: _togglePlayback,
+      icon: Icon(
+        _isPlaying ? Icons.stop : Icons.play_arrow,
+        color: Colors.white,
+      ),
+      label: Text(
+        _isPlaying
+            ? (AppLocalizations.of(context)?.stop ?? 'Stop')
+            : (AppLocalizations.of(context)?.listenToMySpeechProfile ?? 'Listen to my speech profile'),
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+      ),
     );
   }
 }

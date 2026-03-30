@@ -65,6 +65,15 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   static const int _maxSttReconnectAttempts = 3;
   DateTime? _lastAudioBytesSentAt;
 
+  // BLE devices always send audio bytes (even silence), so the
+  // audio-flowing check in _onSilenceTimeout doesn't apply to them.
+  bool _isBleSource = false;
+
+  /// Set whether audio comes from a BLE device (always sends bytes, even silence).
+  void setBleSource(bool value) {
+    _isBleSource = value;
+  }
+
   // ---------------------------------------------------------------------------
   // Token refresh
   // ---------------------------------------------------------------------------
@@ -1193,8 +1202,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       });
     }
 
-    // Check if audio is still flowing (STT stall vs real silence)
-    if (_lastAudioBytesSentAt != null) {
+    // Check if audio is still flowing (STT stall vs real silence).
+    // BLE devices always send raw audio bytes (even during silence), so the
+    // audio-flowing heuristic doesn't apply — treat timer expiry as real silence.
+    if (!_isBleSource && _lastAudioBytesSentAt != null) {
       final audioGap = DateTime.now().difference(_lastAudioBytesSentAt!);
       if (audioGap.inSeconds < 10) {
         // Bug 2 fix: Local STT doesn't stall — it just produces "(EMPTY)" on
