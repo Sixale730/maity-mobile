@@ -517,8 +517,8 @@ class TranscriptSocketServiceFactory {
       sttConfigId: '${modelType.name}:ondevice',
     );
 
-    // Wire live preview from local socket to pipeline listeners
-    localSocket.onPreviewText = (text) => service.notifyPreview(text);
+    // VAD state and chunk processing callbacks are wired by
+    // TranscriptionPipeline._initChunkPipeline() after socket connects.
 
     return service;
   }

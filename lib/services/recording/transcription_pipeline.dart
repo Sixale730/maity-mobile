@@ -11,8 +11,12 @@ import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/connectivity_service.dart';
+import 'package:omi/services/local_stt/audio_chunk_writer.dart';
+import 'package:omi/services/local_stt/chunk_queue_manager.dart';
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
+import 'package:omi/services/local_stt/local_stt_socket.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
+import 'package:omi/services/recording/ui_segment_controller.dart';
 import 'package:omi/services/notifications/notification_service.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
@@ -40,7 +44,7 @@ typedef OnNotifyListeners = void Function();
 /// This service does NOT directly call persistence or recovery services.
 /// Those are PersistenceManager's responsibility and are triggered via
 /// the [onSegmentsReceived] callback.
-class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, ILocalSttPreviewListener {
+class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   TranscriptSegmentSocketService? _socket;
 
   // ---------------------------------------------------------------------------
@@ -85,12 +89,26 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, 
   bool hasTranscripts = false;
 
   // ---------------------------------------------------------------------------
-  // Live preview state (local STT only)
+  // Chunk-based local STT (log-structured processing)
   // ---------------------------------------------------------------------------
-  String? _previewText;
-  String? get previewText => _previewText;
-  int _previewVersion = 0;
-  int get previewVersion => _previewVersion;
+  AudioChunkWriter? _chunkWriter;
+  UISegmentController? _segmentController;
+
+  /// VAD activity indicator — replaces preview text.
+  /// True when the worker's VAD detects active speech.
+  final ValueNotifier<bool> vadSpeechActive = ValueNotifier(false);
+
+  /// Segments from the bounded UISegmentController (local STT) or the
+  /// unbounded list (cloud STT) for display.
+  List<TranscriptSegment> get displaySegments =>
+      _segmentController?.displaySegments ?? segments;
+
+  /// Whether archived pages are available for scroll-up pagination.
+  bool get hasArchivedPages => _segmentController?.hasArchivedPages ?? false;
+
+  /// Load an archived page of segments (for scroll-up pagination).
+  Future<List<TranscriptSegment>> loadArchivedPage(int pageIndex) =>
+      _segmentController?.loadPage(pageIndex) ?? Future.value([]);
 
   // ---------------------------------------------------------------------------
   // Connection state
@@ -429,17 +447,24 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, 
     _activeSttProvider = effectiveConfig?.provider ?? SttProvider.deepgramLive;
     if (_isLocalStt) {
       _walEnabled = false;
+
+      // Wire chunk-based processing for local STT
+      await _initChunkPipeline();
     }
 
     // Track recording start time for timestamp offset calculation
     _recordingStartTime ??= DateTime.now();
 
-    // Proactive token refresh: reconnect before JWT expires (~1hr)
+    // Proactive token refresh: reconnect before JWT expires (~1hr).
+    // Skip for local STT: no tokens involved, and reconnecting destroys
+    // the worker isolate (losing VAD state).
     _tokenRefreshTimer?.cancel();
-    _tokenRefreshTimer = Timer(const Duration(minutes: 50), () {
-      _captureLog.log('socket', 'token_refresh_reconnect', details: {});
-      onTranscriptionStalled?.call();
-    });
+    if (!_isLocalStt) {
+      _tokenRefreshTimer = Timer(const Duration(minutes: 50), () {
+        _captureLog.log('socket', 'token_refresh_reconnect', details: {});
+        onTranscriptionStalled?.call();
+      });
+    }
 
     // Initialize VAD if enabled and using custom STT with PCM16 codec
     await initializeVadService(codec, effectiveConfig);
@@ -482,8 +507,21 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, 
   }
 
   /// Send raw bytes to the socket (used by AudioTransportService).
+  ///
+  /// For local STT: routes to [AudioChunkWriter] which buffers and writes to
+  /// disk every 5 seconds. The worker pulls chunks from disk via
+  /// [ChunkQueueManager].
+  ///
+  /// For cloud STT: sends directly to the WebSocket (unchanged behavior).
   /// WAL captures all audio frames; only marks as synced what the socket received.
   void sendToSocket(dynamic data) {
+    // Local STT: route to chunk writer (audio goes to disk, not socket)
+    if (_isLocalStt && _chunkWriter != null && data is List<int>) {
+      _chunkWriter!.addBytes(data is Uint8List ? data : Uint8List.fromList(data));
+      return;
+    }
+
+    // Cloud STT path (unchanged)
     // Always capture to WAL (Write-Ahead Log) for recovery on reconnect
     if (_walEnabled && data is List<int>) {
       try {
@@ -513,6 +551,72 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, 
         _reconnectAudioBufferBytes -= _reconnectAudioBuffer.removeAt(0).length;
       }
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Chunk pipeline setup (local STT only)
+  // ---------------------------------------------------------------------------
+
+  /// Session ID for the current chunk pipeline. Set by CaptureProvider.
+  String? chunkSessionId;
+
+  /// Initialize chunk writer + queue manager for local STT.
+  Future<void> _initChunkPipeline() async {
+    if (chunkSessionId == null) {
+      debugPrint('[TranscriptionPipeline] WARNING: chunkSessionId not set, cannot init chunk pipeline');
+      return;
+    }
+
+    final queueManager = ChunkQueueManager.instance;
+    await queueManager.initialize();
+    final sessionDir = await queueManager.startSession(chunkSessionId!);
+
+    // Create chunk writer that flushes to disk every 5s
+    _chunkWriter = AudioChunkWriter(
+      sessionId: chunkSessionId!,
+      baseDir: sessionDir,
+      onChunkWritten: (meta) => queueManager.enqueueChunk(meta),
+    );
+    _chunkWriter!.start();
+
+    // Create bounded segment controller
+    _segmentController = UISegmentController();
+    _segmentController!.startSession(chunkSessionId!, sessionDir);
+
+    // Wire queue manager → socket → worker
+    final localSocket = _socket?.socket;
+    if (localSocket is LocalSttSocket) {
+      // When queue has a chunk ready, send it to the worker
+      queueManager.onProcessChunk = (chunk) {
+        localSocket.processChunk(
+          chunk.filePath,
+          '${chunk.sessionId}_${chunk.sequence}',
+          chunk.offsetSeconds,
+        );
+      };
+
+      // When worker finishes a chunk, mark it completed in the queue
+      localSocket.onChunkProcessed = (chunkId) {
+        final parts = chunkId.split('_');
+        if (parts.length >= 2) {
+          final seq = int.tryParse(parts.last);
+          final sessionId = parts.sublist(0, parts.length - 1).join('_');
+          if (seq != null) {
+            queueManager.markCompleted(sessionId, seq);
+          }
+        }
+      };
+
+      // Wire VAD state changes
+      localSocket.onVadStateChanged = (active) => onVadStateChanged(active);
+    }
+
+    debugPrint('[TranscriptionPipeline] Chunk pipeline initialized for session $chunkSessionId');
+  }
+
+  /// Flush the chunk writer (for app lifecycle pause).
+  Future<void> flushChunkWriter({bool synchronous = false}) async {
+    await _chunkWriter?.flush(synchronous: synchronous);
   }
 
   /// Update the last audio bytes sent timestamp (for STT stall detection).
@@ -704,16 +808,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, 
   void _processNewSegmentReceived(List<TranscriptSegment> newSegments) {
     if (newSegments.isEmpty) return;
 
-    // Final segment supersedes any live preview
-    if (_previewText != null) {
-      _previewText = null;
-      _previewVersion++;
-    }
-
     // Apply cumulative offset for reconnection timestamp correction.
-    // Skip for local STT: its timestamps are already absolute (VAD tracks
-    // cumulative sample index from recording start).
-    if (_cumulativeOffset > Duration.zero && !_isLocalStt) {
+    // Cloud STT sessions restart at t=0; local STT chunks already have
+    // absolute offsets applied by the worker, but reconnect offset still
+    // applies if the socket was reconnected mid-recording.
+    if (_cumulativeOffset > Duration.zero) {
       final offsetSeconds = _cumulativeOffset.inMilliseconds / 1000.0;
       for (final segment in newSegments) {
         segment.start += offsetSeconds;
@@ -727,7 +826,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, 
       return true;
     }());
 
-    if (segments.isEmpty) {
+    if (segments.isEmpty && (_segmentController?.activeSegments.isEmpty ?? true)) {
       _captureLog.log('segment', 'first_segment_received', details: {
         'new_count': newSegments.length,
       });
@@ -740,21 +839,28 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, 
           'total': segments.length + newSegments.length,
         });
 
-    final insertStartIndex = segments.length;
-    final remainSegments =
-        TranscriptSegment.updateSegments(segments, newSegments);
-    segments.addAll(remainSegments);
+    // Route to UISegmentController (bounded, O(k)) or direct list (unbounded)
+    if (_segmentController != null) {
+      _segmentController!.addSegments(newSegments);
+      _segmentsVersion = _segmentController!.version;
+    } else {
+      // Cloud STT path: unbounded list (existing behavior)
+      final insertStartIndex = segments.length;
+      final remainSegments =
+          TranscriptSegment.updateSegments(segments, newSegments);
+      segments.addAll(remainSegments);
 
-    // Merge only at the boundary (O(k) instead of O(n^2))
-    if (remainSegments.isNotEmpty) {
-      TranscriptSegment.mergeNewSegmentsAtBoundary(segments,
-          insertStartIndex: insertStartIndex);
+      // Merge only at the boundary (O(k) instead of O(n^2))
+      if (remainSegments.isNotEmpty) {
+        TranscriptSegment.mergeNewSegmentsAtBoundary(segments,
+            insertStartIndex: insertStartIndex);
+      }
+      _segmentsVersion++;
     }
-    _segmentsVersion++;
 
     assert(() {
       debugPrint(
-          '[TranscriptionPipeline] After update: ${segments.length} total segments');
+          '[TranscriptionPipeline] After update: ${displaySegments.length} display segments');
       return true;
     }());
     hasTranscripts = true;
@@ -807,14 +913,14 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, 
   }
 
   // ---------------------------------------------------------------------------
-  // Live preview (local STT)
+  // VAD activity indicator (local STT)
   // ---------------------------------------------------------------------------
 
-  @override
-  void onPreviewTextReceived(String? text) {
-    _previewText = text;
-    _previewVersion++;
-    onNotifyListeners?.call();
+  /// Called by LocalSttSocket when the worker's VAD state transitions.
+  void onVadStateChanged(bool isSpeechActive) {
+    if (vadSpeechActive.value != isSpeechActive) {
+      vadSpeechActive.value = isSpeechActive;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -923,6 +1029,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, 
   void _checkSocketHealth() {
     try {
       if (_socket == null) return;
+
+      // Skip stall detection for local STT: silence just means nobody is
+      // talking — the on-device engine doesn't stall like a cloud WebSocket.
+      if (_isLocalStt) return;
 
       // Only for custom STT mode
       final customSttConfig = SharedPreferencesUtil().customSttConfig;
@@ -1159,6 +1269,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, 
   /// Clear all segments and reset state.
   void clearSegments() {
     segments.clear();
+    _segmentController?.dispose();
+    _segmentController = null;
     _segmentsVersion = 0;
     hasTranscripts = false;
     _lastSegmentReceivedAt = null;
@@ -1169,6 +1281,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, 
     _reconnectAudioBuffer.clear();
     _reconnectAudioBufferBytes = 0;
     _isBufferingForReconnect = false;
+    vadSpeechActive.value = false;
     resetTimestampOffset();
   }
 
@@ -1193,9 +1306,16 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener, 
     _segmentNotifyPending = false;
     _segmentFrameInFlight = false;
 
+    // Flush and dispose chunk writer (local STT)
+    await _chunkWriter?.dispose();
+    _chunkWriter = null;
+    _segmentController?.dispose();
+    _segmentController = null;
+
     await _vadService?.dispose();
     _vadService = null;
     vadStateNotifier.dispose();
+    vadSpeechActive.dispose();
 
     await _socket?.stop(reason: 'pipeline disposed');
     _socket = null;
