@@ -558,24 +558,7 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                   ],
                                 ),
                             const SizedBox(height: 24),
-                            SharedPreferencesUtil().hasSpeakerProfile
-                                ? TextButton(
-                                    onPressed: () {
-                                      routeToPage(context, const UserSpeechSamples());
-                                    },
-                                    child: Text(
-                                      '${AppLocalizations.of(context)?.listenToMySpeechProfile ?? 'Listen to my speech profile'} ➡️',
-                                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                                    ))
-                                : const SizedBox(),
-                            TextButton(
-                                onPressed: () {
-                                  routeToPage(context, const UserPeoplePage());
-                                },
-                                child: Text(
-                                  '${AppLocalizations.of(context)?.recognizingOthers ?? 'Recognizing others'} 👀',
-                                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                                )),
+                            const SizedBox(), // Listen to profile and Recognizing others removed (not functional)
                           ],
                         )
                       : provider.profileCompleted

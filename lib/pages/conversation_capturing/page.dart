@@ -88,10 +88,12 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
     if (provider.segments.isNotEmpty || provider.photos.isNotEmpty) {
       // Helper function to stop recording (finalization runs in background)
       Future<void> stopRecordingAndProcess() async {
-        // Stop any active recording (phone mic or system audio)
+        // Stop any active recording (phone mic, BLE device, or system audio)
         // The stop methods now transition to processing state and finalize in background
         if (provider.recordingState == RecordingState.record) {
           await provider.stopStreamRecording();
+        } else if (provider.recordingState == RecordingState.deviceRecord) {
+          await provider.stopStreamDeviceRecording();
         } else if (provider.recordingState == RecordingState.systemAudioRecord) {
           await provider.stopSystemAudioRecording();
         }
