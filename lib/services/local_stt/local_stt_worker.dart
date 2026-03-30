@@ -211,11 +211,8 @@ class _SttWorker {
       }
 
       if (results.isNotEmpty) {
-        // Apply timestamp offset so segments have absolute times
-        for (final r in results) {
-          r.startTime += offsetSeconds;
-          r.endTime += offsetSeconds;
-        }
+        // Apply timestamp offset so segments have absolute times.
+        // LocalSttResult fields are final, so we adjust in _encodeResults.
 
         for (final r in results) {
           print(
@@ -223,7 +220,7 @@ class _SttWorker {
               '(${r.startTime.toStringAsFixed(2)}-${r.endTime.toStringAsFixed(2)}s)');
         }
 
-        final json = _encodeResults(results);
+        final json = _encodeResults(results, offsetSeconds: offsetSeconds);
         _mainSendPort.send(['chunk_result', chunkId, json, vadActive]);
       } else {
         _mainSendPort.send(['chunk_result', chunkId, null, vadActive]);
@@ -270,15 +267,18 @@ class _SttWorker {
 
   /// Encode results as JSON segment array.
   ///
-  /// Timestamps are already adjusted by [handleProcessChunk] to be absolute
-  /// offsets from the start of the recording.
-  String _encodeResults(List<LocalSttResult> results) {
+  /// When [offsetSeconds] > 0, timestamps are shifted so they become
+  /// absolute offsets from the start of the recording (chunk N starts
+  /// at N * 5 seconds).
+  String _encodeResults(List<LocalSttResult> results, {double offsetSeconds = 0}) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     var index = 0;
 
     final segmentsJson = results.map((r) {
+      final start = r.startTime + offsetSeconds;
+      final end = r.endTime + offsetSeconds;
       final segmentId =
-          '${timestamp}_${r.startTime.toStringAsFixed(2)}_$index';
+          '${timestamp}_${start.toStringAsFixed(2)}_$index';
       index++;
 
       // Speaker identification per segment
@@ -302,8 +302,8 @@ class _SttWorker {
         'speaker': speaker,
         'speaker_id': speakerId,
         'is_user': isUser,
-        'start': r.startTime,
-        'end': r.endTime,
+        'start': start,
+        'end': end,
       };
     }).toList();
 

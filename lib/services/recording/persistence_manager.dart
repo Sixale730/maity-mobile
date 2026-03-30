@@ -211,6 +211,7 @@ class PersistenceManager {
         userId: userId,
         startedAt: startedAt,
         onSuccess: onSuccess,
+        sessionId: sessionId,
       );
     } finally {
       _finalizeMutex.release();
@@ -223,6 +224,7 @@ class PersistenceManager {
     required String? userId,
     required DateTime? startedAt,
     required Function() onSuccess,
+    String? sessionId,
   }) async {
     final localSegments = List<TranscriptSegment>.from(segments);
     final transcript = localSegments.map((s) => s.text).join('\n').trim();
