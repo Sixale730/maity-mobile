@@ -561,6 +561,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   String? chunkSessionId;
 
   /// Initialize chunk writer + queue manager for local STT.
+  ///
+  /// On reconnect (when `_chunkWriter` already exists), only re-wires the new
+  /// socket's callbacks and resumes queue processing — does NOT recreate the
+  /// writer, segment controller, or session, which would destroy accumulated
+  /// transcription state.
   Future<void> _initChunkPipeline() async {
     if (chunkSessionId == null) {
       debugPrint('[TranscriptionPipeline] WARNING: chunkSessionId not set, cannot init chunk pipeline');
@@ -568,6 +573,17 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     }
 
     final queueManager = ChunkQueueManager.instance;
+
+    // --- Reconnect path: pipeline already exists, just re-wire socket ---
+    if (_chunkWriter != null) {
+      debugPrint('[TranscriptionPipeline] Chunk pipeline exists — re-wiring socket callbacks for reconnect');
+      _wireChunkSocketCallbacks(queueManager);
+      // Kick the queue in case there are pending chunks the old socket never processed.
+      queueManager.processNextChunk(chunkSessionId);
+      return;
+    }
+
+    // --- First-time path: create writer, controller, session ---
     await queueManager.initialize();
     final sessionDir = await queueManager.startSession(chunkSessionId!);
 
@@ -584,6 +600,14 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _segmentController!.startSession(chunkSessionId!, sessionDir);
 
     // Wire queue manager → socket → worker
+    _wireChunkSocketCallbacks(queueManager);
+
+    debugPrint('[TranscriptionPipeline] Chunk pipeline initialized for session $chunkSessionId');
+  }
+
+  /// Wire ChunkQueueManager ↔ LocalSttSocket callbacks.
+  /// Extracted so both first-init and reconnect paths share the same wiring.
+  void _wireChunkSocketCallbacks(ChunkQueueManager queueManager) {
     final localSocket = _socket?.socket;
     if (localSocket is LocalSttSocket) {
       // When queue has a chunk ready, send it to the worker
@@ -596,6 +620,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       };
 
       // When worker finishes a chunk, mark it completed in the queue
+      // and reset the silence timer (even if no segments were produced).
       localSocket.onChunkProcessed = (chunkId) {
         final parts = chunkId.split('_');
         if (parts.length >= 2) {
@@ -605,13 +630,14 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
             queueManager.markCompleted(sessionId, seq);
           }
         }
+        // Bug 5 fix: chunk was processed (even with empty/null results),
+        // so the engine is alive — reset the silence timer.
+        resetSilenceTimer();
       };
 
       // Wire VAD state changes
       localSocket.onVadStateChanged = (active) => onVadStateChanged(active);
     }
-
-    debugPrint('[TranscriptionPipeline] Chunk pipeline initialized for session $chunkSessionId');
   }
 
   /// Flush the chunk writer (for app lifecycle pause).
@@ -1151,6 +1177,20 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     if (_lastAudioBytesSentAt != null) {
       final audioGap = DateTime.now().difference(_lastAudioBytesSentAt!);
       if (audioGap.inSeconds < 10) {
+        // Bug 2 fix: Local STT doesn't stall — it just produces "(EMPTY)" on
+        // noise.  Skip the destructive stall-reconnect path entirely.  Instead,
+        // give the engine more time by resetting the silence timer.
+        if (_isLocalStt) {
+          debugPrint(
+              '[TranscriptionPipeline] Silence timeout but local STT + audio flowing — resetting timer');
+          _captureLog.log('recording', 'silence_timeout_local_stt_reset', details: {
+            'audio_gap_seconds': audioGap.inSeconds,
+            'segments_count': segments.length,
+          });
+          resetSilenceTimer();
+          return;
+        }
+
         debugPrint(
             '[TranscriptionPipeline] Silence timeout but audio still flowing (${audioGap.inSeconds}s ago) - STT stall');
         _captureLog.log('recording', 'silence_timeout_stt_stall', details: {

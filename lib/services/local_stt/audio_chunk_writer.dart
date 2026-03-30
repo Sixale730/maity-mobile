@@ -31,6 +31,10 @@ class AudioChunkWriter {
 
   static const Duration _flushInterval = Duration(seconds: 5);
 
+  /// Minimum buffer size for timer-triggered flushes (0.5s at 16kHz PCM16 mono).
+  /// Prevents micro-chunks that are too short for meaningful VAD + decode.
+  static const int _minFlushBytes = 16000;
+
   AudioChunkWriter({
     required this.sessionId,
     required String baseDir,
@@ -76,6 +80,7 @@ class AudioChunkWriter {
 
   void _timerFlush() {
     if (_isFlushing || _buffer.isEmpty || _disposed) return;
+    if (_bufferBytes < _minFlushBytes) return;
     _writeChunkToDisk();
   }
 

@@ -43,6 +43,13 @@ class ChunkQueueManager {
   String? _cachedSupportDir;
   bool _initialized = false;
 
+  /// Save coalescing flags to prevent concurrent _saveIndex() calls.
+  /// When a save is in flight and another is requested, we set _savePending
+  /// instead of starting a second overlapping write (which would race on
+  /// the .tmp → .json rename and cause PathNotFoundException).
+  bool _saveInFlight = false;
+  bool _savePending = false;
+
   static const String _indexFileName = 'chunk_index.json';
 
   ChunkQueueManager._();
@@ -245,30 +252,42 @@ class ChunkQueueManager {
   // ---------------------------------------------------------------------------
 
   Future<void> _saveIndex() async {
-    try {
-      final data = {
-        'version': 1,
-        'sessions': _chunkIndex.map((sessionId, chunks) => MapEntry(
-              sessionId,
-              {
-                'finalized': _finalizedSessions.contains(sessionId),
-                'chunks': chunks.map((c) => c.toJson()).toList(),
-              },
-            )),
-      };
+    _savePending = true;
+    if (_saveInFlight) return;
+    await _doSaveIndex();
+  }
 
-      final indexPath = '$_cachedSupportDir/$_indexFileName';
-      final tmpPath = '$indexPath.tmp';
-      final json = jsonEncode(data);
+  Future<void> _doSaveIndex() async {
+    while (_savePending) {
+      _savePending = false;
+      _saveInFlight = true;
+      try {
+        final data = {
+          'version': 1,
+          'sessions': _chunkIndex.map((sessionId, chunks) => MapEntry(
+                sessionId,
+                {
+                  'finalized': _finalizedSessions.contains(sessionId),
+                  'chunks': chunks.map((c) => c.toJson()).toList(),
+                },
+              )),
+        };
 
-      await File(tmpPath).writeAsString(json, flush: true);
-      if (Platform.isWindows) {
-        final target = File(indexPath);
-        if (await target.exists()) await target.delete();
+        final indexPath = '$_cachedSupportDir/$_indexFileName';
+        final tmpPath = '$indexPath.tmp';
+        final json = jsonEncode(data);
+
+        await File(tmpPath).writeAsString(json, flush: true);
+        if (Platform.isWindows) {
+          final target = File(indexPath);
+          if (await target.exists()) await target.delete();
+        }
+        await File(tmpPath).rename(indexPath);
+      } catch (e) {
+        debugPrint('[ChunkQueueManager] Error saving index: $e');
+      } finally {
+        _saveInFlight = false;
       }
-      await File(tmpPath).rename(indexPath);
-    } catch (e) {
-      debugPrint('[ChunkQueueManager] Error saving index: $e');
     }
   }
 
@@ -313,6 +332,8 @@ class ChunkQueueManager {
     _finalizedSessions.clear();
     _workerBusy = false;
     _initialized = false;
+    _saveInFlight = false;
+    _savePending = false;
     onProcessChunk = null;
     onChunkCompleted = null;
   }
