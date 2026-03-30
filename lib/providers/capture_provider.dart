@@ -166,16 +166,15 @@ class CaptureProvider extends ChangeNotifier
   @override
   bool get shouldAutoResumeAfterWake => _stateMachine.shouldAutoResumeAfterWake;
 
-  List<TranscriptSegment> get segments => _pipeline.segments;
+  List<TranscriptSegment> get segments => _pipeline.displaySegments;
   set segments(List<TranscriptSegment> value) => _pipeline.segments = value;
 
   int get segmentsVersion => _pipeline.segmentsVersion;
   bool get hasTranscripts => _pipeline.hasTranscripts;
   set hasTranscripts(bool value) => _pipeline.setHasTranscripts(value);
 
-  /// Live preview text from local STT (null when not in active speech).
-  String? get previewText => _pipeline.previewText;
-  int get previewVersion => _pipeline.previewVersion;
+  /// VAD activity indicator from local STT worker (replaces preview text).
+  ValueNotifier<bool> get vadSpeechActive => _pipeline.vadSpeechActive;
 
   List<ConversationPhoto> get photos => _audioTransport.photos;
 
@@ -279,6 +278,7 @@ class CaptureProvider extends ChangeNotifier
 
     _pipeline.startHealthMonitor();
     _pipeline.setWalEnabled(true);
+    _pipeline.chunkSessionId = sessionId;
 
     // Set up socket sender for audio transport
     _audioTransport.setSocketSender((bytes) {
@@ -392,6 +392,7 @@ class CaptureProvider extends ChangeNotifier
 
     _pipeline.startHealthMonitor();
     _pipeline.setWalEnabled(true);
+    _pipeline.chunkSessionId = sessionId;
 
     // Set up socket sender for BLE audio transport
     _audioTransport.setSocketSender((bytes) {
@@ -484,6 +485,7 @@ class CaptureProvider extends ChangeNotifier
 
     _pipeline.startHealthMonitor();
     _pipeline.setWalEnabled(true);
+    _pipeline.chunkSessionId = sessionId;
 
     try {
       await _audioTransport.startSystemAudioRecording(
@@ -1054,6 +1056,7 @@ class CaptureProvider extends ChangeNotifier
             SupabaseAuthService.instance.maityUserId,
         startedAt: _stateMachine.recordingStartTime,
         isSpeechProfileMode: _stateMachine.isSpeechProfileMode,
+        sessionId: _stateMachine.currentSessionId,
         onSuccess: () {
           conversationProvider?.refreshConversations();
         },
