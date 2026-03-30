@@ -27,7 +27,7 @@ class ConversationCapturingPage extends StatefulWidget {
   State<ConversationCapturingPage> createState() => _ConversationCapturingPageState();
 }
 
-class _ConversationCapturingPageState extends State<ConversationCapturingPage> with SingleTickerProviderStateMixin {
+class _ConversationCapturingPageState extends State<ConversationCapturingPage> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   TabController? _controller;
   late bool showSummarizeConfirmation;
@@ -36,13 +36,25 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
   void initState() {
     _controller = TabController(length: 2, vsync: this, initialIndex: 0);
     showSummarizeConfirmation = SharedPreferencesUtil().showSummarizeConfirmation;
+    WidgetsBinding.instance.addObserver(this);
     super.initState();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Pop back to conversations list when app goes to background during recording.
+    // This prevents the heavy TranscriptWidget rebuild jank on resume — the
+    // conversations list page is lightweight and handles resume without freeze.
+    if (state == AppLifecycleState.paused && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   int convertDateTimeToSeconds(DateTime dateTime) {
