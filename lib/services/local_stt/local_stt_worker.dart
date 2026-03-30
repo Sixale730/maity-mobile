@@ -1,5 +1,5 @@
-import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
@@ -10,24 +10,25 @@ import 'package:omi/services/local_stt/local_stt_model_type.dart';
 
 /// Worker isolate entry point for local STT decode + speaker identification.
 ///
-/// Receives PCM16 audio via [SendPort], buffers it, and periodically flushes
-/// through [LocalSttEngine] (sherpa_onnx VAD + OfflineRecognizer). All FFI
-/// work runs in this isolate, keeping the main isolate free for UI rendering.
+/// Reads 5-second PCM16 chunk files from disk (written by [AudioChunkWriter]),
+/// decodes them through [LocalSttEngine] (sherpa_onnx VAD + OfflineRecognizer),
+/// and returns segment results. All FFI work runs in this isolate, keeping the
+/// main isolate free for UI rendering.
 ///
 /// ## Protocol (tagged lists)
 ///
 /// **Commands (main → worker):**
-/// - `['init', String modelPath, String? speakerModelPath, Uint8List? userEmbeddingBytes, String? modelTypeName]` — initialize engine + optional speaker ID
-/// - `['audio', Uint8List pcm16Bytes]` — feed audio
-/// - `['flush']` — process remaining audio + VAD tail
+/// - `['init', String modelPath, String? speakerModelPath, Uint8List? userEmbeddingBytes, String? modelTypeName, double? maxSpeechDuration]` — initialize engine + optional speaker ID
+/// - `['process_chunk', String filePath, String chunkId, double offsetSeconds]` — read PCM16 file, decode, return results
+/// - `['flush']` — process remaining VAD tail
 /// - `['shutdown']` — dispose engine and exit
 ///
 /// **Responses (worker → main):**
 /// - `['ready']` — engine initialized
 /// - `['error', String message, String? stackTrace]` — error occurred
-/// - `['results', String jsonSegments]` — decoded segments
+/// - `['chunk_result', String chunkId, String? jsonSegments, bool vadSpeechActive]` — chunk decoded
 /// - `['flushed', String? jsonSegments]` — flush complete
-/// - `['preview', String? json]` — live preview text during active speech (null = clear)
+/// - `['vad_state', bool isSpeechActive]` — emitted on VAD state transitions during processing
 @pragma('vm:entry-point')
 void workerEntryPoint(SendPort mainSendPort) {
   final workerReceivePort = ReceivePort();
@@ -52,8 +53,11 @@ void workerEntryPoint(SendPort mainSendPort) {
             message.length > 5 ? message[5] as double? : null;
         worker.handleInit(modelPath, speakerModelPath, userEmbeddingBytes,
             modelTypeName, maxSpeechDuration);
-      case 'audio':
-        worker.handleAudio(message[1] as Uint8List);
+      case 'process_chunk':
+        final filePath = message[1] as String;
+        final chunkId = message[2] as String;
+        final offsetSeconds = message[3] as double;
+        worker.handleProcessChunk(filePath, chunkId, offsetSeconds);
       case 'flush':
         worker.handleFlush();
       case 'shutdown':
@@ -63,13 +67,10 @@ void workerEntryPoint(SendPort mainSendPort) {
   });
 }
 
-/// Internal worker state — manages engine, buffer, periodic flush, and speaker ID.
+/// Internal worker state — manages engine and speaker ID.
 class _SttWorker {
   final SendPort _mainSendPort;
   final LocalSttEngine _engine = LocalSttEngine();
-  final List<Uint8List> _audioFrames = [];
-  Timer? _flushTimer;
-  bool _isProcessing = false;
 
   // Speaker identification (nullable = disabled)
   sherpa.SpeakerEmbeddingExtractor? _speakerExtractor;
@@ -79,31 +80,13 @@ class _SttWorker {
   static const String _userName = 'user';
 
   /// Cosine similarity threshold for CAM++ speaker verification.
-  /// Lower = more permissive (fewer false negatives, more false positives).
-  /// Typical range for CAM++ 16k: 0.4–0.55.
   static const double _speakerThreshold = 0.45;
 
   /// Minimum samples for reliable embedding (~0.5s at 16 kHz).
   static const int _minSamplesForSpeakerId = 8000;
 
-  /// Flush every 2 seconds (reduced from 3s for smaller chunks = faster decode).
-  static const Duration _flushInterval = Duration(seconds: 2);
-
-  /// Minimum bytes before flushing (~0.5s of 16 kHz 16-bit mono).
-  static const int _minBufferBytes = 16000;
-
-  // --- Live preview state ---
-  /// Float32 audio chunks accumulated for preview decode.
-  final List<Float32List> _previewChunks = [];
-  int _previewSampleCount = 0;
-  Timer? _previewTimer;
-  bool _previewInFlight = false;
-
-  /// Max preview buffer: 3 seconds at 16 kHz.
-  static const int _maxPreviewSamples = 48000;
-
-  /// Preview decode interval — fires every 1s to check for speech and emit preview.
-  static const Duration _previewInterval = Duration(seconds: 1);
+  /// Track previous VAD state to only emit on transitions.
+  bool _lastVadState = false;
 
   _SttWorker(this._mainSendPort);
 
@@ -130,8 +113,6 @@ class _SttWorker {
         _initSpeakerId(speakerModelPath, userEmbeddingBytes);
       }
 
-      _startFlushTimer();
-      _startPreviewTimer();
       _mainSendPort.send(['ready']);
     } catch (e, trace) {
       _mainSendPort.send(['error', e.toString(), trace.toString()]);
@@ -160,10 +141,11 @@ class _SttWorker {
 
       _speakerManager!.add(name: _userName, embedding: embedding);
       _speakerIdEnabled = true;
-      // debugPrint not available in isolate, use print for debugging
-      print('[SttWorker] Speaker ID initialized (dim=${_speakerExtractor!.dim})');
+      print(
+          '[SttWorker] Speaker ID initialized (dim=${_speakerExtractor!.dim})');
     } catch (e) {
-      print('[SttWorker] Speaker ID init failed: $e — falling back to no speaker ID');
+      print(
+          '[SttWorker] Speaker ID init failed: $e — falling back to no speaker ID');
       _speakerExtractor?.free();
       _speakerManager?.free();
       _speakerExtractor = null;
@@ -202,35 +184,69 @@ class _SttWorker {
     }
   }
 
-  int _audioFrameCount = 0;
-  int _totalAudioBytes = 0;
+  /// Process a PCM16 chunk file from disk.
+  ///
+  /// Reads the file, converts PCM16 → Float32, runs VAD + decode,
+  /// applies timestamp offset, runs speaker ID, and returns results.
+  void handleProcessChunk(
+      String filePath, String chunkId, double offsetSeconds) {
+    try {
+      // Read PCM16 file from disk
+      final pcm16 = File(filePath).readAsBytesSync();
+      print(
+          '[SttWorker] Processing chunk $chunkId: ${pcm16.length} bytes '
+          '(${(pcm16.length / 32000.0).toStringAsFixed(2)}s audio, '
+          'offset ${offsetSeconds.toStringAsFixed(1)}s)');
 
-  void handleAudio(Uint8List pcm16Bytes) {
-    _audioFrames.add(pcm16Bytes);
-    _audioFrameCount++;
-    _totalAudioBytes += pcm16Bytes.length;
-    if (_audioFrameCount % 50 == 1) {
-      print('[SttWorker] Audio frame #$_audioFrameCount, totalBytes=$_totalAudioBytes, frameSize=${pcm16Bytes.length}');
-    }
+      // Convert PCM16 to Float32 and decode
+      final samples = _pcm16ToFloat32(Uint8List.fromList(pcm16));
+      final results = _engine.processAudio(samples);
 
-    // Accumulate Float32 samples for preview decode (independent of _audioFrames)
-    final float32 = _pcm16ToFloat32(pcm16Bytes);
-    _previewChunks.add(float32);
-    _previewSampleCount += float32.length;
-    while (_previewSampleCount > _maxPreviewSamples && _previewChunks.isNotEmpty) {
-      _previewSampleCount -= _previewChunks.removeAt(0).length;
+      final vadActive = _engine.isSpeechDetected;
+
+      // Emit VAD state transition
+      if (vadActive != _lastVadState) {
+        _lastVadState = vadActive;
+        _mainSendPort.send(['vad_state', vadActive]);
+      }
+
+      if (results.isNotEmpty) {
+        // Apply timestamp offset so segments have absolute times
+        for (final r in results) {
+          r.startTime += offsetSeconds;
+          r.endTime += offsetSeconds;
+        }
+
+        for (final r in results) {
+          print(
+              '[SttWorker] Result: "${r.text}" '
+              '(${r.startTime.toStringAsFixed(2)}-${r.endTime.toStringAsFixed(2)}s)');
+        }
+
+        final json = _encodeResults(results);
+        _mainSendPort.send(['chunk_result', chunkId, json, vadActive]);
+      } else {
+        _mainSendPort.send(['chunk_result', chunkId, null, vadActive]);
+      }
+    } catch (e, trace) {
+      print('[SttWorker] handleProcessChunk ERROR: $e');
+      _mainSendPort.send(['error', e.toString(), trace.toString()]);
+      // Still send chunk_result so the queue manager can proceed
+      _mainSendPort.send(['chunk_result', chunkId, null, false]);
     }
   }
 
   void handleFlush() {
     try {
-      // Process remaining buffered audio
-      if (_audioFrames.isNotEmpty) {
-        _processBuffer();
+      // Flush VAD tail to catch speech at the end of recording
+      final flushed = _engine.flush();
+
+      final vadActive = _engine.isSpeechDetected;
+      if (vadActive != _lastVadState) {
+        _lastVadState = vadActive;
+        _mainSendPort.send(['vad_state', vadActive]);
       }
 
-      // Flush VAD tail to catch speech at the end
-      final flushed = _engine.flush();
       if (flushed.isNotEmpty) {
         final json = _encodeResults(flushed);
         _mainSendPort.send(['flushed', json]);
@@ -244,13 +260,6 @@ class _SttWorker {
   }
 
   void handleShutdown() {
-    _flushTimer?.cancel();
-    _flushTimer = null;
-    _previewTimer?.cancel();
-    _previewTimer = null;
-    _previewChunks.clear();
-    _previewSampleCount = 0;
-    _audioFrames.clear();
     _speakerExtractor?.free();
     _speakerManager?.free();
     _speakerExtractor = null;
@@ -259,133 +268,10 @@ class _SttWorker {
     _engine.dispose();
   }
 
-  void _startFlushTimer() {
-    _flushTimer?.cancel();
-    _flushTimer = Timer.periodic(_flushInterval, (_) {
-      _flushBuffer();
-    });
-  }
-
-  void _startPreviewTimer() {
-    _previewTimer?.cancel();
-    _previewTimer = Timer.periodic(_previewInterval, (_) {
-      _checkAndEmitPreview();
-    });
-  }
-
-  /// Check if the VAD detects active speech and emit a preview transcription.
-  /// Runs every [_previewInterval] (1s). Skips if a previous decode is still
-  /// in flight or if there's not enough audio accumulated.
-  void _checkAndEmitPreview() {
-    if (!_engine.isInitialized || _previewInFlight) return;
-
-    if (!_engine.isSpeechDetected) {
-      // Not in speech — clear preview if it was showing
-      if (_previewChunks.isNotEmpty) {
-        _previewChunks.clear();
-        _previewSampleCount = 0;
-        _mainSendPort.send(['preview', null]);
-      }
-      return;
-    }
-
-    // Need at least 0.25s of audio for a meaningful preview
-    if (_previewSampleCount < 4000) return;
-
-    _previewInFlight = true;
-    try {
-      // Concatenate preview chunks into a single Float32List
-      final samples = Float32List(_previewSampleCount);
-      int offset = 0;
-      for (final chunk in _previewChunks) {
-        samples.setRange(offset, offset + chunk.length, chunk);
-        offset += chunk.length;
-      }
-
-      final text = _engine.generatePreview(samples);
-      if (text != null) {
-        final json = jsonEncode({'text': text});
-        _mainSendPort.send(['preview', json]);
-      }
-    } catch (e) {
-      print('[SttWorker] Preview error: $e');
-    } finally {
-      _previewInFlight = false;
-    }
-  }
-
-  int _flushCount = 0;
-
-  void _flushBuffer() {
-    _flushCount++;
-    if (_audioFrames.isEmpty || !_engine.isInitialized) {
-      if (_flushCount % 5 == 1) {
-        print('[SttWorker] _flushBuffer #$_flushCount: empty=${_audioFrames.isEmpty}, initialized=${_engine.isInitialized}');
-      }
-      return;
-    }
-
-    final totalBytes =
-        _audioFrames.fold<int>(0, (sum, frame) => sum + frame.length);
-    if (totalBytes < _minBufferBytes || _isProcessing) {
-      print('[SttWorker] _flushBuffer #$_flushCount: skipped (totalBytes=$totalBytes, minRequired=$_minBufferBytes, isProcessing=$_isProcessing)');
-      return;
-    }
-
-    print('[SttWorker] _flushBuffer #$_flushCount: processing $totalBytes bytes from ${_audioFrames.length} frames');
-    _processBuffer();
-  }
-
-  void _processBuffer() {
-    if (_audioFrames.isEmpty) return;
-    _isProcessing = true;
-
-    try {
-      final frames = List<Uint8List>.from(_audioFrames);
-      _audioFrames.clear();
-
-      // Concatenate PCM16 bytes
-      final totalLength =
-          frames.fold<int>(0, (sum, frame) => sum + frame.length);
-      final pcm16 = Uint8List(totalLength);
-      int offset = 0;
-      for (final frame in frames) {
-        pcm16.setRange(offset, offset + frame.length, frame);
-        offset += frame.length;
-      }
-
-      // Convert PCM16 to Float32 and decode
-      final samples = _pcm16ToFloat32(pcm16);
-      print('[SttWorker] _processBuffer: ${samples.length} float32 samples (${(samples.length / 16000.0).toStringAsFixed(2)}s audio)');
-      final results = _engine.processAudio(samples);
-      print('[SttWorker] _processBuffer: engine returned ${results.length} results');
-
-      if (results.isNotEmpty) {
-        for (final r in results) {
-          print('[SttWorker] Result: "${r.text}" (${r.startTime.toStringAsFixed(2)}-${r.endTime.toStringAsFixed(2)}s)');
-        }
-        final json = _encodeResults(results);
-        _mainSendPort.send(['results', json]);
-
-        // Final segment supersedes preview — clear buffer and notify UI
-        _previewChunks.clear();
-        _previewSampleCount = 0;
-        _mainSendPort.send(['preview', null]);
-      }
-    } catch (e, trace) {
-      print('[SttWorker] _processBuffer ERROR: $e');
-
-      _mainSendPort.send(['error', e.toString(), trace.toString()]);
-    } finally {
-      _isProcessing = false;
-    }
-  }
-
   /// Encode results as JSON segment array.
   ///
-  /// Timestamps come directly from the VAD's cumulative sample index
-  /// (segment.start / sampleRate) — they are already absolute offsets
-  /// from the start of the recording. No additional offset is needed.
+  /// Timestamps are already adjusted by [handleProcessChunk] to be absolute
+  /// offsets from the start of the recording.
   String _encodeResults(List<LocalSttResult> results) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     var index = 0;
