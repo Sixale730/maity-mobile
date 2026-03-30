@@ -30,13 +30,14 @@ class LocalSttEngine {
   sherpa.VoiceActivityDetector? _vad;
   bool _isInitialized = false;
   double _maxSpeechDuration = 30.0;
+  LocalSttModelType _modelType = LocalSttModelType.parakeet;
 
   /// Cumulative samples fed since last segment was drained.
-  /// Used for application-level force-flush: sherpa_onnx's native
-  /// maxSpeechDuration only makes the VAD more aggressive at finding
-  /// pauses (threshold→0.9, minSilence→0.1s) but does NOT hard-split
-  /// continuous speech. This counter + flush() guarantees segment
-  /// emission at bounded intervals.
+  /// Used for application-level force-flush on transducer models (Parakeet).
+  /// Encoder-decoder models (Canary) skip force-flush: they need clean
+  /// speech segments from the VAD and produce "(EMPTY)" on noise.
+  /// The VAD's native maxSpeechDuration already handles long speech
+  /// by adjusting thresholds (→0.9) and minSilence (→0.1s).
   /// Refs: sherpa-onnx PR #1099 (flush API), Silero VAD Issue #518
   int _samplesSinceLastDrain = 0;
 
@@ -55,6 +56,7 @@ class LocalSttEngine {
   }) async {
     if (_isInitialized) return;
     _maxSpeechDuration = maxSpeechDuration;
+    _modelType = modelType;
 
     try {
       sherpa.initBindings();
@@ -170,16 +172,20 @@ class LocalSttEngine {
 
     _processCallCount++;
     _vad!.acceptWaveform(samples);
-    _samplesSinceLastDrain += samples.length;
 
-    // Force-flush: the native VAD's maxSpeechDuration only raises the
-    // detection threshold but won't hard-split continuous speech without
-    // pauses. Calling flush() forces emission of any accumulated speech,
-    // guaranteeing segments at bounded intervals for real-time display.
+    // Force-flush safety net for continuous speech without pauses.
+    // Only count samples while VAD detects active speech — this prevents
+    // flushing during silence/noise (which creates garbage segments that
+    // encoder-decoder models like Canary decode as "(EMPTY)").
+    // Ref: sherpa-onnx flutter-examples/non_streaming_vad_asr uses
+    // flush() only on stop; we add it during speech for bounded latency.
+    if (_vad!.isDetected()) {
+      _samplesSinceLastDrain += samples.length;
+    }
     final maxSamples = (_maxSpeechDuration * sampleRate).toInt();
     if (_samplesSinceLastDrain >= maxSamples) {
       debugPrint('[LocalSttEngine] Force-flushing VAD after '
-          '${(_samplesSinceLastDrain / sampleRate).toStringAsFixed(1)}s');
+          '${(_samplesSinceLastDrain / sampleRate).toStringAsFixed(1)}s of speech');
       _vad!.flush();
       _samplesSinceLastDrain = 0;
     }
