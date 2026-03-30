@@ -358,7 +358,15 @@ Sistema multi-modelo on-device via `sherpa_onnx` Flutter package (FFI, no HTTP/W
 | **Moonshine v2 Base ES** | OfflineMoonshineModelConfig (v2: encoder + mergedDecoder `.ort`) | ~50 MB (tar.bz2 comprimido) | Español optimizado | Auto-detect |
 | **Canary 180M Flash** | OfflineCanaryModelConfig | ~208 MB (archivos individuales) | en/es/de/fr | `srcLang: 'es', tgtLang: 'es'` |
 
-**Arquitectura**: `LocalSttSocket` implementa `IPureSocket` → se conecta al pipeline existente `TranscriptSegmentSocketService` sin modificar logica core. Audio PCM16 → Float32 → Silero VAD → segmentos speech → OfflineRecognizer decode → JSON segments via `onMessage()`. El `LocalSttModelType` enum determina que config de modelo usar en `LocalSttEngine.initialize()`.
+**Arquitectura (chunk-based, log-structured processing)**:
+```
+Mic/BLE → AudioTransport → Pipeline.sendToSocket() → AudioChunkWriter(5s PCM a disco)
+  → ChunkQueueManager(FIFO) → LocalSttSocket.processChunk(file) → Worker(lee archivo)
+  → VAD + Decode → results → UISegmentController(bounded 100 segs) → UI
+```
+Audio se escribe a disco en chunks de 5 segundos (~160KB cada uno). El worker lee cada chunk, pasa por Silero VAD y OfflineRecognizer. La UI solo muestra los ultimos 100 segmentos (archival a disco para scroll-up). Cloud STT (Deepgram) mantiene su pipeline WebSocket sin cambios.
+
+**Modelo recomendado**: Parakeet TDT 0.6B (transducer, tolera force-flush). Canary 180M (encoder-decoder) produce "(EMPTY)" en speech continuo sin pausas — solo recomendado para grabaciones con pausas naturales.
 
 **Fallback automatico** (soporta ambos modelos):
 1. Pre-conexion: si offline + cualquier modelo ready + autoFallback → usa modelo activo (o cualquiera disponible)
@@ -368,7 +376,7 @@ Sistema multi-modelo on-device via `sherpa_onnx` Flutter package (FFI, no HTTP/W
 
 **Restricciones**:
 - Provider forzado a `cpu` (CoreML causa OOM 2.9GB en iPhone)
-- FFI pointers no cruzan isolate boundaries → decode sincrono en main isolate (~200ms para chunks de 3s)
+- FFI work runs in worker isolate via chunk-based processing (main isolate never blocked)
 - RAM warning para devices <6GB (iPhone SE, 12 mini, etc.)
 
 **Storage**:
@@ -384,18 +392,24 @@ Sistema multi-modelo on-device via `sherpa_onnx` Flutter package (FFI, no HTTP/W
 - `activeLocalSttModel` (String, default 'parakeet') — modelo activo seleccionado
 
 **Archivos**:
-- `lib/services/local_stt/local_stt_model_type.dart` - Enum `LocalSttModelType` (parakeet, moonshine)
-- `lib/services/local_stt/local_stt_engine.dart` - sherpa_onnx OfflineRecognizer + VAD, branch config por modelType
-- `lib/services/local_stt/local_stt_socket.dart` - IPureSocket adapter con modelType param
-- `lib/services/local_stt/local_stt_worker.dart` - Worker isolate, recibe modelType en init command
-- `lib/services/local_stt/model_download_service.dart` - Singleton model-aware, per-model progress, archive extraction
+- `lib/services/local_stt/local_stt_model_type.dart` - Enum `LocalSttModelType` (parakeet, moonshine, canary)
+- `lib/services/local_stt/local_stt_engine.dart` - sherpa_onnx OfflineRecognizer + VAD, force-flush por modelo
+- `lib/services/local_stt/local_stt_socket.dart` - IPureSocket adapter, processChunk() para chunk-based
+- `lib/services/local_stt/local_stt_worker.dart` - Worker isolate, handleProcessChunk() lee PCM de disco
+- `lib/services/local_stt/audio_chunk_writer.dart` - Buffer PCM16 + flush a disco cada 5s (atomic write)
+- `lib/services/local_stt/chunk_queue_manager.dart` - Singleton FIFO, state machine per chunk, JSON persistence
+- `lib/services/local_stt/chunk_meta.dart` - Modelo de datos ChunkMeta (pending→processing→completed→deleted)
+- `lib/services/local_stt/model_download_service.dart` - Singleton model-aware, per-model progress
 - `lib/services/local_stt/model_manifest.dart` - Interfaz abstracta `LocalSttModelManifest` + `ParakeetModelManifest`
 - `lib/services/local_stt/moonshine_model_manifest.dart` - `MoonshineModelManifest` (tar.bz2 desde GitHub releases)
+- `lib/services/recording/ui_segment_controller.dart` - Ventana bounded (100 segs) + archival a disco
+- `lib/utils/segment_key_cache.dart` - Cache GlobalKeys O(1) por segment ID
+- `lib/widgets/vad_activity_indicator.dart` - Pulsing dot cuando VAD detecta speech (reemplaza preview)
 - `lib/providers/local_stt_provider.dart` - ChangeNotifier con estado per-model + selectedModel
 - `lib/pages/settings/widgets/local_stt_model_card.dart` - Dropdown modelo + descarga/estado/delete per-model
-- `lib/models/stt_provider.dart` - Enums `localParakeet` + `localMoonshine` con SttProviderConfig
-- `lib/services/sockets/transcription_service.dart` - Factory `createLocalStt()` con modelType param
-- `lib/services/recording/transcription_pipeline.dart` - Fallback logic multi-modelo en `initiateWebsocket()`
+- `lib/models/stt_provider.dart` - Enums `localParakeet` + `localMoonshine` + `localCanary`
+- `lib/services/sockets/transcription_service.dart` - Factory `createLocalStt()` con modelType + maxSpeechDuration
+- `lib/services/recording/transcription_pipeline.dart` - Chunk pipeline integration, VAD notifier, fallback logic
 
 ## Backend
 
