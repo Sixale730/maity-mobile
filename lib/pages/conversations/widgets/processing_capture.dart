@@ -14,6 +14,7 @@ import 'package:omi/providers/connectivity_provider.dart';
 import 'package:omi/providers/device_provider.dart';
 import 'package:omi/providers/onboarding_provider.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
+import 'package:omi/widgets/confirmation_dialog.dart';
 import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/other/temp.dart';
 import 'package:omi/utils/platform/platform_service.dart';
@@ -145,6 +146,67 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
         MixpanelManager().phoneMicRecordingStarted();
       }
     }
+  }
+
+  Future<void> _stopRecording(BuildContext context, CaptureProvider provider) async {
+    if (provider.segments.isEmpty && provider.photos.isEmpty) {
+      await provider.cancelRecording();
+      setState(() => _isPhoneMicPaused = false);
+      return;
+    }
+
+    Future<void> doStop() async {
+      if (provider.recordingState == RecordingState.record) {
+        await provider.stopStreamRecording();
+      } else if (provider.recordingState == RecordingState.deviceRecord) {
+        await provider.stopStreamDeviceRecording();
+      } else if (provider.recordingState == RecordingState.systemAudioRecord) {
+        await provider.stopSystemAudioRecording();
+      } else if (provider.isPaused || _isPhoneMicPaused) {
+        // Paused state: need to identify the source
+        if (provider.havingRecordingDevice) {
+          await provider.stopStreamDeviceRecording();
+        } else if (PlatformService.isDesktop) {
+          await provider.stopSystemAudioRecording();
+        } else {
+          await provider.stopStreamRecording();
+        }
+      }
+      setState(() => _isPhoneMicPaused = false);
+    }
+
+    bool showConfirmation = SharedPreferencesUtil().showSummarizeConfirmation;
+    if (!showConfirmation) {
+      await doStop();
+      return;
+    }
+
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return ConfirmationDialog(
+              title: AppLocalizations.of(context)?.finishedConversation ?? "Finished Conversation?",
+              description: AppLocalizations.of(context)?.stopRecordingConfirm ??
+                  'Are you sure you want to stop recording and summarize the conversation now?',
+              checkboxValue: !showConfirmation,
+              checkboxText: AppLocalizations.of(context)?.dontAskAgain ?? "Don't ask me again",
+              onCheckboxChanged: (value) {
+                setDialogState(() => showConfirmation = !value);
+              },
+              onCancel: () => Navigator.of(dialogContext).pop(),
+              onConfirm: () async {
+                SharedPreferencesUtil().showSummarizeConfirmation = showConfirmation;
+                await doStop();
+                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+              },
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget? _getConversationHeader(BuildContext context) {
@@ -432,15 +494,12 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
                     GestureDetector(
                       onTap: () {
                         HapticFeedback.mediumImpact();
-                        // Track mute/pause action
                         if (!isPaused) {
-                          // User is pausing/muting
                           MixpanelManager().recordingMuteToggled(
                             isMuted: true,
                             recordingType: isDeviceRecording ? 'device' : 'phone_mic',
                           );
                         } else {
-                          // User is resuming
                           MixpanelManager().recordingMuteToggled(
                             isMuted: false,
                             recordingType: isDeviceRecording ? 'device' : 'phone_mic',
@@ -472,6 +531,29 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
                                     : FontAwesomeIcons.pause,
                             color: Colors.white,
                             size: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Stop button
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.heavyImpact();
+                        _stopRecording(context, provider);
+                      },
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFE5D50),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Center(
+                          child: FaIcon(
+                            FontAwesomeIcons.stop,
+                            color: Colors.white,
+                            size: 10,
                           ),
                         ),
                       ),
