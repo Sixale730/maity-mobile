@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:omi/backend/http/api/conversations.dart';
 import 'package:omi/backend/schema/conversation.dart';
+import 'package:omi/widgets/emoji_text.dart';
 import 'package:omi/pages/conversation_detail/conversation_detail_provider.dart';
 import 'package:omi/pages/conversation_detail/page.dart';
 import 'package:omi/providers/conversation_provider.dart';
@@ -152,8 +153,7 @@ class _SyncedConversationListItemState extends State<SyncedConversationListItem>
         children: [
           conversation.discarded
               ? const SizedBox.shrink()
-              : Text(conversation.structured.getEmoji(),
-                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w500)),
+              : EmojiText(conversation.structured.getEmoji(), size: 22),
           conversation.structured.category.isNotEmpty && !conversation.discarded
               ? const SizedBox(width: 12)
               : const SizedBox.shrink(),

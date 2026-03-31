@@ -7,6 +7,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/backend/schema/conversation.dart';
+import 'package:omi/widgets/emoji_text.dart';
 import 'package:omi/pages/conversation_detail/conversation_detail_provider.dart';
 import 'package:omi/pages/conversation_detail/page.dart';
 import 'package:omi/pages/settings/usage_page.dart';
@@ -203,10 +204,7 @@ class _ConversationListItemState extends State<ConversationListItem> {
               alignment: Alignment.center,
               child: widget.conversation.discarded
                   ? const Icon(Icons.delete_outline, color: Colors.grey, size: 20)
-                  : Text(
-                      emoji,
-                      style: const TextStyle(fontSize: 20),
-                    ),
+                  : EmojiText(emoji, size: 20),
             ),
             const SizedBox(width: 12),
             // Title + Time row

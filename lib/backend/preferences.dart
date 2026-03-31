@@ -153,22 +153,6 @@ class SharedPreferencesUtil {
   String get activeLocalSttModel => getString('activeLocalSttModel', defaultValue: 'parakeet');
   set activeLocalSttModel(String value) => saveString('activeLocalSttModel', value);
 
-  // Canary VAD max speech duration in seconds (default 10s).
-  // sherpa-onnx's native mechanism (threshold→0.9, minSilence→0.1s) kicks in
-  // first; force-flush is the hard cap. 5s was too aggressive (mid-word cuts),
-  // 20s too long (Canary can't reliably decode 20s segments). 10s is the
-  // sweet spot: enough context for complete phrases, short enough for Canary.
-  double get localSttCanaryMaxSpeechDuration {
-    final v = getString('localSttCanaryMaxSpeechDuration');
-    if (v.isEmpty) return 10.0;
-    final parsed = double.tryParse(v) ?? 10.0;
-    // Migrate old defaults: 5.0 and 20.0 were both problematic
-    if (parsed == 5.0 || parsed == 20.0) return 10.0;
-    return parsed;
-  }
-  set localSttCanaryMaxSpeechDuration(double value) =>
-      saveString('localSttCanaryMaxSpeechDuration', value.toString());
-
   // Speaker embedding model (for on-device speaker identification)
   bool get speakerModelDownloaded => getBool('speakerModelDownloaded');
   set speakerModelDownloaded(bool value) => saveBool('speakerModelDownloaded', value);
@@ -432,13 +416,42 @@ class SharedPreferencesUtil {
   }
 
   List<ServerMessage> get cachedMessages {
-    final messages = getStringList('cachedMessages');
+    // Load messages for current active session
+    final sessionId = activeChatSessionId;
+    final messages = getStringList('chatSession_$sessionId');
     return messages.map((e) => ServerMessage.fromJson(jsonDecode(e))).toList();
   }
 
   set cachedMessages(List<ServerMessage> value) {
+    final sessionId = activeChatSessionId;
     final List<String> messages = value.map((e) => jsonEncode(e.toJson())).toList();
-    saveStringList('cachedMessages', messages);
+    saveStringList('chatSession_$sessionId', messages);
+  }
+
+  // Chat sessions management
+  String get activeChatSessionId => getString('activeChatSessionId') ?? 'default';
+  set activeChatSessionId(String value) => saveString('activeChatSessionId', value);
+
+  List<Map<String, String>> get chatSessions {
+    final sessions = getStringList('chatSessions');
+    if (sessions.isEmpty) {
+      // Migrate: create default session
+      final defaultSession = [jsonEncode({'id': 'default', 'title': 'Chat principal', 'created_at': DateTime.now().toIso8601String()})];
+      saveStringList('chatSessions', defaultSession);
+      return [{'id': 'default', 'title': 'Chat principal', 'created_at': DateTime.now().toIso8601String()}];
+    }
+    return sessions.map((e) => Map<String, String>.from(jsonDecode(e))).toList();
+  }
+
+  set chatSessions(List<Map<String, String>> value) {
+    saveStringList('chatSessions', value.map((e) => jsonEncode(e)).toList());
+  }
+
+  void deleteChatSession(String sessionId) {
+    remove('chatSession_$sessionId');
+    final sessions = chatSessions;
+    sessions.removeWhere((s) => s['id'] == sessionId);
+    chatSessions = sessions;
   }
 
   List<Person> get cachedPeople {

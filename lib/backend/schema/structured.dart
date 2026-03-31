@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+
 class Structured {
   int id = 0;
 
@@ -19,12 +20,20 @@ class Structured {
   Structured(this.title, this.overview, {this.id = 0, this.emoji = '', this.category = 'other', this.discarded = false});
 
   getEmoji() {
+    if (emoji.isEmpty) return ['🧠', '😎', '🧑‍💻', '🚀'][Random().nextInt(4)];
+    // Check if the emoji needs UTF-8 re-decoding (double-encoded from server)
+    // A properly encoded emoji will have codeUnits > 127 (multi-byte)
+    // A double-encoded emoji will have all codeUnits <= 255 (Latin-1 range)
     try {
-      if (emoji.isNotEmpty) return utf8.decode(emoji.toString().codeUnits);
-      return ['🧠', '😎', '🧑‍💻', '🚀'][Random().nextInt(4)];
+      final units = emoji.codeUnits;
+      final needsDecode = units.every((u) => u <= 255) && units.any((u) => u > 127);
+      if (needsDecode) {
+        final decoded = utf8.decode(units, allowMalformed: true);
+        if (!decoded.contains('\uFFFD') && decoded.isNotEmpty) return decoded;
+      }
+      return emoji;
     } catch (e) {
-      // return ['🧠', '😎', '🧑‍💻', '🚀'][Random().nextInt(4)];
-      return emoji; // should return random?
+      return emoji;
     }
   }
 
@@ -32,7 +41,7 @@ class Structured {
     var structured = Structured(
       json['title'],
       json['overview'],
-      emoji: json['emoji'],
+      emoji: json['emoji'] ?? '',
       category: json['category'],
       discarded: json['discarded'] ?? false,
     );

@@ -69,21 +69,33 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
-/// Auto-configura Local STT (Parakeet) como proveedor por defecto para nuevas instalaciones.
-/// Usuarios existentes con STT ya configurado no se ven afectados.
-Future<void> _autoConfigureLocalStt() async {
+/// Auto-configura Deepgram como proveedor de STT y sincroniza el API key desde env
+Future<void> _autoConfigureDeepgram() async {
   final prefs = SharedPreferencesUtil();
   final currentConfig = prefs.customSttConfig;
+  final deepgramKey = Env.deepgramApiKey;
+
+  if (deepgramKey == null || deepgramKey.isEmpty) {
+    debugPrint('[Maity] WARNING: DEEPGRAM_API_KEY no configurado. Transcripcion no funcionara.');
+    return;
+  }
 
   if (!currentConfig.isEnabled) {
-    // Fresh install — set local Parakeet as default STT
+    // No hay STT configurado - crear config de Deepgram
     final config = CustomSttConfig(
-      provider: SttProvider.localParakeet,
+      provider: SttProvider.deepgramLive,
+      apiKey: deepgramKey,
+      language: 'es-419', // Español Latinoamericano
+      model: 'nova-3',
     );
     await prefs.saveCustomSttConfig(config);
-    debugPrint('[Maity] Local STT (Parakeet) auto-configurado como STT por defecto');
-  } else {
-    debugPrint('[Maity] STT ya configurado (${currentConfig.provider}), sin cambios');
+    debugPrint('[Maity] Deepgram auto-configurado como STT por defecto');
+  } else if (currentConfig.provider == SttProvider.deepgramLive &&
+             currentConfig.apiKey != deepgramKey) {
+    // Deepgram ya configurado pero con key diferente - actualizar
+    final updatedConfig = currentConfig.copyWith(apiKey: deepgramKey);
+    await prefs.saveCustomSttConfig(updatedConfig);
+    debugPrint('[Maity] Deepgram API key actualizado desde env');
   }
 }
 
@@ -129,8 +141,8 @@ Future _init() async {
 
   await SharedPreferencesUtil.init();
 
-  // Auto-configurar Local STT como proveedor por defecto
-  await _autoConfigureLocalStt();
+  // Auto-configurar Deepgram como STT por defecto
+  await _autoConfigureDeepgram();
 
   bool isAuth = (await AuthService.instance.getIdToken()) != null;
   if (isAuth) PlatformManager.instance.mixpanel.identify();
@@ -286,6 +298,27 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           ),
         ),
       );
+    } else if (action == 'pause_recording') {
+      final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+      if (captureProvider.recordingState == RecordingState.record) {
+        captureProvider.stopStreamRecording();
+      }
+    } else if (action == 'resume_recording') {
+      final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+      if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
+        captureProvider.streamRecording();
+      }
+    } else if (action == 'stop_recording') {
+      final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+      if (captureProvider.recordingState == RecordingState.record) {
+        captureProvider.stopStreamRecording();
+      } else if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
+        captureProvider.streamRecording().then((_) {
+          Future.delayed(const Duration(milliseconds: 300), () {
+            captureProvider.stopStreamRecording();
+          });
+        });
+      }
     }
   }
 

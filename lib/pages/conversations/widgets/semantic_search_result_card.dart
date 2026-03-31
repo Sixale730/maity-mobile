@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:omi/services/omi_supabase_service.dart';
+import 'package:omi/widgets/emoji_text.dart';
 import 'package:omi/ui/atoms/similarity_badge.dart';
 import 'package:omi/utils/other/temp.dart';
 import 'package:omi/utils/other/time_utils.dart';
@@ -107,14 +108,7 @@ class SemanticSearchResultCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (result.emoji.isNotEmpty)
-                  Text(
-                    result.emoji,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  EmojiText(result.emoji, size: 22),
                 if (result.category.isNotEmpty) const SizedBox(width: 8),
                 if (result.category.isNotEmpty)
                   Flexible(

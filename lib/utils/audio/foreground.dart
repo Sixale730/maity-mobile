@@ -16,7 +16,10 @@ const _notificationMessages = {
     'waiting': 'No device connected. Tap to record.',
     'device_connected': 'Device connected - Ready to record',
     'phone_mic': 'Phone mic active - Ready to record',
-    'recording': 'Recording...',
+    'recording': '🔴 Recording...',
+    'paused': '⏸️ Recording paused',
+    'stopped': 'Recording stopped',
+    'cancelled': 'Recording cancelled',
     'processing': 'Processing audio...',
     'ready': 'Transcription service ready',
   },
@@ -24,7 +27,10 @@ const _notificationMessages = {
     'waiting': 'Sin dispositivo conectado. Toca para grabar.',
     'device_connected': 'Dispositivo conectado - Listo para grabar',
     'phone_mic': 'Micrófono activo - Listo para grabar',
-    'recording': 'Grabando...',
+    'recording': '🔴 Grabando...',
+    'paused': '⏸️ Grabación en pausa',
+    'stopped': 'Grabación detenida',
+    'cancelled': 'Grabación cancelada',
     'processing': 'Procesando audio...',
     'ready': 'Servicio de transcripción listo',
   }
@@ -35,10 +41,18 @@ const _buttonTexts = {
   'en': {
     'connect_device': 'Connect',
     'use_phone_mic': 'Use Mic',
+    'pause': '⏸ Pause',
+    'resume': '▶ Resume',
+    'stop': '⏹ Stop',
+    'record': '🎙 Record',
   },
   'es': {
     'connect_device': 'Conectar',
     'use_phone_mic': 'Usar Mic',
+    'pause': '⏸ Pausar',
+    'resume': '▶ Reanudar',
+    'stop': '⏹ Detener',
+    'record': '🎙 Grabar',
   }
 };
 
@@ -111,14 +125,26 @@ class _ForegroundFirstTaskHandler extends TaskHandler {
 
     debugPrint('Updating notification: state=$state, lang=$lang, text=$notificationText');
 
-    // Only show action buttons when in 'waiting' state (no device connected, not recording)
-    // Use empty list to clear buttons for other states (null doesn't remove existing buttons)
     List<NotificationButton> buttons = [];
+    final btnTexts = _buttonTexts[lang] ?? _buttonTexts['en']!;
     if (state == 'waiting') {
-      final btnTexts = _buttonTexts[lang] ?? _buttonTexts['en']!;
       buttons = [
         NotificationButton(id: 'connect_device', text: btnTexts['connect_device']!),
         NotificationButton(id: 'use_phone_mic', text: btnTexts['use_phone_mic']!),
+      ];
+    } else if (state == 'recording') {
+      buttons = [
+        NotificationButton(id: 'pause_recording', text: btnTexts['pause']!),
+        NotificationButton(id: 'stop_recording', text: btnTexts['stop']!),
+      ];
+    } else if (state == 'paused') {
+      buttons = [
+        NotificationButton(id: 'resume_recording', text: btnTexts['resume']!),
+        NotificationButton(id: 'stop_recording', text: btnTexts['stop']!),
+      ];
+    } else if (state == 'stopped' || state == 'cancelled') {
+      buttons = [
+        NotificationButton(id: 'use_phone_mic', text: btnTexts['record']!),
       ];
     }
 

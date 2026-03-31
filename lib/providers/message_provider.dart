@@ -36,6 +36,10 @@ class MessageProvider extends ChangeNotifier {
   List<ServerMessage> messages = [];
   bool _isNextMessageFromVoice = false;
 
+  // Chat sessions
+  String get activeSessionId => SharedPreferencesUtil().activeChatSessionId;
+  List<Map<String, String>> get chatSessions => SharedPreferencesUtil().chatSessions;
+
   bool isLoadingMessages = false;
   bool hasCachedMessages = false;
   bool isClearingChat = false;
@@ -307,19 +311,78 @@ class MessageProvider extends ChangeNotifier {
   }
 
   Future refreshMessages({bool dropdownSelected = false}) async {
-    setLoadingMessages(true);
-    if (SharedPreferencesUtil().cachedMessages.isNotEmpty) {
+    // Load from local cache for active session
+    final cached = SharedPreferencesUtil().cachedMessages;
+    if (cached.isNotEmpty) {
+      messages = cached;
       setHasCachedMessages(true);
-    }
-    messages = await getMessagesFromServer(dropdownSelected: dropdownSelected);
-    if (messages.isEmpty) {
-      messages = SharedPreferencesUtil().cachedMessages;
     } else {
-      SharedPreferencesUtil().cachedMessages = messages;
-      setHasCachedMessages(true);
+      messages = [];
+      setHasCachedMessages(false);
     }
     setLoadingMessages(false);
     notifyListeners();
+  }
+
+  void createNewSession() {
+    // Save current messages before switching
+    SharedPreferencesUtil().cachedMessages = messages;
+
+    final sessionId = DateTime.now().millisecondsSinceEpoch.toString();
+    final sessions = SharedPreferencesUtil().chatSessions;
+    sessions.insert(0, {
+      'id': sessionId,
+      'title': 'Nuevo chat',
+      'created_at': DateTime.now().toIso8601String(),
+    });
+    SharedPreferencesUtil().chatSessions = sessions;
+    SharedPreferencesUtil().activeChatSessionId = sessionId;
+
+    messages = [];
+    hasCachedMessages = false;
+    notifyListeners();
+  }
+
+  void switchToSession(String sessionId) {
+    // Save current messages
+    SharedPreferencesUtil().cachedMessages = messages;
+
+    // Switch
+    SharedPreferencesUtil().activeChatSessionId = sessionId;
+
+    // Load new session messages
+    messages = SharedPreferencesUtil().cachedMessages;
+    hasCachedMessages = messages.isNotEmpty;
+    notifyListeners();
+  }
+
+  void deleteSession(String sessionId) {
+    final prefs = SharedPreferencesUtil();
+    prefs.deleteChatSession(sessionId);
+
+    // If we deleted the active session, switch to first available or create default
+    if (activeSessionId == sessionId) {
+      final sessions = prefs.chatSessions;
+      if (sessions.isEmpty) {
+        prefs.chatSessions = [{'id': 'default', 'title': 'Chat principal', 'created_at': DateTime.now().toIso8601String()}];
+        prefs.activeChatSessionId = 'default';
+      } else {
+        prefs.activeChatSessionId = sessions.first['id']!;
+      }
+      messages = prefs.cachedMessages;
+      hasCachedMessages = messages.isNotEmpty;
+    }
+    notifyListeners();
+  }
+
+  void updateSessionTitle(String sessionId, String title) {
+    final sessions = SharedPreferencesUtil().chatSessions;
+    final idx = sessions.indexWhere((s) => s['id'] == sessionId);
+    if (idx >= 0) {
+      sessions[idx]['title'] = title;
+      SharedPreferencesUtil().chatSessions = sessions;
+      notifyListeners();
+    }
   }
 
   void setMessagesFromCache() {
@@ -363,8 +426,9 @@ class MessageProvider extends ChangeNotifier {
       messages = mes;
     } catch (e) {
       debugPrint('[MessageProvider] Error clearing chat: $e');
-      messages = [];  // Clear locally even if server fails
+      messages = [];
     } finally {
+      SharedPreferencesUtil().cachedMessages = messages;
       setClearingChat(false);
       notifyListeners();
     }
@@ -392,6 +456,12 @@ class MessageProvider extends ChangeNotifier {
       return;
     }
     messages.insert(0, message);
+    SharedPreferencesUtil().cachedMessages = messages;
+    // Auto-title session with first user message
+    if (messages.where((m) => m.sender == MessageSender.human).length == 1) {
+      final title = messageText.length > 30 ? '${messageText.substring(0, 30)}...' : messageText;
+      updateSessionTitle(activeSessionId, title);
+    }
     notifyListeners();
   }
 
@@ -400,6 +470,7 @@ class MessageProvider extends ChangeNotifier {
       return;
     }
     messages.insert(0, message);
+    SharedPreferencesUtil().cachedMessages = messages;
     notifyListeners();
   }
 
@@ -584,6 +655,8 @@ class MessageProvider extends ChangeNotifier {
       timer?.cancel();
       flushBuffer();
       setShowTypingIndicator(false);
+      // Persist messages to local cache after AI response completes
+      SharedPreferencesUtil().cachedMessages = messages;
     }
   }
 

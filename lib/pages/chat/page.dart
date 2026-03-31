@@ -128,7 +128,7 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
           key: scaffoldKey,
           backgroundColor: Theme.of(context).colorScheme.primary,
           appBar: _buildAppBar(context, provider),
-          // endDrawer: _buildSessionsDrawer(context),
+          endDrawer: _buildSessionsDrawer(context, provider),
           body: GestureDetector(
             onTap: () {
               // Hide keyboard when tapping outside textfield
@@ -657,6 +657,116 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
     );
   }
 
+  Widget _buildSessionsDrawer(BuildContext context, MessageProvider provider) {
+    final sessions = provider.chatSessions;
+    final activeId = provider.activeSessionId;
+
+    return Drawer(
+      backgroundColor: const Color(0xFF1A1A1F),
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Historial de chats',
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                  IconButton(
+                    icon: const Icon(FontAwesomeIcons.penToSquare, color: Color(0xFF485DF4), size: 18),
+                    onPressed: () {
+                      provider.createNewSession();
+                      Navigator.of(context).pop();
+                      scrollToBottom();
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: Color(0xFF35343B), height: 1),
+            // Sessions list
+            Expanded(
+              child: sessions.isEmpty
+                  ? const Center(child: Text('Sin conversaciones', style: TextStyle(color: Colors.white38)))
+                  : ListView.builder(
+                      itemCount: sessions.length,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemBuilder: (context, index) {
+                        final session = sessions[index];
+                        final isActive = session['id'] == activeId;
+                        return Dismissible(
+                          key: Key(session['id']!),
+                          direction: sessions.length > 1
+                              ? DismissDirection.endToStart
+                              : DismissDirection.none,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            color: Colors.red.withValues(alpha: 0.3),
+                            child: const Icon(Icons.delete, color: Colors.red),
+                          ),
+                          onDismissed: (_) => provider.deleteSession(session['id']!),
+                          child: ListTile(
+                            dense: true,
+                            selected: isActive,
+                            selectedTileColor: const Color(0xFF485DF4).withValues(alpha: 0.15),
+                            leading: Icon(
+                              FontAwesomeIcons.solidMessage,
+                              size: 16,
+                              color: isActive ? const Color(0xFF485DF4) : Colors.white38,
+                            ),
+                            title: Text(
+                              session['title'] ?? 'Chat',
+                              style: TextStyle(
+                                color: isActive ? Colors.white : Colors.white70,
+                                fontSize: 14,
+                                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: session['created_at'] != null
+                                ? Text(
+                                    _formatSessionDate(session['created_at']!),
+                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                                  )
+                                : null,
+                            onTap: () {
+                              if (!isActive) {
+                                provider.switchToSession(session['id']!);
+                              }
+                              Navigator.of(context).pop();
+                              scrollToBottom();
+                            },
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatSessionDate(String isoDate) {
+    try {
+      final date = DateTime.parse(isoDate).toLocal();
+      final now = DateTime.now();
+      if (date.year == now.year && date.month == now.month && date.day == now.day) {
+        return 'Hoy ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+      }
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (_) {
+      return '';
+    }
+  }
+
   PreferredSizeWidget _buildAppBar(BuildContext context, MessageProvider provider) {
     return AppBar(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -668,6 +778,25 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
       title: _buildAppSelection(context),
       centerTitle: true,
       actions: [
+        // New chat button
+        IconButton(
+          icon: const Icon(FontAwesomeIcons.penToSquare, color: Colors.white, size: 18),
+          tooltip: 'Nuevo chat',
+          onPressed: () {
+            HapticFeedback.mediumImpact();
+            provider.createNewSession();
+            scrollToBottom();
+          },
+        ),
+        // Chat history drawer button
+        IconButton(
+          icon: const Icon(FontAwesomeIcons.clockRotateLeft, color: Colors.white, size: 18),
+          tooltip: 'Historial de chats',
+          onPressed: () {
+            HapticFeedback.mediumImpact();
+            scaffoldKey.currentState?.openEndDrawer();
+          },
+        ),
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert, color: Colors.white),
           color: const Color(0xFF2A2A2F),
