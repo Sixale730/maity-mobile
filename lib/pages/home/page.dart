@@ -44,6 +44,7 @@ import 'package:omi/utils/platform/platform_manager.dart';
 import 'package:omi/utils/enums.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
 import 'package:omi/services/local_stt/speaker_model_download_service.dart';
+import 'package:omi/services/connectivity_service.dart';
 
 import 'package:omi/pages/conversation_capturing/page.dart';
 import 'package:omi/services/transcript_recovery_service.dart';
@@ -1292,7 +1293,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     );
   }
 
-  void _triggerAutoModelDownload() async {
+  Future<void> _triggerAutoModelDownload() async {
     final provider = Provider.of<LocalSttProvider>(context, listen: false);
 
     // Skip if Parakeet is already ready or currently downloading
@@ -1301,61 +1302,71 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       // Even if Parakeet is ready, check speaker model
       if (provider.isReadyFor(LocalSttModelType.parakeet) &&
           !SpeakerModelDownloadService.instance.isModelReady) {
-        _triggerSpeakerModelDownload();
+        await _triggerSpeakerModelDownload();
       }
       return;
     }
 
-    if (!mounted) return;
+    // Wait for connectivity before attempting download
+    await ConnectivityService().initialized;
+    if (!mounted || !ConnectivityService().isConnected) {
+      debugPrint('[HomePage] No internet, skipping auto-download');
+      return;
+    }
 
     // Start Parakeet download
     debugPrint('[HomePage] Auto-downloading Parakeet model...');
-    provider.startDownload(LocalSttModelType.parakeet);
 
-    final l10n = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n?.autoDownloadStarted ?? 'Descargando modelo de voz...'),
-        duration: const Duration(seconds: 4),
-        action: SnackBarAction(
-          label: l10n?.viewDownload ?? 'Ver descarga',
-          textColor: Colors.white,
-          onPressed: () => Navigator.push(context, MaterialPageRoute(
-            builder: (_) => const TranscriptionSettingsPage(),
-          )),
+    if (mounted) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n?.autoDownloadStarted ?? 'Descargando modelo de voz...'),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: l10n?.viewDownload ?? 'Ver descarga',
+            textColor: Colors.white,
+            onPressed: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const TranscriptionSettingsPage(),
+            )),
+          ),
         ),
-      ),
-    );
-
-    // Listen for Parakeet completion, then trigger speaker model download
-    final progressNotifier = ModelDownloadService.instance.progressFor(LocalSttModelType.parakeet);
-    void onParakeetProgress() {
-      final state = progressNotifier.value.state;
-      if (state == DownloadState.ready) {
-        progressNotifier.removeListener(onParakeetProgress);
-        if (mounted) {
-          _triggerSpeakerModelDownload();
-        }
-      }
+      );
     }
-    progressNotifier.addListener(onParakeetProgress);
+
+    try {
+      await provider.startDownload(LocalSttModelType.parakeet);
+      debugPrint('[HomePage] Parakeet download completed');
+      if (mounted) {
+        await _triggerSpeakerModelDownload();
+      }
+    } catch (e) {
+      debugPrint('[HomePage] Parakeet auto-download failed: $e');
+    }
   }
 
-  void _triggerSpeakerModelDownload() async {
+  Future<void> _triggerSpeakerModelDownload() async {
     final speakerService = SpeakerModelDownloadService.instance;
     if (speakerService.isModelReady) return;
 
     debugPrint('[HomePage] Auto-downloading Speaker model...');
-    speakerService.downloadModel();
 
-    if (!mounted) return;
-    final l10n = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n?.speakerModelDownloading ?? 'Descargando modelo de identificacion de voz...'),
-        duration: const Duration(seconds: 4),
-      ),
-    );
+    if (mounted) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n?.speakerModelDownloading ?? 'Descargando modelo de identificacion de voz...'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+
+    try {
+      await speakerService.downloadModel();
+      debugPrint('[HomePage] Speaker model download completed');
+    } catch (e) {
+      debugPrint('[HomePage] Speaker auto-download failed: $e');
+    }
   }
 
   @override
