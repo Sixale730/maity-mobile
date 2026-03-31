@@ -58,6 +58,8 @@ void workerEntryPoint(SendPort mainSendPort) {
         final chunkId = message[2] as String;
         final offsetSeconds = message[3] as double;
         worker.handleProcessChunk(filePath, chunkId, offsetSeconds);
+      case 'send_audio':
+        worker.handleSendAudio(message[1] as Uint8List);
       case 'flush':
         worker.handleFlush();
       case 'shutdown':
@@ -230,6 +232,30 @@ class _SttWorker {
       _mainSendPort.send(['error', e.toString(), trace.toString()]);
       // Still send chunk_result so the queue manager can proceed
       _mainSendPort.send(['chunk_result', chunkId, null, false]);
+    }
+  }
+
+  /// Process streaming PCM16 audio (used by speech profile enrollment).
+  /// Unlike handleProcessChunk which reads from disk, this receives bytes
+  /// directly via SendPort for low-latency live transcription.
+  void handleSendAudio(Uint8List pcm16Bytes) {
+    try {
+      final samples = _pcm16ToFloat32(pcm16Bytes);
+      final results = _engine.processAudio(samples);
+
+      final vadActive = _engine.isSpeechDetected;
+      if (vadActive != _lastVadState) {
+        _lastVadState = vadActive;
+        _mainSendPort.send(['vad_state', vadActive]);
+      }
+
+      if (results.isNotEmpty) {
+        final json = _encodeResults(results);
+        _mainSendPort.send(['chunk_result', 'stream', json, vadActive]);
+      }
+    } catch (e, trace) {
+      print('[SttWorker] handleSendAudio ERROR: $e');
+      _mainSendPort.send(['error', e.toString(), trace.toString()]);
     }
   }
 

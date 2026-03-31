@@ -9,8 +9,6 @@ import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/home/page.dart';
 import 'package:omi/pages/settings/language_selection_dialog.dart';
-import 'package:omi/pages/settings/people.dart';
-import 'package:omi/pages/speech_profile/user_speech_samples.dart';
 import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/home_provider.dart';
 import 'package:omi/providers/speech_profile_provider.dart';
@@ -686,7 +684,7 @@ class _PlayEnrollmentAudioButtonState extends State<_PlayEnrollmentAudioButton> 
       ),
       label: Text(
         _isPlaying
-            ? (AppLocalizations.of(context)?.stop ?? 'Stop')
+            ? 'Stop'
             : (AppLocalizations.of(context)?.listenToMySpeechProfile ?? 'Listen to my speech profile'),
         style: const TextStyle(color: Colors.white, fontSize: 16),
       ),

@@ -147,9 +147,16 @@ class LocalSttSocket implements IPureSocket {
 
   @override
   void send(dynamic message) {
-    // In chunk-based mode, audio is written to disk by AudioChunkWriter.
-    // This method is intentionally a no-op for local STT.
-    // The IPureSocket interface is preserved for compatibility.
+    // For chunk-based recording (TranscriptionPipeline), audio is routed to
+    // AudioChunkWriter before reaching this method — so send() is never called.
+    // For speech profile enrollment (SpeechProfileProvider), audio is sent
+    // directly here. Forward to the worker isolate for streaming decode.
+    if (_workerSendPort == null) return;
+    if (message is Uint8List) {
+      _workerSendPort!.send(['send_audio', message]);
+    } else if (message is List<int>) {
+      _workerSendPort!.send(['send_audio', Uint8List.fromList(message)]);
+    }
   }
 
   /// Flush remaining VAD tail. Waits for worker to finish processing.

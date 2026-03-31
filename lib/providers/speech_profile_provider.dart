@@ -271,9 +271,10 @@ class SpeechProfileProvider extends ChangeNotifier
       updateLoadingText('Personalizing your experience...');
       SharedPreferencesUtil().hasSpeakerProfile = true;
 
-      // Extract and save local speaker embedding (for on-device speaker ID)
+      // Extract and save local speaker embedding (for on-device speaker ID).
+      // Use data.item2 (frames copy) because createWavFile() clears audioStorage.
       try {
-        await _extractAndSaveLocalEmbedding();
+        await _extractAndSaveLocalEmbedding(enrollmentFrames: data.item2);
       } catch (e) {
         debugPrint('[SpeechProfile] Local embedding extraction failed: $e');
         // Non-fatal: cloud enrollment already succeeded
@@ -293,7 +294,7 @@ class SpeechProfileProvider extends ChangeNotifier
 
   /// Extract a local speaker embedding from enrollment audio using the
   /// on-device CAM++ model and save it to disk for use during local STT.
-  Future<void> _extractAndSaveLocalEmbedding() async {
+  Future<void> _extractAndSaveLocalEmbedding({List<List<int>>? enrollmentFrames}) async {
     final speakerModelPath = SharedPreferencesUtil().speakerModelPath;
     if (speakerModelPath.isEmpty) {
       debugPrint(
@@ -301,7 +302,7 @@ class SpeechProfileProvider extends ChangeNotifier
       return;
     }
 
-    final allFrames = audioStorage.frames;
+    final allFrames = enrollmentFrames ?? audioStorage.frames;
     if (allFrames.isEmpty) {
       debugPrint(
           '[SpeechProfile] No audio frames available for local embedding');
