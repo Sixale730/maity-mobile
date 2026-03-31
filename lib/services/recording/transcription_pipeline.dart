@@ -117,6 +117,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   List<TranscriptSegment> get displaySegments =>
       _segmentController?.displaySegments ?? segments;
 
+  /// Whether the chunk pipeline has audio data that hasn't been decoded yet.
+  /// Used to prevent premature cancel when back is pressed before first segment.
+  bool get hasUnprocessedAudio =>
+      _chunkWriter != null && _chunkWriter!.chunksWritten > 0;
+
   /// Whether archived pages are available for scroll-up pagination.
   bool get hasArchivedPages => _segmentController?.hasArchivedPages ?? false;
 

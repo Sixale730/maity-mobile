@@ -173,6 +173,9 @@ class CaptureProvider extends ChangeNotifier
   bool get hasTranscripts => _pipeline.hasTranscripts;
   set hasTranscripts(bool value) => _pipeline.setHasTranscripts(value);
 
+  /// Whether the chunk pipeline has audio that hasn't produced segments yet.
+  bool get hasUnprocessedAudio => _pipeline.hasUnprocessedAudio;
+
   /// VAD activity indicator from local STT worker (replaces preview text).
   ValueNotifier<bool> get vadSpeechActive => _pipeline.vadSpeechActive;
 

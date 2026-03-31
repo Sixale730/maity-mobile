@@ -25,6 +25,8 @@ class AudioChunkWriter {
   final List<Uint8List> _buffer = [];
   int _bufferBytes = 0;
   int _sequenceNumber = 0;
+  /// Number of chunks written to disk so far.
+  int get chunksWritten => _sequenceNumber;
   Timer? _flushTimer;
   bool _isFlushing = false;
   bool _disposed = false;
