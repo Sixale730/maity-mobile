@@ -51,6 +51,7 @@ import 'package:omi/services/transcript_recovery_service.dart';
 import 'package:omi/widgets/recovery_dialog.dart';
 
 import 'widgets/battery_info_widget.dart';
+import 'package:omi/widgets/confirmation_dialog.dart';
 
 class HomePageWrapper extends StatefulWidget {
   final String? navigateToRoute;
@@ -844,10 +845,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     if (recordingState == RecordingState.processing) {
       // Processing in background, do nothing
       return;
+    } else if (recordingState == RecordingState.deviceRecord ||
+        (recordingState == RecordingState.pause && captureProvider.havingRecordingDevice)) {
+      // OMI device is recording (active or muted) → show compact control modal
+      if (context.mounted) _showOmiRecordingModal(context);
     } else if (recordingState == RecordingState.record ||
-        recordingState == RecordingState.deviceRecord ||
         recordingState == RecordingState.systemAudioRecord) {
-      // Re-open the live transcript page (stop is done from within it)
+      // Phone mic / system audio → re-open the live transcript page
       if (context.mounted) {
         var topConvoId = (captureProvider.conversationProvider?.conversations ?? []).isNotEmpty
             ? captureProvider.conversationProvider!.conversations.first.id
@@ -903,6 +907,244 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         );
       }
     }
+  }
+
+  void _showOmiRecordingModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Consumer<CaptureProvider>(
+          builder: (_, captureProvider, __) {
+            final deviceName = captureProvider.recordingDevice?.name ?? 'OMI';
+            final isPaused = captureProvider.isPaused ||
+                captureProvider.recordingState == RecordingState.pause;
+            final l10n = AppLocalizations.of(context);
+
+            Future<void> doStop() async {
+              if (captureProvider.segments.isEmpty && captureProvider.photos.isEmpty) {
+                await captureProvider.cancelRecording();
+                return;
+              }
+              await captureProvider.stopStreamDeviceRecording();
+            }
+
+            Future<void> handleStop() async {
+              bool showConfirmation = SharedPreferencesUtil().showSummarizeConfirmation;
+              if (!showConfirmation) {
+                if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                await doStop();
+                return;
+              }
+              if (!sheetContext.mounted) return;
+              showDialog(
+                context: sheetContext,
+                builder: (dialogContext) => StatefulBuilder(
+                  builder: (dialogContext, setDialogState) => ConfirmationDialog(
+                    title: l10n?.finishedConversation ?? '¿Conversación terminada?',
+                    description: l10n?.stopRecordingConfirm ??
+                        '¿Estás seguro de que quieres detener la grabación y resumir la conversación ahora?',
+                    cancelText: l10n?.cancel ?? 'Cancelar',
+                    checkboxValue: !showConfirmation,
+                    checkboxText: l10n?.dontAskAgain ?? 'No preguntar de nuevo',
+                    onCheckboxChanged: (value) => setDialogState(() => showConfirmation = !value),
+                    onCancel: () => Navigator.of(dialogContext).pop(),
+                    onConfirm: () async {
+                      SharedPreferencesUtil().showSummarizeConfirmation = showConfirmation;
+                      Navigator.of(dialogContext).pop();
+                      if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                      await doStop();
+                    },
+                  ),
+                ),
+              );
+            }
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF1F1F25),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade700,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      const Icon(Icons.record_voice_over, color: Colors.white, size: 22),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n?.omiRecording ?? 'Grabando con OMI',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              deviceName,
+                              style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF35343B),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isPaused
+                                  ? (l10n?.muted ?? 'Silenciado')
+                                  : (l10n?.listening ?? 'Escuchando'),
+                              style: const TextStyle(
+                                color: Color(0xFFC9CBCF),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: isPaused ? const Color(0xFFFF9500) : const Color(0xFFFE5D50),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(color: Color(0xFF35343B), height: 1),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            HapticFeedback.mediumImpact();
+                            if (isPaused) {
+                              await captureProvider.resumeDeviceRecording();
+                            } else {
+                              await captureProvider.pauseDeviceRecording();
+                            }
+                          },
+                          child: Container(
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: isPaused ? const Color(0xFFFE5D50) : const Color(0xFF35343B),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                FaIcon(
+                                  isPaused
+                                      ? FontAwesomeIcons.microphoneSlash
+                                      : FontAwesomeIcons.microphone,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  isPaused
+                                      ? (l10n?.resumeRecording ?? 'Reanudar')
+                                      : (l10n?.pauseRecording ?? 'Silenciar'),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.heavyImpact();
+                          handleStop();
+                        },
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFE5D50),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Center(
+                            child: FaIcon(FontAwesomeIcons.stop, color: Colors.white, size: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      final cap = Provider.of<CaptureProvider>(context, listen: false);
+                      final topConvoId = (cap.conversationProvider?.conversations ?? []).isNotEmpty
+                          ? cap.conversationProvider!.conversations.first.id
+                          : null;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ConversationCapturingPage(topConversationId: topConvoId),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(color: const Color(0xFF35343B)),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Center(
+                        child: Text(
+                          l10n?.viewTranscription ?? 'Ver transcripción',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {

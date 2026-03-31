@@ -799,5 +799,7 @@
   "autoDownloadStarted": "Descargando modelo de voz (solo WiFi)...",
   "modelNotReady": "El modelo de voz se esta descargando. Espera a que termine.",
   "viewDownload": "Ver descarga",
-  "speakerModelDownloading": "Descargando modelo de identificacion de voz..."
+  "speakerModelDownloading": "Descargando modelo de identificacion de voz...",
+  "omiRecording": "Grabando con OMI",
+  "viewTranscription": "Ver transcripción"
 }
