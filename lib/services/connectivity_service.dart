@@ -36,6 +36,12 @@ class ConnectivityService {
 
   bool _isConnected = false; // Start pessimistic until first check confirms
   bool get isConnected => _isConnected;
+
+  /// Check if device is currently connected via WiFi.
+  Future<bool> get isOnWifi async {
+    final result = await _connectivity.checkConnectivity();
+    return result.contains(ConnectivityResult.wifi);
+  }
   bool _isInitialized = false;
 
   final Completer<void> _initCompleter = Completer<void>();

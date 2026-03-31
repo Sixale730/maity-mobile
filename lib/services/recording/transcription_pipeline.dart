@@ -348,6 +348,18 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       }
     }
 
+    // Enforce: non-admins cannot use cloud STT providers
+    if (effectiveConfig != null && !_isLocalSttProvider(effectiveConfig.provider)) {
+      final role = SharedPreferencesUtil().getString('cachedUserRole');
+      if (role != 'admin') {
+        debugPrint('[TranscriptionPipeline] Non-admin tried cloud STT (${effectiveConfig.provider}), forcing local');
+        final fallbackProvider = _bestLocalSttProvider();
+        effectiveConfig = fallbackProvider != null
+            ? CustomSttConfig(provider: fallbackProvider)
+            : null;
+      }
+    }
+
     if (effectiveConfig != null &&
         effectiveConfig.provider != SttProvider.localParakeet &&
         effectiveConfig.provider != SttProvider.localMoonshine &&

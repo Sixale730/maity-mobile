@@ -69,33 +69,21 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
-/// Auto-configura Deepgram como proveedor de STT y sincroniza el API key desde env
-Future<void> _autoConfigureDeepgram() async {
+/// Auto-configura Local STT (Parakeet) como proveedor por defecto para nuevas instalaciones.
+/// Usuarios existentes con STT ya configurado no se ven afectados.
+Future<void> _autoConfigureLocalStt() async {
   final prefs = SharedPreferencesUtil();
   final currentConfig = prefs.customSttConfig;
-  final deepgramKey = Env.deepgramApiKey;
-
-  if (deepgramKey == null || deepgramKey.isEmpty) {
-    debugPrint('[Maity] WARNING: DEEPGRAM_API_KEY no configurado. Transcripcion no funcionara.');
-    return;
-  }
 
   if (!currentConfig.isEnabled) {
-    // No hay STT configurado - crear config de Deepgram
+    // Fresh install — set local Parakeet as default STT
     final config = CustomSttConfig(
-      provider: SttProvider.deepgramLive,
-      apiKey: deepgramKey,
-      language: 'es-419', // Español Latinoamericano
-      model: 'nova-3',
+      provider: SttProvider.localParakeet,
     );
     await prefs.saveCustomSttConfig(config);
-    debugPrint('[Maity] Deepgram auto-configurado como STT por defecto');
-  } else if (currentConfig.provider == SttProvider.deepgramLive &&
-             currentConfig.apiKey != deepgramKey) {
-    // Deepgram ya configurado pero con key diferente - actualizar
-    final updatedConfig = currentConfig.copyWith(apiKey: deepgramKey);
-    await prefs.saveCustomSttConfig(updatedConfig);
-    debugPrint('[Maity] Deepgram API key actualizado desde env');
+    debugPrint('[Maity] Local STT (Parakeet) auto-configurado como STT por defecto');
+  } else {
+    debugPrint('[Maity] STT ya configurado (${currentConfig.provider}), sin cambios');
   }
 }
 
@@ -141,8 +129,8 @@ Future _init() async {
 
   await SharedPreferencesUtil.init();
 
-  // Auto-configurar Deepgram como STT por defecto
-  await _autoConfigureDeepgram();
+  // Auto-configurar Local STT como proveedor por defecto
+  await _autoConfigureLocalStt();
 
   bool isAuth = (await AuthService.instance.getIdToken()) != null;
   if (isAuth) PlatformManager.instance.mixpanel.identify();

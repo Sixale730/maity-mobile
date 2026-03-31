@@ -1068,5 +1068,9 @@
   "pauseRecording": "Pause Recording",
   "resumeRecording": "Resume Recording",
   "initialisingRecorder": "Initialising Recorder",
-  "initialisingSystemAudio": "Initialising System Audio"
+  "initialisingSystemAudio": "Initialising System Audio",
+  "autoDownloadStarted": "Downloading voice model (WiFi only)...",
+  "modelNotReady": "Voice model is downloading. Please wait.",
+  "viewDownload": "View download",
+  "speakerModelDownloading": "Downloading speaker identification model..."
 }

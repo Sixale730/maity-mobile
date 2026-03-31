@@ -29,9 +29,12 @@ import 'package:omi/providers/conversation_provider.dart';
 import 'package:omi/providers/device_provider.dart';
 import 'package:omi/providers/daily_report_provider.dart';
 import 'package:omi/providers/home_provider.dart';
+import 'package:omi/providers/local_stt_provider.dart';
 import 'package:omi/providers/message_provider.dart';
 import 'package:omi/services/notifications.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
+import 'package:omi/pages/settings/transcription_settings_page.dart';
+import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/utils/audio/foreground.dart';
 import 'package:omi/utils/platform/platform_service.dart';
 import 'package:omi/widgets/upgrade_alert.dart';
@@ -39,6 +42,9 @@ import 'package:provider/provider.dart';
 import 'package:upgrader/upgrader.dart';
 import 'package:omi/utils/platform/platform_manager.dart';
 import 'package:omi/utils/enums.dart';
+import 'package:omi/services/local_stt/model_download_service.dart';
+import 'package:omi/services/local_stt/speaker_model_download_service.dart';
+import 'package:omi/services/connectivity_service.dart';
 
 import 'package:omi/pages/conversation_capturing/page.dart';
 import 'package:omi/services/transcript_recovery_service.dart';
@@ -255,8 +261,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         await Provider.of<HomeProvider>(context, listen: false).setUserPeople();
       }
       if (mounted) {
-        await Provider.of<CaptureProvider>(context, listen: false)
-            .streamDeviceRecording(device: Provider.of<DeviceProvider>(context, listen: false).connectedDevice);
+        final localSttProv = Provider.of<LocalSttProvider>(context, listen: false);
+        if (localSttProv.isReadyFor(LocalSttModelType.parakeet)) {
+          await Provider.of<CaptureProvider>(context, listen: false)
+              .streamDeviceRecording(device: Provider.of<DeviceProvider>(context, listen: false).connectedDevice);
+        }
+      }
+
+      if (mounted) {
+        _triggerAutoModelDownload();
       }
 
       // Navigate
@@ -850,6 +863,29 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       // Already initializing, do nothing
       debugPrint('initialising, have to wait');
     } else {
+      // Check if local STT model is ready
+      final localSttProvider = Provider.of<LocalSttProvider>(context, listen: false);
+      final isModelReady = localSttProvider.isReadyFor(LocalSttModelType.parakeet);
+
+      if (!isModelReady) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('El modelo de voz se esta descargando. Espera a que termine.'),
+              action: SnackBarAction(
+                label: 'Ver descarga',
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => const TranscriptionSettingsPage(),
+                  ));
+                },
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
       // Start recording directly without dialog
       await captureProvider.streamRecording();
       MixpanelManager().phoneMicRecordingStarted();
@@ -1011,6 +1047,65 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       ),
       elevation: 0,
       centerTitle: true,
+    );
+  }
+
+  void _triggerAutoModelDownload() async {
+    final provider = Provider.of<LocalSttProvider>(context, listen: false);
+
+    // Skip if Parakeet is already ready or currently downloading
+    if (provider.isReadyFor(LocalSttModelType.parakeet) ||
+        provider.stateFor(LocalSttModelType.parakeet) == DownloadState.downloading) {
+      // Even if Parakeet is ready, check speaker model
+      if (provider.isReadyFor(LocalSttModelType.parakeet) &&
+          !SpeakerModelDownloadService.instance.isModelReady) {
+        _triggerSpeakerModelDownload();
+      }
+      return;
+    }
+
+    // Only auto-download on WiFi
+    final onWifi = await ConnectivityService().isOnWifi;
+    if (!mounted || !onWifi) return;
+
+    // Start Parakeet download
+    provider.startDownload(LocalSttModelType.parakeet);
+
+    final l10n = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n?.autoDownloadStarted ?? 'Downloading voice model (WiFi only)...'),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+
+    // Listen for Parakeet completion, then trigger speaker model download
+    final progressNotifier = ModelDownloadService.instance.progressFor(LocalSttModelType.parakeet);
+    void onParakeetProgress() {
+      final state = progressNotifier.value.state;
+      if (state == DownloadState.ready) {
+        progressNotifier.removeListener(onParakeetProgress);
+        if (mounted) {
+          _triggerSpeakerModelDownload();
+        }
+      }
+    }
+    progressNotifier.addListener(onParakeetProgress);
+  }
+
+  void _triggerSpeakerModelDownload() async {
+    final speakerService = SpeakerModelDownloadService.instance;
+    if (speakerService.isModelReady) return;
+
+    speakerService.downloadModel();
+
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n?.speakerModelDownloading ?? 'Downloading speaker identification model...'),
+        duration: const Duration(seconds: 4),
+      ),
     );
   }
 

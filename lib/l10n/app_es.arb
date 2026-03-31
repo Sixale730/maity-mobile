@@ -795,5 +795,9 @@
   "pauseRecording": "Pausar Grabación",
   "resumeRecording": "Reanudar Grabación",
   "initialisingRecorder": "Iniciando Grabadora",
-  "initialisingSystemAudio": "Iniciando Audio del Sistema"
+  "initialisingSystemAudio": "Iniciando Audio del Sistema",
+  "autoDownloadStarted": "Descargando modelo de voz (solo WiFi)...",
+  "modelNotReady": "El modelo de voz se esta descargando. Espera a que termine.",
+  "viewDownload": "Ver descarga",
+  "speakerModelDownloading": "Descargando modelo de identificacion de voz..."
 }
