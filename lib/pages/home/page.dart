@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+import 'package:permission_handler/permission_handler.dart';
 import 'package:omi/backend/http/api/users.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/app.dart';
@@ -255,6 +256,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
 
       if (!PlatformService.isDesktop) {
         await ForegroundUtil.requestNotificationPermission();
+        // Android 15+ requires RECORD_AUDIO before starting FG service with microphone type
+        await Permission.microphone.request();
         await ForegroundUtil.initializeForegroundService();
         await ForegroundUtil.startForegroundTask();
       }
