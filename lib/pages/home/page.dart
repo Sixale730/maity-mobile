@@ -44,7 +44,6 @@ import 'package:omi/utils/platform/platform_manager.dart';
 import 'package:omi/utils/enums.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
 import 'package:omi/services/local_stt/speaker_model_download_service.dart';
-import 'package:omi/services/connectivity_service.dart';
 
 import 'package:omi/pages/conversation_capturing/page.dart';
 import 'package:omi/services/transcript_recovery_service.dart';
@@ -878,6 +877,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
               content: const Text('El modelo de voz se esta descargando. Espera a que termine.'),
               action: SnackBarAction(
                 label: 'Ver descarga',
+                textColor: Colors.white,
                 onPressed: () {
                   Navigator.push(context, MaterialPageRoute(
                     builder: (_) => const TranscriptionSettingsPage(),
@@ -890,12 +890,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         return;
       }
 
-      // Start recording directly without dialog
+      // Start recording — awaits until mic is actually capturing audio.
       await captureProvider.streamRecording();
       MixpanelManager().phoneMicRecordingStarted();
 
-      // Navigate to conversation capturing page
-      if (context.mounted) {
+      // Navigate only if recording is truly active (not timed-out/errored).
+      if (context.mounted && captureProvider.recordingState == RecordingState.record) {
         var topConvoId = (captureProvider.conversationProvider?.conversations ?? []).isNotEmpty
             ? captureProvider.conversationProvider!.conversations.first.id
             : null;
@@ -1306,18 +1306,24 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       return;
     }
 
-    // Only auto-download on WiFi
-    final onWifi = await ConnectivityService().isOnWifi;
-    if (!mounted || !onWifi) return;
+    if (!mounted) return;
 
     // Start Parakeet download
+    debugPrint('[HomePage] Auto-downloading Parakeet model...');
     provider.startDownload(LocalSttModelType.parakeet);
 
     final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(l10n?.autoDownloadStarted ?? 'Downloading voice model (WiFi only)...'),
+        content: Text(l10n?.autoDownloadStarted ?? 'Descargando modelo de voz...'),
         duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: l10n?.viewDownload ?? 'Ver descarga',
+          textColor: Colors.white,
+          onPressed: () => Navigator.push(context, MaterialPageRoute(
+            builder: (_) => const TranscriptionSettingsPage(),
+          )),
+        ),
       ),
     );
 
@@ -1339,13 +1345,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     final speakerService = SpeakerModelDownloadService.instance;
     if (speakerService.isModelReady) return;
 
+    debugPrint('[HomePage] Auto-downloading Speaker model...');
     speakerService.downloadModel();
 
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(l10n?.speakerModelDownloading ?? 'Downloading speaker identification model...'),
+        content: Text(l10n?.speakerModelDownloading ?? 'Descargando modelo de identificacion de voz...'),
         duration: const Duration(seconds: 4),
       ),
     );
