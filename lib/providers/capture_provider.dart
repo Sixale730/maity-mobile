@@ -94,6 +94,12 @@ class CaptureProvider extends ChangeNotifier
   /// Single-flight guard: all reconnect paths coalesce onto one in-flight Future.
   Completer<void>? _reconnectInflight;
 
+  /// Completed when recording state transitions to [RecordingState.record],
+  /// meaning the mic is actually capturing audio.  Created in
+  /// [streamRecording] so the caller can await until the session is truly live
+  /// before navigating to the capturing page.
+  Completer<void>? _recordingReadyCompleter;
+
   final ValueNotifier<String?> autoSaveMessage = ValueNotifier(null);
 
   CaptureLogService get _captureLog => CaptureLogService.instance;
@@ -235,6 +241,16 @@ class CaptureProvider extends ChangeNotifier
     notifyListeners();
     _lifecycle.broadcastRecordingState();
     _lifecycle.updateForegroundNotification(_getNotificationState());
+
+    // Signal callers awaiting recording readiness.
+    final c = _recordingReadyCompleter;
+    if (c != null && !c.isCompleted) {
+      if (state == RecordingState.record) {
+        c.complete();
+      } else if (state == RecordingState.stop || state == RecordingState.error) {
+        c.completeError(StateError('Recording failed to start: $state'));
+      }
+    }
   }
 
   void updateRecordingDevice(BtDevice? device) {
@@ -258,6 +274,7 @@ class CaptureProvider extends ChangeNotifier
 
   Future<void> streamRecording() async {
     updateRecordingState(RecordingState.initialising);
+    _recordingReadyCompleter = Completer<void>();
 
     final userId = SupabaseAuthService.instance.maityUserId;
     final sessionId = const Uuid().v4();
@@ -313,6 +330,30 @@ class CaptureProvider extends ChangeNotifier
       await _resetStateVariables();
       updateRecordingState(RecordingState.stop);
       _captureLog.endSession();
+      _recordingReadyCompleter = null;
+      return;
+    }
+
+    // Wait until the mic callback fires RecordingState.record.
+    // The background service notifies asynchronously, so streamRecording()
+    // must not return while the state is still 'initialising'.
+    try {
+      await _recordingReadyCompleter!.future
+          .timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      debugPrint('[CaptureProvider] Timed out waiting for mic to start');
+      _captureLog.log('recording', 'mic_start_timeout', severity: 'error');
+      _pipeline.stopHealthMonitor();
+      _audioTransport.stopPhoneMicRecording();
+      _audioTransport.setSocketSender(null);
+      _pipeline.stopSocket('mic start timeout');
+      await _resetStateVariables();
+      updateRecordingState(RecordingState.stop);
+      _captureLog.endSession();
+    } catch (_) {
+      // Completer was completed with error (stop/error state) — already handled.
+    } finally {
+      _recordingReadyCompleter = null;
     }
   }
 

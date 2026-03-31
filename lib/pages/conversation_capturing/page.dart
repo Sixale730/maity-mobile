@@ -180,7 +180,9 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
                 state == RecordingState.deviceRecord ||
                 state == RecordingState.systemAudioRecord ||
                 state == RecordingState.initialising;
-            if (isActiveRecording && provider.segments.isEmpty && provider.photos.isEmpty && !provider.hasUnprocessedAudio) {
+            // Active recording: just go back — session continues in background
+            // and the user can re-open via FAB.
+            if (!isActiveRecording && provider.segments.isEmpty && provider.photos.isEmpty && !provider.hasUnprocessedAudio) {
               await provider.cancelRecording();
             }
             if (context.mounted) Navigator.of(context).pop();
