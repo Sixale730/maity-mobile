@@ -31,6 +31,7 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
   final scaffoldKey = GlobalKey<ScaffoldState>();
   TabController? _controller;
   late bool showSummarizeConfirmation;
+  bool _deferTranscript = false;
 
   @override
   void initState() {
@@ -49,11 +50,16 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Pop back to conversations list when app goes to background during recording.
-    // This prevents the heavy TranscriptWidget rebuild jank on resume — the
-    // conversations list page is lightweight and handles resume without freeze.
+    // Deferred rendering: on pause, mark transcript for deferral so the first
+    // frame after resume renders a lightweight placeholder instead of the heavy
+    // TranscriptWidget. The real list loads on the second frame via postFrameCallback.
     if (state == AppLifecycleState.paused && mounted) {
-      Navigator.of(context).pop();
+      setState(() => _deferTranscript = true);
+    }
+    if (state == AppLifecycleState.resumed && mounted && _deferTranscript) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _deferTranscript = false);
+      });
     }
   }
 
@@ -223,7 +229,14 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
                         // Transcripts, photos
-                        provider.segments.isEmpty && provider.photos.isEmpty
+                        _deferTranscript
+                            ? const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.only(top: 50.0),
+                                  child: CircularProgressIndicator(color: Colors.white),
+                                ),
+                              )
+                            : provider.segments.isEmpty && provider.photos.isEmpty
                             ? Center(
                                 child: Padding(
                                   padding: const EdgeInsets.only(top: 50.0),

@@ -260,7 +260,8 @@ class AppLifecycleManager with WidgetsBindingObserver {
       // Check if socket needs reconnection
       if (delegate.socketState != null && delegate.socketState != SocketServiceState.connected) {
         _isReconnectingSocket = true;
-        delegate.notifyListenersCallback(); // UI shows "reconnecting" state immediately
+        // Defer UI notification to post-frame to avoid heavy rebuild during resume
+        _schedulePostFrameNotify(delegate);
 
         // Fire-and-forget: does NOT block the event loop
         _reconnectSocketAfterResumeAsync();
@@ -349,8 +350,16 @@ class AppLifecycleManager with WidgetsBindingObserver {
       _isReconnectingSocket = false;
       delegate.startHealthMonitor(); // Start health monitor AFTER reconnection
       delegate.resetSilenceTimer();
-      delegate.notifyListenersCallback();
+      _schedulePostFrameNotify(delegate);
     }
+  }
+
+  /// Schedule a notifyListeners call for after the current frame renders.
+  /// Prevents heavy widget rebuilds from blocking the first frame on resume.
+  void _schedulePostFrameNotify(AppLifecycleDelegate delegate) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      delegate.notifyListenersCallback();
+    });
   }
 
   /// Updates the foreground service notification with the current state.

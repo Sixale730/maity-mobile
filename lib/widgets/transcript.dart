@@ -454,7 +454,8 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
     final isTagging = widget.taggingSegmentIds.contains(data.id);
     final bool isUser = data.isUser;
 
-    return Container(
+    return RepaintBoundary(
+      child: Container(
         key: segmentIdx >= 0 && segmentIdx < widget.segments.length ? _segmentKeyCache.getOrCreate(widget.segments[segmentIdx].id) : null,
         child: GestureDetector(
           onTap: () {
@@ -702,7 +703,8 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
               ],
             ),
           ),
-        ));
+        )),
+    );
   }
 
   Widget _buildTranslationNotice() {
