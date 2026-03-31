@@ -1057,5 +1057,16 @@
   "localSttAutoFallbackDesc": "Automatically use local transcription when there is no internet connection",
   "localSttDownloadFirst": "Download the model first",
   "localSttModelSize": "Model size: ~640 MB",
-  "localSttDescription": "NVIDIA Parakeet - Fast offline transcription supporting 25 languages"
+  "localSttDescription": "NVIDIA Parakeet - Fast offline transcription supporting 25 languages",
+  "inProgress": "In progress...",
+  "waitingForDevice": "Waiting for device...",
+  "waitingForNetwork": "Waiting for network",
+  "saySomething": "Say something...",
+  "noContentToDisplay": "No content to display",
+  "noSummary": "No summary",
+  "continueRecording": "Continue Recording",
+  "pauseRecording": "Pause Recording",
+  "resumeRecording": "Resume Recording",
+  "initialisingRecorder": "Initialising Recorder",
+  "initialisingSystemAudio": "Initialising System Audio"
 }

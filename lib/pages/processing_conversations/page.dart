@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:omi/backend/schema/conversation.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/capture/widgets/widgets.dart';
 import 'package:omi/pages/conversation_detail/page.dart';
 import 'package:omi/providers/conversation_provider.dart';
@@ -74,7 +75,7 @@ class _ProcessingConversationPageState extends State<ProcessingConversationPage>
                 const SizedBox(width: 4),
                 Text(hasPhotos ? "📸" : "🎙️"),
                 const SizedBox(width: 4),
-                const Expanded(child: Text("In progress")),
+                Expanded(child: Text(AppLocalizations.of(context)?.inProgress ?? "En progreso...")),
               ],
             ),
           ),
@@ -112,10 +113,10 @@ class _ProcessingConversationPageState extends State<ProcessingConversationPage>
                             getTranscriptWidget(
                                 false, widget.conversation.transcriptSegments, widget.conversation.photos, null),
                           if (!hasPhotos && widget.conversation.transcriptSegments.isEmpty)
-                            const Column(
+                            Column(
                               children: [
-                                SizedBox(height: 80),
-                                Center(child: Text("No content to display")),
+                                const SizedBox(height: 80),
+                                Center(child: Text(AppLocalizations.of(context)?.noContentToDisplay ?? "Sin contenido para mostrar")),
                               ],
                             ),
                           const SizedBox(height: 32),
@@ -129,7 +130,9 @@ class _ProcessingConversationPageState extends State<ProcessingConversationPage>
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 16.0),
                               child: Text(
-                                widget.conversation.transcriptSegments.isEmpty ? "No summary" : "Processing",
+                                widget.conversation.transcriptSegments.isEmpty
+                                    ? (AppLocalizations.of(context)?.noSummary ?? "Sin resumen")
+                                    : (AppLocalizations.of(context)?.processingStatus ?? "Procesando"),
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(fontSize: 16),
                               ),
