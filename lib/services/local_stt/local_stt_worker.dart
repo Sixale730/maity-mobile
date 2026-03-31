@@ -81,8 +81,10 @@ class _SttWorker {
 
   static const String _userName = 'user';
 
-  /// Cosine similarity threshold for CAM++ speaker verification.
-  static const double _speakerThreshold = 0.45;
+  /// Cosine similarity threshold for CAM++ 512-dim speaker verification.
+  /// Higher = more strict. 0.6 rejects most non-user voices while accepting
+  /// the enrolled user across different recording conditions.
+  static const double _speakerThreshold = 0.6;
 
   /// Minimum samples for reliable embedding (~0.5s at 16 kHz).
   static const int _minSamplesForSpeakerId = 8000;
@@ -169,7 +171,8 @@ class _SttWorker {
 
       if (!_speakerExtractor!.isReady(stream)) {
         stream.free();
-        return true; // Not enough audio, default to user
+        print('[SttWorker] Speaker ID: not enough audio, defaulting to user');
+        return true;
       }
 
       final embedding = _speakerExtractor!.compute(stream);
@@ -182,9 +185,13 @@ class _SttWorker {
         threshold: _speakerThreshold,
       );
 
-      return name == _userName;
+      final isUser = name == _userName;
+      print('[SttWorker] Speaker ID: match="${name.isEmpty ? "(none)" : name}" '
+          'threshold=$_speakerThreshold → ${isUser ? "USER" : "OTHER"}');
+      return isUser;
     } catch (e) {
-      return true; // On error, default to user
+      print('[SttWorker] Speaker ID error: $e');
+      return true;
     }
   }
 

@@ -558,11 +558,7 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                   ],
                                 ),
                             const SizedBox(height: 24),
-                            SharedPreferencesUtil().getString('speechProfileAudioPath').isNotEmpty
-                                ? _PlayEnrollmentAudioButton(
-                                    audioPath: SharedPreferencesUtil().getString('speechProfileAudioPath'),
-                                  )
-                                : const SizedBox(),
+                            const _ProfileStatusPanel(),
                           ],
                         )
                       : provider.profileCompleted
@@ -619,6 +615,63 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
           ),
         );
       }),
+    );
+  }
+}
+
+/// Panel showing voice profile status (cloud + local) and playback button.
+class _ProfileStatusPanel extends StatelessWidget {
+  const _ProfileStatusPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final hasCloud = SharedPreferencesUtil().hasSpeakerProfile;
+    final localPath = SharedPreferencesUtil().localSpeakerEmbeddingPath;
+    final hasLocal = localPath.isNotEmpty && File(localPath).existsSync();
+    final audioPath = SharedPreferencesUtil().getString('speechProfileAudioPath');
+    final hasAudio = audioPath.isNotEmpty;
+
+    if (!hasCloud && !hasLocal && !hasAudio) return const SizedBox();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.white24),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _statusRow('Cloud voice profile', hasCloud),
+          const SizedBox(height: 6),
+          _statusRow('Local speaker ID', hasLocal),
+          if (hasAudio) ...[
+            const SizedBox(height: 10),
+            _PlayEnrollmentAudioButton(audioPath: audioPath),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static Widget _statusRow(String label, bool active) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          active ? Icons.check_circle : Icons.cancel_outlined,
+          color: active ? Colors.greenAccent : Colors.grey,
+          size: 16,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: active ? Colors.white70 : Colors.grey,
+            fontSize: 13,
+          ),
+        ),
+      ],
     );
   }
 }
