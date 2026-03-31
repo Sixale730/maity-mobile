@@ -298,6 +298,27 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           ),
         ),
       );
+    } else if (action == 'pause_recording') {
+      final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+      if (captureProvider.recordingState == RecordingState.record) {
+        captureProvider.stopStreamRecording();
+      }
+    } else if (action == 'resume_recording') {
+      final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+      if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
+        captureProvider.streamRecording();
+      }
+    } else if (action == 'stop_recording') {
+      final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+      if (captureProvider.recordingState == RecordingState.record) {
+        captureProvider.stopStreamRecording();
+      } else if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
+        captureProvider.streamRecording().then((_) {
+          Future.delayed(const Duration(milliseconds: 300), () {
+            captureProvider.stopStreamRecording();
+          });
+        });
+      }
     }
   }
 

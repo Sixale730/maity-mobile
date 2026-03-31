@@ -8,9 +8,12 @@ import 'package:omi/pages/conversations/widgets/search_result_header_widget.dart
 import 'package:omi/pages/conversations/widgets/category_filter_bar.dart';
 import 'package:omi/pages/conversations/widgets/search_widget.dart';
 import 'package:omi/pages/conversations/widgets/semantic_search_result_card.dart';
+import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/conversation_provider.dart';
 import 'package:omi/services/app_review_service.dart';
 import 'package:omi/services/local_conversations_service.dart';
+import 'package:omi/utils/analytics/mixpanel.dart';
+import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/other/temp.dart';
 import 'package:omi/utils/ui_guidelines.dart';
 import 'package:provider/provider.dart';
@@ -162,6 +165,53 @@ class _ConversationsPageState extends State<ConversationsPage> with AutomaticKee
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
             const SliverToBoxAdapter(child: CategoryFilterBar()),
             const SliverToBoxAdapter(child: SizedBox(height: 0)), //below search widget
+            // New conversation button
+            SliverToBoxAdapter(
+              child: Consumer<CaptureProvider>(
+                builder: (context, captureProvider, _) {
+                  final isRecording = captureProvider.recordingState == RecordingState.record ||
+                      captureProvider.recordingState == RecordingState.initialising ||
+                      captureProvider.recordingState == RecordingState.pause ||
+                      captureProvider.recordingState == RecordingState.processing;
+                  if (isRecording) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                    child: GestureDetector(
+                      onTap: () async {
+                        HapticFeedback.mediumImpact();
+                        MixpanelManager().phoneMicRecordingStarted();
+                        await captureProvider.streamRecording();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF485DF4).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF485DF4).withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.mic, color: Color(0xFF485DF4), size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'Nueva conversación',
+                              style: TextStyle(
+                                color: Color(0xFF485DF4),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
             const SliverToBoxAdapter(child: SearchResultHeaderWidget()),
             getProcessingConversationsWidget(convoProvider.processingConversations),
             // Show semantic search results when active

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/schema/conversation.dart';
+import 'package:omi/widgets/emoji_text.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/conversation_detail/page.dart';
 import 'package:omi/providers/conversation_provider.dart';
@@ -68,7 +69,7 @@ class RecentConversationsPreview extends StatelessWidget {
   Widget _buildConversationItem(BuildContext context, ServerConversation convo) {
     final title = convo.structured.title.isNotEmpty ? convo.structured.title : 'Untitled';
     final overview = convo.structured.overview;
-    final emoji = convo.structured.emoji;
+    final emoji = convo.structured.getEmoji();
     final timeAgo = dateTimeFormat('HH:mm', convo.createdAt);
 
     return GestureDetector(
@@ -91,7 +92,7 @@ class RecentConversationsPreview extends StatelessWidget {
         child: Row(
           children: [
             if (emoji.isNotEmpty) ...[
-              Text(emoji, style: const TextStyle(fontSize: 24)),
+              EmojiText(emoji, size: 24),
               const SizedBox(width: 12),
             ],
             Expanded(

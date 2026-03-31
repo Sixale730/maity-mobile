@@ -416,13 +416,42 @@ class SharedPreferencesUtil {
   }
 
   List<ServerMessage> get cachedMessages {
-    final messages = getStringList('cachedMessages');
+    // Load messages for current active session
+    final sessionId = activeChatSessionId;
+    final messages = getStringList('chatSession_$sessionId');
     return messages.map((e) => ServerMessage.fromJson(jsonDecode(e))).toList();
   }
 
   set cachedMessages(List<ServerMessage> value) {
+    final sessionId = activeChatSessionId;
     final List<String> messages = value.map((e) => jsonEncode(e.toJson())).toList();
-    saveStringList('cachedMessages', messages);
+    saveStringList('chatSession_$sessionId', messages);
+  }
+
+  // Chat sessions management
+  String get activeChatSessionId => getString('activeChatSessionId') ?? 'default';
+  set activeChatSessionId(String value) => saveString('activeChatSessionId', value);
+
+  List<Map<String, String>> get chatSessions {
+    final sessions = getStringList('chatSessions');
+    if (sessions.isEmpty) {
+      // Migrate: create default session
+      final defaultSession = [jsonEncode({'id': 'default', 'title': 'Chat principal', 'created_at': DateTime.now().toIso8601String()})];
+      saveStringList('chatSessions', defaultSession);
+      return [{'id': 'default', 'title': 'Chat principal', 'created_at': DateTime.now().toIso8601String()}];
+    }
+    return sessions.map((e) => Map<String, String>.from(jsonDecode(e))).toList();
+  }
+
+  set chatSessions(List<Map<String, String>> value) {
+    saveStringList('chatSessions', value.map((e) => jsonEncode(e)).toList());
+  }
+
+  void deleteChatSession(String sessionId) {
+    remove('chatSession_$sessionId');
+    final sessions = chatSessions;
+    sessions.removeWhere((s) => s['id'] == sessionId);
+    chatSessions = sessions;
   }
 
   List<Person> get cachedPeople {

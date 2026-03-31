@@ -12,8 +12,7 @@ Future<List<ServerMessage>> getMessagesServer({
   String? appId,
   bool dropdownSelected = false,
 }) async {
-  // Disabled: api.omi.me doesn't accept our Firebase tokens
-  debugPrint('[API Disabled] getMessagesServer skipped');
+  // No GET endpoint exists for messages - history lives in local cache only
   return [];
 }
 

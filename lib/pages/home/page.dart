@@ -732,21 +732,116 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                     ),
                                   ),
                                 ),
-                                // Central FAB Record Button
-                                Positioned(
-                                  left: MediaQuery.of(context).size.width / 2 - 32,
-                                  bottom: 40,
-                                  child: Selector<CaptureProvider, ({RecordingState state, bool reconnecting})>(
-                                    selector: (_, p) => (state: p.recordingState, reconnecting: p.isReconnectingSocket),
-                                    builder: (context, value, child) {
-                                      bool isRecording = value.state == RecordingState.record;
-                                      bool isInitializing = value.state == RecordingState.initialising;
-                                      bool isProcessing = value.state == RecordingState.processing;
-                                      bool isReconnecting = value.reconnecting;
-                                      return GestureDetector(
+                                // Central FAB Record Button / Recording Controls
+                                Selector<CaptureProvider, ({RecordingState state, bool reconnecting, bool isPaused})>(
+                                  selector: (_, p) => (state: p.recordingState, reconnecting: p.isReconnectingSocket, isPaused: p.isPaused),
+                                  builder: (context, value, child) {
+                                    bool isRecording = value.state == RecordingState.record;
+                                    bool isInitializing = value.state == RecordingState.initialising;
+                                    bool isProcessing = value.state == RecordingState.processing;
+                                    bool isReconnecting = value.reconnecting;
+                                    bool isActiveRecording = isRecording || isInitializing || value.state == RecordingState.pause;
+
+                                    // When recording: show control bar with Pause, Stop, Cancel
+                                    if (isActiveRecording || isProcessing) {
+                                      return Positioned(
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 30,
+                                        child: Center(
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF1F1F25),
+                                              borderRadius: BorderRadius.circular(40),
+                                              border: Border.all(color: const Color(0xFF35343B), width: 1),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black.withValues(alpha: 0.4),
+                                                  blurRadius: 12,
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ],
+                                            ),
+                                            child: isProcessing
+                                                ? const Padding(
+                                                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                                    child: Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        SizedBox(
+                                                          width: 16,
+                                                          height: 16,
+                                                          child: CircularProgressIndicator(
+                                                            color: Colors.white70,
+                                                            strokeWidth: 2,
+                                                          ),
+                                                        ),
+                                                        SizedBox(width: 10),
+                                                        Text(
+                                                          'Procesando...',
+                                                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  )
+                                                : Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      // Cancel button
+                                                      _buildRecordingControlButton(
+                                                        icon: FontAwesomeIcons.xmark,
+                                                        label: 'Cancelar',
+                                                        color: const Color(0xFF35343B),
+                                                        iconColor: Colors.white70,
+                                                        onTap: () {
+                                                          HapticFeedback.mediumImpact();
+                                                          _handleCancelRecording(context);
+                                                        },
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      // Pause/Resume button
+                                                      _buildRecordingControlButton(
+                                                        icon: value.isPaused ? FontAwesomeIcons.play : FontAwesomeIcons.pause,
+                                                        label: value.isPaused ? 'Reanudar' : 'Pausar',
+                                                        color: value.isPaused ? const Color(0xFF485DF4) : const Color(0xFFFF9500),
+                                                        iconColor: Colors.white,
+                                                        onTap: isInitializing
+                                                            ? null
+                                                            : () {
+                                                                HapticFeedback.mediumImpact();
+                                                                _handlePauseResumeRecording(context);
+                                                              },
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      // Stop button
+                                                      _buildRecordingControlButton(
+                                                        icon: FontAwesomeIcons.stop,
+                                                        label: 'Detener',
+                                                        color: const Color(0xFFFE3B30),
+                                                        iconColor: Colors.white,
+                                                        onTap: isInitializing
+                                                            ? null
+                                                            : () {
+                                                                HapticFeedback.heavyImpact();
+                                                                _handleStopRecording(context);
+                                                              },
+                                                      ),
+                                                    ],
+                                                  ),
+                                          ),
+                                        ),
+                                      );
+                                    }
+
+                                    // Default: show FAB mic button
+                                    return Positioned(
+                                      left: MediaQuery.of(context).size.width / 2 - 32,
+                                      bottom: 40,
+                                      child: GestureDetector(
                                         onTap: () async {
                                           HapticFeedback.heavyImpact();
-                                          if (isInitializing || isReconnecting || isProcessing) return;
+                                          if (isReconnecting) return;
                                           await _handleRecordButtonPress(
                                             context,
                                             Provider.of<CaptureProvider>(context, listen: false),
@@ -757,17 +852,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                           height: 64,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: isReconnecting
-                                                ? Colors.orange
-                                                : isProcessing
-                                                    ? const Color(0xFF35343B)
-                                                    : (isRecording ? Colors.red : const Color(0xFF485DF4)),
+                                            color: isReconnecting ? Colors.orange : const Color(0xFF485DF4),
                                             border: Border.all(
                                               color: Colors.black,
                                               width: 4,
                                             ),
                                           ),
-                                          child: isInitializing || isReconnecting || isProcessing
+                                          child: isReconnecting
                                               ? const CircularProgressIndicator(
                                                   color: Colors.white,
                                                   strokeWidth: 2,
@@ -778,9 +869,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                                   size: 22,
                                                 ),
                                         ),
-                                      );
-                                    },
-                                  ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ],
                             );
@@ -821,6 +912,112 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         ),
       ),
     );
+  }
+
+  Widget _buildRecordingControlButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color iconColor,
+    required VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: onTap == null ? color.withValues(alpha: 0.4) : color,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: FaIcon(icon, color: iconColor, size: 18),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: onTap == null ? Colors.white38 : Colors.white70,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleCancelRecording(BuildContext context) {
+    final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1F1F25),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Cancelar grabación', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          '¿Deseas descartar la grabación actual? Se perderá todo lo capturado.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Continuar grabando', style: TextStyle(color: Color(0xFF485DF4))),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              // Stop recording and discard
+              if (captureProvider.recordingState == RecordingState.record) {
+                await captureProvider.stopStreamRecording();
+              } else if (captureProvider.recordingState == RecordingState.systemAudioRecord) {
+                await captureProvider.stopSystemAudioRecording();
+              }
+              captureProvider.clearTranscripts();
+              captureProvider.updateRecordingState(RecordingState.stop);
+            },
+            child: const Text('Descartar', style: TextStyle(color: Color(0xFFFE3B30))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handlePauseResumeRecording(BuildContext context) {
+    final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+    if (captureProvider.recordingState == RecordingState.record) {
+      captureProvider.stopStreamRecording();
+      MixpanelManager().phoneMicRecordingStopped();
+    } else if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
+      captureProvider.streamRecording();
+      MixpanelManager().phoneMicRecordingStarted();
+    }
+  }
+
+  void _handleStopRecording(BuildContext context) {
+    final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+    final state = captureProvider.recordingState;
+    // Stop works from any active state: recording, paused, or initialising
+    if (state == RecordingState.record) {
+      captureProvider.stopStreamRecording();
+    } else if (state == RecordingState.systemAudioRecord) {
+      captureProvider.stopSystemAudioRecording();
+    } else if (state == RecordingState.pause || captureProvider.isPaused) {
+      // Resume briefly then stop to trigger finalization
+      captureProvider.streamRecording().then((_) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          captureProvider.stopStreamRecording();
+        });
+      });
+    } else if (state == RecordingState.initialising) {
+      // Force stop during init
+      captureProvider.clearTranscripts();
+      captureProvider.updateRecordingState(RecordingState.stop);
+    }
   }
 
   Future<void> _handleRecordButtonPress(BuildContext context, CaptureProvider captureProvider) async {

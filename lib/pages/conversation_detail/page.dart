@@ -364,41 +364,104 @@ class _ConversationDetailPageState extends State<ConversationDetailPage> with Ti
           appBar: AppBar(
             automaticallyImplyLeading: false,
             backgroundColor: Theme.of(context).colorScheme.primary,
-            leading: Container(
-              width: 36,
-              height: 36,
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.3),
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                onPressed: () {
-                  HapticFeedback.mediumImpact();
-                  if (widget.isFromOnboarding) {
-                    SchedulerBinding.instance.addPostFrameCallback((_) {
-                      Navigator.pushAndRemoveUntil(
-                          context, MaterialPageRoute(builder: (context) => const HomePageWrapper()), (route) => false);
-                    });
-                  } else {
-                    Navigator.pop(context);
-                  }
-                },
-                icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 16.0, color: Colors.white),
-              ),
+            leadingWidth: 120,
+            leading: Consumer<ConversationProvider>(
+              builder: (context, convoProvider, _) {
+                final allConversations = convoProvider.conversations;
+                final currentIndex = allConversations.indexWhere((c) => c.id == widget.conversation.id);
+                final hasPrevious = currentIndex > 0;
+                final hasNext = currentIndex >= 0 && currentIndex < allConversations.length - 1;
+
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(width: 8),
+                    // Back button
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.3),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () {
+                          HapticFeedback.mediumImpact();
+                          if (widget.isFromOnboarding) {
+                            SchedulerBinding.instance.addPostFrameCallback((_) {
+                              Navigator.pushAndRemoveUntil(
+                                  context, MaterialPageRoute(builder: (context) => const HomePageWrapper()), (route) => false);
+                            });
+                          } else {
+                            Navigator.pop(context);
+                          }
+                        },
+                        icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 14.0, color: Colors.white),
+                      ),
+                    ),
+                    if (currentIndex >= 0) ...[
+                      const SizedBox(width: 4),
+                      // Previous conversation
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: hasPrevious ? Colors.grey.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: hasPrevious
+                              ? () {
+                                  HapticFeedback.lightImpact();
+                                  final prev = allConversations[currentIndex - 1];
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => ConversationDetailPage(conversation: prev)),
+                                  );
+                                }
+                              : null,
+                          icon: FaIcon(FontAwesomeIcons.chevronUp, size: 12.0, color: hasPrevious ? Colors.white : Colors.white24),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      // Next conversation
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: hasNext ? Colors.grey.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: hasNext
+                              ? () {
+                                  HapticFeedback.lightImpact();
+                                  final next = allConversations[currentIndex + 1];
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => ConversationDetailPage(conversation: next)),
+                                  );
+                                }
+                              : null,
+                          icon: FaIcon(FontAwesomeIcons.chevronDown, size: 12.0, color: hasNext ? Colors.white : Colors.white24),
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
             title: Align(
               alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 8.0),
-                child: Text(
-                  _getTabTitle(context, selectedTab),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
+              child: Text(
+                _getTabTitle(context, selectedTab),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),

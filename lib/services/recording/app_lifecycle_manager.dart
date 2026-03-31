@@ -372,7 +372,12 @@ class AppLifecycleManager with WidgetsBindingObserver {
     final delegate = _delegate;
     if (delegate == null) return 'waiting';
 
-    // Recording states take priority - but verify device exists for deviceRecord
+    // Paused state takes priority
+    if (delegate.isPaused || delegate.recordingState == RecordingState.pause) {
+      return 'paused';
+    }
+
+    // Recording states - but verify device exists for deviceRecord
     if (delegate.recordingState == RecordingState.record ||
         (delegate.recordingState == RecordingState.deviceRecord && delegate.recordingDevice != null) ||
         delegate.recordingState == RecordingState.systemAudioRecord) {
