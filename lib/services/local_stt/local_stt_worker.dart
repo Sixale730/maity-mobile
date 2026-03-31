@@ -111,7 +111,8 @@ class _SttWorker {
       if (speakerModelPath != null &&
           speakerModelPath.isNotEmpty &&
           userEmbeddingBytes != null &&
-          userEmbeddingBytes.length == 192 * 4) {
+          userEmbeddingBytes.length % 4 == 0 &&
+          userEmbeddingBytes.isNotEmpty) {
         _initSpeakerId(speakerModelPath, userEmbeddingBytes);
       }
 
@@ -136,8 +137,9 @@ class _SttWorker {
 
       // Deserialize user embedding from raw little-endian Float32 bytes
       final byteData = ByteData.sublistView(embeddingBytes);
-      final embedding = Float32List(192);
-      for (var i = 0; i < 192; i++) {
+      final dim = embeddingBytes.length ~/ 4;
+      final embedding = Float32List(dim);
+      for (var i = 0; i < dim; i++) {
         embedding[i] = byteData.getFloat32(i * 4, Endian.little);
       }
 

@@ -485,7 +485,7 @@ class TranscriptSocketServiceFactory {
       final embeddingFile = File(embeddingPath);
       if (embeddingFile.existsSync()) {
         final bytes = embeddingFile.readAsBytesSync();
-        if (bytes.length == 192 * 4) {
+        if (bytes.length % 4 == 0 && bytes.isNotEmpty) {
           speakerModelPath = speakerPath;
           userEmbeddingBytes = bytes;
           debugPrint('[STTFactory] Speaker ID enabled for local STT');

@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 
 /// Extracts speaker embeddings from audio using sherpa_onnx's
-/// SpeakerEmbeddingExtractor (3D-Speaker CAM++ model, 192-dim).
+/// SpeakerEmbeddingExtractor (3D-Speaker CAM++ model, 512-dim).
 ///
 /// Designed for one-shot use during voice enrollment on the main isolate:
 /// initialize → extract → save → dispose. The model (~28 MB) loads in ~100ms.
@@ -19,8 +19,16 @@ class SpeakerEmbeddingService {
   int get dim => _extractor?.dim ?? 0;
 
   /// Initialize the extractor with the speaker model .onnx file.
+  ///
+  /// Calls [sherpa.initBindings] to set FFI function pointers on this isolate.
+  /// Required because SpeakerEmbeddingService runs on the main isolate, where
+  /// the statics set by the worker isolate's initBindings() are invisible.
+  /// Safe to call multiple times (all bindings use ??=).
+  /// Refs: github.com/k2-fsa/sherpa-onnx/issues/2131, isolate_tts.dart example
   void initialize(String modelPath) {
     if (_extractor != null) return;
+
+    sherpa.initBindings();
 
     final config = sherpa.SpeakerEmbeddingExtractorConfig(
       model: modelPath,
