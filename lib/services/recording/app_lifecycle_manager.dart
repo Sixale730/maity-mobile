@@ -142,9 +142,13 @@ class AppLifecycleManager with WidgetsBindingObserver {
     // Cancel keep-alive timer to prevent reconnection attempts in background
     delegate.cancelKeepAlive();
 
-    // Cancel silence timer to prevent auto-finalize while in background
-    // (it will restart naturally when new segments arrive after resume)
-    delegate.cancelSilenceTimer();
+    // Cancel silence timer for active recording states to prevent false auto-finalize
+    // while in background (it will restart when new segments arrive after resume).
+    // In pause state, let the timer fire in background — no audio is flowing,
+    // so there's no risk of false positives from STT stall detection.
+    if (delegate.recordingState != RecordingState.pause) {
+      delegate.cancelSilenceTimer();
+    }
 
     // Start background finalize timer: if socket stays dead for 3 min, auto-finalize.
     // Include pause state — a paused recording with segments should also auto-finalize
@@ -298,8 +302,10 @@ class AppLifecycleManager with WidgetsBindingObserver {
       final d = _delegate;
       if (d == null) return;
 
-      // If socket is still disconnected after 3 min in background, finalize
-      if (d.socketState != SocketServiceState.connected &&
+      // Finalize if: socket disconnected (active recording) OR paused with segments.
+      // Pause state needs its own path because local STT socket stays "connected".
+      final isPaused = d.recordingState == RecordingState.pause;
+      if ((isPaused || d.socketState != SocketServiceState.connected) &&
           d.currentSegments.isNotEmpty &&
           !d.conversationFinalized) {
         _captureLog.log('recording', 'background_auto_finalize', severity: 'warning', details: {
