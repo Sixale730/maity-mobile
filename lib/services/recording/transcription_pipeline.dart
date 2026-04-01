@@ -518,6 +518,15 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     await _socket?.stop(reason: reason);
     _socket = null;
     _transcriptServiceReady = false;
+
+    // Clean up chunk pipeline so next session creates fresh instances.
+    // Without this, _initChunkPipeline sees _chunkWriter != null and takes
+    // the reconnect path with stale state instead of creating a new session.
+    await _chunkWriter?.dispose();
+    _chunkWriter = null;
+    _segmentController?.dispose();
+    _segmentController = null;
+    _audioTranscoder = null;
   }
 
   /// Updates the cumulative timestamp offset based on elapsed recording time.

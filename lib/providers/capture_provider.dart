@@ -1139,10 +1139,35 @@ class CaptureProvider extends ChangeNotifier
         _resetStateVariables();
         updateRecordingState(RecordingState.stop);
         _captureLog.endSession();
+
+        // Continuous recording: if OMI device still connected, auto-restart
+        _autoRestartIfDeviceConnected();
       } else {
         debugPrint('[CaptureProvider] Skipping reset: new session started '
             '(old=$sessionId, new=${_stateMachine.currentSessionId})');
       }
+    });
+  }
+
+  /// Auto-restart recording when an OMI device is still connected.
+  /// Enables continuous recording: finish one conversation, immediately
+  /// start capturing the next one (like original OMI behavior).
+  void _autoRestartIfDeviceConnected() {
+    final device = _audioTransport.recordingDevice;
+    if (device == null) return;
+
+    debugPrint(
+        '[CaptureProvider] Auto-restart: device ${device.name} still connected');
+
+    // Brief delay to let state settle and avoid UI flash
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      // Guard: still stopped and device still available
+      if (recordingState != RecordingState.stop) return;
+      if (_audioTransport.recordingDevice == null) return;
+
+      debugPrint(
+          '[CaptureProvider] Auto-restarting recording with ${device.name}');
+      streamDeviceRecording(device: device);
     });
   }
 
