@@ -101,10 +101,15 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
       } else if (state == RecordingState.systemAudioRecord) {
         await provider.stopSystemAudioRecording();
       } else if (state == RecordingState.pause || provider.isPaused) {
-        // Resume briefly then stop to trigger finalization
-        await provider.streamRecording();
-        await Future.delayed(const Duration(milliseconds: 300));
-        await provider.stopStreamRecording();
+        // Paused: identify the source and stop accordingly
+        if (provider.havingRecordingDevice) {
+          await provider.stopStreamDeviceRecording();
+        } else {
+          // Phone mic: resume briefly then stop to trigger finalization
+          await provider.streamRecording();
+          await Future.delayed(const Duration(milliseconds: 300));
+          await provider.stopStreamRecording();
+        }
       } else if (state == RecordingState.initialising) {
         provider.clearTranscripts();
         provider.updateRecordingState(RecordingState.stop);
@@ -460,10 +465,19 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
           TextButton(
             onPressed: () async {
               Navigator.of(dialogContext).pop();
-              if (provider.recordingState == RecordingState.record) {
+              final cancelState = provider.recordingState;
+              if (cancelState == RecordingState.record) {
                 await provider.stopStreamRecording();
-              } else if (provider.recordingState == RecordingState.systemAudioRecord) {
+              } else if (cancelState == RecordingState.deviceRecord) {
+                await provider.stopStreamDeviceRecording();
+              } else if (cancelState == RecordingState.systemAudioRecord) {
                 await provider.stopSystemAudioRecording();
+              } else if (cancelState == RecordingState.pause || provider.isPaused) {
+                if (provider.havingRecordingDevice) {
+                  await provider.stopStreamDeviceRecording();
+                } else {
+                  await provider.stopStreamRecording();
+                }
               }
               provider.clearTranscripts();
               provider.updateRecordingState(RecordingState.stop);
@@ -478,7 +492,14 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
 
   void _togglePause(CaptureProvider provider) {
     final state = provider.recordingState;
-    if (state == RecordingState.record || state == RecordingState.systemAudioRecord) {
+    // Device recording: pause/resume via device-specific methods
+    if (state == RecordingState.deviceRecord) {
+      provider.pauseDeviceRecording();
+    } else if (provider.havingRecordingDevice && (state == RecordingState.pause || provider.isPaused)) {
+      provider.resumeDeviceRecording();
+    }
+    // Phone mic / system audio
+    else if (state == RecordingState.record || state == RecordingState.systemAudioRecord) {
       provider.stopStreamRecording();
     } else if (provider.isPaused || state == RecordingState.pause || state == RecordingState.stop) {
       provider.streamRecording();
