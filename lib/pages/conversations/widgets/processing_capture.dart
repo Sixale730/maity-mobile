@@ -29,7 +29,7 @@ class ConversationCaptureWidget extends StatefulWidget {
 }
 
 class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
-  bool _isPhoneMicPaused = false;
+  // Phone mic pause is now handled by CaptureProvider.pausePhoneMicRecording()
 
   @override
   Widget build(BuildContext context) {
@@ -126,29 +126,17 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
         await provider.resumeDeviceRecording();
       }
     } else {
-      // Phone mic logic - use local state to track pause
-      if (recordingState == RecordingState.record && !_isPhoneMicPaused) {
+      // Phone mic logic - proper pause/resume without finalizing
+      if (recordingState == RecordingState.record && !provider.isPaused) {
         // Pause recording
-        setState(() {
-          _isPhoneMicPaused = true;
-        });
-        await provider.stopStreamRecording();
+        await provider.pausePhoneMicRecording();
         MixpanelManager().phoneMicRecordingStopped();
-      } else if (_isPhoneMicPaused) {
+      } else if (provider.isPaused && recordingState == RecordingState.pause) {
         // Resume recording
-        setState(() {
-          _isPhoneMicPaused = false;
-        });
-        await provider.streamRecording();
+        await provider.resumePhoneMicRecording();
         MixpanelManager().phoneMicRecordingStarted();
       } else if (recordingState == RecordingState.initialising) {
         debugPrint('initialising, have to wait');
-      } else {
-        setState(() {
-          _isPhoneMicPaused = false;
-        });
-        await provider.streamRecording();
-        MixpanelManager().phoneMicRecordingStarted();
       }
     }
   }
@@ -156,7 +144,6 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
   Future<void> _stopRecording(BuildContext context, CaptureProvider provider) async {
     if (provider.segments.isEmpty && provider.photos.isEmpty) {
       await provider.cancelRecording();
-      setState(() => _isPhoneMicPaused = false);
       return;
     }
 
@@ -167,7 +154,7 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
         await provider.stopStreamDeviceRecording();
       } else if (provider.recordingState == RecordingState.systemAudioRecord) {
         await provider.stopSystemAudioRecording();
-      } else if (provider.isPaused || _isPhoneMicPaused) {
+      } else if (provider.isPaused) {
         // Paused state: need to identify the source
         if (provider.havingRecordingDevice) {
           await provider.stopStreamDeviceRecording();
@@ -177,7 +164,6 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
           await provider.stopStreamRecording();
         }
       }
-      setState(() => _isPhoneMicPaused = false);
     }
 
     bool showConfirmation = SharedPreferencesUtil().showSummarizeConfirmation;
@@ -267,8 +253,7 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
         captureProvider.recordingState == RecordingState.initialising ||
         captureProvider.recordingState == RecordingState.pause ||
         captureProvider.recordingState == RecordingState.processing ||
-        captureProvider.isPaused ||
-        _isPhoneMicPaused;
+        captureProvider.isPaused;
 
     // Hide the widget when no recording is active, no segments/photos, and no device connected
     if (!isAnyRecordingActive && !isHavingTranscript && !isHavingPhotos && !isDeviceConnected) {
@@ -283,7 +268,7 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
           context,
           () => _toggleRecording(context, captureProvider),
           captureProvider.recordingState,
-          isPhoneMicPaused: _isPhoneMicPaused,
+          isPhoneMicPaused: captureProvider.isPaused && captureProvider.recordingState == RecordingState.pause && !captureProvider.havingRecordingDevice,
         ),
       );
     } else if (!isAnyRecordingActive &&
@@ -340,7 +325,7 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
     var stateText = "";
 
     // Always check pause state first with highest priority (both desktop and phone)
-    if (captureProvider.isPaused || _isPhoneMicPaused) {
+    if (captureProvider.isPaused) {
       stateText = AppLocalizations.of(context)?.paused ?? "Pausado";
       statusIndicator = const PausedStatusIndicator();
     } else if (!isHavingRecordingDevice && !isUsingPhoneMic) {
@@ -410,7 +395,7 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
     bool isPhoneRecording = provider.recordingState == RecordingState.record ||
         provider.recordingState == RecordingState.systemAudioRecord ||
         provider.recordingState == RecordingState.initialising ||
-        _isPhoneMicPaused;
+        (provider.isPaused && !provider.havingRecordingDevice);
 
     // Show processing UI when finalizing in background — animated fade+scale in
     // Tappable: navigates to ConversationCapturingPage (no competing buttons)
@@ -476,15 +461,8 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
       );
     }
 
-    // Determine pause state — _isPhoneMicPaused takes priority (mutually exclusive modes)
-    bool isPaused = false;
-    if (_isPhoneMicPaused) {
-      isPaused = true;
-    } else if (isDeviceRecording) {
-      isPaused = provider.isPaused && provider.recordingState == RecordingState.pause;
-    } else if (isPhoneRecording) {
-      isPaused = provider.isPaused;
-    }
+    // Determine pause state from provider (unified for device and phone mic)
+    bool isPaused = provider.isPaused && provider.recordingState == RecordingState.pause;
 
     // When recording is active, show the unified UI design
     // Buttons are NOT inside a navigation GestureDetector — no gesture arena conflict
@@ -551,70 +529,83 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Pause/Resume button
-                    SizedBox(
+                    Container(
                       width: 36,
                       height: 36,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        style: IconButton.styleFrom(
-                          backgroundColor: isPaused
-                              ? isDeviceRecording
-                                  ? const Color(0xFFFE5D50)
-                                  : const Color(0xFF485DF4)
-                              : isDeviceRecording
-                                  ? const Color(0xFF35343B)
-                                  : const Color(0xFFFF9500),
-                          shape: const CircleBorder(),
-                        ),
-                        onPressed: () {
-                          HapticFeedback.mediumImpact();
-                          if (!isPaused) {
-                            MixpanelManager().recordingMuteToggled(
-                              isMuted: true,
-                              recordingType: isDeviceRecording ? 'device' : 'phone_mic',
-                            );
-                          } else {
-                            MixpanelManager().recordingMuteToggled(
-                              isMuted: false,
-                              recordingType: isDeviceRecording ? 'device' : 'phone_mic',
-                            );
-                          }
-                          _toggleRecording(context, provider);
-                        },
-                        icon: FaIcon(
-                          isPaused
-                              ? isDeviceRecording
-                                  ? FontAwesomeIcons.microphoneSlash
-                                  : FontAwesomeIcons.play
-                              : isDeviceRecording
-                                  ? FontAwesomeIcons.microphone
-                                  : FontAwesomeIcons.pause,
-                          color: Colors.white,
-                          size: 16,
+                      decoration: BoxDecoration(
+                        color: isPaused
+                            ? const Color(0xFFFF9500) // Naranja = pausado/muted
+                            : const Color(0xFF485DF4), // Azul = grabando activo
+                        shape: BoxShape.circle,
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () {
+                            HapticFeedback.mediumImpact();
+                            if (!isPaused) {
+                              MixpanelManager().recordingMuteToggled(
+                                isMuted: true,
+                                recordingType: isDeviceRecording ? 'device' : 'phone_mic',
+                              );
+                            } else {
+                              MixpanelManager().recordingMuteToggled(
+                                isMuted: false,
+                                recordingType: isDeviceRecording ? 'device' : 'phone_mic',
+                              );
+                            }
+                            _toggleRecording(context, provider);
+                          },
+                          child: Center(
+                            child: FaIcon(
+                              isPaused
+                                  ? isDeviceRecording
+                                      ? FontAwesomeIcons.microphoneSlash
+                                      : FontAwesomeIcons.play
+                                  : isDeviceRecording
+                                      ? FontAwesomeIcons.microphone
+                                      : FontAwesomeIcons.pause,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 10),
                     // Stop button
-                    SizedBox(
+                    Container(
                       width: 36,
                       height: 36,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        style: IconButton.styleFrom(
-                          backgroundColor: const Color(0xFFFE5D50),
-                          shape: const CircleBorder(),
-                        ),
-                        onPressed: () {
-                          HapticFeedback.heavyImpact();
-                          _stopRecording(context, provider);
-                        },
-                        icon: const FaIcon(
-                          FontAwesomeIcons.stop,
-                          color: Colors.white,
-                          size: 14,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFE5D50),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFE5D50).withValues(alpha: 0.4),
+                            spreadRadius: 1,
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () {
+                            HapticFeedback.heavyImpact();
+                            _stopRecording(context, provider);
+                          },
+                          child: const Center(
+                            child: FaIcon(
+                              FontAwesomeIcons.stop,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                          ),
                         ),
                       ),
                     ),

@@ -500,6 +500,35 @@ class CaptureProvider extends ChangeNotifier
   }
 
   // ---------------------------------------------------------------------------
+  // Phone mic pause/resume (without finalizing)
+  // ---------------------------------------------------------------------------
+
+  Future<void> pausePhoneMicRecording() async {
+    _captureLog.log('recording', 'recording_paused',
+        details: {'source': 'phone_mic'});
+    _audioTransport.stopPhoneMicRecording();
+    _stateMachine.transition(RecordingState.pause);
+    updateRecordingState(RecordingState.pause);
+    _pipeline.resetSilenceTimer();
+  }
+
+  Future<void> resumePhoneMicRecording() async {
+    _captureLog.log('recording', 'recording_resumed',
+        details: {'source': 'phone_mic'});
+    _stateMachine.transition(RecordingState.record);
+    updateRecordingState(RecordingState.initialising);
+
+    _pipeline.setWalEnabled(true);
+    _audioTransport.setSocketSender(_pipeline.sendToSocket);
+
+    await _audioTransport.startPhoneMicRecording(
+      onStateChange: (state) => updateRecordingState(state),
+      socketState: () =>
+          _pipeline.socket?.state ?? SocketServiceState.disconnected,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // System audio recording (desktop)
   // ---------------------------------------------------------------------------
 
