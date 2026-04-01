@@ -692,9 +692,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
             queueManager.markCompleted(sessionId, seq);
           }
         }
-        // Bug 5 fix: chunk was processed (even with empty/null results),
-        // so the engine is alive — reset the silence timer.
-        resetSilenceTimer();
+        // Chunk processed — silence timer NOT reset here.
+        // Timer only resets when speech is detected (onSegmentsReceived).
       };
 
       // Wire VAD state changes
@@ -1241,28 +1240,22 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     if (!_isBleSource && _lastAudioBytesSentAt != null) {
       final audioGap = DateTime.now().difference(_lastAudioBytesSentAt!);
       if (audioGap.inSeconds < 10) {
-        // Bug 2 fix: Local STT doesn't stall — it just produces "(EMPTY)" on
-        // noise.  Skip the destructive stall-reconnect path entirely.  Instead,
-        // give the engine more time by resetting the silence timer.
+        // Local STT: let silence timeout proceed normally.
+        // Chunk processing every 5s doesn't mean speech is happening.
         if (_isLocalStt) {
           debugPrint(
-              '[TranscriptionPipeline] Silence timeout but local STT + audio flowing — resetting timer');
-          _captureLog.log('recording', 'silence_timeout_local_stt_reset', details: {
+              '[TranscriptionPipeline] Silence timeout with local STT — proceeding with auto-save');
+          // Fall through to real silence callback below
+        } else {
+          debugPrint(
+              '[TranscriptionPipeline] Silence timeout but audio still flowing (${audioGap.inSeconds}s ago) - STT stall');
+          _captureLog.log('recording', 'silence_timeout_stt_stall', details: {
             'audio_gap_seconds': audioGap.inSeconds,
             'segments_count': segments.length,
           });
-          resetSilenceTimer();
+          _handleTranscriptionStalled();
           return;
         }
-
-        debugPrint(
-            '[TranscriptionPipeline] Silence timeout but audio still flowing (${audioGap.inSeconds}s ago) - STT stall');
-        _captureLog.log('recording', 'silence_timeout_stt_stall', details: {
-          'audio_gap_seconds': audioGap.inSeconds,
-          'segments_count': segments.length,
-        });
-        _handleTranscriptionStalled();
-        return;
       }
     }
 
