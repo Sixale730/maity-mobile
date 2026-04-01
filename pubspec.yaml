@@ -121,7 +121,7 @@ dependencies:
   version: ^3.0.2
   webview_flutter: 4.13.0
   flutter_sound: ^9.10.0
-  sherpa_onnx: ^1.10.40
+  sherpa_onnx: 1.12.29
   just_audio: ^0.9.39
   video_player: ^2.8.2
   web_socket_channel: ^3.0.3
@@ -148,6 +148,7 @@ dependency_overrides:
     git:
       url: https://github.com/mdmohsin7/opus_flutter.git
       path: opus_flutter_android
+  sherpa_onnx_android: 1.12.29
 
 dev_dependencies:
   flutter_launcher_icons: 0.13.1
