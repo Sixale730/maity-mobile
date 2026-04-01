@@ -108,6 +108,7 @@ class RecordingStateMachine {
       RecordingState.deviceRecord,
       RecordingState.systemAudioRecord,
       RecordingState.stop,
+      RecordingState.processing, // silence timeout auto-save from pause
     },
     RecordingState.processing: {
       RecordingState.stop,

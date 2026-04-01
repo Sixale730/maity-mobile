@@ -90,6 +90,7 @@ class CaptureProvider extends ChangeNotifier
   bool get isWalSupported => _isWalSupported;
 
   bool _isFinalizing = false;
+  bool _restartPaused = false;
 
   /// Single-flight guard: all reconnect paths coalesce onto one in-flight Future.
   Completer<void>? _reconnectInflight;
@@ -446,7 +447,8 @@ class CaptureProvider extends ChangeNotifier
     });
 
     try {
-      bool wasPaused = _stateMachine.isPaused;
+      bool wasPaused = _stateMachine.isPaused || _restartPaused;
+      _restartPaused = false;
       await _resetStateVariables();
       await _resetState();
       if (wasPaused) await pauseDeviceRecording();
@@ -967,8 +969,12 @@ class CaptureProvider extends ChangeNotifier
       return;
     }
 
+    // Capture pause state before FSM transitions clear it
+    _restartPaused = _stateMachine.isPaused;
+
     _captureLog.log('recording', 'silence_timeout_auto_save', details: {
       'segments_count': segments.length,
+      'was_paused': _restartPaused,
     });
 
     // Save recovery data as backup
