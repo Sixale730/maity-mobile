@@ -144,9 +144,6 @@ class AppLifecycleManager with WidgetsBindingObserver {
     // Cancel keep-alive timer to prevent reconnection attempts in background
     delegate.cancelKeepAlive();
 
-    // Stop LED breathing to save battery in background
-    delegate.stopBreathingLed();
-
     // Cancel silence timer for active recording states to prevent false auto-finalize
     // while in background (it will restart when new segments arrive after resume).
     // In pause state, let the timer fire in background — no audio is flowing,
@@ -295,10 +292,6 @@ class AppLifecycleManager with WidgetsBindingObserver {
       delegate.resetSilenceTimer();
     }
 
-    // Restart LED breathing if still paused
-    if (isPaused) {
-      delegate.startBreathingLedIfPaused();
-    }
   }
 
   /// Starts a timer that auto-finalizes the conversation if the socket
