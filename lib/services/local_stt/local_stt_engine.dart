@@ -126,12 +126,16 @@ class LocalSttEngine {
       debugPrint('[LocalSttEngine] Using model type: ${modelType.name}, maxSpeechDuration: ${maxSpeechDuration}s');
 
       // Configure Silero VAD.
-      // minSpeechDuration 0.8s for Canary filters short noise segments that
-      // produce empty decodes; 0.25s (default) is fine for transducer models.
-      final minSpeech = modelType == LocalSttModelType.canary ? 0.8 : 0.25;
+      // minSpeechDuration 0.8s: filters short noise/click segments (<0.8s)
+      // that produce "(EMPTY)" decodes. Transducer TDT with 8x FastConformer
+      // subsampling needs enough frames — segments under ~0.8s yield too few
+      // encoder frames for reliable token emission.
+      final minSpeech = 0.8;
       // Canary benefits from faster silence detection (0.3s) for natural
-      // conversational segmentation; default 0.5s for other models.
-      final minSilence = modelType == LocalSttModelType.canary ? 0.3 : 0.5;
+      // conversational segmentation. Parakeet/Moonshine use 1.0s to prevent
+      // premature mid-utterance cuts — accumulated speech decodes better than
+      // short isolated VAD segments with no clean onset.
+      final minSilence = modelType == LocalSttModelType.canary ? 0.3 : 1.0;
       final vadConfig = sherpa.VadModelConfig(
         sileroVad: sherpa.SileroVadModelConfig(
           model: '$modelDir/silero_vad.onnx',
@@ -286,7 +290,7 @@ class LocalSttEngine {
   /// Refs: NVIDIA Canary pads symmetrically to 1s minimum.
   ///       Whisper expects zero-padded boundaries (trained on 30s chunks).
   static Float32List _padWithSilence(Float32List samples, LocalSttModelType modelType) {
-    final prePad = modelType == LocalSttModelType.canary ? 6400 : 3200;  // 0.4s / 0.2s
+    final prePad = 6400;  // 0.4s all models: gives FastConformer a clear silence→speech onset
     final postPad = modelType == LocalSttModelType.canary ? 8000 : 4800; // 0.5s / 0.3s
     final padded = Float32List(prePad + samples.length + postPad);
     padded.setRange(prePad, prePad + samples.length, samples);
