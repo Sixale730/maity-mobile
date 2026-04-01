@@ -52,7 +52,6 @@ import 'package:omi/services/transcript_recovery_service.dart';
 import 'package:omi/widgets/recovery_dialog.dart';
 
 import 'widgets/battery_info_widget.dart';
-import 'package:omi/widgets/confirmation_dialog.dart';
 
 class HomePageWrapper extends StatefulWidget {
   final String? navigateToRoute;
@@ -201,7 +200,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
           }
           break;
         case 'stop_recording':
-          _handleStopRecording(context);
+          final stopState = captureProvider.recordingState;
+          if (stopState == RecordingState.record) {
+            captureProvider.stopStreamRecording();
+          } else if (stopState == RecordingState.systemAudioRecord) {
+            captureProvider.stopSystemAudioRecording();
+          } else if (stopState == RecordingState.pause || captureProvider.isPaused) {
+            captureProvider.streamRecording().then((_) {
+              Future.delayed(const Duration(milliseconds: 300), () {
+                captureProvider.stopStreamRecording();
+              });
+            });
+          } else if (stopState == RecordingState.initialising) {
+            captureProvider.clearTranscripts();
+            captureProvider.updateRecordingState(RecordingState.stop);
+          }
           break;
         case 'use_phone_mic':
           if (captureProvider.recordingState == RecordingState.stop) {
@@ -743,8 +756,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                             home.setIndex(1);
                                           },
                                         ),
-                                        // Center space for FAB
-                                        const SizedBox(width: 80),
+                                        // Center space for FAB (hidden when OMI connected)
+                                        Selector<DeviceProvider, bool>(
+                                          selector: (_, d) => d.connectedDevice != null,
+                                          builder: (_, isDeviceConnected, __) {
+                                            if (isDeviceConnected) return const SizedBox.shrink();
+                                            return const SizedBox(width: 80);
+                                          },
+                                        ),
                                         // Tasks tab (nav 3)
                                         _buildNavTab(
                                           icon: FontAwesomeIcons.listCheck,
@@ -777,121 +796,61 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                     ),
                                   ),
                                 ),
-                                // Central FAB: morphs into Cancel/Pause/Stop bar during phone mic recording
-                                Selector<CaptureProvider, ({RecordingState state, bool reconnecting, bool isPaused})>(
-                                  selector: (_, p) => (state: p.recordingState, reconnecting: p.isReconnectingSocket, isPaused: p.isPaused),
-                                  builder: (context, value, child) {
-                                    bool isRecording = value.state == RecordingState.record;
-                                    bool isInitializing = value.state == RecordingState.initialising;
-                                    bool isProcessing = value.state == RecordingState.processing;
-                                    bool isReconnecting = value.reconnecting;
-                                    bool isActiveRecording = isRecording || isInitializing || value.state == RecordingState.pause;
+                                // Central FAB: only visible when OMI NOT connected
+                                Selector<DeviceProvider, bool>(
+                                  selector: (_, d) => d.connectedDevice != null,
+                                  builder: (context, isDeviceConnected, _) {
+                                    return Selector<CaptureProvider, ({RecordingState state, bool reconnecting})>(
+                                      selector: (_, p) => (state: p.recordingState, reconnecting: p.isReconnectingSocket),
+                                      builder: (context, value, child) {
+                                        final state = value.state;
+                                        final isReconnecting = value.reconnecting;
+                                        final isPhoneMicActive = !isDeviceConnected && (
+                                          state == RecordingState.record ||
+                                          state == RecordingState.systemAudioRecord ||
+                                          state == RecordingState.initialising ||
+                                          state == RecordingState.pause
+                                        );
+                                        final isProcessing = state == RecordingState.processing;
 
-                                    // Phone mic active: show Cancel/Pause/Stop control bar
-                                    if (isActiveRecording || isProcessing) {
-                                      return Positioned(
-                                        left: 0,
-                                        right: 0,
-                                        bottom: 30,
-                                        child: Center(
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF1F1F25),
-                                              borderRadius: BorderRadius.circular(40),
-                                              border: Border.all(color: const Color(0xFF35343B), width: 1),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black.withValues(alpha: 0.4),
-                                                  blurRadius: 12,
-                                                  offset: const Offset(0, 4),
-                                                ),
-                                              ],
+                                        // Hide FAB when OMI connected or processing
+                                        if (isDeviceConnected || isProcessing) {
+                                          return const SizedBox.shrink();
+                                        }
+
+                                        // Phone mic active: red FAB → tap reopens ConversationCapturingPage
+                                        // Idle: blue FAB → tap starts recording
+                                        return Positioned(
+                                          left: MediaQuery.of(context).size.width / 2 - 32,
+                                          bottom: 40,
+                                          child: GestureDetector(
+                                            onTap: () async {
+                                              HapticFeedback.heavyImpact();
+                                              if (isReconnecting) return;
+                                              await _handleRecordButtonPress(
+                                                context,
+                                                Provider.of<CaptureProvider>(context, listen: false),
+                                              );
+                                            },
+                                            child: Container(
+                                              width: 64,
+                                              height: 64,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: isReconnecting
+                                                    ? Colors.orange
+                                                    : isPhoneMicActive
+                                                        ? const Color(0xFFFE3B30)
+                                                        : const Color(0xFF485DF4),
+                                                border: Border.all(color: Colors.black, width: 4),
+                                              ),
+                                              child: isReconnecting
+                                                  ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                                                  : const Icon(FontAwesomeIcons.microphone, color: Colors.white, size: 22),
                                             ),
-                                            child: isProcessing
-                                                ? const Padding(
-                                                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                                                    child: Row(
-                                                      mainAxisSize: MainAxisSize.min,
-                                                      children: [
-                                                        SizedBox(
-                                                          width: 16,
-                                                          height: 16,
-                                                          child: CircularProgressIndicator(color: Colors.white70, strokeWidth: 2),
-                                                        ),
-                                                        SizedBox(width: 10),
-                                                        Text('Procesando...', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                                                      ],
-                                                    ),
-                                                  )
-                                                : Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      _buildRecordingControlButton(
-                                                        icon: FontAwesomeIcons.xmark,
-                                                        label: 'Cancelar',
-                                                        color: const Color(0xFF35343B),
-                                                        iconColor: Colors.white70,
-                                                        onTap: () {
-                                                          HapticFeedback.mediumImpact();
-                                                          _handleCancelRecording(context);
-                                                        },
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      _buildRecordingControlButton(
-                                                        icon: value.isPaused ? FontAwesomeIcons.play : FontAwesomeIcons.pause,
-                                                        label: value.isPaused ? 'Reanudar' : 'Pausar',
-                                                        color: value.isPaused ? const Color(0xFF485DF4) : const Color(0xFFFF9500),
-                                                        iconColor: Colors.white,
-                                                        onTap: isInitializing ? null : () {
-                                                          HapticFeedback.mediumImpact();
-                                                          _handlePauseResumeRecording(context);
-                                                        },
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      _buildRecordingControlButton(
-                                                        icon: FontAwesomeIcons.stop,
-                                                        label: 'Detener',
-                                                        color: const Color(0xFFFE3B30),
-                                                        iconColor: Colors.white,
-                                                        onTap: isInitializing ? null : () {
-                                                          HapticFeedback.heavyImpact();
-                                                          _handleStopRecording(context);
-                                                        },
-                                                      ),
-                                                    ],
-                                                  ),
                                           ),
-                                        ),
-                                      );
-                                    }
-
-                                    // Default: show FAB mic button (handles OMI device via _handleRecordButtonPress)
-                                    return Positioned(
-                                      left: MediaQuery.of(context).size.width / 2 - 32,
-                                      bottom: 40,
-                                      child: GestureDetector(
-                                        onTap: () async {
-                                          HapticFeedback.heavyImpact();
-                                          if (isReconnecting) return;
-                                          await _handleRecordButtonPress(
-                                            context,
-                                            Provider.of<CaptureProvider>(context, listen: false),
-                                          );
-                                        },
-                                        child: Container(
-                                          width: 64,
-                                          height: 64,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: isReconnecting ? Colors.orange : const Color(0xFF485DF4),
-                                            border: Border.all(color: Colors.black, width: 4),
-                                          ),
-                                          child: isReconnecting
-                                              ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                                              : const Icon(FontAwesomeIcons.microphone, color: Colors.white, size: 22),
-                                        ),
-                                      ),
+                                        );
+                                      },
                                     );
                                   },
                                 ),
@@ -936,113 +895,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     );
   }
 
-  Widget _buildRecordingControlButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required Color iconColor,
-    required VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: onTap == null ? color.withValues(alpha: 0.4) : color,
-              shape: BoxShape.circle,
-            ),
-            child: Center(child: FaIcon(icon, color: iconColor, size: 18)),
-          ),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
-
-  void _handleCancelRecording(BuildContext context) {
-    final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1F1F25),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Cancelar grabación', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          '¿Deseas descartar la grabación actual? Se perderá todo lo capturado.',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Continuar grabando', style: TextStyle(color: Color(0xFF485DF4))),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(dialogContext).pop();
-              if (captureProvider.recordingState == RecordingState.record) {
-                await captureProvider.stopStreamRecording();
-              } else if (captureProvider.recordingState == RecordingState.systemAudioRecord) {
-                await captureProvider.stopSystemAudioRecording();
-              }
-              captureProvider.clearTranscripts();
-              captureProvider.updateRecordingState(RecordingState.stop);
-            },
-            child: const Text('Descartar', style: TextStyle(color: Color(0xFFFE3B30))),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handlePauseResumeRecording(BuildContext context) {
-    final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
-    if (captureProvider.recordingState == RecordingState.record) {
-      captureProvider.stopStreamRecording();
-      MixpanelManager().phoneMicRecordingStopped();
-    } else if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
-      captureProvider.streamRecording();
-      MixpanelManager().phoneMicRecordingStarted();
-    }
-  }
-
-  void _handleStopRecording(BuildContext context) {
-    final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
-    final state = captureProvider.recordingState;
-    if (state == RecordingState.record) {
-      captureProvider.stopStreamRecording();
-    } else if (state == RecordingState.systemAudioRecord) {
-      captureProvider.stopSystemAudioRecording();
-    } else if (state == RecordingState.pause || captureProvider.isPaused) {
-      // Resume briefly then stop to trigger finalization
-      captureProvider.streamRecording().then((_) {
-        Future.delayed(const Duration(milliseconds: 300), () {
-          captureProvider.stopStreamRecording();
-        });
-      });
-    } else if (state == RecordingState.initialising) {
-      captureProvider.clearTranscripts();
-      captureProvider.updateRecordingState(RecordingState.stop);
-    }
-  }
-
   Future<void> _handleRecordButtonPress(BuildContext context, CaptureProvider captureProvider) async {
     var recordingState = captureProvider.recordingState;
 
     if (recordingState == RecordingState.processing) {
       // Processing in background, do nothing
       return;
-    } else if (recordingState == RecordingState.deviceRecord ||
-        (recordingState == RecordingState.pause && captureProvider.havingRecordingDevice)) {
-      // OMI device is recording (active or muted) → show compact control modal
-      if (context.mounted) _showOmiRecordingModal(context);
     } else if (recordingState == RecordingState.record ||
-        recordingState == RecordingState.systemAudioRecord) {
-      // Phone mic / system audio → re-open the live transcript page
+        recordingState == RecordingState.systemAudioRecord ||
+        recordingState == RecordingState.pause) {
+      // Phone mic / system audio / paused → re-open the live transcript page
       if (context.mounted) {
         var topConvoId = (captureProvider.conversationProvider?.conversations ?? []).isNotEmpty
             ? captureProvider.conversationProvider!.conversations.first.id
@@ -1099,244 +961,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         );
       }
     }
-  }
-
-  void _showOmiRecordingModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      useRootNavigator: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return Consumer<CaptureProvider>(
-          builder: (_, captureProvider, __) {
-            final deviceName = captureProvider.recordingDevice?.name ?? 'OMI';
-            final isPaused = captureProvider.isPaused ||
-                captureProvider.recordingState == RecordingState.pause;
-            final l10n = AppLocalizations.of(context);
-
-            Future<void> doStop() async {
-              if (captureProvider.segments.isEmpty && captureProvider.photos.isEmpty) {
-                await captureProvider.cancelRecording();
-                return;
-              }
-              await captureProvider.stopStreamDeviceRecording();
-            }
-
-            Future<void> handleStop() async {
-              bool showConfirmation = SharedPreferencesUtil().showSummarizeConfirmation;
-              if (!showConfirmation) {
-                if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-                await doStop();
-                return;
-              }
-              if (!sheetContext.mounted) return;
-              showDialog(
-                context: sheetContext,
-                builder: (dialogContext) => StatefulBuilder(
-                  builder: (dialogContext, setDialogState) => ConfirmationDialog(
-                    title: l10n?.finishedConversation ?? '¿Conversación terminada?',
-                    description: l10n?.stopRecordingConfirm ??
-                        '¿Estás seguro de que quieres detener la grabación y resumir la conversación ahora?',
-                    cancelText: l10n?.cancel ?? 'Cancelar',
-                    checkboxValue: !showConfirmation,
-                    checkboxText: l10n?.dontAskAgain ?? 'No preguntar de nuevo',
-                    onCheckboxChanged: (value) => setDialogState(() => showConfirmation = !value),
-                    onCancel: () => Navigator.of(dialogContext).pop(),
-                    onConfirm: () async {
-                      SharedPreferencesUtil().showSummarizeConfirmation = showConfirmation;
-                      Navigator.of(dialogContext).pop();
-                      if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-                      await doStop();
-                    },
-                  ),
-                ),
-              );
-            }
-
-            return Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF1F1F25),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade700,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      const Icon(Icons.record_voice_over, color: Colors.white, size: 22),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              l10n?.omiRecording ?? 'Grabando con OMI',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              deviceName,
-                              style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF35343B),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              isPaused
-                                  ? (l10n?.muted ?? 'Silenciado')
-                                  : (l10n?.listening ?? 'Escuchando'),
-                              style: const TextStyle(
-                                color: Color(0xFFC9CBCF),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: isPaused ? const Color(0xFFFF9500) : const Color(0xFFFE5D50),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  const Divider(color: Color(0xFF35343B), height: 1),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            HapticFeedback.mediumImpact();
-                            if (isPaused) {
-                              await captureProvider.resumeDeviceRecording();
-                            } else {
-                              await captureProvider.pauseDeviceRecording();
-                            }
-                          },
-                          child: Container(
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: isPaused ? const Color(0xFFFE5D50) : const Color(0xFF35343B),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                FaIcon(
-                                  isPaused
-                                      ? FontAwesomeIcons.microphoneSlash
-                                      : FontAwesomeIcons.microphone,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  isPaused
-                                      ? (l10n?.resumeRecording ?? 'Reanudar')
-                                      : (l10n?.pauseRecording ?? 'Silenciar'),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      GestureDetector(
-                        onTap: () {
-                          HapticFeedback.heavyImpact();
-                          handleStop();
-                        },
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFE5D50),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Center(
-                            child: FaIcon(FontAwesomeIcons.stop, color: Colors.white, size: 16),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.of(sheetContext).pop();
-                      final cap = Provider.of<CaptureProvider>(context, listen: false);
-                      final topConvoId = (cap.conversationProvider?.conversations ?? []).isNotEmpty
-                          ? cap.conversationProvider!.conversations.first.id
-                          : null;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ConversationCapturingPage(topConversationId: topConvoId),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.transparent,
-                        border: Border.all(color: const Color(0xFF35343B)),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Center(
-                        child: Text(
-                          l10n?.viewTranscription ?? 'Ver transcripción',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
