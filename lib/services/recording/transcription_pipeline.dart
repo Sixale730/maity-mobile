@@ -550,7 +550,14 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     // Transcode if needed (e.g., Opus from BLE/OMI → PCM16 for VAD + decode).
     if (_isLocalStt && _chunkWriter != null && data is List<int>) {
       final bytes = data is Uint8List ? data : Uint8List.fromList(data);
-      final pcmBytes = _audioTranscoder != null ? _audioTranscoder!.transcode(bytes) : bytes;
+      Uint8List pcmBytes;
+      try {
+        pcmBytes = _audioTranscoder != null ? _audioTranscoder!.transcode(bytes) : bytes;
+      } catch (e) {
+        debugPrint('[TranscriptionPipeline] Transcode error, skipping chunk: $e');
+        return;
+      }
+      if (pcmBytes.isEmpty) return;
       _chunkWriter!.addBytes(pcmBytes);
       return;
     }
