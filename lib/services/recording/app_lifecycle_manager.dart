@@ -8,6 +8,7 @@ import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/services/capture_log_service.dart';
+import 'package:omi/utils/app_state_collector.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 import 'package:omi/utils/enums.dart';
@@ -124,6 +125,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
     if (delegate == null) return;
 
     _isAppInBackground = true;
+    AppStateCollector.isInBackground = true;
 
     DebugLogManager.logEvent('app_paused_handling', {
       'action': 'stopping_background_services',
@@ -144,11 +146,14 @@ class AppLifecycleManager with WidgetsBindingObserver {
     // (it will restart naturally when new segments arrive after resume)
     delegate.cancelSilenceTimer();
 
-    // Start background finalize timer: if socket stays dead for 3 min, auto-finalize
-    final isRecording = delegate.recordingState == RecordingState.record ||
+    // Start background finalize timer: if socket stays dead for 3 min, auto-finalize.
+    // Include pause state — a paused recording with segments should also auto-finalize
+    // if the app stays in background long enough.
+    final isRecordingOrPaused = delegate.recordingState == RecordingState.record ||
         delegate.recordingState == RecordingState.deviceRecord ||
-        delegate.recordingState == RecordingState.systemAudioRecord;
-    if (isRecording && delegate.currentSegments.isNotEmpty) {
+        delegate.recordingState == RecordingState.systemAudioRecord ||
+        delegate.recordingState == RecordingState.pause;
+    if (isRecordingOrPaused && delegate.currentSegments.isNotEmpty) {
       _startBackgroundFinalizeTimer();
     }
 
@@ -210,6 +215,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
     if (delegate == null) return;
 
     _isAppInBackground = false;
+    AppStateCollector.isInBackground = false;
 
     // Cancel background finalize timer since user is back
     _backgroundFinalizeTimer?.cancel();

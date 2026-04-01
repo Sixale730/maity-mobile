@@ -434,6 +434,35 @@ Logos en `assets/images/` (rosa #F93A6E). Regenerar: `dart run flutter_launcher_
 
 `docs/CHAT_AGENT_DIFFERENCES.md`, `docs/google-sign-in-setup.md`, `docs/MIXPANEL_GUIDE.md`.
 
+## Crash Logging (Always-On)
+
+Sistema persistente de crash logs que funciona sin opt-in. Captura crashes y errores criticos, los guarda localmente, y los sube a Supabase al siguiente launch.
+
+**Arquitectura**:
+```
+FlutterError/PlatformDispatcher/runZonedGuarded/Logger/CrashlyticsManager
+  → CrashLogManager (sync write a crash_log.jsonl)
+  → CrashLogUploadService (upload a maity.platform_logs al siguiente launch)
+```
+
+**Tabla Supabase**: `maity.platform_logs` — `event_type` IN ('crash','app_error'), `status='error'`, `platform='mobile'`, `synced_from_local=true`. JSONB `event_data` contiene: error_type, error_message, stack_trace, source, app_state.
+
+**Archivos**:
+- `lib/utils/crash_log_manager.dart` — Singleton, sync writes, JSONL, 500KB cap, always-on
+- `lib/utils/app_state_collector.dart` — Snapshot del estado de la app (recording, BLE, STT, background)
+- `lib/services/crash_log_upload_service.dart` — Upload batch a platform_logs via Supabase client directo
+
+**Sources** (campo `source` en cada log):
+- `flutter_error` — FlutterError.onError (main.dart)
+- `platform_error` — PlatformDispatcher.instance.onError (main.dart)
+- `zone_error` — runZonedGuarded (main.dart)
+- `flutter_error_widget` — ErrorWidget builder (main.dart)
+- `logger_handle` — Logger.handle()
+- `logger_error` — Logger.error()
+- `crash_reporter` — CrashlyticsManager.reportCrash()
+
+**Query diagnostico**: `SELECT * FROM maity.platform_logs WHERE platform = 'mobile' AND status = 'error' ORDER BY created_at DESC LIMIT 20;`
+
 ## Troubleshooting: Conversaciones no aparecen
 
 **Flujo de carga** (posibles puntos de falla):

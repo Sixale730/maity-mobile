@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:talker_flutter/talker_flutter.dart';
+import 'package:omi/utils/crash_log_manager.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 
 class SimpleTalkerObserver extends TalkerObserver {
@@ -35,6 +36,7 @@ class Logger {
   static void error(dynamic message) {
     instance.talker.error(message);
     DebugLogManager.logError(message);
+    CrashLogManager.instance.logCrash(message, null, source: 'logger_error');
   }
 
   static void warning(dynamic message) {
@@ -53,6 +55,7 @@ class Logger {
   static void handle(dynamic exception, StackTrace? stackTrace, {String? message}) {
     instance.talker.handle(exception, stackTrace, message ?? 'An error occurred. Please try again later.');
     DebugLogManager.logError(exception, stackTrace, message);
+    CrashLogManager.instance.logCrash(exception, stackTrace, source: 'logger_handle');
   }
 }
 
