@@ -869,6 +869,7 @@ class CaptureProvider extends ChangeNotifier
           source: _getConversationSourceFromDevice(),
         );
         await _audioTransport.startDeviceAudioStreaming();
+        updateRecordingState(RecordingState.deviceRecord);
       } catch (e) {
         debugPrint('[CaptureProvider] _resetState failed: $e');
         _captureLog.log('recording', 'reset_state_failed',
