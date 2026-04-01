@@ -57,6 +57,7 @@
   "startRecording": "Start Recording",
   "stopRecording": "Stop Recording",
   "processing": "Processing...",
+  "conversationSentForProcessing": "Conversation sent for processing",
   "connecting": "Connecting...",
   "connected": "Connected",
   "disconnected": "Disconnected",

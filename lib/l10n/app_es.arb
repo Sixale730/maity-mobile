@@ -57,6 +57,7 @@
   "startRecording": "Iniciar Grabación",
   "stopRecording": "Detener Grabación",
   "processing": "Procesando...",
+  "conversationSentForProcessing": "Conversacion enviada a procesar",
   "connecting": "Conectando...",
   "connected": "Conectado",
   "disconnected": "Desconectado",
