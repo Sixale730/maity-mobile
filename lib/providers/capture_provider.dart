@@ -487,6 +487,7 @@ class CaptureProvider extends ChangeNotifier
     await _audioTransport.closeBleStream();
     _stateMachine.transition(RecordingState.pause);
     updateRecordingState(RecordingState.pause);
+    _pipeline.resetSilenceTimer();
   }
 
   Future<void> resumeDeviceRecording() async {
@@ -575,6 +576,7 @@ class CaptureProvider extends ChangeNotifier
     if (!isAuto) _stateMachine.shouldAutoResumeAfterWake = false;
     _audioTransport.pauseSystemAudioRecording(isAuto: isAuto);
     _stateMachine.transition(RecordingState.pause);
+    _pipeline.resetSilenceTimer();
     notifyListeners();
   }
 

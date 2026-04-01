@@ -277,6 +277,14 @@ class AppLifecycleManager with WidgetsBindingObserver {
         delegate.resetSilenceTimer();
       }
     }
+
+    // Paused recording: restart silence timer so it can auto-save after timeout.
+    // The timer was cancelled in _handleAppPaused and won't restart on its own
+    // because no new segments arrive while paused.
+    final isPaused = delegate.recordingState == RecordingState.pause;
+    if (isPaused && delegate.currentSegments.isNotEmpty) {
+      delegate.resetSilenceTimer();
+    }
   }
 
   /// Starts a timer that auto-finalizes the conversation if the socket
