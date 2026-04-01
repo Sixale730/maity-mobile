@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/message_event.dart';
@@ -91,86 +92,97 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
   }
 
   Future<void> _stopConversation(CaptureProvider provider) async {
-    if (provider.segments.isNotEmpty || provider.photos.isNotEmpty) {
-      // Helper function to stop recording (finalization runs in background)
-      Future<void> stopRecordingAndProcess() async {
-        // Stop any active recording (phone mic, BLE device, or system audio)
-        // The stop methods now transition to processing state and finalize in background
-        if (provider.recordingState == RecordingState.record) {
-          await provider.stopStreamRecording();
-        } else if (provider.recordingState == RecordingState.deviceRecord) {
-          await provider.stopStreamDeviceRecording();
-        } else if (provider.recordingState == RecordingState.systemAudioRecord) {
-          await provider.stopSystemAudioRecording();
-        }
+    Future<void> stopRecordingAndProcess() async {
+      final state = provider.recordingState;
+      if (state == RecordingState.record) {
+        await provider.stopStreamRecording();
+      } else if (state == RecordingState.deviceRecord) {
+        await provider.stopStreamDeviceRecording();
+      } else if (state == RecordingState.systemAudioRecord) {
+        await provider.stopSystemAudioRecording();
+      } else if (state == RecordingState.pause || provider.isPaused) {
+        // Resume briefly then stop to trigger finalization
+        await provider.streamRecording();
+        await Future.delayed(const Duration(milliseconds: 300));
+        await provider.stopStreamRecording();
+      } else if (state == RecordingState.initialising) {
+        provider.clearTranscripts();
+        provider.updateRecordingState(RecordingState.stop);
       }
-
-      if (!showSummarizeConfirmation) {
-        await stopRecordingAndProcess();
-        Navigator.of(context).pop();
-        return;
-      }
-      showDialog(
-        context: context,
-        builder: (dialogContext) {
-          return StatefulBuilder(
-            builder: (dialogContext, setState) {
-              final timeoutDuration = SharedPreferencesUtil().conversationSilenceDuration;
-              String timeoutText;
-              if (timeoutDuration == -1) {
-                timeoutText = AppLocalizations.of(context)?.conversationEndsManually ?? "Conversation will only end manually.";
-              } else {
-                final minutes = timeoutDuration ~/ 60;
-                final suffix = minutes == 1 ? '' : 's';
-                timeoutText =
-                    AppLocalizations.of(context)?.conversationSummarizedAfter(minutes, suffix) ?? "Conversation is summarized after $minutes minute$suffix of no speech.";
-              }
-
-              return ConfirmationDialog(
-                title: AppLocalizations.of(context)?.finishedConversation ?? "Finished Conversation?",
-                description:
-                    "${AppLocalizations.of(context)?.stopRecordingConfirm ?? 'Are you sure you want to stop recording and summarize the conversation now?'}\n\n${AppLocalizations.of(context)?.hints ?? 'Hints'}: $timeoutText",
-                checkboxValue: !showSummarizeConfirmation,
-                checkboxText: AppLocalizations.of(context)?.dontAskAgain ?? "Don't ask me again",
-                onCheckboxChanged: (value) {
-                  setState(() {
-                    showSummarizeConfirmation = !value;
-                  });
-                },
-                onCancel: () {
-                  Navigator.of(dialogContext).pop();
-                },
-                onConfirm: () async {
-                  SharedPreferencesUtil().showSummarizeConfirmation = showSummarizeConfirmation;
-                  await stopRecordingAndProcess();
-                  Navigator.of(dialogContext).pop();
-                  Navigator.of(context).pop();
-                },
-              );
-            },
-          );
-        },
-      );
-    } else {
-      // No content: cancel recording cleanly and navigate back
-      await provider.cancelRecording();
-      if (mounted) Navigator.of(context).pop();
     }
+
+    // If no segments yet, just stop and go back
+    if (provider.segments.isEmpty && provider.photos.isEmpty) {
+      await stopRecordingAndProcess();
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
+    if (!showSummarizeConfirmation) {
+      await stopRecordingAndProcess();
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setState) {
+            final timeoutDuration = SharedPreferencesUtil().conversationSilenceDuration;
+            String timeoutText;
+            if (timeoutDuration == -1) {
+              timeoutText = AppLocalizations.of(context)?.conversationEndsManually ?? "Conversation will only end manually.";
+            } else {
+              final minutes = timeoutDuration ~/ 60;
+              final suffix = minutes == 1 ? '' : 's';
+              timeoutText =
+                  AppLocalizations.of(context)?.conversationSummarizedAfter(minutes, suffix) ?? "Conversation is summarized after $minutes minute$suffix of no speech.";
+            }
+
+            return ConfirmationDialog(
+              title: AppLocalizations.of(context)?.finishedConversation ?? "Finished Conversation?",
+              description:
+                  "${AppLocalizations.of(context)?.stopRecordingConfirm ?? 'Are you sure you want to stop recording and summarize the conversation now?'}\n\n${AppLocalizations.of(context)?.hints ?? 'Hints'}: $timeoutText",
+              checkboxValue: !showSummarizeConfirmation,
+              checkboxText: AppLocalizations.of(context)?.dontAskAgain ?? "Don't ask me again",
+              onCheckboxChanged: (value) {
+                setState(() {
+                  showSummarizeConfirmation = !value;
+                });
+              },
+              onCancel: () {
+                Navigator.of(dialogContext).pop();
+              },
+              onConfirm: () async {
+                SharedPreferencesUtil().showSummarizeConfirmation = showSummarizeConfirmation;
+                await stopRecordingAndProcess();
+                Navigator.of(dialogContext).pop();
+                if (mounted) Navigator.of(context).pop();
+              },
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Selector<CaptureProvider, ({int segmentsVersion, int photosCount, bool hasData, RecordingState recordingState})>(
+    return Selector<CaptureProvider, ({int segmentsVersion, int photosCount, bool hasData, RecordingState recordingState, bool isPaused})>(
       selector: (_, p) => (
         segmentsVersion: p.segmentsVersion,
         photosCount: p.photos.length,
         hasData: p.hasTranscripts || p.photos.isNotEmpty,
         recordingState: p.recordingState,
+        isPaused: p.isPaused,
       ),
       builder: (context, snapshot, child) {
         final provider = context.read<CaptureProvider>();
         final deviceProvider = context.read<DeviceProvider>();
         final isProcessing = snapshot.recordingState == RecordingState.processing;
+        final isPaused = snapshot.isPaused ||
+            snapshot.recordingState == RecordingState.pause ||
+            snapshot.recordingState == RecordingState.stop;
         return PopScope(
           canPop: false,
           onPopInvokedWithResult: (didPop, _) async {
@@ -189,10 +201,10 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
           },
           child: Scaffold(
             key: scaffoldKey,
-            backgroundColor: Theme.of(context).colorScheme.primary,
+            backgroundColor: isPaused ? const Color(0xFF1A1000) : Theme.of(context).colorScheme.primary,
             appBar: AppBar(
               automaticallyImplyLeading: false,
-              backgroundColor: Theme.of(context).colorScheme.primary,
+              backgroundColor: isPaused ? const Color(0xFF2A1800) : Theme.of(context).colorScheme.primary,
               title: Row(
                 mainAxisSize: MainAxisSize.max,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -200,17 +212,36 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
                 children: [
                   IconButton(
                     onPressed: () {
-                      Navigator.maybePop(context);
+                      Navigator.pop(context);
+                      return;
                     },
                     icon: const Icon(Icons.arrow_back_rounded, size: 24.0),
                   ),
                   const SizedBox(width: 4),
-                  Text(isProcessing ? "" : (provider.photos.isNotEmpty ? "" : "")),
-                  const SizedBox(width: 4),
+                  // Paused indicator
+                  if (isPaused && !isProcessing)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF9500).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFF9500).withValues(alpha: 0.4)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.pause_circle_filled, color: Color(0xFFFF9500), size: 16),
+                          SizedBox(width: 4),
+                          Text('PAUSADO', style: TextStyle(color: Color(0xFFFF9500), fontSize: 12, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                  if (!isPaused) const SizedBox(width: 4),
                   Expanded(child: Text(() {
                     if (isProcessing) {
                       return AppLocalizations.of(context)?.processing ?? "Procesando...";
                     }
+                    if (isPaused) return '';
                     final listeningText = AppLocalizations.of(context)?.listening ?? "Listening";
                     final sttProvider = provider.activeSttProvider;
                     if (sttProvider != null) {
@@ -231,14 +262,7 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
                         // Transcripts, photos
-                        _deferTranscript
-                            ? const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.only(top: 50.0),
-                                  child: CircularProgressIndicator(color: Colors.white),
-                                ),
-                              )
-                            : provider.segments.isEmpty && provider.photos.isEmpty
+                        provider.segments.isEmpty && provider.photos.isEmpty
                             ? Center(
                                 child: Padding(
                                   padding: const EdgeInsets.only(top: 50.0),
@@ -311,62 +335,154 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
             floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
             floatingActionButton: isProcessing
                 ? Container(
-                    width: 60,
-                    height: 60,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF35343B),
-                      shape: BoxShape.circle,
+                      color: const Color(0xFF1F1F25),
+                      borderRadius: BorderRadius.circular(40),
+                      border: Border.all(color: const Color(0xFF35343B), width: 1),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.25),
-                          spreadRadius: 2,
-                          blurRadius: 8,
+                          color: Colors.black.withValues(alpha: 0.4),
+                          blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    child: const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.5,
-                      ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(color: Colors.white70, strokeWidth: 2),
+                        ),
+                        SizedBox(width: 10),
+                        Text('Procesando...', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                      ],
                     ),
                   )
-                : (snapshot.recordingState == RecordingState.record ||
-                        snapshot.recordingState == RecordingState.deviceRecord ||
-                        snapshot.recordingState == RecordingState.systemAudioRecord ||
-                        snapshot.recordingState == RecordingState.initialising)
-                    ? Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.25),
-                              spreadRadius: 2,
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                : Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1F1F25),
+                      borderRadius: BorderRadius.circular(40),
+                      border: Border.all(color: const Color(0xFF35343B), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                        child: IconButton(
-                          onPressed: () => _stopConversation(provider),
-                          icon: const FaIcon(
-                            FontAwesomeIcons.stop,
-                            color: Colors.white,
-                            size: 20.0,
-                          ),
-                          padding: EdgeInsets.zero,
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Cancel button
+                        _buildControlButton(
+                          icon: FontAwesomeIcons.xmark,
+                          label: 'Cancelar',
+                          color: const Color(0xFF35343B),
+                          iconColor: Colors.white70,
+                          onTap: () => _cancelConversation(provider),
                         ),
-                      )
-                    : null,
+                        const SizedBox(width: 8),
+                        // Pause/Resume button
+                        _buildControlButton(
+                          icon: provider.isPaused ? FontAwesomeIcons.play : FontAwesomeIcons.pause,
+                          label: provider.isPaused ? 'Reanudar' : 'Pausar',
+                          color: provider.isPaused ? const Color(0xFF485DF4) : const Color(0xFFFF9500),
+                          iconColor: Colors.white,
+                          onTap: () => _togglePause(provider),
+                        ),
+                        const SizedBox(width: 8),
+                        // Stop button
+                        _buildControlButton(
+                          icon: FontAwesomeIcons.stop,
+                          label: 'Detener',
+                          color: const Color(0xFFFE3B30),
+                          iconColor: Colors.white,
+                          onTap: () => _stopConversation(provider),
+                        ),
+                      ],
+                    ),
+                  ),
           ),
         );
       },
     );
+  }
+
+  Widget _buildControlButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        onTap();
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            child: Center(child: FaIcon(icon, color: iconColor, size: 18)),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  void _cancelConversation(CaptureProvider provider) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1F1F25),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Cancelar grabación', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          '¿Deseas descartar la grabación actual? Se perderá todo lo capturado.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Continuar grabando', style: TextStyle(color: Color(0xFF485DF4))),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              if (provider.recordingState == RecordingState.record) {
+                await provider.stopStreamRecording();
+              } else if (provider.recordingState == RecordingState.systemAudioRecord) {
+                await provider.stopSystemAudioRecording();
+              }
+              provider.clearTranscripts();
+              provider.updateRecordingState(RecordingState.stop);
+              if (mounted) Navigator.of(context).pop();
+            },
+            child: const Text('Descartar', style: TextStyle(color: Color(0xFFFE3B30))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _togglePause(CaptureProvider provider) {
+    final state = provider.recordingState;
+    if (state == RecordingState.record || state == RecordingState.systemAudioRecord) {
+      provider.stopStreamRecording();
+    } else if (provider.isPaused || state == RecordingState.pause || state == RecordingState.stop) {
+      provider.streamRecording();
+    }
   }
 
   String _getTimeoutDisplayText(BuildContext context) {
