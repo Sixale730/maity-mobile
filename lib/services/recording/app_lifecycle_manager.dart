@@ -44,6 +44,8 @@ abstract class AppLifecycleDelegate {
   Future<void> streamSystemAudioRecording();
   void updateRecordingState(RecordingState state);
   void notifyListenersCallback();
+  void stopBreathingLed();
+  void startBreathingLedIfPaused();
 }
 
 /// Manages app lifecycle states (paused/resumed/detached).
@@ -141,6 +143,9 @@ class AppLifecycleManager with WidgetsBindingObserver {
 
     // Cancel keep-alive timer to prevent reconnection attempts in background
     delegate.cancelKeepAlive();
+
+    // Stop LED breathing to save battery in background
+    delegate.stopBreathingLed();
 
     // Cancel silence timer for active recording states to prevent false auto-finalize
     // while in background (it will restart when new segments arrive after resume).
@@ -288,6 +293,11 @@ class AppLifecycleManager with WidgetsBindingObserver {
     final isPaused = delegate.recordingState == RecordingState.pause;
     if (isPaused && delegate.currentSegments.isNotEmpty) {
       delegate.resetSilenceTimer();
+    }
+
+    // Restart LED breathing if still paused
+    if (isPaused) {
+      delegate.startBreathingLedIfPaused();
     }
   }
 

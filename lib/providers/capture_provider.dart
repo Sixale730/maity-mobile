@@ -37,6 +37,8 @@ import 'package:omi/services/recording/transcription_pipeline.dart';
 import 'package:omi/services/recording/persistence_manager.dart';
 import 'package:omi/services/recording/app_lifecycle_manager.dart';
 import 'package:omi/services/notifications/notification_service.dart';
+import 'package:omi/services/devices/led_breathing_service.dart';
+import 'package:omi/services/devices.dart';
 
 const _autoSaveNotificationMessages = {
   'en': {
@@ -77,6 +79,7 @@ class CaptureProvider extends ChangeNotifier
   final TranscriptionPipeline _pipeline = TranscriptionPipeline();
   final PersistenceManager _persistence = PersistenceManager();
   final AppLifecycleManager _lifecycle = AppLifecycleManager();
+  final LedBreathingService _ledBreathing = LedBreathingService();
 
   // ---------------------------------------------------------------------------
   // Connection state
@@ -236,6 +239,10 @@ class CaptureProvider extends ChangeNotifier
 
   @override
   void updateRecordingState(RecordingState state) {
+    // Stop LED breathing whenever leaving pause state
+    if (state != RecordingState.pause && _ledBreathing.isActive) {
+      _stopBreathingLed();
+    }
     _stateMachine.transition(state);
     CaptureProvider.isRecordingWithPhoneMic =
         _stateMachine.isRecordingWithPhoneMic;
@@ -488,6 +495,7 @@ class CaptureProvider extends ChangeNotifier
     _stateMachine.transition(RecordingState.pause);
     updateRecordingState(RecordingState.pause);
     _pipeline.resetSilenceTimer();
+    _startBreathingLed();
   }
 
   Future<void> resumeDeviceRecording() async {
@@ -1280,6 +1288,45 @@ class CaptureProvider extends ChangeNotifier
   }
 
   // ---------------------------------------------------------------------------
+  // LED Breathing (visual pause indicator)
+  // ---------------------------------------------------------------------------
+
+  Future<void> _startBreathingLed() async {
+    final device = _audioTransport.recordingDevice;
+    if (device == null) return;
+    try {
+      final connection =
+          await ServiceManager.instance().device.ensureConnection(device.id);
+      if (connection == null) return;
+      final features = await connection.getFeatures();
+      if ((features & OmiFeatures.ledDimming) == 0) return;
+      await _ledBreathing.start(connection);
+    } catch (e) {
+      debugPrint('[CaptureProvider] Failed to start LED breathing: $e');
+    }
+  }
+
+  Future<void> _stopBreathingLed() async {
+    if (!_ledBreathing.isActive) return;
+    try {
+      await _ledBreathing.stop();
+    } catch (_) {
+      _ledBreathing.cancel();
+    }
+  }
+
+  @override
+  void stopBreathingLed() => _stopBreathingLed();
+
+  @override
+  void startBreathingLedIfPaused() {
+    if (_stateMachine.state == RecordingState.pause &&
+        _audioTransport.recordingDevice != null) {
+      _startBreathingLed();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Dispose
   // ---------------------------------------------------------------------------
 
@@ -1292,6 +1339,7 @@ class CaptureProvider extends ChangeNotifier
     _persistence.dispose();
     _lifecycle.dispose();
     _stateMachine.dispose();
+    _ledBreathing.dispose();
     super.dispose();
   }
 }
