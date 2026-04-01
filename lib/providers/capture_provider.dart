@@ -454,11 +454,8 @@ class CaptureProvider extends ChangeNotifier
     });
 
     try {
-      bool wasPaused = _stateMachine.isPaused || _restartPaused;
-      _restartPaused = false;
       await _resetStateVariables();
       await _resetState();
-      if (wasPaused) await pauseDeviceRecording();
     } catch (e) {
       debugPrint('[CaptureProvider] streamDeviceRecording failed: $e');
       _captureLog.log('recording', 'stream_device_recording_failed',
@@ -1201,18 +1198,28 @@ class CaptureProvider extends ChangeNotifier
     final device = _audioTransport.recordingDevice;
     if (device == null) return;
 
+    final shouldPause = _restartPaused;
+    _restartPaused = false;
+
     debugPrint(
-        '[CaptureProvider] Auto-restart: device ${device.name} still connected');
+        '[CaptureProvider] Auto-restart: device ${device.name} still connected'
+        '${shouldPause ? ' (will pause)' : ''}');
 
     // Brief delay to let state settle and avoid UI flash
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    Future.delayed(const Duration(milliseconds: 1500), () async {
       // Guard: still stopped and device still available
       if (recordingState != RecordingState.stop) return;
       if (_audioTransport.recordingDevice == null) return;
 
       debugPrint(
           '[CaptureProvider] Auto-restarting recording with ${device.name}');
-      streamDeviceRecording(device: device);
+      await streamDeviceRecording(device: device);
+
+      // Pause the new session if the previous one was paused
+      if (shouldPause && recordingState == RecordingState.deviceRecord) {
+        debugPrint('[CaptureProvider] Auto-pausing restarted recording');
+        await pauseDeviceRecording();
+      }
     });
   }
 
