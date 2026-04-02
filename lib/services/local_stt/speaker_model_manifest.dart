@@ -8,7 +8,8 @@ class SpeakerModelManifest {
       'https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/$modelFileName';
 
   /// Embedding dimension produced by this model.
-  static const int embeddingDim = 192;
+  /// CAM++ sv_en_voxceleb_16k outputs 512-dim embeddings.
+  static const int embeddingDim = 512;
 
   /// Subdirectory under getApplicationSupportDirectory().
   static const String modelDirName = 'speaker-campplus';
@@ -19,7 +20,7 @@ class SpeakerModelManifest {
   /// Minimum fraction of expectedBytes to consider valid.
   static const double sizeThreshold = 0.89;
 
-  /// User embedding file name (192 floats × 4 bytes = 768 bytes).
+  /// User embedding file name (512 floats × 4 bytes = 2048 bytes).
   static const String embeddingFileName = 'user_embedding.bin';
 
   /// Expected embedding file size in bytes.

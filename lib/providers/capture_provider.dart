@@ -37,6 +37,8 @@ import 'package:omi/services/recording/transcription_pipeline.dart';
 import 'package:omi/services/recording/persistence_manager.dart';
 import 'package:omi/services/recording/app_lifecycle_manager.dart';
 import 'package:omi/services/notifications/notification_service.dart';
+import 'package:omi/services/devices/led_breathing_service.dart';
+import 'package:omi/services/devices.dart';
 
 const _autoSaveNotificationMessages = {
   'en': {
@@ -77,6 +79,7 @@ class CaptureProvider extends ChangeNotifier
   final TranscriptionPipeline _pipeline = TranscriptionPipeline();
   final PersistenceManager _persistence = PersistenceManager();
   final AppLifecycleManager _lifecycle = AppLifecycleManager();
+  final LedBreathingService _ledBreathing = LedBreathingService();
 
   // ---------------------------------------------------------------------------
   // Connection state
@@ -90,9 +93,16 @@ class CaptureProvider extends ChangeNotifier
   bool get isWalSupported => _isWalSupported;
 
   bool _isFinalizing = false;
+  bool _restartPaused = false;
 
   /// Single-flight guard: all reconnect paths coalesce onto one in-flight Future.
   Completer<void>? _reconnectInflight;
+
+  /// Completed when recording state transitions to [RecordingState.record],
+  /// meaning the mic is actually capturing audio.  Created in
+  /// [streamRecording] so the caller can await until the session is truly live
+  /// before navigating to the capturing page.
+  Completer<void>? _recordingReadyCompleter;
 
   final ValueNotifier<String?> autoSaveMessage = ValueNotifier(null);
 
@@ -166,12 +176,18 @@ class CaptureProvider extends ChangeNotifier
   @override
   bool get shouldAutoResumeAfterWake => _stateMachine.shouldAutoResumeAfterWake;
 
-  List<TranscriptSegment> get segments => _pipeline.segments;
+  List<TranscriptSegment> get segments => _pipeline.displaySegments;
   set segments(List<TranscriptSegment> value) => _pipeline.segments = value;
 
   int get segmentsVersion => _pipeline.segmentsVersion;
   bool get hasTranscripts => _pipeline.hasTranscripts;
   set hasTranscripts(bool value) => _pipeline.setHasTranscripts(value);
+
+  /// Whether the chunk pipeline has audio that hasn't produced segments yet.
+  bool get hasUnprocessedAudio => _pipeline.hasUnprocessedAudio;
+
+  /// VAD activity indicator from local STT worker (replaces preview text).
+  ValueNotifier<bool> get vadSpeechActive => _pipeline.vadSpeechActive;
 
   List<ConversationPhoto> get photos => _audioTransport.photos;
 
@@ -223,12 +239,26 @@ class CaptureProvider extends ChangeNotifier
 
   @override
   void updateRecordingState(RecordingState state) {
+    // Stop LED breathing whenever leaving pause state
+    if (state != RecordingState.pause && _ledBreathing.isActive) {
+      _stopBreathingLed();
+    }
     _stateMachine.transition(state);
     CaptureProvider.isRecordingWithPhoneMic =
         _stateMachine.isRecordingWithPhoneMic;
     notifyListeners();
     _lifecycle.broadcastRecordingState();
     _lifecycle.updateForegroundNotification(_getNotificationState());
+
+    // Signal callers awaiting recording readiness.
+    final c = _recordingReadyCompleter;
+    if (c != null && !c.isCompleted) {
+      if (state == RecordingState.record) {
+        c.complete();
+      } else if (state == RecordingState.stop || state == RecordingState.error) {
+        c.completeError(StateError('Recording failed to start: $state'));
+      }
+    }
   }
 
   void updateRecordingDevice(BtDevice? device) {
@@ -252,6 +282,7 @@ class CaptureProvider extends ChangeNotifier
 
   Future<void> streamRecording() async {
     updateRecordingState(RecordingState.initialising);
+    _recordingReadyCompleter = Completer<void>();
 
     final userId = SupabaseAuthService.instance.maityUserId;
     final sessionId = const Uuid().v4();
@@ -275,6 +306,7 @@ class CaptureProvider extends ChangeNotifier
 
     _pipeline.startHealthMonitor();
     _pipeline.setWalEnabled(true);
+    _pipeline.chunkSessionId = sessionId;
 
     // Set up socket sender for audio transport
     _audioTransport.setSocketSender((bytes) {
@@ -306,6 +338,30 @@ class CaptureProvider extends ChangeNotifier
       await _resetStateVariables();
       updateRecordingState(RecordingState.stop);
       _captureLog.endSession();
+      _recordingReadyCompleter = null;
+      return;
+    }
+
+    // Wait until the mic callback fires RecordingState.record.
+    // The background service notifies asynchronously, so streamRecording()
+    // must not return while the state is still 'initialising'.
+    try {
+      await _recordingReadyCompleter!.future
+          .timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      debugPrint('[CaptureProvider] Timed out waiting for mic to start');
+      _captureLog.log('recording', 'mic_start_timeout', severity: 'error');
+      _pipeline.stopHealthMonitor();
+      _audioTransport.stopPhoneMicRecording();
+      _audioTransport.setSocketSender(null);
+      _pipeline.stopSocket('mic start timeout');
+      await _resetStateVariables();
+      updateRecordingState(RecordingState.stop);
+      _captureLog.endSession();
+    } catch (_) {
+      // Completer was completed with error (stop/error state) — already handled.
+    } finally {
+      _recordingReadyCompleter = null;
     }
   }
 
@@ -325,6 +381,37 @@ class CaptureProvider extends ChangeNotifier
 
     // Fire-and-forget: finalize in background
     _backgroundFinalize();
+  }
+
+  /// Cancel an active recording that has no segments.
+  /// Cleans up all recording resources without attempting finalization.
+  /// If segments arrived in the meantime, delegates to the normal stop flow.
+  Future<void> cancelRecording() async {
+    if (segments.isNotEmpty) {
+      if (recordingState == RecordingState.systemAudioRecord) {
+        await stopSystemAudioRecording();
+      } else {
+        await stopStreamRecording();
+      }
+      return;
+    }
+
+    debugPrint('[CaptureProvider] cancelRecording: no segments, stopping without finalize');
+    _captureLog.log('recording', 'recording_cancelled',
+        details: {'reason': 'user_cancel_no_segments'});
+
+    _pipeline.stopHealthMonitor();
+    _pipeline.cancelSilenceTimer();
+    await _cleanupCurrentState();
+    _audioTransport.stopPhoneMicRecording();
+    if (PlatformService.isDesktop) {
+      _audioTransport.stopSystemAudioRecording();
+    }
+    CaptureProvider.isRecordingWithPhoneMic = false;
+    _pipeline.stopSocket('user cancel - no segments');
+    updateRecordingState(RecordingState.stop);
+    await _resetStateVariables();
+    _captureLog.endSession();
   }
 
   // ---------------------------------------------------------------------------
@@ -357,6 +444,8 @@ class CaptureProvider extends ChangeNotifier
 
     _pipeline.startHealthMonitor();
     _pipeline.setWalEnabled(true);
+    _pipeline.chunkSessionId = sessionId;
+    _pipeline.setBleSource(true);
 
     // Set up socket sender for BLE audio transport
     _audioTransport.setSocketSender((bytes) {
@@ -365,10 +454,8 @@ class CaptureProvider extends ChangeNotifier
     });
 
     try {
-      bool wasPaused = _stateMachine.isPaused;
       await _resetStateVariables();
       await _resetState();
-      if (wasPaused) await pauseDeviceRecording();
     } catch (e) {
       debugPrint('[CaptureProvider] streamDeviceRecording failed: $e');
       _captureLog.log('recording', 'stream_device_recording_failed',
@@ -404,6 +491,8 @@ class CaptureProvider extends ChangeNotifier
     await _audioTransport.closeBleStream();
     _stateMachine.transition(RecordingState.pause);
     updateRecordingState(RecordingState.pause);
+    _pipeline.resetSilenceTimer();
+    _startBreathingLed();
   }
 
   Future<void> resumeDeviceRecording() async {
@@ -413,6 +502,35 @@ class CaptureProvider extends ChangeNotifier
     _stateMachine.transition(RecordingState.deviceRecord);
     await _audioTransport.startDeviceAudioStreaming();
     updateRecordingState(RecordingState.deviceRecord);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Phone mic pause/resume (without finalizing)
+  // ---------------------------------------------------------------------------
+
+  Future<void> pausePhoneMicRecording() async {
+    _captureLog.log('recording', 'recording_paused',
+        details: {'source': 'phone_mic'});
+    _audioTransport.stopPhoneMicRecording();
+    _stateMachine.transition(RecordingState.pause);
+    updateRecordingState(RecordingState.pause);
+    _pipeline.resetSilenceTimer();
+  }
+
+  Future<void> resumePhoneMicRecording() async {
+    _captureLog.log('recording', 'recording_resumed',
+        details: {'source': 'phone_mic'});
+    _stateMachine.transition(RecordingState.record);
+    updateRecordingState(RecordingState.initialising);
+
+    _pipeline.setWalEnabled(true);
+    _audioTransport.setSocketSender(_pipeline.sendToSocket);
+
+    await _audioTransport.startPhoneMicRecording(
+      onStateChange: (state) => updateRecordingState(state),
+      socketState: () =>
+          _pipeline.socket?.state ?? SocketServiceState.disconnected,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -449,6 +567,7 @@ class CaptureProvider extends ChangeNotifier
 
     _pipeline.startHealthMonitor();
     _pipeline.setWalEnabled(true);
+    _pipeline.chunkSessionId = sessionId;
 
     try {
       await _audioTransport.startSystemAudioRecording(
@@ -491,6 +610,7 @@ class CaptureProvider extends ChangeNotifier
     if (!isAuto) _stateMachine.shouldAutoResumeAfterWake = false;
     _audioTransport.pauseSystemAudioRecording(isAuto: isAuto);
     _stateMachine.transition(RecordingState.pause);
+    _pipeline.resetSilenceTimer();
     notifyListeners();
   }
 
@@ -787,6 +907,7 @@ class CaptureProvider extends ChangeNotifier
           source: _getConversationSourceFromDevice(),
         );
         await _audioTransport.startDeviceAudioStreaming();
+        updateRecordingState(RecordingState.deviceRecord);
       } catch (e) {
         debugPrint('[CaptureProvider] _resetState failed: $e');
         _captureLog.log('recording', 'reset_state_failed',
@@ -805,6 +926,7 @@ class CaptureProvider extends ChangeNotifier
 
   Future<void> _resetStateVariables() async {
     _pipeline.clearSegments();
+    _pipeline.setBleSource(false);
     _audioTransport.photos.clear();
     suggestionsBySegmentId = {};
     taggingSegmentIds = [];
@@ -883,8 +1005,12 @@ class CaptureProvider extends ChangeNotifier
       return;
     }
 
+    // Capture pause state before FSM transitions clear it
+    _restartPaused = _stateMachine.isPaused;
+
     _captureLog.log('recording', 'silence_timeout_auto_save', details: {
       'segments_count': segments.length,
+      'was_paused': _restartPaused,
     });
 
     // Save recovery data as backup
@@ -1019,6 +1145,7 @@ class CaptureProvider extends ChangeNotifier
             SupabaseAuthService.instance.maityUserId,
         startedAt: _stateMachine.recordingStartTime,
         isSpeechProfileMode: _stateMachine.isSpeechProfileMode,
+        sessionId: _stateMachine.currentSessionId,
         onSuccess: () {
           conversationProvider?.refreshConversations();
         },
@@ -1054,9 +1181,44 @@ class CaptureProvider extends ChangeNotifier
         _resetStateVariables();
         updateRecordingState(RecordingState.stop);
         _captureLog.endSession();
+
+        // Continuous recording: if OMI device still connected, auto-restart
+        _autoRestartIfDeviceConnected();
       } else {
         debugPrint('[CaptureProvider] Skipping reset: new session started '
             '(old=$sessionId, new=${_stateMachine.currentSessionId})');
+      }
+    });
+  }
+
+  /// Auto-restart recording when an OMI device is still connected.
+  /// Enables continuous recording: finish one conversation, immediately
+  /// start capturing the next one (like original OMI behavior).
+  void _autoRestartIfDeviceConnected() {
+    final device = _audioTransport.recordingDevice;
+    if (device == null) return;
+
+    final shouldPause = _restartPaused;
+    _restartPaused = false;
+
+    debugPrint(
+        '[CaptureProvider] Auto-restart: device ${device.name} still connected'
+        '${shouldPause ? ' (will pause)' : ''}');
+
+    // Brief delay to let state settle and avoid UI flash
+    Future.delayed(const Duration(milliseconds: 1500), () async {
+      // Guard: still stopped and device still available
+      if (recordingState != RecordingState.stop) return;
+      if (_audioTransport.recordingDevice == null) return;
+
+      debugPrint(
+          '[CaptureProvider] Auto-restarting recording with ${device.name}');
+      await streamDeviceRecording(device: device);
+
+      // Pause the new session if the previous one was paused
+      if (shouldPause && recordingState == RecordingState.deviceRecord) {
+        debugPrint('[CaptureProvider] Auto-pausing restarted recording');
+        await pauseDeviceRecording();
       }
     });
   }
@@ -1133,6 +1295,45 @@ class CaptureProvider extends ChangeNotifier
   }
 
   // ---------------------------------------------------------------------------
+  // LED Breathing (visual pause indicator)
+  // ---------------------------------------------------------------------------
+
+  Future<void> _startBreathingLed() async {
+    final device = _audioTransport.recordingDevice;
+    if (device == null) return;
+    try {
+      final connection =
+          await ServiceManager.instance().device.ensureConnection(device.id);
+      if (connection == null) return;
+      final features = await connection.getFeatures();
+      if ((features & OmiFeatures.ledDimming) == 0) return;
+      await _ledBreathing.start(connection);
+    } catch (e) {
+      debugPrint('[CaptureProvider] Failed to start LED breathing: $e');
+    }
+  }
+
+  Future<void> _stopBreathingLed() async {
+    if (!_ledBreathing.isActive) return;
+    try {
+      await _ledBreathing.stop();
+    } catch (_) {
+      _ledBreathing.cancel();
+    }
+  }
+
+  @override
+  void stopBreathingLed() => _stopBreathingLed();
+
+  @override
+  void startBreathingLedIfPaused() {
+    if (_stateMachine.state == RecordingState.pause &&
+        _audioTransport.recordingDevice != null) {
+      _startBreathingLed();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Dispose
   // ---------------------------------------------------------------------------
 
@@ -1145,6 +1346,7 @@ class CaptureProvider extends ChangeNotifier
     _persistence.dispose();
     _lifecycle.dispose();
     _stateMachine.dispose();
+    _ledBreathing.dispose();
     super.dispose();
   }
 }

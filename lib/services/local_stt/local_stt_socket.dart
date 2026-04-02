@@ -7,9 +7,12 @@ import 'package:omi/services/local_stt/local_stt_worker.dart';
 import 'package:omi/services/sockets/pure_socket.dart';
 
 /// IPureSocket adapter that bridges a worker isolate running [LocalSttEngine]
-/// to the transcription pipeline. Receives PCM16 audio via [send] (non-blocking),
-/// forwards it to the worker isolate, and emits decoded segments as JSON via
-/// [onMessage] in the same format the pipeline expects.
+/// to the transcription pipeline.
+///
+/// In the chunk-based pipeline, audio is written to disk by [AudioChunkWriter]
+/// and this socket sends `processChunk` commands to the worker isolate to
+/// decode each chunk file. Results flow back via [onMessage] in the same
+/// JSON format the pipeline expects.
 ///
 /// All heavy FFI work (VAD + decode) runs in the worker isolate, so the main
 /// isolate is never blocked. Each [connect] spawns a fresh worker with a fresh
@@ -21,6 +24,15 @@ class LocalSttSocket implements IPureSocket {
   final String? _speakerModelPath;
   final Uint8List? _userEmbeddingBytes;
   final LocalSttModelType _modelType;
+  final double? _maxSpeechDuration;
+
+  /// Callback for VAD state transitions (replaces preview text).
+  /// Called when the VAD detects speech start/end during chunk processing.
+  void Function(bool isSpeechActive)? onVadStateChanged;
+
+  /// Callback when a chunk has been fully processed.
+  /// The [chunkId] is the same ID passed to [processChunk].
+  void Function(String chunkId)? onChunkProcessed;
 
   // Worker isolate communication
   Isolate? _workerIsolate;
@@ -35,10 +47,12 @@ class LocalSttSocket implements IPureSocket {
     LocalSttModelType modelType = LocalSttModelType.parakeet,
     String? speakerModelPath,
     Uint8List? userEmbeddingBytes,
+    double? maxSpeechDuration,
   })  : _modelPath = modelPath,
         _modelType = modelType,
         _speakerModelPath = speakerModelPath,
-        _userEmbeddingBytes = userEmbeddingBytes;
+        _userEmbeddingBytes = userEmbeddingBytes,
+        _maxSpeechDuration = maxSpeechDuration;
 
   @override
   PureSocketStatus get status => _status;
@@ -93,13 +107,14 @@ class LocalSttSocket implements IPureSocket {
       _workerSendPort = await handshakeCompleter.future
           .timeout(const Duration(seconds: 10));
 
-      // Initialize engine in worker (with optional speaker ID data + model type)
+      // Initialize engine in worker
       _workerSendPort!.send([
         'init',
         _modelPath,
         _speakerModelPath,
         _userEmbeddingBytes,
         _modelType.name,
+        _maxSpeechDuration,
       ]);
 
       // Wait for 'ready' response
@@ -117,21 +132,34 @@ class LocalSttSocket implements IPureSocket {
     }
   }
 
+  /// Request the worker to process a chunk file from disk.
+  ///
+  /// Called by [ChunkQueueManager] when a chunk becomes pending.
+  /// The worker reads the PCM16 file, decodes it, and responds with
+  /// `['chunk_result', chunkId, jsonSegments?, vadActive]`.
+  void processChunk(String filePath, String chunkId, double offsetSeconds) {
+    if (_workerSendPort == null) {
+      debugPrint('[LocalSttSocket] Cannot process chunk: worker not connected');
+      return;
+    }
+    _workerSendPort!.send(['process_chunk', filePath, chunkId, offsetSeconds]);
+  }
+
   @override
   void send(dynamic message) {
+    // For chunk-based recording (TranscriptionPipeline), audio is routed to
+    // AudioChunkWriter before reaching this method — so send() is never called.
+    // For speech profile enrollment (SpeechProfileProvider), audio is sent
+    // directly here. Forward to the worker isolate for streaming decode.
     if (_workerSendPort == null) return;
-
     if (message is Uint8List) {
-      _workerSendPort!.send(['audio', message]);
+      _workerSendPort!.send(['send_audio', message]);
     } else if (message is List<int>) {
-      _workerSendPort!.send(['audio', Uint8List.fromList(message)]);
-    } else {
-      debugPrint(
-          '[LocalSttSocket] Unsupported message type: ${message.runtimeType}');
+      _workerSendPort!.send(['send_audio', Uint8List.fromList(message)]);
     }
   }
 
-  /// Flush remaining audio and VAD tail. Waits for worker to finish processing.
+  /// Flush remaining VAD tail. Waits for worker to finish processing.
   Future<void> flushNow() async {
     if (_workerSendPort == null) return;
 
@@ -154,7 +182,7 @@ class LocalSttSocket implements IPureSocket {
       return;
     }
 
-    // Flush remaining audio before disconnecting
+    // Flush VAD tail before disconnecting
     await flushNow();
 
     _shutdownWorker();
@@ -215,16 +243,34 @@ class LocalSttSocket implements IPureSocket {
           _initCompleter!.completeError(Exception(errorMsg));
         }
 
-      case 'results':
-        if (message.length > 1 && message[1] is String) {
-          onMessage(message[1]);
+      case 'chunk_result':
+        final chunkId = message.length > 1 ? message[1] as String : '';
+        final jsonSegments =
+            message.length > 2 ? message[2] as String? : null;
+        final vadActive =
+            message.length > 3 ? message[3] as bool : false;
+
+        // Forward decoded segments to pipeline (same path as before)
+        if (jsonSegments != null) {
+          onMessage(jsonSegments);
         }
+
+        // Notify VAD state
+        onVadStateChanged?.call(vadActive);
+
+        // Notify chunk completion (so ChunkQueueManager can proceed)
+        onChunkProcessed?.call(chunkId);
 
       case 'flushed':
         if (message.length > 1 && message[1] is String) {
           onMessage(message[1]);
         }
         _flushCompleter?.complete();
+
+      case 'vad_state':
+        if (message.length > 1) {
+          onVadStateChanged?.call(message[1] as bool);
+        }
     }
   }
 

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:omi/backend/preferences.dart';
 import 'package:omi/l10n/app_localizations.dart';
+import 'package:omi/models/stt_provider.dart';
+import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/local_stt_provider.dart';
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
 import 'package:omi/pages/speech_profile/page.dart';
+import 'package:omi/utils/enums.dart';
 import 'package:provider/provider.dart';
 
 class LocalSttModelCard extends StatelessWidget {
@@ -57,6 +61,11 @@ class LocalSttModelCard extends StatelessWidget {
             // Auto-fallback toggle (only when any model is ready)
             if (provider.isReadyFor(selected))
               _buildAutoFallbackToggle(provider, l10n),
+
+            // Canary max speech duration slider
+            if (selected == LocalSttModelType.canary &&
+                provider.isReadyFor(LocalSttModelType.canary))
+              _buildCanaryMaxDurationSlider(),
           ],
         );
       },
@@ -134,11 +143,68 @@ class LocalSttModelCard extends StatelessWidget {
             ),
           ],
           onChanged: (type) {
-            if (type != null) provider.selectModel(type);
+            if (type == null || type == selected) return;
+            _onModelChanged(context, provider, type);
           },
         ),
       ),
     );
+  }
+
+  void _onModelChanged(
+    BuildContext context,
+    LocalSttProvider provider,
+    LocalSttModelType newType,
+  ) {
+    final capture = Provider.of<CaptureProvider>(context, listen: false);
+    final isRecording = capture.recordingState == RecordingState.record ||
+        capture.recordingState == RecordingState.deviceRecord ||
+        capture.recordingState == RecordingState.systemAudioRecord ||
+        capture.recordingState == RecordingState.pause;
+
+    final activeProvider = capture.activeSttProvider;
+    final isUsingLocalStt = activeProvider == SttProvider.localParakeet ||
+        activeProvider == SttProvider.localMoonshine ||
+        activeProvider == SttProvider.localCanary;
+
+    if (isRecording && isUsingLocalStt) {
+      final isNewModelReady = provider.isReadyFor(newType);
+      showDialog(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1F1F25),
+            title: const Text('Cambiar modelo durante grabación'),
+            content: Text(
+              isNewModelReady
+                  ? 'Se cambiará el modelo STT sin detener la grabación. '
+                    'Los segmentos anteriores se conservan.'
+                  : 'El modelo ${newType.name} no está descargado. '
+                    'Se guardará la preferencia pero seguirá usando el modelo actual hasta que descargues el nuevo.',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(dialogContext).pop();
+                  provider.selectModel(newType);
+                  if (isNewModelReady) {
+                    await capture.onTranscriptionSettingsChanged();
+                  }
+                },
+                child: Text(isNewModelReady ? 'Cambiar' : 'Aceptar'),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      provider.selectModel(newType);
+    }
   }
 
   String _descriptionFor(LocalSttModelType type) {
@@ -492,6 +558,70 @@ class LocalSttModelCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCanaryMaxDurationSlider() {
+    final prefs = SharedPreferencesUtil();
+    return StatefulBuilder(
+      builder: (context, setLocalState) {
+        double value = prefs.localSttCanaryMaxSpeechDuration;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.shade800),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Duración máx. segmento: ${value.toInt()}s',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  if (value != 5.0)
+                    GestureDetector(
+                      onTap: () {
+                        prefs.localSttCanaryMaxSpeechDuration = 5.0;
+                        setLocalState(() {});
+                      },
+                      child: Text(
+                        'Default',
+                        style: TextStyle(
+                            color: Colors.blue.shade400, fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Segmentos más cortos = transcripción más rápida',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              ),
+              Slider(
+                value: value,
+                min: 3,
+                max: 30,
+                divisions: 27,
+                label: '${value.toInt()}s',
+                activeColor: Colors.blue,
+                onChanged: (v) {
+                  prefs.localSttCanaryMaxSpeechDuration = v.roundToDouble();
+                  setLocalState(() {});
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

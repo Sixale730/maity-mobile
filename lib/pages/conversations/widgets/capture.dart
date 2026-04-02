@@ -40,6 +40,7 @@ class LiteCaptureWidgetState extends State<LiteCaptureWidget> with AutomaticKeep
           provider.segments,
           provider.photos,
           deviceProvider.connectedDevice,
+          vadSpeechActive: provider.vadSpeechActive,
         );
       },
     );

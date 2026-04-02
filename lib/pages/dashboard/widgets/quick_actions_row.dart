@@ -99,12 +99,24 @@ class QuickActionsRow extends StatelessWidget {
     final captureProvider = context.read<CaptureProvider>();
     final recordingState = captureProvider.recordingState;
 
-    if (recordingState == RecordingState.record) {
-      await captureProvider.stopStreamRecording();
-      captureProvider.forceProcessingCurrentConversation();
-      MixpanelManager().phoneMicRecordingStopped();
-    } else if (recordingState == RecordingState.initialising) {
+    if (recordingState == RecordingState.processing ||
+        recordingState == RecordingState.initialising) {
       return;
+    } else if (recordingState == RecordingState.record ||
+        recordingState == RecordingState.deviceRecord ||
+        recordingState == RecordingState.systemAudioRecord) {
+      // Any active recording -> navigate to capturing page (stop is done from there)
+      if (context.mounted) {
+        var topConvoId = (captureProvider.conversationProvider?.conversations ?? []).isNotEmpty
+            ? captureProvider.conversationProvider!.conversations.first.id
+            : null;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ConversationCapturingPage(topConversationId: topConvoId),
+          ),
+        );
+      }
     } else {
       await captureProvider.streamRecording();
       MixpanelManager().phoneMicRecordingStarted();

@@ -11,6 +11,7 @@ import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/providers/capture_provider.dart';
+import 'package:omi/providers/role_provider.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
 import 'package:omi/services/custom_stt_log_service.dart';
@@ -99,7 +100,8 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
     final activeConfig = SharedPreferencesUtil().customSttConfig;
     setState(() {
       if ((activeConfig.provider == SttProvider.localParakeet ||
-           activeConfig.provider == SttProvider.localMoonshine) &&
+           activeConfig.provider == SttProvider.localMoonshine ||
+           activeConfig.provider == SttProvider.localCanary) &&
           activeConfig.isEnabled) {
         _sourceMode = _SourceMode.onDevice;
         _selectedProvider = SttProvider.openai;
@@ -109,6 +111,12 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
       } else {
         _sourceMode = _SourceMode.maity;
         _selectedProvider = activeConfig.provider == SttProvider.omi ? SttProvider.openai : activeConfig.provider;
+      }
+
+      // Non-admins are forced to on-device mode
+      final isAdmin = Provider.of<RoleProvider>(context, listen: false).isAdmin;
+      if (!isAdmin && _sourceMode != _SourceMode.onDevice) {
+        _sourceMode = _SourceMode.onDevice;
       }
 
       // Load all provider configs from preferences
@@ -398,9 +406,11 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
       // Build the active config based on source mode
       final CustomSttConfig activeConfig;
       if (_sourceMode == _SourceMode.onDevice) {
-        final provider = selectedLocalModel == LocalSttModelType.moonshine
-            ? SttProvider.localMoonshine
-            : SttProvider.localParakeet;
+        final provider = switch (selectedLocalModel) {
+          LocalSttModelType.moonshine => SttProvider.localMoonshine,
+          LocalSttModelType.canary => SttProvider.localCanary,
+          LocalSttModelType.parakeet => SttProvider.localParakeet,
+        };
         activeConfig = CustomSttConfig(provider: provider);
       } else if (_sourceMode == _SourceMode.custom) {
         activeConfig = _buildCurrentConfig();
@@ -477,17 +487,26 @@ class _TranscriptionSettingsPageState extends State<TranscriptionSettingsPage> {
   }
 
   Widget _buildSourceSelector() {
+    final isAdmin = Provider.of<RoleProvider>(context, listen: false).isAdmin;
+    final availableModes = isAdmin
+        ? _SourceMode.values
+        : [_SourceMode.onDevice];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(child: _buildSourceOption(_SourceMode.maity, 'Maity')),
-            const SizedBox(width: 8),
-            Expanded(child: _buildSourceOption(_SourceMode.onDevice, 'On Device')),
-            const SizedBox(width: 8),
-            Expanded(child: _buildSourceOption(_SourceMode.custom, 'Custom')),
+            for (int i = 0; i < availableModes.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(child: _buildSourceOption(
+                availableModes[i],
+                availableModes[i] == _SourceMode.maity ? 'Maity'
+                    : availableModes[i] == _SourceMode.onDevice ? 'On Device'
+                    : 'Custom',
+              )),
+            ],
           ],
         ),
         const SizedBox(height: 12),

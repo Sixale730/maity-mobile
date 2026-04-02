@@ -8,6 +8,7 @@ import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/services/capture_log_service.dart';
+import 'package:omi/utils/app_state_collector.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 import 'package:omi/utils/enums.dart';
@@ -43,6 +44,8 @@ abstract class AppLifecycleDelegate {
   Future<void> streamSystemAudioRecording();
   void updateRecordingState(RecordingState state);
   void notifyListenersCallback();
+  void stopBreathingLed();
+  void startBreathingLedIfPaused();
 }
 
 /// Manages app lifecycle states (paused/resumed/detached).
@@ -124,6 +127,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
     if (delegate == null) return;
 
     _isAppInBackground = true;
+    AppStateCollector.isInBackground = true;
 
     DebugLogManager.logEvent('app_paused_handling', {
       'action': 'stopping_background_services',
@@ -140,15 +144,22 @@ class AppLifecycleManager with WidgetsBindingObserver {
     // Cancel keep-alive timer to prevent reconnection attempts in background
     delegate.cancelKeepAlive();
 
-    // Cancel silence timer to prevent auto-finalize while in background
-    // (it will restart naturally when new segments arrive after resume)
-    delegate.cancelSilenceTimer();
+    // Cancel silence timer for active recording states to prevent false auto-finalize
+    // while in background (it will restart when new segments arrive after resume).
+    // In pause state, let the timer fire in background — no audio is flowing,
+    // so there's no risk of false positives from STT stall detection.
+    if (delegate.recordingState != RecordingState.pause) {
+      delegate.cancelSilenceTimer();
+    }
 
-    // Start background finalize timer: if socket stays dead for 3 min, auto-finalize
-    final isRecording = delegate.recordingState == RecordingState.record ||
+    // Start background finalize timer: if socket stays dead for 3 min, auto-finalize.
+    // Include pause state — a paused recording with segments should also auto-finalize
+    // if the app stays in background long enough.
+    final isRecordingOrPaused = delegate.recordingState == RecordingState.record ||
         delegate.recordingState == RecordingState.deviceRecord ||
-        delegate.recordingState == RecordingState.systemAudioRecord;
-    if (isRecording && delegate.currentSegments.isNotEmpty) {
+        delegate.recordingState == RecordingState.systemAudioRecord ||
+        delegate.recordingState == RecordingState.pause;
+    if (isRecordingOrPaused && delegate.currentSegments.isNotEmpty) {
       _startBackgroundFinalizeTimer();
     }
 
@@ -210,6 +221,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
     if (delegate == null) return;
 
     _isAppInBackground = false;
+    AppStateCollector.isInBackground = false;
 
     // Cancel background finalize timer since user is back
     _backgroundFinalizeTimer?.cancel();
@@ -260,7 +272,8 @@ class AppLifecycleManager with WidgetsBindingObserver {
       // Check if socket needs reconnection
       if (delegate.socketState != null && delegate.socketState != SocketServiceState.connected) {
         _isReconnectingSocket = true;
-        delegate.notifyListenersCallback(); // UI shows "reconnecting" state immediately
+        // Defer UI notification to post-frame to avoid heavy rebuild during resume
+        _schedulePostFrameNotify(delegate);
 
         // Fire-and-forget: does NOT block the event loop
         _reconnectSocketAfterResumeAsync();
@@ -270,6 +283,15 @@ class AppLifecycleManager with WidgetsBindingObserver {
         delegate.resetSilenceTimer();
       }
     }
+
+    // Paused recording: restart silence timer so it can auto-save after timeout.
+    // The timer was cancelled in _handleAppPaused and won't restart on its own
+    // because no new segments arrive while paused.
+    final isPaused = delegate.recordingState == RecordingState.pause;
+    if (isPaused && delegate.currentSegments.isNotEmpty) {
+      delegate.resetSilenceTimer();
+    }
+
   }
 
   /// Starts a timer that auto-finalizes the conversation if the socket
@@ -283,8 +305,10 @@ class AppLifecycleManager with WidgetsBindingObserver {
       final d = _delegate;
       if (d == null) return;
 
-      // If socket is still disconnected after 3 min in background, finalize
-      if (d.socketState != SocketServiceState.connected &&
+      // Finalize if: socket disconnected (active recording) OR paused with segments.
+      // Pause state needs its own path because local STT socket stays "connected".
+      final isPaused = d.recordingState == RecordingState.pause;
+      if ((isPaused || d.socketState != SocketServiceState.connected) &&
           d.currentSegments.isNotEmpty &&
           !d.conversationFinalized) {
         _captureLog.log('recording', 'background_auto_finalize', severity: 'warning', details: {
@@ -349,8 +373,16 @@ class AppLifecycleManager with WidgetsBindingObserver {
       _isReconnectingSocket = false;
       delegate.startHealthMonitor(); // Start health monitor AFTER reconnection
       delegate.resetSilenceTimer();
-      delegate.notifyListenersCallback();
+      _schedulePostFrameNotify(delegate);
     }
+  }
+
+  /// Schedule a notifyListeners call for after the current frame renders.
+  /// Prevents heavy widget rebuilds from blocking the first frame on resume.
+  void _schedulePostFrameNotify(AppLifecycleDelegate delegate) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      delegate.notifyListenersCallback();
+    });
   }
 
   /// Updates the foreground service notification with the current state.
@@ -372,7 +404,7 @@ class AppLifecycleManager with WidgetsBindingObserver {
     final delegate = _delegate;
     if (delegate == null) return 'waiting';
 
-    // Paused state takes priority
+    // Paused state takes priority over recording
     if (delegate.isPaused || delegate.recordingState == RecordingState.pause) {
       return 'paused';
     }

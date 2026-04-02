@@ -41,6 +41,12 @@ abstract interface class ITransctiptSegmentSocketServiceListener {
   void onTerminalFailure(String reason);
 }
 
+/// Optional mixin for listeners that want to receive live preview text
+/// from local STT. Listeners that don't implement this are simply skipped.
+mixin ILocalSttPreviewListener {
+  void onPreviewTextReceived(String? text);
+}
+
 class SpeechProfileTranscriptSegmentSocketService extends TranscriptSegmentSocketService {
   SpeechProfileTranscriptSegmentSocketService.create(super.sampleRate, super.codec, super.language,
       {super.source, super.customSttMode})
@@ -130,6 +136,15 @@ class TranscriptSegmentSocketService implements IPureSocketListener {
 
   void unsubscribe(Object context) {
     _listeners.remove(context.hashCode);
+  }
+
+  /// Forward live preview text from local STT to listeners that support it.
+  void notifyPreview(String? text) {
+    for (final listener in _listeners.values) {
+      if (listener is ILocalSttPreviewListener) {
+        (listener as ILocalSttPreviewListener).onPreviewTextReceived(text);
+      }
+    }
   }
 
   Future start() async {
@@ -444,9 +459,11 @@ class TranscriptSocketServiceFactory {
     LocalSttModelType modelType = LocalSttModelType.parakeet,
   }) {
     final prefs = SharedPreferencesUtil();
-    final modelPath = modelType == LocalSttModelType.moonshine
-        ? prefs.localSttMoonshinePath
-        : prefs.localSttModelPath;
+    final modelPath = switch (modelType) {
+      LocalSttModelType.moonshine => prefs.localSttMoonshinePath,
+      LocalSttModelType.canary => prefs.localSttCanaryPath,
+      LocalSttModelType.parakeet => prefs.localSttModelPath,
+    };
     debugPrint(
         '[STTFactory] Creating LocalSttSocket, model: ${modelType.name}, path: $modelPath');
 
@@ -468,7 +485,7 @@ class TranscriptSocketServiceFactory {
       final embeddingFile = File(embeddingPath);
       if (embeddingFile.existsSync()) {
         final bytes = embeddingFile.readAsBytesSync();
-        if (bytes.length == 192 * 4) {
+        if (bytes.length % 4 == 0 && bytes.isNotEmpty) {
           speakerModelPath = speakerPath;
           userEmbeddingBytes = bytes;
           debugPrint('[STTFactory] Speaker ID enabled for local STT');
@@ -476,14 +493,26 @@ class TranscriptSocketServiceFactory {
       }
     }
 
+    // maxSpeechDuration per model: VAD native mechanism (threshold→0.9) activates
+    // at this threshold, force-flush is the hard cap if no pause is found.
+    // Parakeet (transducer): 20s — tolerates arbitrary cuts, aligned with
+    //   sherpa-onnx C API default. Ref: c-api.cc SHERPA_ONNX_OR(..., 20)
+    // Canary (encoder-decoder): 10s — needs complete utterances, configurable.
+    final double? maxSpeechDuration = switch (modelType) {
+      LocalSttModelType.canary => prefs.localSttCanaryMaxSpeechDuration,
+      LocalSttModelType.parakeet => 20.0,
+      LocalSttModelType.moonshine => null, // uses engine default (30s)
+    };
+
     final localSocket = LocalSttSocket(
       modelPath: modelPath,
       modelType: modelType,
       speakerModelPath: speakerModelPath,
       userEmbeddingBytes: userEmbeddingBytes,
+      maxSpeechDuration: maxSpeechDuration,
     );
 
-    return TranscriptSegmentSocketService.withSocket(
+    final service = TranscriptSegmentSocketService.withSocket(
       sampleRate,
       codec,
       language,
@@ -493,6 +522,11 @@ class TranscriptSocketServiceFactory {
       customSttMode: true,
       sttConfigId: '${modelType.name}:ondevice',
     );
+
+    // VAD state and chunk processing callbacks are wired by
+    // TranscriptionPipeline._initChunkPipeline() after socket connects.
+
+    return service;
   }
 
   /// Create streaming WebSocket for live STT

@@ -1,14 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:flutter_provider_utilities/flutter_provider_utilities.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/home/page.dart';
 import 'package:omi/pages/settings/language_selection_dialog.dart';
-import 'package:omi/pages/settings/people.dart';
-import 'package:omi/pages/speech_profile/user_speech_samples.dart';
 import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/home_provider.dart';
 import 'package:omi/providers/speech_profile_provider.dart';
@@ -558,24 +558,7 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
                                   ],
                                 ),
                             const SizedBox(height: 24),
-                            SharedPreferencesUtil().hasSpeakerProfile
-                                ? TextButton(
-                                    onPressed: () {
-                                      routeToPage(context, const UserSpeechSamples());
-                                    },
-                                    child: Text(
-                                      '${AppLocalizations.of(context)?.listenToMySpeechProfile ?? 'Listen to my speech profile'} ➡️',
-                                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                                    ))
-                                : const SizedBox(),
-                            TextButton(
-                                onPressed: () {
-                                  routeToPage(context, const UserPeoplePage());
-                                },
-                                child: Text(
-                                  '${AppLocalizations.of(context)?.recognizingOthers ?? 'Recognizing others'} 👀',
-                                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                                )),
+                            const _ProfileStatusPanel(),
                           ],
                         )
                       : provider.profileCompleted
@@ -632,6 +615,132 @@ class _SpeechProfilePageState extends State<SpeechProfilePage> with TickerProvid
           ),
         );
       }),
+    );
+  }
+}
+
+/// Panel showing voice profile status (cloud + local) and playback button.
+class _ProfileStatusPanel extends StatelessWidget {
+  const _ProfileStatusPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final hasCloud = SharedPreferencesUtil().hasSpeakerProfile;
+    final localPath = SharedPreferencesUtil().localSpeakerEmbeddingPath;
+    final hasLocal = localPath.isNotEmpty && File(localPath).existsSync();
+    final audioPath = SharedPreferencesUtil().getString('speechProfileAudioPath');
+    final hasAudio = audioPath.isNotEmpty;
+
+    if (!hasCloud && !hasLocal && !hasAudio) return const SizedBox();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.white24),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _statusRow('Cloud voice profile', hasCloud),
+          const SizedBox(height: 6),
+          _statusRow('Local speaker ID', hasLocal),
+          if (hasAudio) ...[
+            const SizedBox(height: 10),
+            _PlayEnrollmentAudioButton(audioPath: audioPath),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static Widget _statusRow(String label, bool active) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          active ? Icons.check_circle : Icons.cancel_outlined,
+          color: active ? Colors.greenAccent : Colors.grey,
+          size: 16,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: active ? Colors.white70 : Colors.grey,
+            fontSize: 13,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Button to play the locally saved enrollment audio for verification.
+class _PlayEnrollmentAudioButton extends StatefulWidget {
+  final String audioPath;
+  const _PlayEnrollmentAudioButton({required this.audioPath});
+
+  @override
+  State<_PlayEnrollmentAudioButton> createState() => _PlayEnrollmentAudioButtonState();
+}
+
+class _PlayEnrollmentAudioButtonState extends State<_PlayEnrollmentAudioButton> {
+  final AudioPlayer _player = AudioPlayer();
+  bool _isPlaying = false;
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _togglePlayback() async {
+    if (_isPlaying) {
+      await _player.stop();
+      setState(() => _isPlaying = false);
+      return;
+    }
+
+    final file = File(widget.audioPath);
+    if (!await file.exists()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Audio file not found. Re-record your voice profile.')),
+        );
+      }
+      return;
+    }
+
+    try {
+      await _player.setFilePath(widget.audioPath);
+      setState(() => _isPlaying = true);
+      _player.playerStateStream.listen((state) {
+        if (state.processingState == ProcessingState.completed) {
+          if (mounted) setState(() => _isPlaying = false);
+        }
+      });
+      await _player.play();
+    } catch (e) {
+      debugPrint('[PlayEnrollment] Error: $e');
+      if (mounted) setState(() => _isPlaying = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: _togglePlayback,
+      icon: Icon(
+        _isPlaying ? Icons.stop : Icons.play_arrow,
+        color: Colors.white,
+      ),
+      label: Text(
+        _isPlaying
+            ? 'Stop'
+            : (AppLocalizations.of(context)?.listenToMySpeechProfile ?? 'Listen to my speech profile'),
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+      ),
     );
   }
 }

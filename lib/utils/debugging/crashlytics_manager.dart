@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omi/utils/crash_log_manager.dart';
 import 'package:omi/utils/debugging/crash_reporter.dart';
 
 /// Simple logger-based crash reporter (Firebase Crashlytics removed)
@@ -64,6 +65,12 @@ class CrashlyticsManager implements CrashReporter {
     if (userAttributes != null) {
       debugPrint('[CRASH] Attributes: $userAttributes');
     }
+    CrashLogManager.instance.logCrash(
+      exception,
+      stackTrace,
+      source: 'crash_reporter',
+      context: userAttributes?.cast<String, dynamic>(),
+    );
   }
 
   @override

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+import 'package:permission_handler/permission_handler.dart';
 import 'package:omi/backend/http/api/users.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/app.dart';
@@ -29,9 +30,12 @@ import 'package:omi/providers/conversation_provider.dart';
 import 'package:omi/providers/device_provider.dart';
 import 'package:omi/providers/daily_report_provider.dart';
 import 'package:omi/providers/home_provider.dart';
+import 'package:omi/providers/local_stt_provider.dart';
 import 'package:omi/providers/message_provider.dart';
 import 'package:omi/services/notifications.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
+import 'package:omi/pages/settings/transcription_settings_page.dart';
+import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/utils/audio/foreground.dart';
 import 'package:omi/utils/platform/platform_service.dart';
 import 'package:omi/widgets/upgrade_alert.dart';
@@ -39,6 +43,9 @@ import 'package:provider/provider.dart';
 import 'package:upgrader/upgrader.dart';
 import 'package:omi/utils/platform/platform_manager.dart';
 import 'package:omi/utils/enums.dart';
+import 'package:omi/services/local_stt/model_download_service.dart';
+import 'package:omi/services/local_stt/speaker_model_download_service.dart';
+import 'package:omi/services/connectivity_service.dart';
 
 import 'package:omi/pages/conversation_capturing/page.dart';
 import 'package:omi/services/transcript_recovery_service.dart';
@@ -176,6 +183,48 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
 
   void _onReceiveTaskData(dynamic data) async {
     if (data is! Map<String, dynamic>) return;
+
+    // Handle notification button actions (pause/resume/stop from foreground service)
+    if (data.containsKey('action')) {
+      final action = data['action'] as String;
+      final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+      switch (action) {
+        case 'pause_recording':
+          if (captureProvider.recordingState == RecordingState.record) {
+            captureProvider.stopStreamRecording();
+          }
+          break;
+        case 'resume_recording':
+          if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
+            captureProvider.streamRecording();
+          }
+          break;
+        case 'stop_recording':
+          final stopState = captureProvider.recordingState;
+          if (stopState == RecordingState.record) {
+            captureProvider.stopStreamRecording();
+          } else if (stopState == RecordingState.systemAudioRecord) {
+            captureProvider.stopSystemAudioRecording();
+          } else if (stopState == RecordingState.pause || captureProvider.isPaused) {
+            captureProvider.streamRecording().then((_) {
+              Future.delayed(const Duration(milliseconds: 300), () {
+                captureProvider.stopStreamRecording();
+              });
+            });
+          } else if (stopState == RecordingState.initialising) {
+            captureProvider.clearTranscripts();
+            captureProvider.updateRecordingState(RecordingState.stop);
+          }
+          break;
+        case 'use_phone_mic':
+          if (captureProvider.recordingState == RecordingState.stop) {
+            _handleRecordButtonPress(context, captureProvider);
+          }
+          break;
+      }
+      return;
+    }
+
     if (!(data.containsKey('latitude') && data.containsKey('longitude'))) return;
     await updateUserGeolocation(
       geolocation: Geolocation(
@@ -248,6 +297,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
 
       if (!PlatformService.isDesktop) {
         await ForegroundUtil.requestNotificationPermission();
+        // Android 15+ requires RECORD_AUDIO before starting FG service with microphone type
+        await Permission.microphone.request();
         await ForegroundUtil.initializeForegroundService();
         await ForegroundUtil.startForegroundTask();
       }
@@ -255,8 +306,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         await Provider.of<HomeProvider>(context, listen: false).setUserPeople();
       }
       if (mounted) {
-        await Provider.of<CaptureProvider>(context, listen: false)
-            .streamDeviceRecording(device: Provider.of<DeviceProvider>(context, listen: false).connectedDevice);
+        final localSttProv = Provider.of<LocalSttProvider>(context, listen: false);
+        if (localSttProv.isReadyFor(LocalSttModelType.parakeet)) {
+          await Provider.of<CaptureProvider>(context, listen: false)
+              .streamDeviceRecording(device: Provider.of<DeviceProvider>(context, listen: false).connectedDevice);
+        }
+      }
+
+      if (mounted) {
+        _triggerAutoModelDownload();
       }
 
       // Navigate
@@ -698,8 +756,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                             home.setIndex(1);
                                           },
                                         ),
-                                        // Center space for FAB
-                                        const SizedBox(width: 80),
+                                        // Center space for FAB (hidden when OMI connected)
+                                        Selector<DeviceProvider, bool>(
+                                          selector: (_, d) => d.connectedDevice != null,
+                                          builder: (_, isDeviceConnected, __) {
+                                            if (isDeviceConnected) return const SizedBox.shrink();
+                                            return const SizedBox(width: 80);
+                                          },
+                                        ),
                                         // Tasks tab (nav 3)
                                         _buildNavTab(
                                           icon: FontAwesomeIcons.listCheck,
@@ -733,143 +797,109 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                   ),
                                 ),
                                 // Central FAB Record Button / Recording Controls
-                                Selector<CaptureProvider, ({RecordingState state, bool reconnecting, bool isPaused})>(
-                                  selector: (_, p) => (state: p.recordingState, reconnecting: p.isReconnectingSocket, isPaused: p.isPaused),
-                                  builder: (context, value, child) {
-                                    bool isRecording = value.state == RecordingState.record;
-                                    bool isInitializing = value.state == RecordingState.initialising;
-                                    bool isProcessing = value.state == RecordingState.processing;
-                                    bool isReconnecting = value.reconnecting;
-                                    bool isActiveRecording = isRecording || isInitializing || value.state == RecordingState.pause;
+                                Selector<DeviceProvider, bool>(
+                                  selector: (_, d) => d.connectedDevice != null,
+                                  builder: (context, isDeviceConnected, _) {
+                                    return Selector<CaptureProvider, ({RecordingState state, bool reconnecting, bool isPaused})>(
+                                      selector: (_, p) => (state: p.recordingState, reconnecting: p.isReconnectingSocket, isPaused: p.isPaused),
+                                      builder: (context, value, child) {
+                                        final state = value.state;
+                                        bool isInitializing = state == RecordingState.initialising;
+                                        bool isProcessing = state == RecordingState.processing;
+                                        bool isReconnecting = value.reconnecting;
+                                        bool isActiveRecording = state == RecordingState.record || isInitializing || state == RecordingState.pause;
 
-                                    // When recording: show control bar with Pause, Stop, Cancel
-                                    if (isActiveRecording || isProcessing) {
-                                      return Positioned(
-                                        left: 0,
-                                        right: 0,
-                                        bottom: 30,
-                                        child: Center(
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF1F1F25),
-                                              borderRadius: BorderRadius.circular(40),
-                                              border: Border.all(color: const Color(0xFF35343B), width: 1),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black.withValues(alpha: 0.4),
-                                                  blurRadius: 12,
-                                                  offset: const Offset(0, 4),
-                                                ),
-                                              ],
-                                            ),
-                                            child: isProcessing
-                                                ? const Padding(
-                                                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                                                    child: Row(
-                                                      mainAxisSize: MainAxisSize.min,
-                                                      children: [
-                                                        SizedBox(
-                                                          width: 16,
-                                                          height: 16,
-                                                          child: CircularProgressIndicator(
-                                                            color: Colors.white70,
-                                                            strokeWidth: 2,
-                                                          ),
-                                                        ),
-                                                        SizedBox(width: 10),
-                                                        Text(
-                                                          'Procesando...',
-                                                          style: TextStyle(color: Colors.white70, fontSize: 13),
-                                                        ),
-                                                      ],
+                                        // Hide FAB when OMI connected and not phone-mic recording
+                                        if (isDeviceConnected && !isActiveRecording && !isProcessing) {
+                                          return const SizedBox.shrink();
+                                        }
+
+                                        // When recording: show control bar with Pause, Stop, Cancel
+                                        if (isActiveRecording || isProcessing) {
+                                          return Positioned(
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 30,
+                                            child: Center(
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF1F1F25),
+                                                  borderRadius: BorderRadius.circular(40),
+                                                  border: Border.all(color: const Color(0xFF35343B), width: 1),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black.withValues(alpha: 0.4),
+                                                      blurRadius: 12,
+                                                      offset: const Offset(0, 4),
                                                     ),
-                                                  )
-                                                : Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      // Cancel button
-                                                      _buildRecordingControlButton(
-                                                        icon: FontAwesomeIcons.xmark,
-                                                        label: 'Cancelar',
-                                                        color: const Color(0xFF35343B),
-                                                        iconColor: Colors.white70,
-                                                        onTap: () {
-                                                          HapticFeedback.mediumImpact();
-                                                          _handleCancelRecording(context);
-                                                        },
+                                                  ],
+                                                ),
+                                                child: isProcessing
+                                                    ? const Padding(
+                                                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                                        child: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white70, strokeWidth: 2)),
+                                                            SizedBox(width: 10),
+                                                            Text('Procesando...', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                                                          ],
+                                                        ),
+                                                      )
+                                                    : Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          _buildRecordingControlButton(
+                                                            icon: FontAwesomeIcons.xmark, label: 'Cancelar',
+                                                            color: const Color(0xFF35343B), iconColor: Colors.white70,
+                                                            onTap: () { HapticFeedback.mediumImpact(); _handleCancelRecording(context); },
+                                                          ),
+                                                          const SizedBox(width: 8),
+                                                          _buildRecordingControlButton(
+                                                            icon: value.isPaused ? FontAwesomeIcons.play : FontAwesomeIcons.pause,
+                                                            label: value.isPaused ? 'Reanudar' : 'Pausar',
+                                                            color: value.isPaused ? const Color(0xFF485DF4) : const Color(0xFFFF9500),
+                                                            iconColor: Colors.white,
+                                                            onTap: isInitializing ? null : () { HapticFeedback.mediumImpact(); _handlePauseResumeRecording(context); },
+                                                          ),
+                                                          const SizedBox(width: 8),
+                                                          _buildRecordingControlButton(
+                                                            icon: FontAwesomeIcons.stop, label: 'Detener',
+                                                            color: const Color(0xFFFE3B30), iconColor: Colors.white,
+                                                            onTap: isInitializing ? null : () { HapticFeedback.heavyImpact(); _handleStopRecording(context); },
+                                                          ),
+                                                        ],
                                                       ),
-                                                      const SizedBox(width: 8),
-                                                      // Pause/Resume button
-                                                      _buildRecordingControlButton(
-                                                        icon: value.isPaused ? FontAwesomeIcons.play : FontAwesomeIcons.pause,
-                                                        label: value.isPaused ? 'Reanudar' : 'Pausar',
-                                                        color: value.isPaused ? const Color(0xFF485DF4) : const Color(0xFFFF9500),
-                                                        iconColor: Colors.white,
-                                                        onTap: isInitializing
-                                                            ? null
-                                                            : () {
-                                                                HapticFeedback.mediumImpact();
-                                                                _handlePauseResumeRecording(context);
-                                                              },
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      // Stop button
-                                                      _buildRecordingControlButton(
-                                                        icon: FontAwesomeIcons.stop,
-                                                        label: 'Detener',
-                                                        color: const Color(0xFFFE3B30),
-                                                        iconColor: Colors.white,
-                                                        onTap: isInitializing
-                                                            ? null
-                                                            : () {
-                                                                HapticFeedback.heavyImpact();
-                                                                _handleStopRecording(context);
-                                                              },
-                                                      ),
-                                                    ],
-                                                  ),
-                                          ),
-                                        ),
-                                      );
-                                    }
-
-                                    // Default: show FAB mic button
-                                    return Positioned(
-                                      left: MediaQuery.of(context).size.width / 2 - 32,
-                                      bottom: 40,
-                                      child: GestureDetector(
-                                        onTap: () async {
-                                          HapticFeedback.heavyImpact();
-                                          if (isReconnecting) return;
-                                          await _handleRecordButtonPress(
-                                            context,
-                                            Provider.of<CaptureProvider>(context, listen: false),
+                                              ),
+                                            ),
                                           );
-                                        },
-                                        child: Container(
-                                          width: 64,
-                                          height: 64,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: isReconnecting ? Colors.orange : const Color(0xFF485DF4),
-                                            border: Border.all(
-                                              color: Colors.black,
-                                              width: 4,
+                                        }
+
+                                        // Default: show FAB mic button
+                                        return Positioned(
+                                          left: MediaQuery.of(context).size.width / 2 - 32,
+                                          bottom: 40,
+                                          child: GestureDetector(
+                                            onTap: () async {
+                                              HapticFeedback.heavyImpact();
+                                              if (isReconnecting) return;
+                                              await _handleRecordButtonPress(context, Provider.of<CaptureProvider>(context, listen: false));
+                                            },
+                                            child: Container(
+                                              width: 64, height: 64,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: isReconnecting ? Colors.orange : const Color(0xFF485DF4),
+                                                border: Border.all(color: Colors.black, width: 4),
+                                              ),
+                                              child: isReconnecting
+                                                  ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                                                  : const Icon(FontAwesomeIcons.microphone, color: Colors.white, size: 22),
                                             ),
                                           ),
-                                          child: isReconnecting
-                                              ? const CircularProgressIndicator(
-                                                  color: Colors.white,
-                                                  strokeWidth: 2,
-                                                )
-                                              : const Icon(
-                                                  FontAwesomeIcons.microphone,
-                                                  color: Colors.white,
-                                                  size: 22,
-                                                ),
-                                        ),
-                                      ),
+                                        );
+                                      },
                                     );
                                   },
                                 ),
@@ -1026,8 +1056,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     if (recordingState == RecordingState.processing) {
       // Processing in background, do nothing
       return;
-    } else if (recordingState == RecordingState.record) {
-      // Re-open the live transcript page (stop is done from within it)
+    } else if (recordingState == RecordingState.record ||
+        recordingState == RecordingState.systemAudioRecord ||
+        recordingState == RecordingState.pause) {
+      // Phone mic / system audio / paused → re-open the live transcript page
       if (context.mounted) {
         var topConvoId = (captureProvider.conversationProvider?.conversations ?? []).isNotEmpty
             ? captureProvider.conversationProvider!.conversations.first.id
@@ -1043,12 +1075,36 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       // Already initializing, do nothing
       debugPrint('initialising, have to wait');
     } else {
-      // Start recording directly without dialog
+      // Check if local STT model is ready
+      final localSttProvider = Provider.of<LocalSttProvider>(context, listen: false);
+      final isModelReady = localSttProvider.isReadyFor(LocalSttModelType.parakeet);
+
+      if (!isModelReady) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('El modelo de voz se esta descargando. Espera a que termine.'),
+              action: SnackBarAction(
+                label: 'Ver descarga',
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => const TranscriptionSettingsPage(),
+                  ));
+                },
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Start recording — awaits until mic is actually capturing audio.
       await captureProvider.streamRecording();
       MixpanelManager().phoneMicRecordingStarted();
 
-      // Navigate to conversation capturing page
-      if (context.mounted) {
+      // Navigate only if recording is truly active (not timed-out/errored).
+      if (context.mounted && captureProvider.recordingState == RecordingState.record) {
         var topConvoId = (captureProvider.conversationProvider?.conversations ?? []).isNotEmpty
             ? captureProvider.conversationProvider!.conversations.first.id
             : null;
@@ -1205,6 +1261,82 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       elevation: 0,
       centerTitle: true,
     );
+  }
+
+  Future<void> _triggerAutoModelDownload() async {
+    final provider = Provider.of<LocalSttProvider>(context, listen: false);
+
+    // Skip if Parakeet is already ready or currently downloading
+    if (provider.isReadyFor(LocalSttModelType.parakeet) ||
+        provider.stateFor(LocalSttModelType.parakeet) == DownloadState.downloading) {
+      // Even if Parakeet is ready, check speaker model
+      if (provider.isReadyFor(LocalSttModelType.parakeet) &&
+          !SpeakerModelDownloadService.instance.isModelReady) {
+        await _triggerSpeakerModelDownload();
+      }
+      return;
+    }
+
+    // Wait for connectivity before attempting download
+    await ConnectivityService().initialized;
+    if (!mounted || !ConnectivityService().isConnected) {
+      debugPrint('[HomePage] No internet, skipping auto-download');
+      return;
+    }
+
+    // Start Parakeet download
+    debugPrint('[HomePage] Auto-downloading Parakeet model...');
+
+    if (mounted) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n?.autoDownloadStarted ?? 'Descargando modelo de voz...'),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: l10n?.viewDownload ?? 'Ver descarga',
+            textColor: Colors.white,
+            onPressed: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const TranscriptionSettingsPage(),
+            )),
+          ),
+        ),
+      );
+    }
+
+    try {
+      await provider.startDownload(LocalSttModelType.parakeet);
+      debugPrint('[HomePage] Parakeet download completed');
+      if (mounted) {
+        await _triggerSpeakerModelDownload();
+      }
+    } catch (e) {
+      debugPrint('[HomePage] Parakeet auto-download failed: $e');
+    }
+  }
+
+  Future<void> _triggerSpeakerModelDownload() async {
+    final speakerService = SpeakerModelDownloadService.instance;
+    if (speakerService.isModelReady) return;
+
+    debugPrint('[HomePage] Auto-downloading Speaker model...');
+
+    if (mounted) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n?.speakerModelDownloading ?? 'Descargando modelo de identificacion de voz...'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+
+    try {
+      await speakerService.downloadModel();
+      debugPrint('[HomePage] Speaker model download completed');
+    } catch (e) {
+      debugPrint('[HomePage] Speaker auto-download failed: $e');
+    }
   }
 
   @override

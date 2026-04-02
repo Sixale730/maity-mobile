@@ -13,6 +13,7 @@ import 'package:omi/providers/device_provider.dart';
 import 'package:omi/providers/home_provider.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/utils/other/temp.dart';
+import 'package:omi/widgets/vad_activity_indicator.dart';
 import 'package:omi/widgets/photos_grid.dart';
 import 'package:omi/widgets/transcript.dart';
 import 'package:provider/provider.dart';
@@ -251,8 +252,9 @@ getTranscriptWidget(
 getLiteTranscriptWidget(
   List<TranscriptSegment> segments,
   List<ConversationPhoto> photos,
-  BtDevice? btDevice,
-) {
+  BtDevice? btDevice, {
+  ValueNotifier<bool>? vadSpeechActive,
+}) {
   return Column(
     children: [
       if (photos.isNotEmpty) PhotosPreviewWidget(photos: photos),
@@ -261,6 +263,8 @@ getLiteTranscriptWidget(
         LiteTranscriptWidget(
           segments: segments,
         ),
+      if (vadSpeechActive != null)
+        VadActivityIndicator(vadSpeechActive: vadSpeechActive),
     ],
   );
 }

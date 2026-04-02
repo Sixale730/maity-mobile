@@ -28,22 +28,40 @@ class ConversationCapturingPage extends StatefulWidget {
   State<ConversationCapturingPage> createState() => _ConversationCapturingPageState();
 }
 
-class _ConversationCapturingPageState extends State<ConversationCapturingPage> with SingleTickerProviderStateMixin {
+class _ConversationCapturingPageState extends State<ConversationCapturingPage> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   TabController? _controller;
   late bool showSummarizeConfirmation;
+  bool _deferTranscript = false;
 
   @override
   void initState() {
     _controller = TabController(length: 2, vsync: this, initialIndex: 0);
     showSummarizeConfirmation = SharedPreferencesUtil().showSummarizeConfirmation;
+    WidgetsBinding.instance.addObserver(this);
     super.initState();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Deferred rendering: on pause, mark transcript for deferral so the first
+    // frame after resume renders a lightweight placeholder instead of the heavy
+    // TranscriptWidget. The real list loads on the second frame via postFrameCallback.
+    if (state == AppLifecycleState.paused && mounted) {
+      setState(() => _deferTranscript = true);
+    }
+    if (state == AppLifecycleState.resumed && mounted && _deferTranscript) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _deferTranscript = false);
+      });
+    }
   }
 
   int convertDateTimeToSeconds(DateTime dateTime) {
@@ -78,13 +96,18 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
       final state = provider.recordingState;
       if (state == RecordingState.record) {
         await provider.stopStreamRecording();
+      } else if (state == RecordingState.deviceRecord) {
+        await provider.stopStreamDeviceRecording();
       } else if (state == RecordingState.systemAudioRecord) {
         await provider.stopSystemAudioRecording();
       } else if (state == RecordingState.pause || provider.isPaused) {
-        // Resume briefly then stop to trigger finalization
-        await provider.streamRecording();
-        await Future.delayed(const Duration(milliseconds: 300));
-        await provider.stopStreamRecording();
+        if (provider.havingRecordingDevice) {
+          await provider.stopStreamDeviceRecording();
+        } else {
+          await provider.streamRecording();
+          await Future.delayed(const Duration(milliseconds: 300));
+          await provider.stopStreamRecording();
+        }
       } else if (state == RecordingState.initialising) {
         provider.clearTranscripts();
         provider.updateRecordingState(RecordingState.stop);
@@ -164,7 +187,21 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
             snapshot.recordingState == RecordingState.pause ||
             snapshot.recordingState == RecordingState.stop;
         return PopScope(
-          canPop: true,
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) async {
+            if (didPop) return;
+            final state = provider.recordingState;
+            final isActiveRecording = state == RecordingState.record ||
+                state == RecordingState.deviceRecord ||
+                state == RecordingState.systemAudioRecord ||
+                state == RecordingState.initialising;
+            // Active recording: just go back — session continues in background
+            // and the user can re-open via FAB.
+            if (!isActiveRecording && provider.segments.isEmpty && provider.photos.isEmpty && !provider.hasUnprocessedAudio) {
+              await provider.cancelRecording();
+            }
+            if (context.mounted) Navigator.of(context).pop();
+          },
           child: Scaffold(
             key: scaffoldKey,
             backgroundColor: isPaused ? const Color(0xFF1A1000) : Theme.of(context).colorScheme.primary,
@@ -401,7 +438,7 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
             child: Center(child: FaIcon(icon, color: iconColor, size: 18)),
           ),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500)),
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -426,10 +463,19 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
           TextButton(
             onPressed: () async {
               Navigator.of(dialogContext).pop();
-              if (provider.recordingState == RecordingState.record) {
+              final cancelState = provider.recordingState;
+              if (cancelState == RecordingState.record) {
                 await provider.stopStreamRecording();
-              } else if (provider.recordingState == RecordingState.systemAudioRecord) {
+              } else if (cancelState == RecordingState.deviceRecord) {
+                await provider.stopStreamDeviceRecording();
+              } else if (cancelState == RecordingState.systemAudioRecord) {
                 await provider.stopSystemAudioRecording();
+              } else if (cancelState == RecordingState.pause || provider.isPaused) {
+                if (provider.havingRecordingDevice) {
+                  await provider.stopStreamDeviceRecording();
+                } else {
+                  await provider.stopStreamRecording();
+                }
               }
               provider.clearTranscripts();
               provider.updateRecordingState(RecordingState.stop);
@@ -444,7 +490,14 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
 
   void _togglePause(CaptureProvider provider) {
     final state = provider.recordingState;
-    if (state == RecordingState.record || state == RecordingState.systemAudioRecord) {
+    // Device recording: pause/resume via device-specific methods
+    if (state == RecordingState.deviceRecord) {
+      provider.pauseDeviceRecording();
+    } else if (provider.havingRecordingDevice && (state == RecordingState.pause || provider.isPaused)) {
+      provider.resumeDeviceRecording();
+    }
+    // Phone mic / system audio
+    else if (state == RecordingState.record || state == RecordingState.systemAudioRecord) {
       provider.stopStreamRecording();
     } else if (provider.isPaused || state == RecordingState.pause || state == RecordingState.stop) {
       provider.streamRecording();

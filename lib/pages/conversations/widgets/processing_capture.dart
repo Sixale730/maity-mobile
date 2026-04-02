@@ -14,6 +14,7 @@ import 'package:omi/providers/connectivity_provider.dart';
 import 'package:omi/providers/device_provider.dart';
 import 'package:omi/providers/onboarding_provider.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
+import 'package:omi/widgets/confirmation_dialog.dart';
 import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/other/temp.dart';
 import 'package:omi/utils/platform/platform_service.dart';
@@ -28,45 +29,39 @@ class ConversationCaptureWidget extends StatefulWidget {
 }
 
 class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
-  bool _isPhoneMicPaused = false;
+  // Phone mic pause is now handled by CaptureProvider.pausePhoneMicRecording()
 
   @override
   Widget build(BuildContext context) {
-    return Selector<CaptureProvider, ({RecordingState state, bool isPaused, bool hasSegments, bool hasPhotos, bool hasDevice, bool transcriptReady, int segmentsVersion, SttProvider? activeSttProvider, int segmentCount})>(
-      selector: (_, p) => (
-        state: p.recordingState,
-        isPaused: p.isPaused,
-        hasSegments: p.hasTranscripts,
-        hasPhotos: p.photos.isNotEmpty,
-        hasDevice: p.havingRecordingDevice,
-        transcriptReady: p.transcriptServiceReady,
-        segmentsVersion: p.segmentsVersion,
-        activeSttProvider: p.activeSttProvider,
-        segmentCount: p.segments.length,
-      ),
-      builder: (context, snapshot, child) {
-        final provider = context.read<CaptureProvider>();
-        var topConvoId = (provider.conversationProvider?.conversations ?? []).isNotEmpty
+    // Outer Selector: rebuild when device connects/disconnects
+    return Selector<DeviceProvider, bool>(
+      selector: (_, d) => d.connectedDevice != null,
+      builder: (context, isDeviceConnected, _) {
+        // Inner Selector: rebuild on CaptureProvider state changes
+        return Selector<CaptureProvider, ({RecordingState state, bool isPaused, bool hasSegments, bool hasPhotos, bool hasDevice, bool transcriptReady, int segmentsVersion, SttProvider? activeSttProvider, int segmentCount})>(
+          selector: (_, p) => (
+            state: p.recordingState,
+            isPaused: p.isPaused,
+            hasSegments: p.hasTranscripts,
+            hasPhotos: p.photos.isNotEmpty,
+            hasDevice: p.havingRecordingDevice,
+            transcriptReady: p.transcriptServiceReady,
+            segmentsVersion: p.segmentsVersion,
+            activeSttProvider: p.activeSttProvider,
+            segmentCount: p.segments.length,
+          ),
+          builder: (context, snapshot, child) {
+            final provider = context.read<CaptureProvider>();
+            var topConvoId = (provider.conversationProvider?.conversations ?? []).isNotEmpty
             ? provider.conversationProvider!.conversations.first.id
             : null;
 
-        var header = _getConversationHeader(context);
+        var header = _getConversationHeader(context, isDeviceConnected: isDeviceConnected);
         if (header == null) {
           return const SizedBox.shrink();
         }
 
-        return GestureDetector(
-          onTap: () async {
-            if (provider.segments.isEmpty && provider.photos.isEmpty) return;
-            MixpanelManager().liveTranscriptCardClicked(
-              hasSegments: provider.segments.isNotEmpty,
-              hasPhotos: provider.photos.isNotEmpty,
-              segmentCount: provider.segments.length,
-              photoCount: provider.photos.length,
-            );
-            routeToPage(context, ConversationCapturingPage(topConversationId: topConvoId));
-          },
-          child: Container(
+        return Container(
             margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             width: double.maxFinite,
             decoration: BoxDecoration(
@@ -79,15 +74,25 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Use unified recording UI for all recording types
-                  _buildUnifiedRecordingUI(provider, header),
+                  _buildUnifiedRecordingUI(provider, header, isDeviceConnected: isDeviceConnected, topConvoId: topConvoId),
                 ],
               ),
             ),
-          ),
+        );
+          },
         );
       },
     );
+  }
+
+  void _navigateToCapturing(BuildContext context, CaptureProvider provider, String? topConvoId) {
+    MixpanelManager().liveTranscriptCardClicked(
+      hasSegments: provider.segments.isNotEmpty,
+      hasPhotos: provider.photos.isNotEmpty,
+      segmentCount: provider.segments.length,
+      photoCount: provider.photos.length,
+    );
+    routeToPage(context, ConversationCapturingPage(topConversationId: topConvoId));
   }
 
   _toggleRecording(BuildContext context, CaptureProvider provider) async {
@@ -110,8 +115,9 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
       } else {
         await provider.streamSystemAudioRecording();
       }
-    } else if (provider.havingRecordingDevice) {
-      // Device recording logic - add pause/resume for device recording
+    } else if (recordingState == RecordingState.deviceRecord ||
+               (recordingState == RecordingState.pause && provider.havingRecordingDevice)) {
+      // Device recording logic - only when actively recording from device
       if (recordingState == RecordingState.deviceRecord && !provider.isPaused) {
         // Pause device recording
         await provider.pauseDeviceRecording();
@@ -120,34 +126,111 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
         await provider.resumeDeviceRecording();
       }
     } else {
-      // Phone mic logic - use local state to track pause
-      if (recordingState == RecordingState.record && !_isPhoneMicPaused) {
+      // Phone mic logic - proper pause/resume without finalizing
+      if (recordingState == RecordingState.record && !provider.isPaused) {
         // Pause recording
-        setState(() {
-          _isPhoneMicPaused = true;
-        });
-        await provider.stopStreamRecording();
+        await provider.pausePhoneMicRecording();
         MixpanelManager().phoneMicRecordingStopped();
-      } else if (_isPhoneMicPaused) {
+      } else if (provider.isPaused && recordingState == RecordingState.pause) {
         // Resume recording
-        setState(() {
-          _isPhoneMicPaused = false;
-        });
-        await provider.streamRecording();
+        await provider.resumePhoneMicRecording();
         MixpanelManager().phoneMicRecordingStarted();
       } else if (recordingState == RecordingState.initialising) {
         debugPrint('initialising, have to wait');
-      } else {
-        setState(() {
-          _isPhoneMicPaused = false;
-        });
-        await provider.streamRecording();
-        MixpanelManager().phoneMicRecordingStarted();
       }
     }
   }
 
-  Widget? _getConversationHeader(BuildContext context) {
+  Future<void> _stopRecording(BuildContext context, CaptureProvider provider) async {
+    if (provider.segments.isEmpty && provider.photos.isEmpty) {
+      await provider.cancelRecording();
+      return;
+    }
+
+    Future<void> doStop() async {
+      if (provider.recordingState == RecordingState.record) {
+        await provider.stopStreamRecording();
+      } else if (provider.recordingState == RecordingState.deviceRecord) {
+        await provider.stopStreamDeviceRecording();
+      } else if (provider.recordingState == RecordingState.systemAudioRecord) {
+        await provider.stopSystemAudioRecording();
+      } else if (provider.isPaused) {
+        // Paused state: need to identify the source
+        if (provider.havingRecordingDevice) {
+          await provider.stopStreamDeviceRecording();
+        } else if (PlatformService.isDesktop) {
+          await provider.stopSystemAudioRecording();
+        } else {
+          await provider.stopStreamRecording();
+        }
+      }
+    }
+
+    bool showConfirmation = SharedPreferencesUtil().showSummarizeConfirmation;
+    if (!showConfirmation) {
+      final messenger = ScaffoldMessenger.of(context);
+      final l10nText = AppLocalizations.of(context)?.conversationSentForProcessing;
+      await doStop();
+      _showProcessingSnackBar(messenger, l10nText);
+      return;
+    }
+
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return ConfirmationDialog(
+              title: AppLocalizations.of(context)?.finishedConversation ?? "Finished Conversation?",
+              description: AppLocalizations.of(context)?.stopRecordingConfirm ??
+                  'Are you sure you want to stop recording and summarize the conversation now?',
+              checkboxValue: !showConfirmation,
+              checkboxText: AppLocalizations.of(context)?.dontAskAgain ?? "Don't ask me again",
+              onCheckboxChanged: (value) {
+                setDialogState(() => showConfirmation = !value);
+              },
+              onCancel: () => Navigator.of(dialogContext).pop(),
+              onConfirm: () async {
+                SharedPreferencesUtil().showSummarizeConfirmation = showConfirmation;
+                final messenger = ScaffoldMessenger.of(context);
+                final l10nText = AppLocalizations.of(context)?.conversationSentForProcessing;
+                await doStop();
+                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+                _showProcessingSnackBar(messenger, l10nText);
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showProcessingSnackBar(ScaffoldMessengerState messenger, [String? localizedText]) {
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                localizedText ?? 'Conversacion enviada a procesar',
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF485DF4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Widget? _getConversationHeader(BuildContext context, {required bool isDeviceConnected}) {
     var captureProvider = context.read<CaptureProvider>();
     var connectivityProvider = context.read<ConnectivityProvider>();
 
@@ -170,11 +253,10 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
         captureProvider.recordingState == RecordingState.initialising ||
         captureProvider.recordingState == RecordingState.pause ||
         captureProvider.recordingState == RecordingState.processing ||
-        captureProvider.isPaused ||
-        _isPhoneMicPaused;
+        captureProvider.isPaused;
 
-    // Hide the widget when no recording is active and there are no segments or photos
-    if (!isAnyRecordingActive && !isHavingTranscript && !isHavingPhotos && !isHavingRecordingDevice) {
+    // Hide the widget when no recording is active, no segments/photos, and no device connected
+    if (!isAnyRecordingActive && !isHavingTranscript && !isHavingPhotos && !isDeviceConnected) {
       return null;
     }
 
@@ -186,7 +268,7 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
           context,
           () => _toggleRecording(context, captureProvider),
           captureProvider.recordingState,
-          isPhoneMicPaused: _isPhoneMicPaused,
+          isPhoneMicPaused: captureProvider.isPaused && captureProvider.recordingState == RecordingState.pause && !captureProvider.havingRecordingDevice,
         ),
       );
     } else if (!isAnyRecordingActive &&
@@ -207,7 +289,7 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Text(
-              'Waiting for device...',
+              AppLocalizations.of(context)?.waitingForDevice ?? 'Esperando dispositivo...',
               style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white),
               maxLines: 1,
             ),
@@ -227,7 +309,9 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Text(
-              (isHavingTranscript || isHavingPhotos) ? 'In progress...' : 'Say something...',
+              (isHavingTranscript || isHavingPhotos)
+                  ? (AppLocalizations.of(context)?.inProgress ?? 'En progreso...')
+                  : (AppLocalizations.of(context)?.saySomething ?? 'Di algo...'),
               style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white),
               maxLines: 1,
             ),
@@ -241,8 +325,8 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
     var stateText = "";
 
     // Always check pause state first with highest priority (both desktop and phone)
-    if (captureProvider.isPaused || _isPhoneMicPaused) {
-      stateText = "Paused";
+    if (captureProvider.isPaused) {
+      stateText = AppLocalizations.of(context)?.paused ?? "Pausado";
       statusIndicator = const PausedStatusIndicator();
     } else if (!isHavingRecordingDevice && !isUsingPhoneMic) {
       stateText = "";
@@ -260,15 +344,15 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
           statusIndicator = const RecordingStatusIndicator();
         } else {
           bool transcriptionDiagnosticEnabled = SharedPreferencesUtil().transcriptionDiagnosticEnabled;
-          stateText = transcriptionDiagnosticEnabled ? (lastEvent.statusText ?? "") : "Connecting";
+          stateText = transcriptionDiagnosticEnabled ? (lastEvent.statusText ?? "") : "";
         }
       } else {
-        stateText = "Connecting";
+        stateText = "";
       }
     } else if (!internetConnectionStateOk) {
-      stateText = "Waiting for network";
+      stateText = AppLocalizations.of(context)?.waitingForNetwork ?? "Sin conexión a internet";
     } else if (!transcriptServiceStateOk) {
-      stateText = "Connecting";
+      stateText = "";
     }
     Widget right = stateText.isNotEmpty || statusIndicator != null
         ? Expanded(
@@ -305,76 +389,92 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
     );
   }
 
-  Widget _buildUnifiedRecordingUI(CaptureProvider provider, Widget? header) {
+  Widget _buildUnifiedRecordingUI(CaptureProvider provider, Widget? header, {required bool isDeviceConnected, String? topConvoId}) {
     bool isProcessing = provider.recordingState == RecordingState.processing;
-    bool isDeviceRecording = provider.havingRecordingDevice &&
-        (provider.recordingState == RecordingState.deviceRecord || provider.recordingState == RecordingState.pause);
+    bool isDeviceRecording = provider.havingRecordingDevice || isDeviceConnected;
     bool isPhoneRecording = provider.recordingState == RecordingState.record ||
         provider.recordingState == RecordingState.systemAudioRecord ||
         provider.recordingState == RecordingState.initialising ||
-        _isPhoneMicPaused;
+        (provider.isPaused && !provider.havingRecordingDevice);
 
-    // Show processing UI when finalizing in background
+    // Show processing UI when finalizing in background — animated fade+scale in
+    // Tappable: navigates to ConversationCapturingPage (no competing buttons)
     if (isProcessing) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.only(left: 8, right: 6),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF35343B),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        AppLocalizations.of(context)?.processing ?? 'Procesando...',
-                        style: const TextStyle(
-                          color: Color(0xFFC9CBCF),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Color(0xFFC9CBCF),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+      return GestureDetector(
+        onTap: () => _navigateToCapturing(context, provider, topConvoId),
+        behavior: HitTestBehavior.opaque,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.8, end: 1.0),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          builder: (context, value, child) => Transform.scale(
+            scale: value,
+            child: Opacity(opacity: value, child: child),
           ),
-        ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 8, right: 6),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF35343B),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Shimmer.fromColors(
+                            baseColor: const Color(0xFFC9CBCF),
+                            highlightColor: Colors.white,
+                            child: Text(
+                              AppLocalizations.of(context)?.processing ?? 'Procesando...',
+                              style: const TextStyle(
+                                color: Color(0xFFC9CBCF),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFFC9CBCF),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
-    // Determine pause state based on recording type
-    bool isPaused = false;
-    if (isDeviceRecording) {
-      isPaused = provider.isPaused && provider.recordingState == RecordingState.pause;
-    } else if (isPhoneRecording) {
-      isPaused = _isPhoneMicPaused || provider.isPaused;
-    }
+    // Determine pause state from provider (unified for device and phone mic)
+    bool isPaused = provider.isPaused && provider.recordingState == RecordingState.pause;
 
     // When recording is active, show the unified UI design
+    // Buttons are NOT inside a navigation GestureDetector — no gesture arena conflict
     if (isDeviceRecording || isPhoneRecording) {
-      return Column(
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _navigateToCapturing(context, provider, topConvoId),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 4),
-          // Top row with status tag and controls
+          // Top row with status tag and controls — buttons have their own GestureDetectors
           Padding(
             padding: const EdgeInsets.only(left: 8, right: 6),
             child: Row(
@@ -382,96 +482,129 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
               children: [
                 // Left: Status tag
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF35343B),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        isPaused
-                            ? (isDeviceRecording
-                                ? (AppLocalizations.of(context)?.muted ?? 'Muted')
-                                : (AppLocalizations.of(context)?.paused ?? 'Paused'))
-                            : (AppLocalizations.of(context)?.listening ?? 'Listening'),
-                        style: const TextStyle(
-                          color: Color(0xFFC9CBCF),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (!isPaused && provider.activeSttProvider != null) ...[
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF35343B),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         Text(
-                          ' · ${SttProviderConfig.get(provider.activeSttProvider!).displayName}',
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
+                          isPaused
+                              ? (isDeviceRecording
+                                  ? (AppLocalizations.of(context)?.muted ?? 'Muted')
+                                  : (AppLocalizations.of(context)?.paused ?? 'Paused'))
+                              : (AppLocalizations.of(context)?.listening ?? 'Listening'),
+                          style: const TextStyle(
+                            color: Color(0xFFC9CBCF),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (!isPaused && provider.activeSttProvider != null) ...[
+                          Text(
+                            ' · ${SttProviderConfig.get(provider.activeSttProvider!).displayName}',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: isPaused ? const Color(0xFFFF9500) : const Color(0xFFFE5D50),
+                            shape: BoxShape.circle,
                           ),
                         ),
                       ],
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: isPaused ? const Color(0xFFFF9500) : const Color(0xFFFE5D50),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-                // Right: Control buttons for both device and phone recording
+                // Right: Control buttons — IconButton wins gesture arena vs ScrollView
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Pause/Resume button
-                    GestureDetector(
-                      onTap: () {
-                        HapticFeedback.mediumImpact();
-                        // Track mute/pause action
-                        if (!isPaused) {
-                          // User is pausing/muting
-                          MixpanelManager().recordingMuteToggled(
-                            isMuted: true,
-                            recordingType: isDeviceRecording ? 'device' : 'phone_mic',
-                          );
-                        } else {
-                          // User is resuming
-                          MixpanelManager().recordingMuteToggled(
-                            isMuted: false,
-                            recordingType: isDeviceRecording ? 'device' : 'phone_mic',
-                          );
-                        }
-                        _toggleRecording(context, provider);
-                      },
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: isPaused
-                              ? isDeviceRecording
-                                  ? const Color(0xFFFE5D50)
-                                  : const Color(0xFF485DF4)
-                              : isDeviceRecording
-                                  ? const Color(0xFF35343B)
-                                  : const Color(0xFFFF9500),
-                          shape: BoxShape.circle,
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: isPaused
+                            ? const Color(0xFFFF9500) // Naranja = pausado/muted
+                            : const Color(0xFF485DF4), // Azul = grabando activo
+                        shape: BoxShape.circle,
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () {
+                            HapticFeedback.mediumImpact();
+                            if (!isPaused) {
+                              MixpanelManager().recordingMuteToggled(
+                                isMuted: true,
+                                recordingType: isDeviceRecording ? 'device' : 'phone_mic',
+                              );
+                            } else {
+                              MixpanelManager().recordingMuteToggled(
+                                isMuted: false,
+                                recordingType: isDeviceRecording ? 'device' : 'phone_mic',
+                              );
+                            }
+                            _toggleRecording(context, provider);
+                          },
+                          child: Center(
+                            child: FaIcon(
+                              isPaused
+                                  ? isDeviceRecording
+                                      ? FontAwesomeIcons.microphoneSlash
+                                      : FontAwesomeIcons.play
+                                  : isDeviceRecording
+                                      ? FontAwesomeIcons.microphone
+                                      : FontAwesomeIcons.pause,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
                         ),
-                        child: Center(
-                          child: FaIcon(
-                            isPaused
-                                ? isDeviceRecording
-                                    ? FontAwesomeIcons.microphoneSlash
-                                    : FontAwesomeIcons.play
-                                : isDeviceRecording
-                                    ? FontAwesomeIcons.microphone
-                                    : FontAwesomeIcons.pause,
-                            color: Colors.white,
-                            size: 12,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Stop button
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFE5D50),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFE5D50).withValues(alpha: 0.4),
+                            spreadRadius: 1,
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () {
+                            HapticFeedback.heavyImpact();
+                            _stopRecording(context, provider);
+                          },
+                          child: const Center(
+                            child: FaIcon(
+                              FontAwesomeIcons.stop,
+                              color: Colors.white,
+                              size: 14,
+                            ),
                           ),
                         ),
                       ),
@@ -481,37 +614,50 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
               ],
             ),
           ),
-          const SizedBox(height: 4),
-          if (provider.segments.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.only(left: 12, top: 2),
-              child: Text(
-                '${provider.segments.length} ${provider.segments.length == 1 ? 'segmento' : 'segmentos'}',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 11,
-                ),
-              ),
+          // Content area below buttons
+          Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                if (provider.segments.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, top: 2),
+                    child: Text(
+                      '${provider.segments.length} ${provider.segments.length == 1 ? 'segmento' : 'segmentos'}',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+                if (provider.photos.isNotEmpty || provider.segments.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const LiteCaptureWidget(),
+                ],
+                // Minimum tappable area when no segments yet — allows entering the capturing page
+                if (provider.segments.isEmpty && provider.photos.isEmpty)
+                  const SizedBox(height: 12),
+              ],
             ),
-          ],
-          if (provider.photos.isNotEmpty || provider.segments.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            const LiteCaptureWidget(),
-          ],
         ],
+      ),
       );
     } else {
-      // For non-recording states, show the original header-based UI
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (header != null) header,
-          // Show content when there are segments/photos
-          if (provider.segments.isNotEmpty || provider.photos.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            const LiteCaptureWidget(),
+      // For non-recording states — tappable for navigation (no competing buttons)
+      return GestureDetector(
+        onTap: () => _navigateToCapturing(context, provider, topConvoId),
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (header != null) header,
+            if (provider.segments.isNotEmpty || provider.photos.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const LiteCaptureWidget(),
+            ],
           ],
-        ],
+        ),
       );
     }
   }
@@ -611,9 +757,10 @@ getPhoneMicRecordingButton(BuildContext context, VoidCallback toggleRecordingCb,
   bool isLoading = currentActualState == RecordingState.initialising ||
       currentActualState == RecordingState.processing;
 
+  final l10n = AppLocalizations.of(context);
   if (isDesktop) {
     if (isLoading) {
-      text = 'Initialising System Audio';
+      text = l10n?.initialisingSystemAudio ?? 'Iniciando Audio del Sistema';
       icon = const SizedBox(
         height: 8,
         width: 8,
@@ -623,16 +770,16 @@ getPhoneMicRecordingButton(BuildContext context, VoidCallback toggleRecordingCb,
         ),
       );
     } else if (currentActualState == RecordingState.systemAudioRecord) {
-      text = 'Stop Recording';
+      text = l10n?.stopRecording ?? 'Detener Grabación';
       icon = const Icon(Icons.stop, color: Colors.red, size: 12);
     } else {
-      text = 'Continue Recording';
+      text = l10n?.continueRecording ?? 'Continuar Grabación';
       icon = const Icon(Icons.mic, size: 18);
     }
   } else {
     // Phone Mic
     if (isLoading) {
-      text = 'Initialising Recorder';
+      text = l10n?.initialisingRecorder ?? 'Iniciando Grabadora';
       icon = const SizedBox(
         height: 8,
         width: 8,
@@ -642,7 +789,7 @@ getPhoneMicRecordingButton(BuildContext context, VoidCallback toggleRecordingCb,
         ),
       );
     } else if (currentActualState == RecordingState.record) {
-      text = 'Pause Recording';
+      text = l10n?.pauseRecording ?? 'Pausar Grabación';
       icon = Container(
         margin: const EdgeInsets.only(right: 4),
         width: 24,
@@ -656,7 +803,7 @@ getPhoneMicRecordingButton(BuildContext context, VoidCallback toggleRecordingCb,
         ),
       );
     } else if (isPhoneMicPaused) {
-      text = 'Resume Recording';
+      text = l10n?.resumeRecording ?? 'Reanudar Grabación';
       icon = Container(
         margin: const EdgeInsets.only(right: 4),
         width: 24,
@@ -670,7 +817,7 @@ getPhoneMicRecordingButton(BuildContext context, VoidCallback toggleRecordingCb,
         ),
       );
     } else {
-      text = 'Continue Recording';
+      text = l10n?.continueRecording ?? 'Continuar Grabación';
       icon = const Icon(Icons.mic, size: 18);
     }
   }
@@ -777,9 +924,9 @@ class _ProcessingConversationWidgetState extends State<ProcessingConversationWid
                       child: Shimmer.fromColors(
                         baseColor: Colors.white,
                         highlightColor: Colors.grey,
-                        child: const Text(
-                          'Processing',
-                          style: TextStyle(
+                        child: Text(
+                          AppLocalizations.of(context)?.processingStatus ?? 'Procesando',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 14,
                             fontWeight: FontWeight.w500,

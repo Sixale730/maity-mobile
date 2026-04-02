@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:omi/utils/app_state_collector.dart';
 import 'package:omi/utils/enums.dart';
 
 /// Source of the current recording.
@@ -108,6 +109,7 @@ class RecordingStateMachine {
       RecordingState.deviceRecord,
       RecordingState.systemAudioRecord,
       RecordingState.stop,
+      RecordingState.processing, // silence timeout auto-save from pause
     },
     RecordingState.processing: {
       RecordingState.stop,
@@ -135,6 +137,9 @@ class RecordingStateMachine {
 
     debugPrint('[RecordingFSM] Transition: ${state.name} -> ${newState.name}');
     stateNotifier.value = newState;
+
+    // Update AppStateCollector for crash context
+    AppStateCollector.isRecording = isRecording;
 
     // Derive phone-mic flag from state
     if (newState == RecordingState.record) {

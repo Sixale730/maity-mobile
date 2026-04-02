@@ -175,14 +175,20 @@ class OpusToRawPcmTranscoder implements IAudioTranscoder {
 
   @override
   Uint8List transcode(Uint8List opusData) {
-    final pcmSamples = _decoder.decode(input: opusData);
-    // Convert Int16List to Uint8List (little-endian)
-    final bytes = Uint8List(pcmSamples.length * 2);
-    final byteData = ByteData.view(bytes.buffer);
-    for (int i = 0; i < pcmSamples.length; i++) {
-      byteData.setInt16(i * 2, pcmSamples[i], Endian.little);
+    try {
+      final pcmSamples = _decoder.decode(input: opusData);
+      // Convert Int16List to Uint8List (little-endian)
+      final bytes = Uint8List(pcmSamples.length * 2);
+      final byteData = ByteData.view(bytes.buffer);
+      for (int i = 0; i < pcmSamples.length; i++) {
+        byteData.setInt16(i * 2, pcmSamples[i], Endian.little);
+      }
+      return bytes;
+    } catch (e) {
+      // Return silence instead of crashing — prevents error spam loop
+      debugPrint('[OpusToRawPcmTranscoder] Decode error (returning silence): $e');
+      return Uint8List(0);
     }
-    return bytes;
   }
 
   @override

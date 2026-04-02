@@ -10,6 +10,7 @@ import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/conversation_processor.dart';
 import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/services/transcript_recovery_service.dart';
+import 'package:omi/services/local_stt/chunk_queue_manager.dart';
 import 'package:omi/utils/mutex.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -189,6 +190,7 @@ class PersistenceManager {
     required DateTime? startedAt,
     required bool isSpeechProfileMode,
     required Function() onSuccess,
+    String? sessionId,
   }) async {
     if (isSpeechProfileMode) {
       debugPrint('[PersistenceManager] SKIP: Speech profile mode active');
@@ -209,6 +211,7 @@ class PersistenceManager {
         userId: userId,
         startedAt: startedAt,
         onSuccess: onSuccess,
+        sessionId: sessionId,
       );
     } finally {
       _finalizeMutex.release();
@@ -221,6 +224,7 @@ class PersistenceManager {
     required String? userId,
     required DateTime? startedAt,
     required Function() onSuccess,
+    String? sessionId,
   }) async {
     final localSegments = List<TranscriptSegment>.from(segments);
     final transcript = localSegments.map((s) => s.text).join('\n').trim();
@@ -283,6 +287,11 @@ class PersistenceManager {
         'has_structured': structuredData != null,
       });
       debugPrint('[PersistenceManager] SUCCESS: queued for background upload');
+
+      // Mark chunk session as finalized (chunks can be cleaned up after upload)
+      if (sessionId != null) {
+        await ChunkQueueManager.instance.markSessionFinalized(sessionId);
+      }
 
       // Clear recovery state only after successful queue
       await clearRecoveryState();

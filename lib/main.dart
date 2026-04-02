@@ -54,6 +54,8 @@ import 'package:omi/services/desktop_update_service.dart';
 import 'package:omi/services/notifications.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/utils/analytics/growthbook.dart';
+import 'package:omi/services/crash_log_upload_service.dart';
+import 'package:omi/utils/crash_log_manager.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/logger.dart';
@@ -108,12 +110,20 @@ Future _init() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Pass all uncaught "fatal" errors from the framework to Crashlytics
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  // Pass all uncaught "fatal" errors from the framework to Crashlytics + CrashLogManager
+  FlutterError.onError = (details) {
+    FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+    CrashLogManager.instance.logCrash(
+      details.exception,
+      details.stack,
+      source: 'flutter_error',
+    );
+  };
 
-  // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
+  // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework
   PlatformDispatcher.instance.onError = (error, stack) {
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    CrashLogManager.instance.logCrash(error, stack, source: 'platform_error');
     return true;
   };
 
@@ -141,6 +151,9 @@ Future _init() async {
 
   await SharedPreferencesUtil.init();
 
+  // Initialize always-on crash logging (before anything else that might fail)
+  await CrashLogManager.instance.init();
+
   // Auto-configurar Deepgram como STT por defecto
   await _autoConfigureDeepgram();
 
@@ -161,6 +174,9 @@ Future _init() async {
 
   // Initialize background upload service (processes pending conversation uploads)
   await BackgroundUploadService.instance.initialize();
+
+  // Upload any crash logs from previous session to Supabase platform_logs
+  await CrashLogUploadService.instance.initialize();
 
   // Initialize local STT model service (checks if model already downloaded)
   await ModelDownloadService.instance.initialize();
@@ -199,6 +215,7 @@ void main() {
     (error, stack) {
       debugPrint('Uncaught error: $error');
       debugPrint('Stack trace: $stack');
+      CrashLogManager.instance.logCrash(error, stack, source: 'zone_error');
     },
   );
 }
@@ -479,6 +496,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   themeMode: ThemeMode.dark,
                   builder: (context, child) {
                     FlutterError.onError = (FlutterErrorDetails details) {
+                      CrashLogManager.instance.logCrash(
+                        details.exception, details.stack,
+                        source: 'flutter_error_widget',
+                      );
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         Logger.instance.talker.handle(details.exception, details.stack);
                         DebugLogManager.logError(details.exception, details.stack, 'FlutterError');

@@ -10,6 +10,7 @@ import 'package:omi/gen/assets.gen.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/utils/other/temp.dart';
+import 'package:omi/utils/segment_key_cache.dart';
 
 class TranscriptWidget extends StatefulWidget {
   final List<TranscriptSegment> segments;
@@ -65,8 +66,8 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
   bool _isAutoScrolling = false;
   int _previousSegmentCount = 0;
 
-  // Search result tracking
-  List<GlobalKey> _segmentKeys = [];
+  // Search result tracking — SegmentKeyCache replaces O(n) List.generate
+  final SegmentKeyCache _segmentKeyCache = SegmentKeyCache();
   final List<GlobalKey> _matchKeys = [];
   int _previousSearchResultIndex = -1;
 
@@ -103,7 +104,6 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
   void initState() {
     super.initState();
     _previousSegmentCount = widget.segments.length;
-    _initializeSegmentKeys();
     _rebuildMatchKeys();
 
     // Add scroll listener to detect manual scrolling
@@ -117,10 +117,6 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
         _scrollToBottomIfReady();
       });
     }
-  }
-
-  void _initializeSegmentKeys() {
-    _segmentKeys = List.generate(widget.segments.length, (index) => GlobalKey());
   }
 
   void _rebuildMatchKeys() {
@@ -142,9 +138,10 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
   void didUpdateWidget(TranscriptWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Reinitialize keys if segment count changed
+    // Prune stale keys when segments change
     if (widget.segments.length != oldWidget.segments.length) {
-      _initializeSegmentKeys();
+      _segmentKeyCache.pruneExcept(
+          widget.segments.map((s) => s.id).toSet());
     }
 
     if (widget.searchQuery != oldWidget.searchQuery) {
@@ -301,8 +298,8 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
       currentMatchIndex += matches.length;
     }
 
-    if (targetSegmentIndex >= 0 && targetSegmentIndex < _segmentKeys.length) {
-      final segmentKey = _segmentKeys[targetSegmentIndex];
+    if (targetSegmentIndex >= 0 && targetSegmentIndex < widget.segments.length) {
+      final segmentKey = _segmentKeyCache.getOrCreate(widget.segments[targetSegmentIndex].id);
 
       final segmentContext = segmentKey.currentContext;
       if (segmentContext != null) {
@@ -457,8 +454,9 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
     final isTagging = widget.taggingSegmentIds.contains(data.id);
     final bool isUser = data.isUser;
 
-    return Container(
-        key: segmentIdx >= 0 && segmentIdx < _segmentKeys.length ? _segmentKeys[segmentIdx] : null,
+    return RepaintBoundary(
+      child: Container(
+        key: segmentIdx >= 0 && segmentIdx < widget.segments.length ? _segmentKeyCache.getOrCreate(widget.segments[segmentIdx].id) : null,
         child: GestureDetector(
           onTap: () {
             if (widget.searchQuery.isEmpty && widget.onTapWhenSearchEmpty != null) {
@@ -705,7 +703,8 @@ class _TranscriptWidgetState extends State<TranscriptWidget> {
               ],
             ),
           ),
-        ));
+        )),
+    );
   }
 
   Widget _buildTranslationNotice() {
