@@ -248,7 +248,7 @@ class ForegroundUtil {
           // ),
         ),
         iosNotificationOptions: const IOSNotificationOptions(
-          showNotification: false,
+          showNotification: true,
           playSound: false,
         ),
         foregroundTaskOptions: ForegroundTaskOptions(

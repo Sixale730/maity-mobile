@@ -12,6 +12,7 @@ import 'widgets/daily_score_card.dart';
 import 'widgets/dashboard_header.dart';
 import 'widgets/pending_tasks_preview.dart';
 import 'widgets/quick_actions_row.dart';
+import 'widgets/quick_record_widget.dart';
 import 'widgets/quick_stats_row.dart';
 import 'widgets/recent_conversations_preview.dart';
 
@@ -78,6 +79,7 @@ class DashboardPageState extends State<DashboardPage> {
         padding: const EdgeInsets.only(bottom: 120),
         children: [
           const DashboardHeader(),
+          const QuickRecordWidget(),
           DailyScoreCard(
             onTap: () {
               // Navigate to Insights tab (nav index 4)
