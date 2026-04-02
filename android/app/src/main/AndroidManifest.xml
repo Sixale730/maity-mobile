@@ -134,6 +134,18 @@
             android:value="2" />
 
         <meta-data android:name="com.posthog.posthog.AUTO_INIT" android:value="false" />
-        
+
+        <!-- Maity Home Screen Widget -->
+        <receiver
+            android:name=".MaityWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/maity_widget_info" />
+        </receiver>
+
     </application>
 </manifest>
