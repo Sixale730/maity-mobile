@@ -440,7 +440,7 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
             child: Center(child: FaIcon(icon, color: iconColor, size: 18)),
           ),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500)),
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500)),
         ],
       ),
     );

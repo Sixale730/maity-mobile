@@ -130,7 +130,7 @@ class LocalSttEngine {
       // that produce "(EMPTY)" decodes. Transducer TDT with 8x FastConformer
       // subsampling needs enough frames — segments under ~0.8s yield too few
       // encoder frames for reliable token emission.
-      final minSpeech = 0.8;
+      const minSpeech = 0.8;
       // Canary benefits from faster silence detection (0.3s) for natural
       // conversational segmentation. Parakeet/Moonshine use 1.0s to prevent
       // premature mid-utterance cuts — accumulated speech decodes better than
@@ -290,7 +290,7 @@ class LocalSttEngine {
   /// Refs: NVIDIA Canary pads symmetrically to 1s minimum.
   ///       Whisper expects zero-padded boundaries (trained on 30s chunks).
   static Float32List _padWithSilence(Float32List samples, LocalSttModelType modelType) {
-    final prePad = 6400;  // 0.4s all models: gives FastConformer a clear silence→speech onset
+    const prePad = 6400;  // 0.4s all models: gives FastConformer a clear silence→speech onset
     final postPad = modelType == LocalSttModelType.canary ? 8000 : 4800; // 0.5s / 0.3s
     final padded = Float32List(prePad + samples.length + postPad);
     padded.setRange(prePad, prePad + samples.length, samples);
@@ -329,7 +329,7 @@ class LocalSttEngine {
       // 3+ consecutive repetitions = hallucination, keep first occurrence
       if (repeats >= 3) {
         final truncated = words.sublist(0, pos + patLen).join(' ');
-        debugPrint('[LocalSttEngine] Truncated ${repeats} repetitions of "$pattern"');
+        debugPrint('[LocalSttEngine] Truncated $repeats repetitions of "$pattern"');
         return truncated;
       }
     }

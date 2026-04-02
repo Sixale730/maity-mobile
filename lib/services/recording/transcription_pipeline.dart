@@ -12,7 +12,6 @@ import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/connectivity_service.dart';
 import 'package:omi/services/local_stt/audio_chunk_writer.dart';
-import 'package:omi/utils/audio/audio_transcoder.dart';
 import 'package:omi/services/local_stt/chunk_queue_manager.dart';
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/local_stt_socket.dart';
