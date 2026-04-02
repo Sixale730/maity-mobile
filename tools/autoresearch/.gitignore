@@ -1,0 +1,12 @@
+# Audio corpus (large WAV files, download via setup_corpus.py + CIEMPIESS)
+corpus/
+
+# STT model files (~642MB, download via benchmark.py --model-dir)
+models/
+
+# Experiment results (generated, not source)
+results/
+
+# Python cache
+__pycache__/
+*.pyc
