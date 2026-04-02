@@ -126,11 +126,12 @@ class LocalSttEngine {
       debugPrint('[LocalSttEngine] Using model type: ${modelType.name}, maxSpeechDuration: ${maxSpeechDuration}s');
 
       // Configure Silero VAD.
-      // minSpeechDuration 0.8s: filters short noise/click segments (<0.8s)
-      // that produce "(EMPTY)" decodes. Transducer TDT with 8x FastConformer
-      // subsampling needs enough frames — segments under ~0.8s yield too few
-      // encoder frames for reliable token emission.
-      const minSpeech = 0.8;
+      // minSpeechDuration 0.3s: autoresearch (Apr 2026) found 0.8s was discarding
+      // valid short speech segments (interjections, confirmations like "sí", "claro").
+      // Lowering to 0.3s reduced WER from 9.10% → 7.32% (-19.6% relative) on a
+      // 32-clip Mexican Spanish corpus. Parakeet TDT decodes 0.3s segments reliably
+      // with the pre-pad silence providing clean onset for FastConformer.
+      const minSpeech = 0.3;
       // Canary benefits from faster silence detection (0.3s) for natural
       // conversational segmentation. Parakeet/Moonshine use 1.0s to prevent
       // premature mid-utterance cuts — accumulated speech decodes better than
