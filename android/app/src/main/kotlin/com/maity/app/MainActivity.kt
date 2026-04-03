@@ -17,9 +17,30 @@ import java.security.MessageDigest
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.maity.app/notifyOnKill"
     private val SIGNING_CHANNEL = "com.maity.app/signing"
+    private val WIDGET_CHANNEL = "com.maity.app/widget"
+    private var launchAction: String? = null
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        launchAction = intent.getStringExtra("action")
+    }
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // Capture launch action from widget
+        launchAction = intent?.getStringExtra("action")
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WIDGET_CHANNEL).setMethodCallHandler {
+            call, result ->
+            if (call.method == "getLaunchAction") {
+                val action = launchAction
+                launchAction = null  // Clear after reading
+                result.success(action)
+            } else {
+                result.notImplemented()
+            }
+        }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler {
             call, result ->

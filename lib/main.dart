@@ -63,6 +63,7 @@ import 'package:omi/utils/platform/platform_manager.dart';
 import 'package:omi/utils/platform/platform_service.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/models/stt_provider.dart';
+import 'package:omi/pages/conversation_capturing/page.dart';
 import 'package:omi/pages/onboarding/find_device/page.dart';
 import 'package:opus_dart/opus_dart.dart';
 import 'package:opus_flutter/opus_flutter.dart' as opus_flutter;
@@ -267,6 +268,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // Listen for foreground notification button actions
     _initForegroundTaskListener();
 
+    // Handle widget launch - auto-start recording
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleWidgetLaunch();
+    });
+
     super.initState();
   }
 
@@ -336,6 +342,48 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           });
         });
       }
+    }
+  }
+
+  Future<void> _handleWidgetLaunch() async {
+    // Wait for providers to be ready
+    await Future.delayed(const Duration(seconds: 3));
+
+    final context = MyApp.navigatorKey.currentContext;
+    if (context == null) return;
+
+    try {
+      final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+
+      // Only auto-start if not already recording
+      if (captureProvider.recordingState == RecordingState.stop ||
+          captureProvider.recordingState == RecordingState.error) {
+        // Check if launched from widget via Android intent extra
+        final widgetChannel = const MethodChannel('com.maity.app/widget');
+        try {
+          final action = await widgetChannel.invokeMethod<String>('getLaunchAction');
+          if (action == 'start_recording') {
+            debugPrint('[Widget] Auto-starting recording from widget launch');
+            await captureProvider.streamRecording();
+            if (context.mounted) {
+              final topConvoId = Provider.of<ConversationProvider>(context, listen: false)
+                  .conversations.isNotEmpty
+                  ? Provider.of<ConversationProvider>(context, listen: false).conversations.first.id
+                  : null;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ConversationCapturingPage(topConversationId: topConvoId),
+                ),
+              );
+            }
+          }
+        } catch (_) {
+          // Channel not available (iOS or no widget launch) — ignore
+        }
+      }
+    } catch (e) {
+      debugPrint('[Widget] Error handling widget launch: $e');
     }
   }
 
