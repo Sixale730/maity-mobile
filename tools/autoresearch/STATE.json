@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "type": "stt_accuracy",
+  "created": "2026-04-02T12:00:00Z",
+  "lastRun": null,
+  "runCount": 0,
+  "bestWer": null,
+  "currentFocus": "baseline",
+  "baseline": null,
+  "models": {
+    "parakeet": { "best_wer": null, "runs": 0 },
+    "moonshine": { "best_wer": null, "runs": 0 },
+    "canary": { "best_wer": null, "runs": 0 }
+  },
+  "history": []
+}
