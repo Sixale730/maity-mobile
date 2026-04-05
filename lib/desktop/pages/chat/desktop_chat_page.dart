@@ -1443,7 +1443,7 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
                   reportMessageServer(message.id);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text('✅ Message reported successfully'),
+                      content: const Text('Message reported successfully'),
                       backgroundColor: ResponsiveHelper.purplePrimary,
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
