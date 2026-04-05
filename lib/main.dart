@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:app_links/app_links.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/cupertino.dart';
@@ -268,9 +269,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // Listen for foreground notification button actions
     _initForegroundTaskListener();
 
-    // Handle widget launch - auto-start recording
+    // Handle widget launch - auto-start recording (both iOS URL scheme + Android intent)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _handleWidgetLaunch();
+      _initWidgetDeepLinks();
     });
 
     super.initState();
@@ -345,46 +346,79 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _handleWidgetLaunch() async {
+  Future<void> _initWidgetDeepLinks() async {
     // Wait for providers to be ready
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 2));
 
+    try {
+      final appLinks = AppLinks();
+
+      // 1. Check if app was launched from a deep link (cold start)
+      final initialUri = await appLinks.getInitialLink();
+      if (initialUri != null) {
+        _handleDeepLink(initialUri);
+      }
+
+      // 2. Also check Android intent extra (fallback)
+      final widgetChannel = const MethodChannel('com.maity.app/widget');
+      try {
+        final action = await widgetChannel.invokeMethod<String>('getLaunchAction');
+        if (action == 'start_recording') {
+          _startRecordingFromWidget();
+        }
+      } catch (_) {}
+
+      // 3. Listen for deep links while app is running (warm start)
+      appLinks.uriLinkStream.listen((uri) {
+        _handleDeepLink(uri);
+      });
+    } catch (e) {
+      debugPrint('[Widget] Error initializing deep links: $e');
+    }
+  }
+
+  void _handleDeepLink(Uri uri) {
+    debugPrint('[Widget] Deep link received: $uri');
+    if (uri.scheme == 'maity') {
+      if (uri.host == 'record') {
+        _startRecordingFromWidget();
+      } else if (uri.host == 'recording') {
+        // Open the recording page if already recording
+        _openRecordingPage();
+      }
+    }
+  }
+
+  Future<void> _startRecordingFromWidget() async {
     final context = MyApp.navigatorKey.currentContext;
     if (context == null) return;
 
-    try {
-      final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+    final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
 
-      // Only auto-start if not already recording
-      if (captureProvider.recordingState == RecordingState.stop ||
-          captureProvider.recordingState == RecordingState.error) {
-        // Check if launched from widget via Android intent extra
-        final widgetChannel = const MethodChannel('com.maity.app/widget');
-        try {
-          final action = await widgetChannel.invokeMethod<String>('getLaunchAction');
-          if (action == 'start_recording') {
-            debugPrint('[Widget] Auto-starting recording from widget launch');
-            await captureProvider.streamRecording();
-            if (context.mounted) {
-              final topConvoId = Provider.of<ConversationProvider>(context, listen: false)
-                  .conversations.isNotEmpty
-                  ? Provider.of<ConversationProvider>(context, listen: false).conversations.first.id
-                  : null;
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ConversationCapturingPage(topConversationId: topConvoId),
-                ),
-              );
-            }
-          }
-        } catch (_) {
-          // Channel not available (iOS or no widget launch) — ignore
-        }
-      }
-    } catch (e) {
-      debugPrint('[Widget] Error handling widget launch: $e');
+    // Only start if not already recording
+    if (captureProvider.recordingState == RecordingState.stop ||
+        captureProvider.recordingState == RecordingState.error) {
+      debugPrint('[Widget] Auto-starting recording from widget');
+      await captureProvider.streamRecording();
     }
+
+    _openRecordingPage();
+  }
+
+  void _openRecordingPage() {
+    final context = MyApp.navigatorKey.currentContext;
+    if (context == null || !context.mounted) return;
+
+    final topConvoId = Provider.of<ConversationProvider>(context, listen: false)
+        .conversations.isNotEmpty
+        ? Provider.of<ConversationProvider>(context, listen: false).conversations.first.id
+        : null;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ConversationCapturingPage(topConversationId: topConvoId),
+      ),
+    );
   }
 
   Future<void> _autoStartMacOSRecording() async {
