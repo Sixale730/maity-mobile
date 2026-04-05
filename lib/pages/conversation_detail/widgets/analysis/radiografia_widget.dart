@@ -20,12 +20,12 @@ class RadiografiaWidget extends StatelessWidget {
     if (_isEmpty) return const SizedBox.shrink();
 
     final kpis = [
-      _KpiData('\u{1F5E3}\u{FE0F}', radiografia.ratioHabla, 'Ratio de habla'),
-      _KpiData('\u{1F4DD}', radiografia.totalPalabras.toString(), 'Total palabras'),
-      _KpiData('\u{1F464}', radiografia.palabrasUsuario.toString(), 'Tus palabras'),
-      _KpiData('\u{1F465}', radiografia.palabrasOtros.toString(), 'Palabras otros'),
-      _KpiData('\u{1F504}', radiografia.muletillasTotal.toString(), 'Total muletillas'),
-      _KpiData('\u{1F4CA}', radiografia.muletillasFrecuencia, 'Frecuencia muletillas'),
+      _KpiData(FontAwesomeIcons.solidComments, const Color(0xFF6C9EFF), radiografia.ratioHabla, 'Ratio de habla'),
+      _KpiData(FontAwesomeIcons.solidNoteSticky, const Color(0xFFFFD93D), radiografia.totalPalabras.toString(), 'Total palabras'),
+      _KpiData(FontAwesomeIcons.solidUser, const Color(0xFF4ECDC4), radiografia.palabrasUsuario.toString(), 'Tus palabras'),
+      _KpiData(FontAwesomeIcons.userGroup, const Color(0xFFCB6CE6), radiografia.palabrasOtros.toString(), 'Palabras otros'),
+      _KpiData(FontAwesomeIcons.rotate, const Color(0xFFFF9500), radiografia.muletillasTotal.toString(), 'Total muletillas'),
+      _KpiData(FontAwesomeIcons.chartBar, const Color(0xFF4ECDC4), radiografia.muletillasFrecuencia, 'Frecuencia muletillas'),
     ];
 
     return Column(
@@ -61,7 +61,8 @@ class RadiografiaWidget extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           children: kpis
               .map((kpi) => _buildKpiCard(
-                    emoji: kpi.emoji,
+                    icon: kpi.icon,
+                    iconColor: kpi.iconColor,
                     value: kpi.value,
                     label: kpi.label,
                   ))
@@ -72,7 +73,8 @@ class RadiografiaWidget extends StatelessWidget {
   }
 
   Widget _buildKpiCard({
-    required String emoji,
+    required IconData icon,
+    required Color iconColor,
     required String value,
     required String label,
   }) {
@@ -85,7 +87,7 @@ class RadiografiaWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 20)),
+          FaIcon(icon, size: 18, color: iconColor),
           const SizedBox(height: 8),
           Text(
             value,
@@ -112,9 +114,10 @@ class RadiografiaWidget extends StatelessWidget {
 }
 
 class _KpiData {
-  final String emoji;
+  final IconData icon;
+  final Color iconColor;
   final String value;
   final String label;
 
-  const _KpiData(this.emoji, this.value, this.label);
+  const _KpiData(this.icon, this.iconColor, this.value, this.label);
 }
