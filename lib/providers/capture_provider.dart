@@ -39,6 +39,8 @@ import 'package:omi/services/recording/app_lifecycle_manager.dart';
 import 'package:omi/services/notifications/notification_service.dart';
 import 'package:omi/services/devices/led_breathing_service.dart';
 import 'package:omi/services/devices.dart';
+import 'package:omi/services/speaker/heuristic_correction.dart';
+import 'package:omi/services/speaker/speaker_types.dart';
 
 const _autoSaveNotificationMessages = {
   'en': {
@@ -1139,6 +1141,10 @@ class CaptureProvider extends ChangeNotifier
     }
     _isFinalizing = true;
     try {
+      // Apply heuristic speaker corrections on full segment list before upload.
+      // Only applies to local STT segments that have confidence scores.
+      _applyHeuristicCorrections();
+
       final success = await _persistence.finalizeConversation(
         segments: List.from(segments),
         userId: _stateMachine.cachedRecordingUserId ??
@@ -1156,6 +1162,44 @@ class CaptureProvider extends ChangeNotifier
       }
     } finally {
       _isFinalizing = false;
+    }
+  }
+
+  /// Apply heuristic speaker corrections to all segments with confidence scores.
+  ///
+  /// Runs the 5 linguistic rules (question-answer, self-reference, isolated
+  /// speaker, turn rhythm, vocabulary) on the full segment list. Only corrects
+  /// segments with low confidence (< 0.60). Mutates [segments] in place.
+  void _applyHeuristicCorrections() {
+    // Only process segments that have confidence (local STT with scorer)
+    final scoredSegments = <ScoredSegment>[];
+    for (var i = 0; i < segments.length; i++) {
+      final seg = segments[i];
+      if (seg.confidence != null) {
+        scoredSegments.add(ScoredSegment(
+          index: i,
+          text: seg.text,
+          speakerId: seg.speakerId,
+          confidence: seg.confidence!,
+          startTime: seg.start,
+          endTime: seg.end,
+        ));
+      }
+    }
+
+    if (scoredSegments.length < 2) return;
+
+    final corrections = applyHeuristicCorrections(scoredSegments);
+    if (corrections.isEmpty) return;
+
+    debugPrint('[CaptureProvider] Applying ${corrections.length} heuristic corrections');
+
+    for (final c in corrections) {
+      final seg = segments[c.segmentIndex];
+      seg.isUser = c.correctedSpeaker == 0;
+      seg.speaker = 'SPEAKER_${c.correctedSpeaker}';
+      seg.speakerId = c.correctedSpeaker;
+      seg.correctionSource = c.correctionSource;
     }
   }
 

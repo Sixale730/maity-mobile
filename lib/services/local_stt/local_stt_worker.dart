@@ -5,8 +5,13 @@ import 'dart:typed_data';
 
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 
+import 'package:omi/services/audio/audio_processing_utils.dart' as audio;
+import 'package:omi/services/audio/pitch_utils.dart' as pitch;
+import 'package:omi/services/audio/spectral_utils.dart' as spectral;
 import 'package:omi/services/local_stt/local_stt_engine.dart';
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
+import 'package:omi/services/speaker/multi_signal_scorer.dart' as scorer;
+import 'package:omi/services/speaker/speaker_types.dart';
 
 /// Worker isolate entry point for local STT decode + speaker identification.
 ///
@@ -92,6 +97,18 @@ class _SttWorker {
   /// Track previous VAD state to only emit on transitions.
   bool _lastVadState = false;
 
+  // Multi-signal scorer state
+  Float32List? _userEmbedding;
+  AcousticProfile? _acousticProfile;
+  bool _prevIsUser = false;
+  double _prevConfidence = 0.0;
+  double _prevEndTime = 0.0;
+
+  /// Audio accumulated from high-confidence user segments for lazy profile building.
+  final List<Float32List> _profileSamples = [];
+  static const int _profileSamplesNeeded = 5;
+  static const double _profileEmbeddingThreshold = 0.65;
+
   _SttWorker(this._mainSendPort);
 
   Future<void> handleInit(
@@ -146,6 +163,7 @@ class _SttWorker {
       }
 
       _speakerManager!.add(name: _userName, embedding: embedding);
+      _userEmbedding = Float32List.fromList(embedding);
       _speakerIdEnabled = true;
       print(
           '[SttWorker] Speaker ID initialized (dim=${_speakerExtractor!.dim})');
@@ -160,9 +178,18 @@ class _SttWorker {
     }
   }
 
-  /// Identify whether a speech segment belongs to the enrolled user.
-  bool _identifySpeaker(Float32List samples) {
-    if (!_speakerIdEnabled) return true;
+  /// Score a speech segment for user/non-user classification.
+  ///
+  /// Returns fused confidence score and binary decision. Uses multi-signal
+  /// fusion when an [AcousticProfile] is available, falls back to embedding-only
+  /// scoring during the first few segments while the profile is being built.
+  ({bool isUser, double confidence, double energyDb}) _scoreSpeaker(
+      Float32List samples, double durationSec, double startTime) {
+    final energyDb = audio.computeRmsDb(samples);
+
+    if (!_speakerIdEnabled || _userEmbedding == null) {
+      return (isUser: true, confidence: 1.0, energyDb: energyDb);
+    }
 
     try {
       final stream = _speakerExtractor!.createStream();
@@ -172,27 +199,101 @@ class _SttWorker {
       if (!_speakerExtractor!.isReady(stream)) {
         stream.free();
         print('[SttWorker] Speaker ID: not enough audio, defaulting to user');
-        return true;
+        return (isUser: true, confidence: 1.0, energyDb: energyDb);
       }
 
       final embedding = _speakerExtractor!.compute(stream);
       stream.free();
 
-      if (embedding.isEmpty) return true;
+      if (embedding.isEmpty) {
+        return (isUser: true, confidence: 1.0, energyDb: energyDb);
+      }
 
-      final name = _speakerManager!.search(
-        embedding: embedding,
-        threshold: _speakerThreshold,
-      );
+      // Compute embedding similarity
+      final embeddingScore =
+          audio.cosineSimilarity(embedding, _userEmbedding!);
 
-      final isUser = name == _userName;
-      print('[SttWorker] Speaker ID: match="${name.isEmpty ? "(none)" : name}" '
-          'threshold=$_speakerThreshold → ${isUser ? "USER" : "OTHER"}');
-      return isUser;
+      bool isUser;
+      double confidence;
+
+      if (_acousticProfile != null) {
+        // Full 5-signal fused scoring
+        final gap = startTime - _prevEndTime;
+        final result = scorer.computeFusedScoreWithDiagnostics(
+          samples: samples,
+          embeddingScore: embeddingScore,
+          acousticProfile: _acousticProfile!,
+          durationSec: durationSec,
+          hasEmbedding: true,
+          prevIsUser: _prevIsUser,
+          prevConfidence: _prevConfidence,
+          prevGapSec: gap > 0 ? gap : double.infinity,
+        );
+        isUser = result.score >= kUserThreshold;
+        confidence = result.score;
+        print('[SttWorker] Fused score: ${result.score.toStringAsFixed(3)} '
+            '(emb=${embeddingScore.toStringAsFixed(2)}, '
+            'ene=${result.energyScore.toStringAsFixed(2)}, '
+            'pit=${result.pitchScore.toStringAsFixed(2)}) '
+            '→ ${isUser ? "USER" : "OTHER"}');
+      } else {
+        // Fallback: embedding-only scoring while building profile
+        isUser = embeddingScore >= _speakerThreshold;
+        confidence = embeddingScore;
+        print('[SttWorker] Embedding score: ${embeddingScore.toStringAsFixed(3)} '
+            '→ ${isUser ? "USER" : "OTHER"} (profile pending)');
+
+        // Accumulate samples for lazy acoustic profile building
+        if (isUser && embeddingScore >= _profileEmbeddingThreshold) {
+          _profileSamples.add(Float32List.fromList(samples));
+          if (_profileSamples.length >= _profileSamplesNeeded) {
+            _buildAcousticProfile();
+          }
+        }
+      }
+
+      // Update state for temporal boost on next segment
+      _prevIsUser = isUser;
+      _prevConfidence = confidence;
+      _prevEndTime = startTime + durationSec;
+
+      return (isUser: isUser, confidence: confidence, energyDb: energyDb);
     } catch (e) {
-      print('[SttWorker] Speaker ID error: $e');
-      return true;
+      print('[SttWorker] Speaker scoring error: $e');
+      return (isUser: true, confidence: 1.0, energyDb: energyDb);
     }
+  }
+
+  /// Build acoustic profile from accumulated user samples.
+  void _buildAcousticProfile() {
+    // Concatenate all accumulated samples
+    final totalLength =
+        _profileSamples.fold<int>(0, (sum, s) => sum + s.length);
+    final combined = Float32List(totalLength);
+    var offset = 0;
+    for (final s in _profileSamples) {
+      combined.setRange(offset, offset + s.length, s);
+      offset += s.length;
+    }
+    _profileSamples.clear();
+
+    // Extract acoustic features
+    final f0Stats = pitch.estimateF0Stats(combined);
+    final energyDbMean = audio.computeRmsDb(combined);
+    final spectralFeatures = spectral.extractSpectralFeatures(combined);
+
+    _acousticProfile = AcousticProfile(
+      f0Mean: f0Stats?.mean ?? 150.0,
+      f0Std: f0Stats?.std ?? 40.0,
+      energyDbMean: energyDbMean,
+      spectralCentroid: spectralFeatures?.centroid ?? 1500.0,
+      spectralSlope: spectralFeatures?.slope ?? 0.0,
+    );
+
+    print('[SttWorker] Acoustic profile built: '
+        'f0=${_acousticProfile!.f0Mean.toStringAsFixed(0)}Hz, '
+        'energy=${_acousticProfile!.energyDbMean.toStringAsFixed(1)}dB, '
+        'centroid=${_acousticProfile!.spectralCentroid.toStringAsFixed(0)}Hz');
   }
 
   /// Process a PCM16 chunk file from disk.
@@ -316,15 +417,21 @@ class _SttWorker {
           '${timestamp}_${start.toStringAsFixed(2)}_$index';
       index++;
 
-      // Speaker identification per segment
+      // Speaker scoring per segment (multi-signal or embedding-only fallback)
       bool isUser = true;
       String speaker = 'SPEAKER_0';
       int speakerId = 0;
+      double confidence = 1.0;
+      double energyDb = audio.kMinRmsDb;
+      final durationSec = end - start;
 
       if (_speakerIdEnabled &&
           r.samples != null &&
           r.samples!.length >= _minSamplesForSpeakerId) {
-        isUser = _identifySpeaker(r.samples!);
+        final result = _scoreSpeaker(r.samples!, durationSec, start);
+        isUser = result.isUser;
+        confidence = result.confidence;
+        energyDb = result.energyDb;
         if (!isUser) {
           speaker = 'SPEAKER_1';
           speakerId = 1;
@@ -337,6 +444,8 @@ class _SttWorker {
         'speaker': speaker,
         'speaker_id': speakerId,
         'is_user': isUser,
+        'confidence': confidence,
+        'energy_db': energyDb,
         'start': start,
         'end': end,
       };

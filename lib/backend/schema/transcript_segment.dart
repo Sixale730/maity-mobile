@@ -43,6 +43,15 @@ class TranscriptSegment {
   bool speechProfileProcessed;
   String? sttProvider;
 
+  /// Fused speaker confidence score [0, 1]. Null for cloud STT segments.
+  double? confidence;
+
+  /// RMS energy in dB [-60, 0]. Null for cloud STT segments.
+  double? energyDb;
+
+  /// Source of speaker correction ('heuristic'), or null if uncorrected.
+  String? correctionSource;
+
   TranscriptSegment({
     required this.id,
     required this.text,
@@ -54,6 +63,9 @@ class TranscriptSegment {
     required this.translations,
     this.speechProfileProcessed = true,
     this.sttProvider,
+    this.confidence,
+    this.energyDb,
+    this.correctionSource,
   }) {
     speakerId = speaker != null ? int.parse(speaker!.split('_')[1]) : 0;
   }
@@ -82,6 +94,13 @@ class TranscriptSegment {
       translations: json['translations'] != null ? Translation.fromJsonList(json['translations'] as List<dynamic>) : [],
       speechProfileProcessed: (json['speech_profile_processed'] ?? true) as bool,
       sttProvider: json['stt_provider'] as String?,
+      confidence: json['confidence'] != null
+          ? double.tryParse(json['confidence'].toString())
+          : null,
+      energyDb: json['energy_db'] != null
+          ? double.tryParse(json['energy_db'].toString())
+          : null,
+      correctionSource: json['correction_source'] as String?,
     );
   }
 
@@ -96,6 +115,9 @@ class TranscriptSegment {
       'end': end,
       'translations': translations.map((t) => t.toJson()).toList(),
       if (sttProvider != null) 'stt_provider': sttProvider,
+      if (confidence != null) 'confidence': confidence,
+      if (energyDb != null) 'energy_db': energyDb,
+      if (correctionSource != null) 'correction_source': correctionSource,
     };
   }
 
