@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:omi/widgets/emoji_text.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -246,10 +247,7 @@ class _DesktopConversationDetailPageState extends State<DesktopConversationDetai
           OmiAvatar(
             size: 32,
             fallback: Center(
-              child: Text(
-                widget.conversation.structured.getEmoji(),
-                style: const TextStyle(fontSize: 16),
-              ),
+              child: EmojiText(widget.conversation.structured.getEmoji(), size: 16),
             ),
           ),
 

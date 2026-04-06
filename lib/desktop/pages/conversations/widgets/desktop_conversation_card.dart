@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:omi/widgets/emoji_text.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:omi/backend/http/api/conversations.dart';
@@ -386,10 +387,7 @@ class _DesktopConversationCardState extends State<DesktopConversationCard> {
   Widget _buildHeader() {
     return Row(
       children: [
-        Text(
-          widget.conversation.structured.getEmoji(),
-          style: const TextStyle(fontSize: 20),
-        ),
+        EmojiText(widget.conversation.structured.getEmoji(), size: 20),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
