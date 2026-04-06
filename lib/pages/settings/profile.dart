@@ -275,8 +275,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         Text(
                           SupabaseAuthService.instance.isSignedIn
-                              ? '✅ Supabase Login OK'
-                              : '❌ No Supabase User',
+                              ? 'Supabase Login OK'
+                              : 'No Supabase User',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,

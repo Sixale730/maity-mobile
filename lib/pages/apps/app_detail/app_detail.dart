@@ -2031,7 +2031,7 @@ class _RecentReviewsSectionState extends State<RecentReviewsSection> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text(
-                    widget.userReview == null ? 'Review added successfully 🚀' : 'Review updated successfully 🚀')),
+                    widget.userReview == null ? 'Review added successfully' : 'Review updated successfully')),
           );
           setState(() => isEditing = false);
           widget.onReviewUpdated?.call();

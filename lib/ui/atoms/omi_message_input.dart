@@ -11,7 +11,7 @@ class OmiMessageInput extends AdaptiveWidget {
   const OmiMessageInput({
     super.key,
     required this.controller,
-    this.hint = '💬 Type your message...',
+    this.hint = 'Type your message...',
     this.margin,
     this.maxHeight = 120,
   });

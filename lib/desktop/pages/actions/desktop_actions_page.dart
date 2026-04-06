@@ -744,7 +744,7 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
               ),
         const SizedBox(height: 24),
         const Text(
-          '✅ No Action Items',
+          'No Action Items',
           style: TextStyle(
             color: ResponsiveHelper.textPrimary,
             fontSize: 20,
@@ -849,7 +849,7 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
       case 1: // Done
         return 'No completed items yet';
       case 2: // Snoozed
-        return '✅ No snoozed tasks\n\nOld tasks are auto-snoozed after 3 days to keep your To Do list clean';
+        return 'No snoozed tasks\n\nOld tasks are auto-snoozed after 3 days to keep your To Do list clean';
       default:
         return 'No items';
     }

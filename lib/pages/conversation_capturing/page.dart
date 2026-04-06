@@ -507,11 +507,11 @@ class _ConversationCapturingPageState extends State<ConversationCapturingPage> w
   String _getTimeoutDisplayText(BuildContext context) {
     final timeoutDuration = SharedPreferencesUtil().conversationSilenceDuration;
     if (timeoutDuration == -1) {
-      return "${AppLocalizations.of(context)?.conversationEndsManually ?? 'Conversation will only end manually.'} 🤫";
+      return "${AppLocalizations.of(context)?.conversationEndsManually ?? 'Conversation will only end manually.'}";
     } else {
       final minutes = timeoutDuration ~/ 60;
       final suffix = minutes == 1 ? '' : 's';
-      return "${AppLocalizations.of(context)?.conversationSummarizedAfter(minutes, suffix) ?? 'Conversation is summarized after $minutes minute$suffix of no speech.'} 🤫";
+      return "${AppLocalizations.of(context)?.conversationSummarizedAfter(minutes, suffix) ?? 'Conversation is summarized after $minutes minute$suffix of no speech.'}";
     }
   }
 }

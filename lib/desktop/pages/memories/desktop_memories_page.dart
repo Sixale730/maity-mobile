@@ -632,7 +632,7 @@ class DesktopMemoriesPageState extends State<DesktopMemoriesPage>
         OmiEmptyState(
           icon: FontAwesomeIcons.brain,
           title:
-              provider.searchQuery.isEmpty && _selectedCategory == null ? '🧠 No memories yet' : '🔍 No memories found',
+              provider.searchQuery.isEmpty && _selectedCategory == null ? 'No memories yet' : 'No memories found',
           message: provider.searchQuery.isEmpty && _selectedCategory == null
               ? 'Create your first memory to get started'
               : 'Try adjusting your search or filter',
