@@ -399,7 +399,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     switch (uri.host) {
       case 'record':
-        _startRecordingFromWidget();
+        // Start recording in background — don't open recording page
+        if (captureProvider.recordingState == RecordingState.stop ||
+            captureProvider.recordingState == RecordingState.error) {
+          debugPrint('[Widget] Starting recording from widget (background)');
+          captureProvider.streamRecording();
+          _updateWidgetState(captureProvider);
+        }
         break;
       case 'recording':
         _openRecordingPage();
@@ -407,12 +413,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       case 'pause':
         if (captureProvider.recordingState == RecordingState.record) {
           captureProvider.stopStreamRecording();
+          _updateWidgetState(captureProvider);
           debugPrint('[Widget] Paused recording from widget');
         }
         break;
       case 'resume':
         if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
           captureProvider.streamRecording();
+          _updateWidgetState(captureProvider);
           debugPrint('[Widget] Resumed recording from widget');
         }
         break;
@@ -426,6 +434,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             });
           });
         }
+        _updateWidgetState(captureProvider);
         debugPrint('[Widget] Stopped recording from widget');
         break;
       case 'cancel':
@@ -434,9 +443,25 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         }
         captureProvider.clearTranscripts();
         captureProvider.updateRecordingState(RecordingState.stop);
+        _updateWidgetState(captureProvider);
         debugPrint('[Widget] Cancelled recording from widget');
         break;
     }
+  }
+
+  /// Updates the widget's shared UserDefaults so the widget UI reflects current state.
+  void _updateWidgetState(CaptureProvider provider) {
+    // Write state to shared UserDefaults (App Group) for widget to read
+    // Note: on iOS this requires App Group entitlement configured
+    final isRecording = provider.recordingState == RecordingState.record ||
+        provider.recordingState == RecordingState.deviceRecord ||
+        provider.recordingState == RecordingState.systemAudioRecord;
+    final isPaused = provider.isPaused || provider.recordingState == RecordingState.pause;
+    final segmentCount = provider.segments.length;
+
+    SharedPreferencesUtil().saveBool('widget_isRecording', isRecording);
+    SharedPreferencesUtil().saveBool('widget_isPaused', isPaused);
+    SharedPreferencesUtil().saveInt('widget_segmentCount', segmentCount);
   }
 
   bool _isNavigatingToRecording = false;
