@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -13,9 +14,14 @@ import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/message_event.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/providers/device_provider.dart';
+import 'package:omi/services/audio/audio_processing_utils.dart' as audio;
+import 'package:omi/services/audio/pitch_utils.dart' as pitch;
+import 'package:omi/services/audio/spectral_utils.dart' as spectral;
+import 'package:omi/services/audio/audio_augmentation.dart' as aug;
 import 'package:omi/services/devices.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
+import 'package:omi/services/speaker/speaker_types.dart';
 import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/services/local_stt/speaker_embedding_service.dart';
 import 'package:omi/services/local_stt/speaker_model_manifest.dart';
@@ -331,10 +337,30 @@ class SpeechProfileProvider extends ChangeNotifier
         return;
       }
 
+      // Convert to Float32 for augmentation + profile extraction
+      final samples = audio.pcm16ToFloat32(pcm16);
+      final cleaned = audio.normalizeAudio(audio.highPassFilter80Hz(samples));
+
+      // Augmented embedding: average original + 6 augmented copies for robustness
+      final augmentedEmbedding = _computeAugmentedEmbedding(service, embedding, cleaned);
+
+      // Build acoustic profile from clean enrollment audio
+      final profile = _buildAcousticProfileFromEnrollment(cleaned);
+
       final appSupport = await getApplicationSupportDirectory();
       final embeddingPath =
           '${appSupport.path}/${SpeakerModelManifest.modelDirName}/${SpeakerModelManifest.embeddingFileName}';
-      await service.saveEmbeddingToFile(embedding, embeddingPath);
+
+      // Save augmented embedding
+      await service.saveEmbeddingToFile(
+          augmentedEmbedding.isEmpty ? embedding : augmentedEmbedding,
+          embeddingPath);
+
+      // Save acoustic profile as JSON
+      final profilePath = '${appSupport.path}/${SpeakerModelManifest.modelDirName}/user_acoustic_profile.json';
+      await File(profilePath).writeAsString(jsonEncode(profile.toJson()));
+      SharedPreferencesUtil().acousticProfilePath = profilePath;
+      debugPrint('[SpeechProfile] Acoustic profile saved: $profilePath');
 
       SharedPreferencesUtil().localSpeakerEmbeddingPath = embeddingPath;
       debugPrint('[SpeechProfile] Local speaker embedding saved');
@@ -348,6 +374,62 @@ class SpeechProfileProvider extends ChangeNotifier
     } finally {
       service.dispose();
     }
+  }
+
+  Float32List _computeAugmentedEmbedding(
+      SpeakerEmbeddingService service, Float32List baseEmbedding, Float32List cleaned) {
+    try {
+      final embeddings = <Float32List>[baseEmbedding];
+
+      // 6 augmentations for noise-robust embedding
+      final augFns = [
+        () => aug.addPinkNoise(cleaned),
+        () => aug.addSimpleReverb(cleaned),
+        () => aug.addBabbleNoise(cleaned),
+        () => aug.addSpeedPerturbation(cleaned, speedFactor: 0.9),
+        () => aug.addSpeedPerturbation(cleaned, speedFactor: 1.1),
+        () => aug.addLowSnrNoise(cleaned),
+      ];
+
+      for (final fn in augFns) {
+        final augmented = fn();
+        final emb = service.extractEmbedding(augmented);
+        if (emb.isNotEmpty) embeddings.add(emb);
+      }
+
+      if (embeddings.length < 2) return baseEmbedding;
+
+      // Average all embeddings + L2 normalize
+      final dim = baseEmbedding.length;
+      final avg = Float32List(dim);
+      for (final e in embeddings) {
+        for (var i = 0; i < dim; i++) {
+          avg[i] += e[i];
+        }
+      }
+      for (var i = 0; i < dim; i++) {
+        avg[i] /= embeddings.length;
+      }
+
+      debugPrint('[SpeechProfile] Augmented embedding from ${embeddings.length} samples');
+      return audio.l2Normalize(avg);
+    } catch (e) {
+      debugPrint('[SpeechProfile] Augmentation failed, using base embedding: $e');
+      return baseEmbedding;
+    }
+  }
+
+  AcousticProfile _buildAcousticProfileFromEnrollment(Float32List cleaned) {
+    final f0Stats = pitch.estimateF0Stats(cleaned);
+    final energyDb = audio.computeRmsDb(cleaned);
+    final spectralFeats = spectral.extractSpectralFeatures(cleaned);
+    return AcousticProfile(
+      f0Mean: f0Stats?.mean ?? 150.0,
+      f0Std: f0Stats?.std ?? 40.0,
+      energyDbMean: energyDb,
+      spectralCentroid: spectralFeats?.centroid ?? 1500.0,
+      spectralSlope: spectralFeats?.slope ?? 0.0,
+    );
   }
 
   /// Save PCM16 enrollment audio as a WAV file for playback.
