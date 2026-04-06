@@ -31,7 +31,7 @@ class _SetupQuestionsPageState extends State<SetupQuestionsPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Help us improve Maity by answering a few questions.  🫶 💜',
+                'Help us improve Maity by answering a few questions.',
                 style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.start,
               ),
@@ -85,7 +85,7 @@ class _SetupQuestionsPageState extends State<SetupQuestionsPage> {
                         .pushReplacement(MaterialPageRoute(builder: (c) => const SpeechProfilePage(onbording: true)));
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('You haven\'t answered all the questions yet! 🥺',
+                      content: Text('You haven\'t answered all the questions yet!',
                           style: TextStyle(color: Colors.white)),
                       duration: Duration(seconds: 2),
                     ));

@@ -177,7 +177,7 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
           _hasLowBatteryAlerted = true;
           NotificationService.instance.createNotification(
             title: "Low Battery Alert",
-            body: "Your device is running low on battery. Time for a recharge! 🔋",
+            body: "Your device is running low on battery. Time for a recharge!",
           );
         } else if (batteryLevel > 20) {
           _hasLowBatteryAlerted = true;

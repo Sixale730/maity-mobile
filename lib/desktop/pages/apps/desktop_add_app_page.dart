@@ -964,7 +964,7 @@ class _DesktopAddAppPageState extends State<DesktopAddAppPage> with TickerProvid
                             ),
                             const SizedBox(height: 20),
                             const Text(
-                              'Start Earning! 💰',
+                              'Start Earning!',
                               style: TextStyle(
                                 color: ResponsiveHelper.textPrimary,
                                 fontSize: 24,

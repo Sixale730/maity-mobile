@@ -935,9 +935,10 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
               ),
               child: Column(
                 children: [
-                  const Text(
-                    '👋',
-                    style: TextStyle(fontSize: 40),
+                  const FaIcon(
+                    FontAwesomeIcons.handPeace,
+                    size: 36,
+                    color: Color(0xFFFFD93D),
                   ),
                   const SizedBox(height: 12),
                   Text(

@@ -384,7 +384,7 @@ class _StripeConnectSetupState extends State<StripeConnectSetup> with SingleTick
                                 ),
                                 const SizedBox(height: 24),
                                 const Text(
-                                  'Successfully Connected! 🎉',
+                                  'Successfully Connected!',
                                   style: TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.bold,

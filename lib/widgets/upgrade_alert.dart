@@ -41,7 +41,7 @@ class MyUpgradeAlertState extends UpgradeAlertState {
             return CupertinoAlertDialog(
               key: key,
               title: const Text(
-                'New Version Available  🎉',
+                'New Version Available',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               content: SingleChildScrollView(child: ListBody(children: <Widget>[Text(message)])),
@@ -66,7 +66,7 @@ class MyUpgradeAlertState extends UpgradeAlertState {
           return AlertDialog(
             key: key,
             title: const Text(
-              'New Version Available  🎉',
+              'New Version Available',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             content: SingleChildScrollView(child: ListBody(children: <Widget>[Text(message)])),

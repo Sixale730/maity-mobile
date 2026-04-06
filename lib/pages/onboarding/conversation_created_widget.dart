@@ -47,7 +47,7 @@ class _ConversationCreatedWidgetState extends State<ConversationCreatedWidget> {
             provider.conversation == null
                 ? const SizedBox()
                 : Text(
-                    'Your first conversation is ready! 🎉',
+                    'Your first conversation is ready!',
                     style: TextStyle(color: Colors.grey.shade300, fontSize: 18),
                     textAlign: TextAlign.center,
                   ),

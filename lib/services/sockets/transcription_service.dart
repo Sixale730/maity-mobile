@@ -270,7 +270,7 @@ class TranscriptSegmentSocketService implements IPureSocketListener {
     NotificationService.instance.clearNotification(2);
     NotificationService.instance.createNotification(
       notificationId: 2,
-      title: 'Connection Issue 🚨',
+      title: 'Connection Issue',
       body: 'Unable to connect to the transcript service.'
           ' Please restart the app or contact support if the problem persists.',
     );

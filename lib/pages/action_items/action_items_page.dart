@@ -353,11 +353,11 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
     final l10n = AppLocalizations.of(context);
     switch (_selectedTabIndex) {
       case 0: // To Do
-        return l10n?.allCaughtUp ?? '🎉 All caught up!\nNo pending action items';
+        return l10n?.allCaughtUp ?? 'All caught up!\nNo pending action items';
       case 1: // Done
         return l10n?.noCompletedItemsYet ?? 'No completed items yet';
       case 2: // Old
-        return l10n?.noOldTasks ?? '✅ No old tasks';
+        return l10n?.noOldTasks ?? 'No old tasks';
       default:
         return l10n?.noItems ?? 'No items';
     }

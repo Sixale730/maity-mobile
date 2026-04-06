@@ -558,7 +558,7 @@ class AddAppProvider extends ChangeNotifier {
       await appProvider!.getApps();
       var app = await getAppDetailsServer(updateAppId!);
       appProvider!.updateLocalApp(App.fromJson(app!));
-      AppSnackbar.showSnackbarSuccess('App updated successfully 🚀');
+      AppSnackbar.showSnackbarSuccess('App updated successfully');
       clear();
       success = true;
     } else {
@@ -627,7 +627,7 @@ class AddAppProvider extends ChangeNotifier {
     String? appId;
     var res = await submitAppServer(imageFile!, data);
     if (res.$1) {
-      AppSnackbar.showSnackbarSuccess('App submitted successfully 🚀');
+      AppSnackbar.showSnackbarSuccess('App submitted successfully');
       await appProvider!.getApps();
       clear();
       appId = res.$3;

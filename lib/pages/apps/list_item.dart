@@ -92,7 +92,7 @@ class AppListItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        app.name.decodeString + (app.private && showPrivateIcon ? " 🔒".decodeString : ''),
+                        app.name.decodeString,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,

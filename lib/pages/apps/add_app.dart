@@ -726,7 +726,7 @@ class _AddAppPageState extends State<AddAppPage> {
                                                       ),
                                                       const SizedBox(height: 20),
                                                       const Text(
-                                                        'Start Earning! 💰',
+                                                        'Start Earning!',
                                                         style: TextStyle(
                                                           color: Colors.white,
                                                           fontSize: 24,
