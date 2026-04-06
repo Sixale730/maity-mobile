@@ -9,7 +9,12 @@ import 'package:omi/pages/apps/app_detail/app_detail.dart';
 import 'package:omi/pages/settings/asana_settings_page.dart';
 import 'package:omi/pages/settings/clickup_settings_page.dart';
 import 'package:omi/pages/settings/github_settings_page.dart';
+import 'package:omi/main.dart';
+import 'package:omi/pages/conversation_capturing/page.dart';
 import 'package:omi/providers/app_provider.dart';
+import 'package:omi/providers/capture_provider.dart';
+import 'package:omi/providers/conversation_provider.dart';
+import 'package:omi/utils/enums.dart';
 import 'package:omi/providers/auth_provider.dart';
 import 'package:omi/providers/home_provider.dart';
 import 'package:omi/providers/message_provider.dart';
@@ -141,9 +146,51 @@ class _AppShellState extends State<AppShell> {
       await _handleOAuthCallback(uri, 'Whoop', 'Whoop', _handleWhoopCallback);
     } else if (uri.host == 'github' && uri.pathSegments.isNotEmpty && uri.pathSegments.first == 'callback') {
       await _handleOAuthCallback(uri, 'GitHub', 'GitHub', _handleGitHubCallback);
+    } else if (uri.host == 'widget') {
+      _handleWidgetDeepLink(uri);
     } else {
       debugPrint('Unknown link: $uri');
     }
+  }
+
+  void _handleWidgetDeepLink(Uri uri) async {
+    if (uri.pathSegments.isEmpty) return;
+    final action = uri.pathSegments.first;
+    final context = MyApp.navigatorKey.currentContext;
+    if (context == null || !context.mounted) return;
+
+    final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+
+    if (action == 'record') {
+      if (captureProvider.recordingState == RecordingState.stop ||
+          captureProvider.recordingState == RecordingState.error) {
+        await captureProvider.streamRecording();
+        if (context.mounted) {
+          _navigateToCapturing(context);
+        }
+      } else {
+        // Already recording/paused, just open the page
+        _navigateToCapturing(context);
+      }
+    } else if (action == 'recording') {
+      if (captureProvider.recordingState != RecordingState.stop) {
+        _navigateToCapturing(context);
+      }
+    }
+  }
+
+  void _navigateToCapturing(BuildContext context) {
+    // Avoid pushing duplicate pages
+    final navigator = Navigator.of(context);
+    navigator.popUntil((route) => route.isFirst);
+
+    final convoProvider = Provider.of<ConversationProvider>(context, listen: false);
+    final topConvoId = convoProvider.conversations.isNotEmpty
+        ? convoProvider.conversations.first.id
+        : null;
+    navigator.push(MaterialPageRoute(
+      builder: (_) => ConversationCapturingPage(topConversationId: topConvoId),
+    ));
   }
 
   Future<void> _handleOAuthCallback(
