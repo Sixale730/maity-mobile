@@ -17,6 +17,7 @@ import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/local_stt_socket.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
 import 'package:omi/services/recording/ui_segment_controller.dart';
+import 'package:omi/services/recording/wav_backup_service.dart';
 import 'package:omi/services/notifications/notification_service.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
@@ -101,6 +102,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   // Chunk-based local STT (log-structured processing)
   // ---------------------------------------------------------------------------
   AudioChunkWriter? _chunkWriter;
+  WavBackupService? _wavBackupService;
   UISegmentController? _segmentController;
 
   /// Audio transcoder for non-PCM16 codecs (e.g., Opus from BLE/OMI devices).
@@ -523,6 +525,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     // the reconnect path with stale state instead of creating a new session.
     await _chunkWriter?.dispose();
     _chunkWriter = null;
+    await _wavBackupService?.stop();
+    _wavBackupService = null;
     _segmentController?.dispose();
     _segmentController = null;
     _audioTranscoder = null;
@@ -567,6 +571,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       }
       if (pcmBytes.isEmpty) return;
       _chunkWriter!.addBytes(pcmBytes);
+      _wavBackupService?.writeAudio(pcmBytes);
       return;
     }
 
@@ -578,6 +583,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       } catch (e) {
         debugPrint('[TranscriptionPipeline] WAL onByteStream error: $e');
       }
+    }
+
+    // WAV backup for cloud STT path
+    if (_wavBackupService != null && data is List<int>) {
+      _wavBackupService!.writeAudio(data is Uint8List ? data : Uint8List.fromList(data));
     }
 
     if (_socket?.state == SocketServiceState.connected) {
@@ -643,6 +653,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       onChunkWritten: (meta) => queueManager.enqueueChunk(meta),
     );
     _chunkWriter!.start();
+
+    // Start WAV backup for this session (parallel to chunk writer)
+    _wavBackupService = WavBackupService();
+    await _wavBackupService!.start(chunkSessionId!);
 
     // Create audio transcoder for non-PCM16 codecs (BLE/OMI sends Opus)
     final codec = _socket?.codec ?? BleAudioCodec.pcm16;
@@ -1403,9 +1417,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _segmentNotifyPending = false;
     _segmentFrameInFlight = false;
 
-    // Flush and dispose chunk writer (local STT)
+    // Flush and dispose chunk writer + WAV backup (local STT)
     await _chunkWriter?.dispose();
     _chunkWriter = null;
+    await _wavBackupService?.stop();
+    _wavBackupService = null;
     _segmentController?.dispose();
     _segmentController = null;
     _audioTranscoder = null;

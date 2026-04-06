@@ -48,6 +48,7 @@ import 'package:omi/providers/daily_report_provider.dart';
 import 'package:omi/providers/role_provider.dart';
 import 'package:omi/services/auth_service.dart';
 import 'package:omi/services/background_upload_service.dart';
+import 'package:omi/services/recording/wav_backup_cleanup.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
 import 'package:omi/services/local_stt/speaker_model_download_service.dart';
 import 'package:omi/providers/local_stt_provider.dart';
@@ -182,6 +183,9 @@ Future _init() async {
 
   // Upload any crash logs from previous session to Supabase platform_logs
   await CrashLogUploadService.instance.initialize();
+
+  // Clean up old WAV backup recordings (>7 days)
+  cleanupOldWavBackups(); // fire-and-forget, non-blocking
 
   // Initialize local STT model service (checks if model already downloaded)
   await ModelDownloadService.instance.initialize();
