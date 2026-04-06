@@ -8,6 +8,7 @@ import 'package:omi/providers/usage_provider.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:provider/provider.dart';
 
+import 'package:omi/pages/conversations/widgets/processing_capture.dart';
 import 'widgets/daily_score_card.dart';
 import 'widgets/dashboard_header.dart';
 import 'widgets/pending_tasks_preview.dart';
@@ -78,6 +79,7 @@ class DashboardPageState extends State<DashboardPage> {
         padding: const EdgeInsets.only(bottom: 120),
         children: [
           const DashboardHeader(),
+          const ConversationCaptureWidget(),
           DailyScoreCard(
             onTap: () {
               // Navigate to Insights tab (nav index 4)
