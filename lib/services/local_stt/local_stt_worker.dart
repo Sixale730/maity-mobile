@@ -58,8 +58,10 @@ void workerEntryPoint(SendPort mainSendPort) {
             message.length > 5 ? message[5] as double? : null;
         final numThreads =
             message.length > 6 ? message[6] as int? : null;
+        final acousticProfileJson =
+            message.length > 7 ? message[7] as String? : null;
         worker.handleInit(modelPath, speakerModelPath, userEmbeddingBytes,
-            modelTypeName, maxSpeechDuration, numThreads);
+            modelTypeName, maxSpeechDuration, numThreads, acousticProfileJson);
       case 'process_chunk':
         final filePath = message[1] as String;
         final chunkId = message[2] as String;
@@ -120,6 +122,7 @@ class _SttWorker {
     String? modelTypeName,
     double? maxSpeechDuration,
     int? numThreads,
+    String? acousticProfileJson,
   ]) async {
     try {
       final modelType = modelTypeName != null
@@ -137,6 +140,19 @@ class _SttWorker {
           userEmbeddingBytes.length % 4 == 0 &&
           userEmbeddingBytes.isNotEmpty) {
         _initSpeakerId(speakerModelPath, userEmbeddingBytes);
+      }
+
+      // Load pre-built acoustic profile from enrollment
+      if (acousticProfileJson != null && acousticProfileJson.isNotEmpty) {
+        try {
+          final json = jsonDecode(acousticProfileJson) as Map<String, dynamic>;
+          _acousticProfile = AcousticProfile.fromJson(json);
+          print('[SttWorker] Acoustic profile loaded from enrollment: '
+              'f0=${_acousticProfile!.f0Mean.toStringAsFixed(0)}Hz, '
+              'energy=${_acousticProfile!.energyDbMean.toStringAsFixed(1)}dB');
+        } catch (e) {
+          print('[SttWorker] Failed to parse acoustic profile: $e');
+        }
       }
 
       _mainSendPort.send(['ready']);

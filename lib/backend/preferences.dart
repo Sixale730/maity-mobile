@@ -174,6 +174,9 @@ class SharedPreferencesUtil {
   String get localSpeakerEmbeddingPath => getString('localSpeakerEmbeddingPath');
   set localSpeakerEmbeddingPath(String value) => saveString('localSpeakerEmbeddingPath', value);
 
+  String get acousticProfilePath => getString('acousticProfilePath');
+  set acousticProfilePath(String value) => saveString('acousticProfilePath', value);
+
   // Per-provider config storage
   CustomSttConfig? getConfigForProvider(SttProvider provider) {
     final json = getString('sttConfig_${provider.name}');
