@@ -135,6 +135,7 @@ dependencies:
   in_app_review: ^2.0.9
   fl_chart: ^0.68.0
   image: ^4.3.0
+  home_widget: ^0.7.0
 
 dependency_overrides:
   js: ^0.7.1

@@ -27,6 +27,7 @@ import 'package:omi/services/vad/vad_state.dart';
 import 'package:omi/services/vad/vad_metrics.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
+import 'package:omi/services/widget_state_service.dart';
 import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/platform/platform_service.dart';
 
@@ -251,6 +252,7 @@ class CaptureProvider extends ChangeNotifier
     notifyListeners();
     _lifecycle.broadcastRecordingState();
     _lifecycle.updateForegroundNotification(_getNotificationState());
+    _syncWidgetState();
 
     // Signal callers awaiting recording readiness.
     final c = _recordingReadyCompleter;
@@ -261,6 +263,14 @@ class CaptureProvider extends ChangeNotifier
         c.completeError(StateError('Recording failed to start: $state'));
       }
     }
+  }
+
+  void _syncWidgetState() {
+    WidgetStateService.syncState(
+      isRecording: _stateMachine.isRecording,
+      isPaused: _stateMachine.isPaused,
+      segmentCount: segments.length,
+    );
   }
 
   void updateRecordingDevice(BtDevice? device) {
