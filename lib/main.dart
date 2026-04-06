@@ -369,10 +369,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         debugPrint('[Widget] Warm start event: ${call.method} ${call.arguments}');
         if (call.method == 'onWidgetTap') {
           final host = call.arguments as String?;
-          if (host == 'record') {
-            _startRecordingFromWidget();
-          } else if (host == 'recording') {
-            _openRecordingPage();
+          if (host != null) {
+            _handleDeepLink(Uri.parse('maity://$host'));
           }
         }
       });
@@ -393,13 +391,51 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   void _handleDeepLink(Uri uri) {
     debugPrint('[Widget] Deep link received: $uri');
-    if (uri.scheme == 'maity') {
-      if (uri.host == 'record') {
+    if (uri.scheme != 'maity') return;
+
+    final context = MyApp.navigatorKey.currentContext;
+    if (context == null) return;
+    final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+
+    switch (uri.host) {
+      case 'record':
         _startRecordingFromWidget();
-      } else if (uri.host == 'recording') {
-        // Open the recording page if already recording
+        break;
+      case 'recording':
         _openRecordingPage();
-      }
+        break;
+      case 'pause':
+        if (captureProvider.recordingState == RecordingState.record) {
+          captureProvider.stopStreamRecording();
+          debugPrint('[Widget] Paused recording from widget');
+        }
+        break;
+      case 'resume':
+        if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
+          captureProvider.streamRecording();
+          debugPrint('[Widget] Resumed recording from widget');
+        }
+        break;
+      case 'stop':
+        if (captureProvider.recordingState == RecordingState.record) {
+          captureProvider.stopStreamRecording();
+        } else if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
+          captureProvider.streamRecording().then((_) {
+            Future.delayed(const Duration(milliseconds: 300), () {
+              captureProvider.stopStreamRecording();
+            });
+          });
+        }
+        debugPrint('[Widget] Stopped recording from widget');
+        break;
+      case 'cancel':
+        if (captureProvider.recordingState == RecordingState.record) {
+          captureProvider.stopStreamRecording();
+        }
+        captureProvider.clearTranscripts();
+        captureProvider.updateRecordingState(RecordingState.stop);
+        debugPrint('[Widget] Cancelled recording from widget');
+        break;
     }
   }
 
