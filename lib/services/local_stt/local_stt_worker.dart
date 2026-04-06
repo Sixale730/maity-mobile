@@ -56,8 +56,10 @@ void workerEntryPoint(SendPort mainSendPort) {
             message.length > 4 ? message[4] as String? : null;
         final maxSpeechDuration =
             message.length > 5 ? message[5] as double? : null;
+        final numThreads =
+            message.length > 6 ? message[6] as int? : null;
         worker.handleInit(modelPath, speakerModelPath, userEmbeddingBytes,
-            modelTypeName, maxSpeechDuration);
+            modelTypeName, maxSpeechDuration, numThreads);
       case 'process_chunk':
         final filePath = message[1] as String;
         final chunkId = message[2] as String;
@@ -117,6 +119,7 @@ class _SttWorker {
     Uint8List? userEmbeddingBytes,
     String? modelTypeName,
     double? maxSpeechDuration,
+    int? numThreads,
   ]) async {
     try {
       final modelType = modelTypeName != null
@@ -124,7 +127,8 @@ class _SttWorker {
           : LocalSttModelType.parakeet;
       await _engine.initialize(modelPath,
           modelType: modelType,
-          maxSpeechDuration: maxSpeechDuration ?? 30.0);
+          maxSpeechDuration: maxSpeechDuration ?? 30.0,
+          numThreads: numThreads ?? 2);
 
       // Initialize speaker ID if both model and embedding are available
       if (speakerModelPath != null &&

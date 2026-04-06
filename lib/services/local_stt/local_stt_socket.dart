@@ -25,6 +25,7 @@ class LocalSttSocket implements IPureSocket {
   final Uint8List? _userEmbeddingBytes;
   final LocalSttModelType _modelType;
   final double? _maxSpeechDuration;
+  final int? _numThreads;
 
   /// Callback for VAD state transitions (replaces preview text).
   /// Called when the VAD detects speech start/end during chunk processing.
@@ -48,11 +49,13 @@ class LocalSttSocket implements IPureSocket {
     String? speakerModelPath,
     Uint8List? userEmbeddingBytes,
     double? maxSpeechDuration,
+    int? numThreads,
   })  : _modelPath = modelPath,
         _modelType = modelType,
         _speakerModelPath = speakerModelPath,
         _userEmbeddingBytes = userEmbeddingBytes,
-        _maxSpeechDuration = maxSpeechDuration;
+        _maxSpeechDuration = maxSpeechDuration,
+        _numThreads = numThreads;
 
   @override
   PureSocketStatus get status => _status;
@@ -115,6 +118,7 @@ class LocalSttSocket implements IPureSocket {
         _userEmbeddingBytes,
         _modelType.name,
         _maxSpeechDuration,
+        _numThreads,
       ]);
 
       // Wait for 'ready' response

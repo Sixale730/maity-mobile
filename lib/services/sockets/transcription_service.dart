@@ -504,12 +504,16 @@ class TranscriptSocketServiceFactory {
       LocalSttModelType.moonshine => null, // uses engine default (30s)
     };
 
+    // Platform-based thread count: desktop gets more threads, mobile stays conservative
+    final numThreads = Platform.isAndroid || Platform.isIOS ? 2 : 4;
+
     final localSocket = LocalSttSocket(
       modelPath: modelPath,
       modelType: modelType,
       speakerModelPath: speakerModelPath,
       userEmbeddingBytes: userEmbeddingBytes,
       maxSpeechDuration: maxSpeechDuration,
+      numThreads: numThreads,
     );
 
     final service = TranscriptSegmentSocketService.withSocket(
