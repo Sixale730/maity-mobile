@@ -351,24 +351,38 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     await Future.delayed(const Duration(seconds: 2));
 
     try {
-      final appLinks = AppLinks();
+      // 1. Cold start: check MethodChannel for launch action (iOS + Android)
+      const widgetChannel = MethodChannel('com.maity.app/widget');
+      try {
+        final action = await widgetChannel.invokeMethod<String>('getLaunchAction');
+        debugPrint('[Widget] Cold start action: $action');
+        if (action == 'start_recording') {
+          _startRecordingFromWidget();
+        }
+      } catch (e) {
+        debugPrint('[Widget] No launch action: $e');
+      }
 
-      // 1. Check if app was launched from a deep link (cold start)
+      // 2. Warm start: listen for widget taps while app is running (iOS native channel)
+      const widgetEventChannel = MethodChannel('com.maity.app/widget_event');
+      widgetEventChannel.setMethodCallHandler((call) async {
+        debugPrint('[Widget] Warm start event: ${call.method} ${call.arguments}');
+        if (call.method == 'onWidgetTap') {
+          final host = call.arguments as String?;
+          if (host == 'record') {
+            _startRecordingFromWidget();
+          } else if (host == 'recording') {
+            _openRecordingPage();
+          }
+        }
+      });
+
+      // 3. Also listen via app_links (fallback for both platforms)
+      final appLinks = AppLinks();
       final initialUri = await appLinks.getInitialLink();
       if (initialUri != null) {
         _handleDeepLink(initialUri);
       }
-
-      // 2. Also check Android intent extra (fallback)
-      final widgetChannel = const MethodChannel('com.maity.app/widget');
-      try {
-        final action = await widgetChannel.invokeMethod<String>('getLaunchAction');
-        if (action == 'start_recording') {
-          _startRecordingFromWidget();
-        }
-      } catch (_) {}
-
-      // 3. Listen for deep links while app is running (warm start)
       appLinks.uriLinkStream.listen((uri) {
         _handleDeepLink(uri);
       });
@@ -389,25 +403,40 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
+  bool _isNavigatingToRecording = false;
+
   Future<void> _startRecordingFromWidget() async {
-    final context = MyApp.navigatorKey.currentContext;
-    if (context == null) return;
+    if (_isNavigatingToRecording) return; // Prevent duplicate navigation
+    _isNavigatingToRecording = true;
 
-    final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+    try {
+      final context = MyApp.navigatorKey.currentContext;
+      if (context == null) return;
 
-    // Only start if not already recording
-    if (captureProvider.recordingState == RecordingState.stop ||
-        captureProvider.recordingState == RecordingState.error) {
-      debugPrint('[Widget] Auto-starting recording from widget');
-      await captureProvider.streamRecording();
+      final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
+
+      // Only start if not already recording
+      if (captureProvider.recordingState == RecordingState.stop ||
+          captureProvider.recordingState == RecordingState.error) {
+        debugPrint('[Widget] Auto-starting recording from widget');
+        await captureProvider.streamRecording();
+      }
+
+      _openRecordingPage();
+    } finally {
+      // Reset after a delay to allow re-trigger later
+      Future.delayed(const Duration(seconds: 2), () {
+        _isNavigatingToRecording = false;
+      });
     }
-
-    _openRecordingPage();
   }
 
   void _openRecordingPage() {
     final context = MyApp.navigatorKey.currentContext;
     if (context == null || !context.mounted) return;
+
+    // Pop any existing recording pages first to avoid stacking
+    Navigator.of(context).popUntil((route) => route.isFirst);
 
     final topConvoId = Provider.of<ConversationProvider>(context, listen: false)
         .conversations.isNotEmpty

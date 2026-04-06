@@ -62,6 +62,25 @@ extension FlutterError: Error {}
       self?.handleAppleRemindersCall(call, result: result)
     }
 
+    // Widget deep link channel
+    let widgetChannel = FlutterMethodChannel(name: "com.maity.app/widget", binaryMessenger: controller!.binaryMessenger)
+    widgetChannel.setMethodCallHandler { [weak self] (call, result) in
+      if call.method == "getLaunchAction" {
+        // Check if app was launched via maity:// URL scheme
+        if let url = launchOptions?[.url] as? URL, url.scheme == "maity" {
+          if url.host == "record" {
+            result("start_recording")
+          } else {
+            result(url.host)
+          }
+        } else {
+          result(nil)
+        }
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     // here, Without this code the task will not work.
     SwiftFlutterForegroundTaskPlugin.setPluginRegistrantCallback { registry in
       GeneratedPluginRegistrant.register(with: registry)
@@ -96,6 +115,18 @@ extension FlutterError: Error {}
     appleRemindersService.handleMethodCall(call, result: result)
   }
     
+
+  // Handle URL when app is already running (warm start from widget)
+  override func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+    if url.scheme == "maity" {
+      let controller = window?.rootViewController as? FlutterViewController
+      if let controller = controller {
+        let channel = FlutterMethodChannel(name: "com.maity.app/widget_event", binaryMessenger: controller.binaryMessenger)
+        channel.invokeMethod("onWidgetTap", arguments: url.host)
+      }
+    }
+    return super.application(app, open: url, options: options)
+  }
 
   override func applicationWillTerminate(_ application: UIApplication) {
     // If title and body are nil, then we don't need to show notification.
