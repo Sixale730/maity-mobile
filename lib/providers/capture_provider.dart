@@ -249,6 +249,7 @@ class CaptureProvider extends ChangeNotifier
     notifyListeners();
     _lifecycle.broadcastRecordingState();
     _lifecycle.updateForegroundNotification(_getNotificationState());
+    _syncWidgetStateToiOS(state);
 
     // Signal callers awaiting recording readiness.
     final c = _recordingReadyCompleter;
@@ -259,6 +260,20 @@ class CaptureProvider extends ChangeNotifier
         c.completeError(StateError('Recording failed to start: $state'));
       }
     }
+  }
+
+  /// Sync recording state to iOS widget via MethodChannel → App Group UserDefaults
+  void _syncWidgetStateToiOS(RecordingState state) {
+    final isRecording = state == RecordingState.record ||
+        state == RecordingState.deviceRecord ||
+        state == RecordingState.systemAudioRecord;
+    final isPaused = state == RecordingState.pause || _stateMachine.isPaused;
+    const channel = MethodChannel('com.maity.app/widget');
+    channel.invokeMethod('updateWidgetState', {
+      'isRecording': isRecording,
+      'isPaused': isPaused,
+      'segmentCount': segments.length,
+    }).catchError((e) => debugPrint('[Widget] Sync error: $e'));
   }
 
   void updateRecordingDevice(BtDevice? device) {

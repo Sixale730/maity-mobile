@@ -1,6 +1,7 @@
 import UIKit
 import Flutter
 import UserNotifications
+import WidgetKit
 import app_links
 import WatchConnectivity
 import AVFoundation
@@ -66,16 +67,26 @@ extension FlutterError: Error {}
     let widgetChannel = FlutterMethodChannel(name: "com.maity.app/widget", binaryMessenger: controller!.binaryMessenger)
     widgetChannel.setMethodCallHandler { [weak self] (call, result) in
       if call.method == "getLaunchAction" {
-        // Check if app was launched via maity:// URL scheme
         if let url = launchOptions?[.url] as? URL, url.scheme == "maity" {
-          if url.host == "record" {
-            result("start_recording")
-          } else {
-            result(url.host)
-          }
+          result(url.host == "record" ? "start_recording" : url.host)
         } else {
           result(nil)
         }
+      } else if call.method == "updateWidgetState" {
+        // Write recording state to App Group UserDefaults for widget
+        if let args = call.arguments as? [String: Any] {
+          let sharedDefaults = UserDefaults(suiteName: "group.com.maity.app")
+          sharedDefaults?.set(args["isRecording"] as? Bool ?? false, forKey: "isRecording")
+          sharedDefaults?.set(args["isPaused"] as? Bool ?? false, forKey: "isPaused")
+          sharedDefaults?.set(args["segmentCount"] as? Int ?? 0, forKey: "segmentCount")
+          sharedDefaults?.synchronize()
+
+          // Reload all widgets to reflect new state
+          if #available(iOS 14.0, *) {
+            WidgetKit.WidgetCenter.shared.reloadAllTimelines()
+          }
+        }
+        result(nil)
       } else {
         result(FlutterMethodNotImplemented)
       }

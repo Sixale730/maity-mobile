@@ -449,19 +449,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
-  /// Updates the widget's shared UserDefaults so the widget UI reflects current state.
+  /// Updates the widget's shared UserDefaults (App Group) and reloads the widget.
   void _updateWidgetState(CaptureProvider provider) {
-    // Write state to shared UserDefaults (App Group) for widget to read
-    // Note: on iOS this requires App Group entitlement configured
     final isRecording = provider.recordingState == RecordingState.record ||
         provider.recordingState == RecordingState.deviceRecord ||
         provider.recordingState == RecordingState.systemAudioRecord;
     final isPaused = provider.isPaused || provider.recordingState == RecordingState.pause;
     final segmentCount = provider.segments.length;
 
-    SharedPreferencesUtil().saveBool('widget_isRecording', isRecording);
-    SharedPreferencesUtil().saveBool('widget_isPaused', isPaused);
-    SharedPreferencesUtil().saveInt('widget_segmentCount', segmentCount);
+    const channel = MethodChannel('com.maity.app/widget');
+    channel.invokeMethod('updateWidgetState', {
+      'isRecording': isRecording,
+      'isPaused': isPaused,
+      'segmentCount': segmentCount,
+    }).catchError((e) => debugPrint('[Widget] Error updating state: $e'));
   }
 
   bool _isNavigatingToRecording = false;
