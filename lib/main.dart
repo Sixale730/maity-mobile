@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:omi/services/widget_state_service.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -153,6 +154,10 @@ Future _init() async {
 
   // Initialize always-on crash logging (before anything else that might fail)
   await CrashLogManager.instance.init();
+
+  // Initialize Home Screen Widget state sync
+  await WidgetStateService.initialize();
+  await WidgetStateService.syncState(isRecording: false, isPaused: false, segmentCount: 0);
 
   // Auto-configurar Deepgram como STT por defecto
   await _autoConfigureDeepgram();
@@ -318,12 +323,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     } else if (action == 'pause_recording') {
       final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
       if (captureProvider.recordingState == RecordingState.record) {
-        captureProvider.stopStreamRecording();
+        captureProvider.pausePhoneMicRecording();
       }
     } else if (action == 'resume_recording') {
       final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
       if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
-        captureProvider.streamRecording();
+        captureProvider.resumePhoneMicRecording();
       }
     } else if (action == 'stop_recording') {
       final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
