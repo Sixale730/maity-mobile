@@ -14,9 +14,7 @@ import 'app_detail/app_detail.dart';
 class AppListItem extends StatelessWidget {
   final App app;
   final int index;
-  final bool showPrivateIcon;
-
-  const AppListItem({super.key, required this.app, required this.index, this.showPrivateIcon = true});
+  const AppListItem({super.key, required this.app, required this.index});
 
   @override
   Widget build(BuildContext context) {

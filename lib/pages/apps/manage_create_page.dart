@@ -132,7 +132,6 @@ class ManageCreatePage extends StatelessWidget {
                                 shrinkWrap: true,
                                 itemBuilder: (context, index) {
                                   return AppListItem(
-                                    showPrivateIcon: false,
                                     app: provider.userPrivateApps[index],
                                     index: provider.apps.indexOf(provider.userPrivateApps[index]),
                                   );

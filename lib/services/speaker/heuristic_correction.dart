@@ -15,7 +15,7 @@ const double _kQuestionAnswerConf = 0.70;
 const double _kSelfReferenceConf = 0.80;
 const double _kIsolatedSpeakerConf = 0.75;
 const double _kTurnRhythmConf = 0.65;
-const double _kVocabularyConf = 0.60;
+const double _kVocabularyConf = 0.65;
 
 // Rule-specific parameters
 const double _kTurnRhythmDominance = 0.60;
