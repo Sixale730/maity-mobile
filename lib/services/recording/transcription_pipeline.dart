@@ -16,6 +16,7 @@ import 'package:omi/services/local_stt/chunk_queue_manager.dart';
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/local_stt_socket.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
+import 'package:omi/services/recording/telemetry_collector.dart';
 import 'package:omi/services/recording/ui_segment_controller.dart';
 import 'package:omi/services/recording/wav_backup_service.dart';
 import 'package:omi/services/notifications/notification_service.dart';
@@ -292,6 +293,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     // Update timestamp offset on reconnection (not first connection)
     if (_recordingStartTime != null) {
       _updateTimestampOffset();
+      TelemetryCollector.instance.recordReconnection(reason: source);
     }
 
     BleAudioCodec codec = audioCodec;
@@ -477,6 +479,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _socket?.subscribe(this, this);
     _transcriptServiceReady = true;
     _activeSttProvider = effectiveConfig?.provider ?? SttProvider.deepgramLive;
+    TelemetryCollector.instance.setSttProvider(_activeSttProvider?.name);
     if (_isLocalStt) {
       _walEnabled = false;
 
@@ -514,6 +517,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   Future<void> stopSocket(String reason) async {
     _tokenRefreshTimer?.cancel();
     _isBufferingForReconnect = true; // Buffer audio during reconnect gap
+    // Mark the start of an audio-gap window. The window is closed in
+    // _replayReconnectBuffer() (after reconnect) or in markStopped()
+    // (when the user actually stops the recording).
+    TelemetryCollector.instance.beginAudioGap();
     _captureLog.log('socket', 'socket_stopping',
         details: {'reason': reason});
     await _socket?.stop(reason: reason);
@@ -817,6 +824,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
         errorStr.contains('Invalid API key')) {
       _captureLog.log('socket', 'socket_error_terminal',
           severity: 'error', details: {'error': errorStr});
+      TelemetryCollector.instance.recordError('socket_terminal', errorStr);
       _transcriptionServiceStatuses = [];
       _transcriptServiceReady = false;
       onNotifyListeners?.call();
@@ -827,6 +835,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     // Temporal errors - attempt immediate reconnect, fall back to keep-alive
     _captureLog.log('socket', 'socket_error_temporal',
         severity: 'warning', details: {'error': errorStr});
+    TelemetryCollector.instance.recordError('socket_temporal', errorStr);
     _transcriptionServiceStatuses = [];
     _transcriptServiceReady = false;
     onNotifyListeners?.call();
@@ -846,6 +855,9 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
   /// Replay audio buffered during the reconnect gap, then clear the buffer.
   void _replayReconnectBuffer() {
+    // Close any in-progress telemetry audio-gap window — the socket is back.
+    TelemetryCollector.instance.endAudioGap();
+
     if (_reconnectAudioBuffer.isEmpty) {
       _isBufferingForReconnect = false;
       return;
@@ -887,6 +899,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   void onTerminalFailure(String reason) {
     _captureLog.log('socket', 'terminal_failure',
         severity: 'error', details: {'reason': reason});
+    TelemetryCollector.instance.recordError('terminal_failure', reason);
 
     _transcriptServiceReady = false;
 

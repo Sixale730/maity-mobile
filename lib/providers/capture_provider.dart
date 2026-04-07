@@ -37,6 +37,8 @@ import 'package:omi/services/recording/audio_transport_service.dart';
 import 'package:omi/services/recording/transcription_pipeline.dart';
 import 'package:omi/services/recording/persistence_manager.dart';
 import 'package:omi/services/recording/app_lifecycle_manager.dart';
+import 'package:omi/services/recording/telemetry_collector.dart';
+import 'package:omi/services/recording/telemetry_sender.dart';
 import 'package:omi/services/notifications/notification_service.dart';
 import 'package:omi/services/devices/led_breathing_service.dart';
 import 'package:omi/services/devices.dart';
@@ -303,6 +305,11 @@ class CaptureProvider extends ChangeNotifier
       sessionId: sessionId,
       userId: userId,
     );
+    TelemetryCollector.instance.startSession(
+      sessionId: sessionId,
+      audioSource: 'phone_mic',
+      startedAt: _stateMachine.recordingStartTime,
+    );
 
     _captureLog.startSession(
       sessionId,
@@ -383,6 +390,7 @@ class CaptureProvider extends ChangeNotifier
     _captureLog.log('recording', 'recording_stop_requested',
         details: {'source': 'phone_mic'});
     _pipeline.stopHealthMonitor();
+    TelemetryCollector.instance.markStopped();
 
     // Instant UI feedback: transition to processing state
     updateRecordingState(RecordingState.processing);
@@ -422,8 +430,19 @@ class CaptureProvider extends ChangeNotifier
     CaptureProvider.isRecordingWithPhoneMic = false;
     _pipeline.stopSocket('user cancel - no segments');
     updateRecordingState(RecordingState.stop);
+    _flushDiscardedTelemetry();
     await _resetStateVariables();
     _captureLog.endSession();
+  }
+
+  /// Send telemetry for a discarded session (no upload will be attached).
+  /// Used when the user cancels or silence-timeout fires with zero segments.
+  void _flushDiscardedTelemetry() {
+    if (TelemetryCollector.instance.currentSessionId == null) return;
+    TelemetryCollector.instance.markStopped();
+    final snap = TelemetryCollector.instance.snapshot();
+    TelemetrySender.send(snapshot: snap, outcome: 'discarded');
+    TelemetryCollector.instance.reset();
   }
 
   // ---------------------------------------------------------------------------
@@ -439,6 +458,11 @@ class CaptureProvider extends ChangeNotifier
       source: RecordingSource.bleDevice,
       sessionId: sessionId,
       userId: userId,
+    );
+    TelemetryCollector.instance.startSession(
+      sessionId: sessionId,
+      audioSource: 'ble',
+      startedAt: _stateMachine.recordingStartTime,
     );
 
     _captureLog.startSession(
@@ -483,6 +507,7 @@ class CaptureProvider extends ChangeNotifier
     _captureLog.log('recording', 'recording_stop_requested',
         details: {'source': 'ble_device'});
     _pipeline.stopHealthMonitor();
+    TelemetryCollector.instance.markStopped();
 
     // Instant UI feedback: transition to processing state
     updateRecordingState(RecordingState.processing);
@@ -564,6 +589,11 @@ class CaptureProvider extends ChangeNotifier
       userId: userId,
     );
     _stateMachine.shouldAutoResumeAfterWake = true;
+    TelemetryCollector.instance.startSession(
+      sessionId: sessionId,
+      audioSource: 'system_audio',
+      startedAt: _stateMachine.recordingStartTime,
+    );
 
     _captureLog.startSession(
       sessionId,
@@ -603,6 +633,7 @@ class CaptureProvider extends ChangeNotifier
     _captureLog.log('recording', 'recording_stop_requested',
         details: {'source': 'system_audio'});
     _pipeline.stopHealthMonitor();
+    TelemetryCollector.instance.markStopped();
 
     // Instant UI feedback: transition to processing state
     updateRecordingState(RecordingState.processing);
@@ -953,6 +984,24 @@ class CaptureProvider extends ChangeNotifier
   // ---------------------------------------------------------------------------
 
   void _onNewSegments(List<TranscriptSegment> newSegments) {
+    // Keep telemetry segment/word counters fresh during the session.
+    // PersistenceManager re-derives the final counts at finalize time, but
+    // updating here means a discarded/cancelled session still reports
+    // accurate numbers when no upload happens.
+    final wordCount = segments.fold<int>(
+        0,
+        (sum, s) =>
+            sum + s.text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length);
+    TelemetryCollector.instance.updateSegmentMetrics(
+      segmentsCount: segments.length,
+      wordsCount: wordCount,
+    );
+    // Capture which STT provider produced these segments
+    final activeProvider = _pipeline.activeSttProvider;
+    if (activeProvider != null) {
+      TelemetryCollector.instance.setSttProvider(activeProvider.name);
+    }
+
     _persistence.scheduleLocalSave(
       segments,
       _stateMachine.currentSessionId,
@@ -1013,12 +1062,15 @@ class CaptureProvider extends ChangeNotifier
       _audioTransport.stopPhoneMicRecording();
       _pipeline.stopSocket('silence timeout - no segments');
       updateRecordingState(RecordingState.stop);
+      // Discarded session — send telemetry directly (no upload to attach to)
+      _flushDiscardedTelemetry();
       await _resetStateVariables();
       return;
     }
 
     // Capture pause state before FSM transitions clear it
     _restartPaused = _stateMachine.isPaused;
+    TelemetryCollector.instance.markStopped();
 
     _captureLog.log('recording', 'silence_timeout_auto_save', details: {
       'segments_count': segments.length,

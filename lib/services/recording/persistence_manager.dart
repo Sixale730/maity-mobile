@@ -8,6 +8,7 @@ import 'package:omi/models/recovery_session.dart';
 import 'package:omi/services/background_upload_service.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/conversation_processor.dart';
+import 'package:omi/services/recording/telemetry_collector.dart';
 import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/services/transcript_recovery_service.dart';
 import 'package:omi/services/local_stt/chunk_queue_manager.dart';
@@ -272,6 +273,17 @@ class PersistenceManager {
         debugPrint('[PersistenceManager] Long transcript (${transcript.length} chars), backend will process');
       }
 
+      // Capture telemetry snapshot now (after stop time has been recorded
+      // by CaptureProvider). Word count is derived from the segments we
+      // are about to upload.
+      final telemetryWords = localSegments.fold<int>(
+          0, (sum, s) => sum + s.text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length);
+      TelemetryCollector.instance.updateSegmentMetrics(
+        segmentsCount: localSegments.length,
+        wordsCount: telemetryWords,
+      );
+      final telemetrySnapshot = TelemetryCollector.instance.snapshot();
+
       // Queue for background upload
       await BackgroundUploadService.instance.enqueue(
         segments: localSegments,
@@ -280,7 +292,12 @@ class PersistenceManager {
         userId: effectiveUserId,
         source: 'omi',
         structured: structuredData,
+        telemetry: telemetrySnapshot,
       );
+
+      // Reset collector now that the snapshot has been handed off to the
+      // upload queue. The next session can begin with clean state.
+      TelemetryCollector.instance.reset();
 
       _captureLog.log('save', 'finalize_queued_for_upload', details: {
         'segments_count': localSegments.length,
@@ -349,6 +366,37 @@ class PersistenceManager {
         };
       }
 
+      // Build a minimal recovery telemetry snapshot. We don't have the
+      // original session's reconnection/error counters, but we can capture
+      // segment counts and the recovered duration so the dashboard can
+      // surface it under outcome='recovered'.
+      final recoveryDurationSec =
+          DateTime.now().difference(startedAt).inSeconds;
+      final recoveryWords = recoverySegments.fold<int>(
+          0,
+          (sum, s) =>
+              sum + s.text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length);
+      final recoveryTelemetry = <String, dynamic>{
+        'session_id': null,
+        'duration_seconds': recoveryDurationSec,
+        'segments_count': recoverySegments.length,
+        'words_count': recoveryWords,
+        'audio_source': null,
+        'device_model': null,
+        'stt_provider': null,
+        'reconnection_count': 0,
+        'audio_gaps_seconds': 0,
+        'ble_disconnects': 0,
+        'errors_count': 0,
+        'app_version': null,
+        'os_version': null,
+        'platform': 'unknown',
+        // Tag this snapshot so a successful upload is reported as 'recovered'
+        // instead of 'completed'. _sendTelemetry honors this hint.
+        '_success_outcome': 'recovered',
+        'raw_metrics': {'source': 'recovery'},
+      };
+
       // Queue for background upload
       await BackgroundUploadService.instance.enqueue(
         segments: recoverySegments,
@@ -356,6 +404,7 @@ class PersistenceManager {
         finishedAt: DateTime.now(),
         userId: userId,
         structured: structuredData,
+        telemetry: recoveryTelemetry,
       );
 
       debugPrint('[PersistenceManager] Recovery queued for background upload');
