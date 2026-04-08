@@ -12,6 +12,11 @@ struct WidgetStrings {
     var quickTranscription: String { language == "en" ? "Quick transcription" : "Transcripcion rapida" }
     var tapToRecord: String { language == "en" ? "Tap to start recording" : "Toca para comenzar a grabar" }
     var tapToOpen: String { language == "en" ? "Tap to open" : "Toca para abrir" }
+    var cancel: String { language == "en" ? "Cancel" : "Cancelar" }
+    var pause: String { language == "en" ? "Pause" : "Pausar" }
+    var resume: String { language == "en" ? "Resume" : "Reanudar" }
+    var stop: String { language == "en" ? "Stop" : "Detener" }
+    var recordingControls: String { language == "en" ? "Recording controls" : "Controles de grabacion" }
     func segmentsCaptured(_ count: Int) -> String {
         language == "en" ? "\(count) segments captured" : "\(count) segmentos capturados"
     }
@@ -200,11 +205,124 @@ struct MaityStatusWidget: Widget {
     }
 }
 
+// MARK: - Widget 3: Controls (Medium) - With pause/stop/cancel buttons
+struct MaityControlsView: View {
+    var entry: MaityEntry
+
+    var body: some View {
+        ZStack {
+            ContainerRelativeShape()
+                .fill(Color(red: 0.08, green: 0.08, blue: 0.10))
+
+            if entry.isActive {
+                VStack(spacing: 12) {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(entry.isPaused ? Color.orange : Color.red)
+                            .frame(width: 8, height: 8)
+                        Text(entry.isPaused ? entry.strings.paused : entry.strings.recording)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(entry.isPaused ? .orange : .red)
+                        Spacer()
+                        if entry.segmentCount > 0 {
+                            Text("\(entry.segmentCount) seg.")
+                                .font(.system(size: 11))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    .padding(.horizontal, 4)
+
+                    HStack(spacing: 12) {
+                        Link(destination: URL(string: "maity://widget/cancel")!) {
+                            VStack(spacing: 4) {
+                                ZStack {
+                                    Circle().fill(Color(white: 0.2)).frame(width: 44, height: 44)
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
+                                Text(entry.strings.cancel).font(.system(size: 9)).foregroundColor(.white.opacity(0.6))
+                            }
+                        }
+
+                        Link(destination: URL(string: entry.isPaused ? "maity://widget/resume" : "maity://widget/pause")!) {
+                            VStack(spacing: 4) {
+                                ZStack {
+                                    Circle()
+                                        .fill(entry.isPaused ? Color(red: 0.28, green: 0.36, blue: 0.96) : Color.orange)
+                                        .frame(width: 44, height: 44)
+                                    Image(systemName: entry.isPaused ? "play.fill" : "pause.fill")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.white)
+                                }
+                                Text(entry.isPaused ? entry.strings.resume : entry.strings.pause)
+                                    .font(.system(size: 9)).foregroundColor(.white.opacity(0.6))
+                            }
+                        }
+
+                        Link(destination: URL(string: "maity://widget/stop")!) {
+                            VStack(spacing: 4) {
+                                ZStack {
+                                    Circle().fill(Color.red).frame(width: 44, height: 44)
+                                    Image(systemName: "stop.fill")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.white)
+                                }
+                                Text(entry.strings.stop).font(.system(size: 9)).foregroundColor(.white.opacity(0.6))
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            } else {
+                Link(destination: URL(string: "maity://widget/record")!) {
+                    HStack(spacing: 16) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Maity").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+                            Text(entry.strings.recordingControls).font(.system(size: 12)).foregroundColor(.white.opacity(0.7))
+                        }
+                        Spacer()
+                        ZStack {
+                            Circle()
+                                .fill(LinearGradient(
+                                    colors: [Color(red: 0.28, green: 0.36, blue: 0.96), Color(red: 0.42, green: 0.48, blue: 0.97)],
+                                    startPoint: .top, endPoint: .bottom))
+                                .frame(width: 52, height: 52)
+                            Image(systemName: "mic.fill")
+                                .font(.system(size: 22))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+            }
+        }
+    }
+}
+
+struct MaityControlsWidget: Widget {
+    let kind = "MaityControls"
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: MaityProvider()) { entry in
+            if #available(iOS 17.0, *) {
+                MaityControlsView(entry: entry).containerBackground(.fill.tertiary, for: .widget)
+            } else {
+                MaityControlsView(entry: entry).padding().background()
+            }
+        }
+        .configurationDisplayName("Maity - Controls")
+        .description("Control your recording directly from the widget.")
+        .supportedFamilies([.systemMedium])
+    }
+}
+
 // MARK: - Widget Bundle
 @main
 struct MaityWidgetBundle: WidgetBundle {
     var body: some Widget {
         MaityQuickRecordWidget()
         MaityStatusWidget()
+        MaityControlsWidget()
     }
 }

@@ -406,14 +406,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (context == null) return;
     final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
 
-    switch (uri.host) {
+    // Support both formats: maity://action and maity://widget/action
+    String? action;
+    if (uri.host == 'widget' && uri.pathSegments.isNotEmpty) {
+      action = uri.pathSegments.first;
+    } else {
+      action = uri.host;
+    }
+
+    switch (action) {
       case 'record':
-        // Start recording in background — don't open recording page
         if (captureProvider.recordingState == RecordingState.stop ||
             captureProvider.recordingState == RecordingState.error) {
           debugPrint('[Widget] Starting recording from widget (background)');
           captureProvider.streamRecording();
-          _updateWidgetState(captureProvider);
         }
         break;
       case 'recording':
@@ -421,15 +427,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         break;
       case 'pause':
         if (captureProvider.recordingState == RecordingState.record) {
-          captureProvider.stopStreamRecording();
-          _updateWidgetState(captureProvider);
+          captureProvider.pausePhoneMicRecording();
           debugPrint('[Widget] Paused recording from widget');
         }
         break;
       case 'resume':
         if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
-          captureProvider.streamRecording();
-          _updateWidgetState(captureProvider);
+          captureProvider.resumePhoneMicRecording();
           debugPrint('[Widget] Resumed recording from widget');
         }
         break;
@@ -437,13 +441,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         if (captureProvider.recordingState == RecordingState.record) {
           captureProvider.stopStreamRecording();
         } else if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
-          captureProvider.streamRecording().then((_) {
-            Future.delayed(const Duration(milliseconds: 300), () {
-              captureProvider.stopStreamRecording();
-            });
+          captureProvider.resumePhoneMicRecording();
+          Future.delayed(const Duration(milliseconds: 300), () {
+            captureProvider.stopStreamRecording();
           });
         }
-        _updateWidgetState(captureProvider);
         debugPrint('[Widget] Stopped recording from widget');
         break;
       case 'cancel':
@@ -452,26 +454,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         }
         captureProvider.clearTranscripts();
         captureProvider.updateRecordingState(RecordingState.stop);
-        _updateWidgetState(captureProvider);
         debugPrint('[Widget] Cancelled recording from widget');
         break;
     }
-  }
-
-  /// Updates the widget's shared UserDefaults (App Group) and reloads the widget.
-  void _updateWidgetState(CaptureProvider provider) {
-    final isRecording = provider.recordingState == RecordingState.record ||
-        provider.recordingState == RecordingState.deviceRecord ||
-        provider.recordingState == RecordingState.systemAudioRecord;
-    final isPaused = provider.isPaused || provider.recordingState == RecordingState.pause;
-    final segmentCount = provider.segments.length;
-
-    const channel = MethodChannel('com.maity.app/widget');
-    channel.invokeMethod('updateWidgetState', {
-      'isRecording': isRecording,
-      'isPaused': isPaused,
-      'segmentCount': segmentCount,
-    }).catchError((e) => debugPrint('[Widget] Error updating state: $e'));
   }
 
   bool _isNavigatingToRecording = false;
