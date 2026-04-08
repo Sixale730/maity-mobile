@@ -250,7 +250,7 @@ class _FoundDevicesState extends State<FoundDevices> {
               Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Text(
-                    '🔋 ${provider.batteryPercentage.toString()}%',
+                    '${provider.batteryPercentage.toString()}%',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontWeight: FontWeight.w500,

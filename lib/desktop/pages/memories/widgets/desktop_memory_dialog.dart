@@ -73,7 +73,7 @@ class _DesktopMemoryDialogState extends State<DesktopMemoryDialog> {
             Row(
               children: [
                 Text(
-                  widget.memory != null ? '✏️ Edit Memory' : '✨ New Memory',
+                  widget.memory != null ? 'Edit Memory' : 'New Memory',
                   style: const TextStyle(
                     color: ResponsiveHelper.textPrimary,
                     fontSize: 20,

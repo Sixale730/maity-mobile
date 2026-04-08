@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:app_links/app_links.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:omi/services/widget_state_service.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -48,6 +49,7 @@ import 'package:omi/providers/daily_report_provider.dart';
 import 'package:omi/providers/role_provider.dart';
 import 'package:omi/services/auth_service.dart';
 import 'package:omi/services/background_upload_service.dart';
+import 'package:omi/services/recording/wav_backup_cleanup.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
 import 'package:omi/services/local_stt/speaker_model_download_service.dart';
 import 'package:omi/providers/local_stt_provider.dart';
@@ -156,6 +158,10 @@ Future _init() async {
   // Initialize always-on crash logging (before anything else that might fail)
   await CrashLogManager.instance.init();
 
+  // Initialize Home Screen Widget state sync
+  await WidgetStateService.initialize();
+  await WidgetStateService.syncState(isRecording: false, isPaused: false, segmentCount: 0);
+
   // Auto-configurar Deepgram como STT por defecto
   await _autoConfigureDeepgram();
 
@@ -179,6 +185,9 @@ Future _init() async {
 
   // Upload any crash logs from previous session to Supabase platform_logs
   await CrashLogUploadService.instance.initialize();
+
+  // Clean up old WAV backup recordings (>7 days)
+  cleanupOldWavBackups(); // fire-and-forget, non-blocking
 
   // Initialize local STT model service (checks if model already downloaded)
   await ModelDownloadService.instance.initialize();
@@ -325,12 +334,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     } else if (action == 'pause_recording') {
       final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
       if (captureProvider.recordingState == RecordingState.record) {
-        captureProvider.stopStreamRecording();
+        captureProvider.pausePhoneMicRecording();
       }
     } else if (action == 'resume_recording') {
       final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
       if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
-        captureProvider.streamRecording();
+        captureProvider.resumePhoneMicRecording();
       }
     } else if (action == 'stop_recording') {
       final captureProvider = Provider.of<CaptureProvider>(context, listen: false);

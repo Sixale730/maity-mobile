@@ -296,11 +296,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       _initiateApps();
 
       if (!PlatformService.isDesktop) {
-        await ForegroundUtil.requestNotificationPermission();
-        // Android 15+ requires RECORD_AUDIO before starting FG service with microphone type
-        await Permission.microphone.request();
-        await ForegroundUtil.initializeForegroundService();
-        await ForegroundUtil.startForegroundTask();
+        // Wrap permission + foreground service init in try/catch so a cancelled
+        // permission dialog (PlatformException PermissionRequestCancelledException)
+        // doesn't abort the rest of the init flow — specifically the local STT
+        // model auto-download below.
+        try {
+          await ForegroundUtil.requestNotificationPermission();
+          // Android 15+ requires RECORD_AUDIO before starting FG service with microphone type
+          await Permission.microphone.request();
+          await ForegroundUtil.initializeForegroundService();
+          await ForegroundUtil.startForegroundTask();
+        } catch (e) {
+          debugPrint('[HomePage] Foreground/permission init failed: $e');
+        }
       }
       if (mounted) {
         await Provider.of<HomeProvider>(context, listen: false).setUserPeople();
@@ -314,7 +322,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       }
 
       if (mounted) {
-        _triggerAutoModelDownload();
+        // Fire-and-forget: never await or let this block the rest of the init closure.
+        unawaited(_triggerAutoModelDownload());
       }
 
       // Navigate

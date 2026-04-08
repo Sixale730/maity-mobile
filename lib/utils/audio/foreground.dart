@@ -188,11 +188,21 @@ class ForegroundUtil {
 
   /// Request only notification permission (Android 13+).
   /// Does NOT request battery optimization exemption.
+  ///
+  /// Swallows PlatformException thrown when the user cancels the permission
+  /// dialog or when another permission request is already in-flight
+  /// ("Can request only one set of permissions at a time"). Letting that
+  /// exception propagate would abort the caller's init flow and prevent
+  /// downstream work (e.g. auto-downloading the local STT model) from running.
   static Future<void> requestNotificationPermission() async {
-    final NotificationPermission notificationPermissionStatus =
-        await FlutterForegroundTask.checkNotificationPermission();
-    if (notificationPermissionStatus != NotificationPermission.granted) {
-      await FlutterForegroundTask.requestNotificationPermission();
+    try {
+      final NotificationPermission notificationPermissionStatus =
+          await FlutterForegroundTask.checkNotificationPermission();
+      if (notificationPermissionStatus != NotificationPermission.granted) {
+        await FlutterForegroundTask.requestNotificationPermission();
+      }
+    } catch (e) {
+      debugPrint('[ForegroundUtil] requestNotificationPermission failed: $e');
     }
   }
 

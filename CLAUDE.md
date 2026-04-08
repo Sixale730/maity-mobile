@@ -434,6 +434,56 @@ Logos en `assets/images/` (rosa #F93A6E). Regenerar: `dart run flutter_launcher_
 
 `docs/CHAT_AGENT_DIFFERENCES.md`, `docs/google-sign-in-setup.md`, `docs/MIXPANEL_GUIDE.md`.
 
+## Telemetria de Sesiones de Grabacion
+
+Telemetria fire-and-forget que se envia tras cada sesion de grabacion (exitosa, fallida, recuperada o descartada) a `maity.recording_session_telemetry` via RPC `insert_recording_telemetry`. Visualizable en el dashboard admin web `/admin/recording-telemetry`.
+
+**Arquitectura**:
+```
+streamRecording/streamDeviceRecording/streamSystemAudioRecording
+  → TelemetryCollector.startSession(sessionId, audioSource)
+  → [durante grabacion] hooks acumulan reconnects, errores, BLE disconnects, audio gaps
+  → stopXxxRecording → TelemetryCollector.markStopped()
+  → PersistenceManager._doFinalize → snapshot() → BackgroundUploadService.enqueue(telemetry: snap)
+  → BackgroundUploadService persiste snapshot en pending_uploads.json
+  → upload completa (success/failed/dead-letter) → TelemetrySender.send(outcome, retries, latencyMs)
+  → Supabase RPC insert_recording_telemetry (auth.uid() resuelve user_id)
+```
+
+**Outcomes**:
+- `completed` — upload exitoso
+- `failed` — upload permanently rejected o dead-letter (max retries)
+- `recovered` — sesion recuperada via TranscriptRecoveryService (override via `_success_outcome`)
+- `discarded` — usuario cancelo o silence-timeout sin segmentos (enviado directamente sin upload)
+
+**Metricas recolectadas**:
+- Basicas: `duration_seconds`, `segments_count`, `words_count`, `audio_source` (`ble`/`phone_mic`/`system_audio`), `device_model`, `stt_provider`, `app_version`, `os_version`, `platform`
+- Salud del pipeline: `reconnection_count`, `audio_gaps_seconds` (medido entre `stopSocket` y `_replayReconnectBuffer`), `ble_disconnects`, `errors_count`, `upload_retries`, `upload_latency_ms` (desde `finishedAt` hasta upload exitoso)
+- Calidad: `segments_per_minute` (derivado), `avg_transcription_latency_ms` (placeholder), `vad_speech_ratio` (placeholder)
+- `raw_metrics` JSONB: timings, eventos (max 50, bounded), totales VAD
+
+**Hooks por servicio**:
+- `CaptureProvider` — startSession en cada `streamXxx`, markStopped en cada `stopXxx`, `_flushDiscardedTelemetry()` en cancelacion sin segmentos, segment metrics update en `_onNewSegments`
+- `TranscriptionPipeline.initiateWebsocket` — `recordReconnection` cuando reconecta (no primera vez), `setSttProvider` cuando se establece socket
+- `TranscriptionPipeline.stopSocket` — `beginAudioGap`
+- `TranscriptionPipeline._replayReconnectBuffer` — `endAudioGap`
+- `TranscriptionPipeline.onError`/`onTerminalFailure` — `recordError`
+- `DeviceProvider.onDeviceDisconnected` — `recordBleDisconnect` (solo si recordingState == deviceRecord)
+- `PersistenceManager._doFinalize` — `snapshot()` antes de enqueue, `reset()` despues
+- `BackgroundUploadService` — `_sendTelemetry(upload, outcome)` en success/permanent/dead-letter
+
+**Tabla**: `maity.recording_session_telemetry` (24 columnas tipadas + `raw_metrics` JSONB).
+**RPC**: `insert_recording_telemetry(p_*)` SECURITY DEFINER, `EXCEPTION WHEN OTHERS THEN NULL`, resuelve `user_id` desde `auth.uid()`.
+
+**Archivos**:
+- `lib/services/recording/telemetry_collector.dart` — Singleton acumulador, init lazy de PackageInfo + DeviceInfo
+- `lib/services/recording/telemetry_sender.dart` — Wrapper RPC fire-and-forget (skip si no hay auth)
+- `lib/services/background_upload_service.dart` — `PendingUpload.telemetry` (persisted), `_sendTelemetry` helper
+- `lib/services/recording/persistence_manager.dart` — captura snapshot en `_doFinalize`, recovery path con `_success_outcome: 'recovered'`
+- `lib/providers/capture_provider.dart` — start/stop/discarded hooks
+- `lib/services/recording/transcription_pipeline.dart` — reconnect/error/audio-gap hooks
+- `lib/providers/device_provider.dart` — BLE disconnect counter
+
 ## Crash Logging (Always-On)
 
 Sistema persistente de crash logs que funciona sin opt-in. Captura crashes y errores criticos, los guarda localmente, y los sube a Supabase al siguiente launch.

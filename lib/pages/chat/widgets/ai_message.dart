@@ -7,6 +7,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:omi/widgets/emoji_text.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/chat/widgets/files_handler_widget.dart';
 import 'package:omi/backend/http/api/conversations.dart';
@@ -315,7 +316,7 @@ class DaySummaryWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '📅  Day Summary ~ ${dateTimeFormat('MMM, dd', date)}',
+          'Day Summary ~ ${dateTimeFormat('MMM, dd', date)}',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w500,
@@ -816,6 +817,8 @@ class _MemoriesMessageWidgetState extends State<MemoriesMessageWidget> {
                 ),
                 child: Row(
                   children: [
+                    EmojiText(data.$2.structured.emoji, size: 16),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         data.$2.structured.title,

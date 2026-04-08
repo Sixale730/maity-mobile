@@ -41,6 +41,12 @@ class LocalSttEngine {
   /// Refs: sherpa-onnx PR #1099 (flush API), Silero VAD Issue #518
   int _samplesSinceLastDrain = 0;
 
+  /// Recognizer recycling: sherpa_onnx leaks ~1MB native memory per decode().
+  /// Recreating the recognizer every [_recycleInterval] inferences reclaims it.
+  int _inferenceCount = 0;
+  static const int _recycleInterval = 50;
+  sherpa.OfflineRecognizerConfig? _recognizerConfig;
+
   bool get isInitialized => _isInitialized;
 
   static const int sampleRate = 16000;
@@ -53,6 +59,7 @@ class LocalSttEngine {
     String modelDir, {
     LocalSttModelType modelType = LocalSttModelType.parakeet,
     double maxSpeechDuration = 30.0,
+    int numThreads = 2,
   }) async {
     if (_isInitialized) return;
     _maxSpeechDuration = maxSpeechDuration;
@@ -76,7 +83,7 @@ class LocalSttEngine {
               mergedDecoder: '$modelDir/decoder_model_merged.ort',
             ),
             tokens: '$modelDir/tokens.txt',
-            numThreads: 2,
+            numThreads: numThreads,
             debug: false,
             provider: 'cpu',
           ),
@@ -98,7 +105,7 @@ class LocalSttEngine {
               usePnc: true,
             ),
             tokens: '$modelDir/tokens.txt',
-            numThreads: 2,
+            numThreads: numThreads,
             debug: false,
             provider: 'cpu',
           ),
@@ -114,7 +121,7 @@ class LocalSttEngine {
             ),
             tokens: '$modelDir/tokens.txt',
             modelType: 'nemo_transducer',
-            numThreads: 2,
+            numThreads: numThreads,
             debug: false,
             provider: 'cpu',
           ),
@@ -122,8 +129,11 @@ class LocalSttEngine {
         );
       }
 
+      _recognizerConfig = config;
       _recognizer = sherpa.OfflineRecognizer(config);
-      debugPrint('[LocalSttEngine] Using model type: ${modelType.name}, maxSpeechDuration: ${maxSpeechDuration}s');
+      _inferenceCount = 0;
+      debugPrint('[LocalSttEngine] Using model type: ${modelType.name}, '
+          'maxSpeechDuration: ${maxSpeechDuration}s, numThreads: $numThreads');
 
       // Configure Silero VAD.
       // minSpeechDuration 0.3s: autoresearch (Apr 2026) found 0.8s was discarding
@@ -229,6 +239,7 @@ class LocalSttEngine {
 
     while (!_vad!.isEmpty()) {
       final segment = _vad!.front();
+      _vad!.pop();
       segCount++;
 
       try {
@@ -256,8 +267,17 @@ class LocalSttEngine {
         var text = result.text.trim();
         stream.free();
 
+        // Recycle recognizer to prevent native memory leak (~1MB per decode)
+        _maybeRecycleRecognizer();
+
         // Truncate decoder repetition loops (e.g. "mil doce mil doce mil doce...")
         text = _truncateRepetitions(text);
+
+        // Discard fully hallucinated segments (word/bigram/phrase repetition)
+        if (_isHallucination(text)) {
+          debugPrint('[LocalSttEngine] Discarding hallucinated segment: "$text"');
+          continue;
+        }
 
         debugPrint('[LocalSttEngine] Decode result: "${text.isEmpty ? "(EMPTY)" : text}" (${durationMs}ms segment)');
 
@@ -272,11 +292,25 @@ class LocalSttEngine {
       } catch (e) {
         debugPrint('[LocalSttEngine] Decode error for segment: $e');
       }
-
-      _vad!.pop();
     }
 
     return results;
+  }
+
+  /// Recycle the recognizer to reclaim native memory.
+  ///
+  /// sherpa_onnx leaks ~1MB per decode() call. Recreating every
+  /// [_recycleInterval] inferences prevents unbounded growth.
+  /// NEVER recycle with less than 50 inferences — causes context loss.
+  void _maybeRecycleRecognizer() {
+    _inferenceCount++;
+    if (_inferenceCount < _recycleInterval) return;
+    if (_recognizerConfig == null) return;
+
+    _recognizer?.free();
+    _recognizer = sherpa.OfflineRecognizer(_recognizerConfig!);
+    _inferenceCount = 0;
+    debugPrint('[LocalSttEngine] Recycled recognizer after $_recycleInterval inferences');
   }
 
   /// Pad audio with silence at BOTH sides so the encoder-decoder sees clean
@@ -338,6 +372,51 @@ class LocalSttEngine {
     return text;
   }
 
+  /// Detect fully hallucinated segments that _truncateRepetitions misses.
+  ///
+  /// Three detectors:
+  /// 1. Single word > 60% of text
+  /// 2. Single bigram > 50% of text
+  /// 3. Phrase of 3-5 words repeated 4+ times anywhere
+  ///
+  /// Only checks segments with >= 15 words (short segments are fine).
+  static bool _isHallucination(String text) {
+    final words = text.toLowerCase().split(RegExp(r'\s+'));
+    if (words.length < 15) return false;
+
+    // Detector 1: single word > 60% of text
+    final wordCounts = <String, int>{};
+    for (final w in words) {
+      wordCounts[w] = (wordCounts[w] ?? 0) + 1;
+    }
+    if (wordCounts.values.any((c) => c / words.length > 0.60)) return true;
+
+    // Detector 2: single bigram > 50%
+    if (words.length >= 6) {
+      final bigrams = <String, int>{};
+      for (var i = 0; i < words.length - 1; i++) {
+        final bg = '${words[i]} ${words[i + 1]}';
+        bigrams[bg] = (bigrams[bg] ?? 0) + 1;
+      }
+      if (bigrams.values.any((c) => c / (words.length - 1) > 0.50)) {
+        return true;
+      }
+    }
+
+    // Detector 3: phrase of 3-5 words repeated 4+ times
+    for (var phraseLen = 3; phraseLen <= 5; phraseLen++) {
+      if (words.length < phraseLen * 4) continue;
+      final phrases = <String, int>{};
+      for (var i = 0; i <= words.length - phraseLen; i++) {
+        final phrase = words.sublist(i, i + phraseLen).join(' ');
+        phrases[phrase] = (phrases[phrase] ?? 0) + 1;
+      }
+      if (phrases.values.any((c) => c >= 4)) return true;
+    }
+
+    return false;
+  }
+
   /// Whether the VAD is currently detecting speech.
   /// Used by the worker isolate to decide when to emit preview transcriptions.
   bool get isSpeechDetected => _vad?.isDetected() ?? false;
@@ -369,6 +448,8 @@ class LocalSttEngine {
     _vad = null;
     _recognizer?.free();
     _recognizer = null;
+    _recognizerConfig = null;
+    _inferenceCount = 0;
     _isInitialized = false;
     debugPrint('[LocalSttEngine] Disposed');
   }

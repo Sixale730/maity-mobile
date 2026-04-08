@@ -17,7 +17,7 @@ CHUNK_DURATION_S = 5.0
 
 # ── VAD defaults (mirrors lib/services/local_stt/local_stt_engine.dart) ───────
 VAD_THRESHOLD = 0.5
-VAD_MIN_SPEECH_DURATION = 0.8   # seconds – filters noise/clicks < 0.8s
+VAD_MIN_SPEECH_DURATION = 0.3   # seconds – filters noise/clicks < 0.3s
 VAD_MIN_SILENCE_DURATION = 1.0  # seconds (Canary overrides to 0.3)
 VAD_MAX_SPEECH_DURATION = 30.0  # seconds
 VAD_WINDOW_SIZE = 512

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_provider_utilities/flutter_provider_utilities.dart';
 import 'package:omi/backend/http/api/conversations.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/services/widget_state_service.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/backend/schema/conversation.dart';
@@ -27,6 +28,7 @@ import 'package:omi/services/vad/vad_state.dart';
 import 'package:omi/services/vad/vad_metrics.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
+import 'package:omi/services/widget_state_service.dart';
 import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/platform/platform_service.dart';
 
@@ -36,9 +38,13 @@ import 'package:omi/services/recording/audio_transport_service.dart';
 import 'package:omi/services/recording/transcription_pipeline.dart';
 import 'package:omi/services/recording/persistence_manager.dart';
 import 'package:omi/services/recording/app_lifecycle_manager.dart';
+import 'package:omi/services/recording/telemetry_collector.dart';
+import 'package:omi/services/recording/telemetry_sender.dart';
 import 'package:omi/services/notifications/notification_service.dart';
 import 'package:omi/services/devices/led_breathing_service.dart';
 import 'package:omi/services/devices.dart';
+import 'package:omi/services/speaker/heuristic_correction.dart';
+import 'package:omi/services/speaker/speaker_types.dart';
 
 const _autoSaveNotificationMessages = {
   'en': {
@@ -249,7 +255,7 @@ class CaptureProvider extends ChangeNotifier
     notifyListeners();
     _lifecycle.broadcastRecordingState();
     _lifecycle.updateForegroundNotification(_getNotificationState());
-    _syncWidgetStateToiOS(state);
+    _syncWidgetState();
 
     // Signal callers awaiting recording readiness.
     final c = _recordingReadyCompleter;
@@ -262,18 +268,12 @@ class CaptureProvider extends ChangeNotifier
     }
   }
 
-  /// Sync recording state to iOS widget via MethodChannel → App Group UserDefaults
-  void _syncWidgetStateToiOS(RecordingState state) {
-    final isRecording = state == RecordingState.record ||
-        state == RecordingState.deviceRecord ||
-        state == RecordingState.systemAudioRecord;
-    final isPaused = state == RecordingState.pause || _stateMachine.isPaused;
-    const channel = MethodChannel('com.maity.app/widget');
-    channel.invokeMethod('updateWidgetState', {
-      'isRecording': isRecording,
-      'isPaused': isPaused,
-      'segmentCount': segments.length,
-    }).catchError((e) => debugPrint('[Widget] Sync error: $e'));
+  void _syncWidgetState() {
+    WidgetStateService.syncState(
+      isRecording: _stateMachine.isRecording,
+      isPaused: _stateMachine.isPaused,
+      segmentCount: segments.length,
+    );
   }
 
   void updateRecordingDevice(BtDevice? device) {
@@ -305,6 +305,11 @@ class CaptureProvider extends ChangeNotifier
       source: RecordingSource.phoneMic,
       sessionId: sessionId,
       userId: userId,
+    );
+    TelemetryCollector.instance.startSession(
+      sessionId: sessionId,
+      audioSource: 'phone_mic',
+      startedAt: _stateMachine.recordingStartTime,
     );
 
     _captureLog.startSession(
@@ -386,6 +391,7 @@ class CaptureProvider extends ChangeNotifier
     _captureLog.log('recording', 'recording_stop_requested',
         details: {'source': 'phone_mic'});
     _pipeline.stopHealthMonitor();
+    TelemetryCollector.instance.markStopped();
 
     // Instant UI feedback: transition to processing state
     updateRecordingState(RecordingState.processing);
@@ -425,8 +431,19 @@ class CaptureProvider extends ChangeNotifier
     CaptureProvider.isRecordingWithPhoneMic = false;
     _pipeline.stopSocket('user cancel - no segments');
     updateRecordingState(RecordingState.stop);
+    _flushDiscardedTelemetry();
     await _resetStateVariables();
     _captureLog.endSession();
+  }
+
+  /// Send telemetry for a discarded session (no upload will be attached).
+  /// Used when the user cancels or silence-timeout fires with zero segments.
+  void _flushDiscardedTelemetry() {
+    if (TelemetryCollector.instance.currentSessionId == null) return;
+    TelemetryCollector.instance.markStopped();
+    final snap = TelemetryCollector.instance.snapshot();
+    TelemetrySender.send(snapshot: snap, outcome: 'discarded');
+    TelemetryCollector.instance.reset();
   }
 
   // ---------------------------------------------------------------------------
@@ -442,6 +459,11 @@ class CaptureProvider extends ChangeNotifier
       source: RecordingSource.bleDevice,
       sessionId: sessionId,
       userId: userId,
+    );
+    TelemetryCollector.instance.startSession(
+      sessionId: sessionId,
+      audioSource: 'ble',
+      startedAt: _stateMachine.recordingStartTime,
     );
 
     _captureLog.startSession(
@@ -486,6 +508,7 @@ class CaptureProvider extends ChangeNotifier
     _captureLog.log('recording', 'recording_stop_requested',
         details: {'source': 'ble_device'});
     _pipeline.stopHealthMonitor();
+    TelemetryCollector.instance.markStopped();
 
     // Instant UI feedback: transition to processing state
     updateRecordingState(RecordingState.processing);
@@ -567,6 +590,11 @@ class CaptureProvider extends ChangeNotifier
       userId: userId,
     );
     _stateMachine.shouldAutoResumeAfterWake = true;
+    TelemetryCollector.instance.startSession(
+      sessionId: sessionId,
+      audioSource: 'system_audio',
+      startedAt: _stateMachine.recordingStartTime,
+    );
 
     _captureLog.startSession(
       sessionId,
@@ -606,6 +634,7 @@ class CaptureProvider extends ChangeNotifier
     _captureLog.log('recording', 'recording_stop_requested',
         details: {'source': 'system_audio'});
     _pipeline.stopHealthMonitor();
+    TelemetryCollector.instance.markStopped();
 
     // Instant UI feedback: transition to processing state
     updateRecordingState(RecordingState.processing);
@@ -956,6 +985,24 @@ class CaptureProvider extends ChangeNotifier
   // ---------------------------------------------------------------------------
 
   void _onNewSegments(List<TranscriptSegment> newSegments) {
+    // Keep telemetry segment/word counters fresh during the session.
+    // PersistenceManager re-derives the final counts at finalize time, but
+    // updating here means a discarded/cancelled session still reports
+    // accurate numbers when no upload happens.
+    final wordCount = segments.fold<int>(
+        0,
+        (sum, s) =>
+            sum + s.text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length);
+    TelemetryCollector.instance.updateSegmentMetrics(
+      segmentsCount: segments.length,
+      wordsCount: wordCount,
+    );
+    // Capture which STT provider produced these segments
+    final activeProvider = _pipeline.activeSttProvider;
+    if (activeProvider != null) {
+      TelemetryCollector.instance.setSttProvider(activeProvider.name);
+    }
+
     _persistence.scheduleLocalSave(
       segments,
       _stateMachine.currentSessionId,
@@ -1016,12 +1063,15 @@ class CaptureProvider extends ChangeNotifier
       _audioTransport.stopPhoneMicRecording();
       _pipeline.stopSocket('silence timeout - no segments');
       updateRecordingState(RecordingState.stop);
+      // Discarded session — send telemetry directly (no upload to attach to)
+      _flushDiscardedTelemetry();
       await _resetStateVariables();
       return;
     }
 
     // Capture pause state before FSM transitions clear it
     _restartPaused = _stateMachine.isPaused;
+    TelemetryCollector.instance.markStopped();
 
     _captureLog.log('recording', 'silence_timeout_auto_save', details: {
       'segments_count': segments.length,
@@ -1154,6 +1204,10 @@ class CaptureProvider extends ChangeNotifier
     }
     _isFinalizing = true;
     try {
+      // Apply heuristic speaker corrections on full segment list before upload.
+      // Only applies to local STT segments that have confidence scores.
+      _applyHeuristicCorrections();
+
       final success = await _persistence.finalizeConversation(
         segments: List.from(segments),
         userId: _stateMachine.cachedRecordingUserId ??
@@ -1171,6 +1225,44 @@ class CaptureProvider extends ChangeNotifier
       }
     } finally {
       _isFinalizing = false;
+    }
+  }
+
+  /// Apply heuristic speaker corrections to all segments with confidence scores.
+  ///
+  /// Runs the 5 linguistic rules (question-answer, self-reference, isolated
+  /// speaker, turn rhythm, vocabulary) on the full segment list. Only corrects
+  /// segments with low confidence (< 0.60). Mutates [segments] in place.
+  void _applyHeuristicCorrections() {
+    // Only process segments that have confidence (local STT with scorer)
+    final scoredSegments = <ScoredSegment>[];
+    for (var i = 0; i < segments.length; i++) {
+      final seg = segments[i];
+      if (seg.confidence != null) {
+        scoredSegments.add(ScoredSegment(
+          index: i,
+          text: seg.text,
+          speakerId: seg.speakerId,
+          confidence: seg.confidence!,
+          startTime: seg.start,
+          endTime: seg.end,
+        ));
+      }
+    }
+
+    if (scoredSegments.length < 2) return;
+
+    final corrections = applyHeuristicCorrections(scoredSegments);
+    if (corrections.isEmpty) return;
+
+    debugPrint('[CaptureProvider] Applying ${corrections.length} heuristic corrections');
+
+    for (final c in corrections) {
+      final seg = segments[c.segmentIndex];
+      seg.isUser = c.correctedSpeaker == 0;
+      seg.speaker = 'SPEAKER_${c.correctedSpeaker}';
+      seg.speakerId = c.correctedSpeaker;
+      seg.correctionSource = c.correctionSource;
     }
   }
 

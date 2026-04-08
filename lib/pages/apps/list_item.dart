@@ -14,9 +14,7 @@ import 'app_detail/app_detail.dart';
 class AppListItem extends StatelessWidget {
   final App app;
   final int index;
-  final bool showPrivateIcon;
-
-  const AppListItem({super.key, required this.app, required this.index, this.showPrivateIcon = true});
+  const AppListItem({super.key, required this.app, required this.index});
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +90,7 @@ class AppListItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        app.name.decodeString + (app.private && showPrivateIcon ? " 🔒".decodeString : ''),
+                        app.name.decodeString,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,

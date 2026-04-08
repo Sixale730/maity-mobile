@@ -520,7 +520,7 @@ class AppProvider extends BaseProvider {
         }
         filteredApps.removeWhere((app) => app.id == appId);
         updatePrefApps();
-        AppSnackbar.showSnackbarSuccess('App deleted successfully 🗑️');
+        AppSnackbar.showSnackbarSuccess('App deleted successfully');
         notifyListeners();
       } else {
         debugPrint("Warning: Tried to delete app $appId but it wasn't found in the 'apps' list.");

@@ -10,6 +10,7 @@ import 'package:omi/pages/home/firmware_update.dart';
 import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/services/devices.dart';
 import 'package:omi/services/notifications.dart';
+import 'package:omi/services/recording/telemetry_collector.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
@@ -177,7 +178,7 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
           _hasLowBatteryAlerted = true;
           NotificationService.instance.createNotification(
             title: "Low Battery Alert",
-            body: "Your device is running low on battery. Time for a recharge! 🔋",
+            body: "Your device is running low on battery. Time for a recharge!",
           );
         } else if (batteryLevel > 20) {
           _hasLowBatteryAlerted = true;
@@ -366,6 +367,13 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
       'device_id': connectedDevice?.id,
       'device_name': connectedDevice?.name,
     });
+    // Telemetry: only count disconnects that happen while a recording session
+    // is active. Disconnects during idle don't pollute the metric.
+    if (captureProvider?.recordingState == RecordingState.deviceRecord) {
+      TelemetryCollector.instance.recordBleDisconnect(
+        reason: connectedDevice?.name,
+      );
+    }
     _havingNewFirmware = false;
     setConnectedDevice(null);
     setisDeviceStorageSupport();

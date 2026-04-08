@@ -270,7 +270,7 @@ class TranscriptSegmentSocketService implements IPureSocketListener {
     NotificationService.instance.clearNotification(2);
     NotificationService.instance.createNotification(
       notificationId: 2,
-      title: 'Connection Issue 🚨',
+      title: 'Connection Issue',
       body: 'Unable to connect to the transcript service.'
           ' Please restart the app or contact support if the problem persists.',
     );
@@ -493,6 +493,21 @@ class TranscriptSocketServiceFactory {
       }
     }
 
+    // Load acoustic profile if available
+    String? acousticProfileJson;
+    final profilePath = prefs.acousticProfilePath;
+    if (profilePath.isNotEmpty) {
+      final profileFile = File(profilePath);
+      if (profileFile.existsSync()) {
+        try {
+          acousticProfileJson = profileFile.readAsStringSync();
+          debugPrint('[STTFactory] Acoustic profile loaded for local STT');
+        } catch (e) {
+          debugPrint('[STTFactory] Failed to load acoustic profile: $e');
+        }
+      }
+    }
+
     // maxSpeechDuration per model: VAD native mechanism (threshold→0.9) activates
     // at this threshold, force-flush is the hard cap if no pause is found.
     // Parakeet (transducer): 20s — tolerates arbitrary cuts, aligned with
@@ -504,12 +519,17 @@ class TranscriptSocketServiceFactory {
       LocalSttModelType.moonshine => null, // uses engine default (30s)
     };
 
+    // Platform-based thread count: desktop gets more threads, mobile stays conservative
+    final numThreads = Platform.isAndroid || Platform.isIOS ? 2 : 4;
+
     final localSocket = LocalSttSocket(
       modelPath: modelPath,
       modelType: modelType,
       speakerModelPath: speakerModelPath,
       userEmbeddingBytes: userEmbeddingBytes,
       maxSpeechDuration: maxSpeechDuration,
+      numThreads: numThreads,
+      acousticProfileJson: acousticProfileJson,
     );
 
     final service = TranscriptSegmentSocketService.withSocket(

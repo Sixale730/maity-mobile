@@ -845,7 +845,7 @@ class DesktopActionsPageState extends State<DesktopActionsPage>
   String _getEmptyTabMessage() {
     switch (_selectedTabIndex) {
       case 0: // To Do
-        return '🎉 All caught up!\nNo pending action items';
+        return 'All caught up!\nNo pending action items';
       case 1: // Done
         return 'No completed items yet';
       case 2: // Snoozed

@@ -300,7 +300,7 @@ class AiAppGeneratorProvider extends ChangeNotifier {
       if (result.$1) {
         _createdAppId = result.$3;
         _state = GenerationState.completed;
-        AppSnackbar.showSnackbarSuccess('App created successfully! 🎉');
+        AppSnackbar.showSnackbarSuccess('App created successfully!');
 
         // Refresh apps list
         await appProvider?.getApps();

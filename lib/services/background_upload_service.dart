@@ -8,6 +8,7 @@ import 'package:omi/backend/http/shared.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/env/env.dart';
 import 'package:omi/services/capture_log_service.dart';
+import 'package:omi/services/recording/telemetry_sender.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -24,6 +25,10 @@ class PendingUpload {
   final String? structuredJson;
   final String idempotencyKey;
 
+  /// Telemetry snapshot captured at finalize time. Sent to
+  /// `insert_recording_telemetry` after the upload completes (or fails).
+  final Map<String, dynamic>? telemetry;
+
   PendingUpload({
     required this.id,
     required this.filePath,
@@ -35,6 +40,7 @@ class PendingUpload {
     this.lastRetryAt,
     this.structuredJson,
     required this.idempotencyKey,
+    this.telemetry,
   });
 
   Map<String, dynamic> toJson() => {
@@ -48,6 +54,7 @@ class PendingUpload {
         'last_retry_at': lastRetryAt?.toUtc().toIso8601String(),
         'structured_json': structuredJson,
         'idempotency_key': idempotencyKey,
+        'telemetry': telemetry,
       };
 
   factory PendingUpload.fromJson(Map<String, dynamic> json) => PendingUpload(
@@ -63,6 +70,7 @@ class PendingUpload {
             : null,
         structuredJson: json['structured_json'] as String?,
         idempotencyKey: (json['idempotency_key'] as String?) ?? const Uuid().v4(),
+        telemetry: (json['telemetry'] as Map?)?.cast<String, dynamic>(),
       );
 }
 
@@ -125,6 +133,7 @@ class BackgroundUploadService {
     String? userId,
     String source = 'omi',
     Map<String, dynamic>? structured,
+    Map<String, dynamic>? telemetry,
   }) async {
     final id = const Uuid().v4();
     final idempotencyKey = const Uuid().v4();
@@ -145,6 +154,7 @@ class BackgroundUploadService {
       source: source,
       structuredJson: structured != null ? jsonEncode(structured) : null,
       idempotencyKey: idempotencyKey,
+      telemetry: telemetry,
     );
 
     _queue.add(upload);
@@ -205,6 +215,9 @@ class BackgroundUploadService {
           });
           debugPrint('[BackgroundUpload] Upload ${upload.id} succeeded');
 
+          // Send telemetry: upload succeeded
+          _sendTelemetry(upload, 'completed');
+
           // Notify listeners that an upload completed
           uploadCompleted.value = !uploadCompleted.value;
         } else if (resultType == ApiCallResultType.permanent) {
@@ -218,6 +231,9 @@ class BackgroundUploadService {
           await _deleteUploadFile(upload.filePath);
           _queue.remove(upload);
           await _saveQueue();
+
+          // Send telemetry: permanent failure
+          _sendTelemetry(upload, 'failed');
         } else if (resultType == ApiCallResultType.authFailure) {
           // Auth issue — don't increment retry count
           debugPrint(
@@ -255,6 +271,9 @@ class BackgroundUploadService {
         // Don't delete the file — keep it for potential manual retry
         _queue.remove(dead);
         _deadLetterQueue.add(dead);
+
+        // Send telemetry: failed after max retries
+        _sendTelemetry(dead, 'failed');
       }
       if (deadItems.isNotEmpty) {
         await _saveQueue();
@@ -452,6 +471,36 @@ class BackgroundUploadService {
 
   static String _encodeJsonList(List<Map<String, dynamic>> data) =>
       jsonEncode(data);
+
+  /// Fire-and-forget: send recording-session telemetry to Supabase.
+  /// upload_latency_ms is computed from the upload's `finishedAt` (recording
+  /// stop) until now.
+  ///
+  /// If the snapshot contains a `_success_outcome` key (e.g. 'recovered'),
+  /// it overrides the success-path outcome. Failure-path outcomes are never
+  /// overridden.
+  void _sendTelemetry(PendingUpload upload, String outcome) {
+    final telemetry = upload.telemetry;
+    if (telemetry == null) return;
+    final latencyMs =
+        DateTime.now().difference(upload.finishedAt).inMilliseconds;
+
+    var effectiveOutcome = outcome;
+    if (outcome == 'completed') {
+      final override = telemetry['_success_outcome'];
+      if (override is String && override.isNotEmpty) {
+        effectiveOutcome = override;
+      }
+    }
+
+    // Fire-and-forget — TelemetrySender swallows all errors internally.
+    TelemetrySender.send(
+      snapshot: telemetry,
+      outcome: effectiveOutcome,
+      uploadRetries: upload.retryCount,
+      uploadLatencyMs: latencyMs >= 0 ? latencyMs : null,
+    );
+  }
 
   void dispose() {
     _retryTimer?.cancel();

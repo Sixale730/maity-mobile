@@ -634,7 +634,7 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
                 ),
           const SizedBox(height: 24),
           Text(
-            isConnected ? '✨ Ready to chat!' : '🌐 Connection needed',
+            isConnected ? 'Ready to chat!' : 'Connection needed',
             style: const TextStyle(
               color: ResponsiveHelper.textPrimary,
               fontSize: 20,
@@ -977,7 +977,7 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '📎 Attached Files',
+            'Attached Files',
             style: TextStyle(
               color: ResponsiveHelper.textSecondary,
               fontSize: 12,
@@ -1393,7 +1393,7 @@ class DesktopChatPageState extends State<DesktopChatPage> with AutomaticKeepAliv
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: const Text('✨ Message copied to clipboard'),
+                content: const Text('Message copied to clipboard'),
                 backgroundColor: ResponsiveHelper.purplePrimary,
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
