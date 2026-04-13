@@ -6,6 +6,14 @@ import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/local_stt_worker.dart';
 import 'package:omi/services/sockets/pure_socket.dart';
 
+/// Pending chunk buffered while the worker isolate is starting up.
+class _PendingChunk {
+  final String filePath;
+  final String chunkId;
+  final double offsetSeconds;
+  const _PendingChunk(this.filePath, this.chunkId, this.offsetSeconds);
+}
+
 /// IPureSocket adapter that bridges a worker isolate running [LocalSttEngine]
 /// to the transcription pipeline.
 ///
@@ -17,6 +25,14 @@ import 'package:omi/services/sockets/pure_socket.dart';
 /// All heavy FFI work (VAD + decode) runs in the worker isolate, so the main
 /// isolate is never blocked. Each [connect] spawns a fresh worker with a fresh
 /// engine, eliminating stale VAD state between reconnects.
+///
+/// Resilience features:
+/// - **Circuit breaker**: After [_maxConsecutiveErrors] consecutive errors,
+///   stops sending chunks to prevent battery drain from a broken worker.
+/// - **Pending queue**: Buffers up to [_maxPendingChunks] chunks while the
+///   worker is connecting/respawning, drained on 'ready'.
+/// - **Heartbeat**: Ping/pong every [_heartbeatInterval]; if no pong within
+///   [_heartbeatTimeout], kills and respawns the worker.
 class LocalSttSocket implements IPureSocket {
   PureSocketStatus _status = PureSocketStatus.notConnected;
   IPureSocketListener? _listener;
@@ -43,6 +59,22 @@ class LocalSttSocket implements IPureSocket {
   StreamSubscription? _mainReceiveSubscription;
   Completer<void>? _initCompleter;
   Completer<void>? _flushCompleter;
+
+  // --- Circuit breaker ---
+  int _consecutiveErrors = 0;
+  static const int _maxConsecutiveErrors = 5;
+  bool _circuitOpen = false;
+
+  // --- Pending chunk queue (buffers during worker spawn) ---
+  final List<_PendingChunk> _pendingChunks = [];
+  static const int _maxPendingChunks = 12; // 60s of audio (12 × 5s chunks)
+
+  // --- Heartbeat ---
+  Timer? _heartbeatTimer;
+  DateTime? _lastPong;
+  bool _isRespawning = false;
+  static const Duration _heartbeatInterval = Duration(seconds: 10);
+  static const Duration _heartbeatTimeout = Duration(seconds: 15);
 
   LocalSttSocket({
     required String? modelPath,
@@ -130,6 +162,9 @@ class LocalSttSocket implements IPureSocket {
       _initCompleter = null;
 
       _status = PureSocketStatus.connected;
+      _circuitOpen = false;
+      _consecutiveErrors = 0;
+      _startHeartbeat();
       onConnected();
       return true;
     } catch (e) {
@@ -146,10 +181,25 @@ class LocalSttSocket implements IPureSocket {
   /// The worker reads the PCM16 file, decodes it, and responds with
   /// `['chunk_result', chunkId, jsonSegments?, vadActive]`.
   void processChunk(String filePath, String chunkId, double offsetSeconds) {
-    if (_workerSendPort == null) {
-      debugPrint('[LocalSttSocket] Cannot process chunk: worker not connected');
+    // Circuit breaker: skip if too many consecutive errors
+    if (_circuitOpen) {
+      debugPrint('[LocalSttSocket] Circuit open, skipping chunk $chunkId');
+      onChunkProcessed?.call(chunkId);
       return;
     }
+
+    // Buffer chunks while worker is connecting/respawning
+    if (_workerSendPort == null) {
+      if (_pendingChunks.length >= _maxPendingChunks) {
+        _pendingChunks.removeAt(0);
+        debugPrint('[LocalSttSocket] Pending queue full, dropping oldest chunk');
+      }
+      _pendingChunks.add(_PendingChunk(filePath, chunkId, offsetSeconds));
+      debugPrint('[LocalSttSocket] Worker not ready, queuing chunk $chunkId '
+          '(${_pendingChunks.length} pending)');
+      return;
+    }
+
     _workerSendPort!.send(['process_chunk', filePath, chunkId, offsetSeconds]);
   }
 
@@ -193,6 +243,7 @@ class LocalSttSocket implements IPureSocket {
     // Flush VAD tail before disconnecting
     await flushNow();
 
+    _stopHeartbeat();
     _shutdownWorker();
     _status = PureSocketStatus.disconnected;
     debugPrint('[LocalSttSocket] Disconnected');
@@ -201,6 +252,7 @@ class LocalSttSocket implements IPureSocket {
 
   @override
   Future stop() async {
+    _stopHeartbeat();
     _shutdownWorker();
     _status = PureSocketStatus.disconnected;
   }
@@ -230,6 +282,79 @@ class LocalSttSocket implements IPureSocket {
     _flushCompleter = null;
   }
 
+  // ---------------------------------------------------------------------------
+  // Heartbeat
+  // ---------------------------------------------------------------------------
+
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _lastPong = DateTime.now();
+    _heartbeatTimer =
+        Timer.periodic(_heartbeatInterval, (_) => _checkHeartbeat());
+  }
+
+  void _stopHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+  }
+
+  void _checkHeartbeat() {
+    if (_workerSendPort == null || _isRespawning) return;
+    _workerSendPort!.send(['ping']);
+
+    if (_lastPong != null &&
+        DateTime.now().difference(_lastPong!) > _heartbeatTimeout) {
+      debugPrint('[LocalSttSocket] Worker heartbeat timeout — respawning');
+      _respawnWorker();
+    }
+  }
+
+  Future<void> _respawnWorker() async {
+    if (_isRespawning) return;
+    _isRespawning = true;
+    _stopHeartbeat();
+    debugPrint('[LocalSttSocket] Respawning worker isolate...');
+
+    try {
+      _workerIsolate?.kill(priority: Isolate.beforeNextEvent);
+      _cleanup();
+      _status = PureSocketStatus.notConnected;
+
+      final success = await connect();
+      if (success) {
+        debugPrint('[LocalSttSocket] Worker respawned successfully');
+      } else {
+        debugPrint('[LocalSttSocket] Worker respawn failed');
+        onError(Exception('Worker respawn failed'), StackTrace.current);
+      }
+    } catch (e) {
+      debugPrint('[LocalSttSocket] Respawn error: $e');
+      onError(
+          e is Exception ? e : Exception(e.toString()), StackTrace.current);
+    } finally {
+      _isRespawning = false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pending chunk queue
+  // ---------------------------------------------------------------------------
+
+  void _drainPendingChunks() {
+    if (_pendingChunks.isEmpty) return;
+    debugPrint(
+        '[LocalSttSocket] Draining ${_pendingChunks.length} pending chunks');
+    final chunks = List<_PendingChunk>.from(_pendingChunks);
+    _pendingChunks.clear();
+    for (final pending in chunks) {
+      processChunk(pending.filePath, pending.chunkId, pending.offsetSeconds);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Message handling
+  // ---------------------------------------------------------------------------
+
   void _handleWorkerMessage(dynamic message) {
     if (message is! List || message.isEmpty) return;
 
@@ -237,6 +362,10 @@ class LocalSttSocket implements IPureSocket {
     switch (type) {
       case 'ready':
         _initCompleter?.complete();
+        _drainPendingChunks();
+
+      case 'pong':
+        _lastPong = DateTime.now();
 
       case 'error':
         final errorMsg = message.length > 1 ? message[1] as String : 'Unknown';
@@ -245,6 +374,15 @@ class LocalSttSocket implements IPureSocket {
         final trace = stackStr != null
             ? StackTrace.fromString(stackStr)
             : StackTrace.current;
+
+        // Circuit breaker: track consecutive errors
+        _consecutiveErrors++;
+        if (_consecutiveErrors >= _maxConsecutiveErrors && !_circuitOpen) {
+          _circuitOpen = true;
+          debugPrint('[LocalSttSocket] Circuit breaker OPEN '
+              'after $_consecutiveErrors consecutive errors');
+        }
+
         onError(Exception(errorMsg), trace);
         // If init was pending, fail it
         if (_initCompleter != null && !_initCompleter!.isCompleted) {
@@ -258,8 +396,9 @@ class LocalSttSocket implements IPureSocket {
         final vadActive =
             message.length > 3 ? message[3] as bool : false;
 
-        // Forward decoded segments to pipeline (same path as before)
+        // Reset circuit breaker on successful decode
         if (jsonSegments != null) {
+          _consecutiveErrors = 0;
           onMessage(jsonSegments);
         }
 

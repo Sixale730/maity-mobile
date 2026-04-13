@@ -12,6 +12,7 @@ import 'package:omi/services/recording/telemetry_collector.dart';
 import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/services/transcript_recovery_service.dart';
 import 'package:omi/services/local_stt/chunk_queue_manager.dart';
+import 'package:omi/services/recording/wav_gap_recovery.dart';
 import 'package:omi/utils/mutex.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -271,6 +272,19 @@ class PersistenceManager {
         }
       } else {
         debugPrint('[PersistenceManager] Long transcript (${transcript.length} chars), backend will process');
+      }
+
+      // Detect transcript gaps for diagnostics
+      if (localSegments.length >= 2) {
+        final recordingDuration =
+            finishedAt.difference(effectiveStartedAt).inSeconds.toDouble();
+        final gaps = WavGapRecovery.detectGaps(
+            localSegments, recordingDuration);
+        if (gaps.isNotEmpty) {
+          final totalGap = gaps.fold<double>(0, (sum, g) => sum + g.duration);
+          debugPrint('[PersistenceManager] Detected ${gaps.length} transcript gaps '
+              '(total: ${totalGap.toStringAsFixed(1)}s): $gaps');
+        }
       }
 
       // Capture telemetry snapshot now (after stop time has been recorded

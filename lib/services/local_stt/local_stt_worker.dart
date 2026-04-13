@@ -71,6 +71,8 @@ void workerEntryPoint(SendPort mainSendPort) {
         worker.handleSendAudio(message[1] as Uint8List);
       case 'flush':
         worker.handleFlush();
+      case 'ping':
+        mainSendPort.send(['pong']);
       case 'shutdown':
         worker.handleShutdown();
         workerReceivePort.close();
