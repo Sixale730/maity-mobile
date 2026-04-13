@@ -1,6 +1,9 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 
+import 'package:omi/services/audio/audio_processing_utils.dart' as audio;
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
 
 /// Result from a local STT decode operation.
@@ -26,6 +29,11 @@ class LocalSttResult {
 /// Audio is fed via [processAudio] as Float32 PCM at 16 kHz.
 /// The VAD detects speech segments and the recognizer decodes them offline.
 class LocalSttEngine {
+  /// XNNPACK gives 2-3x speedup on Android ARM via optimized CPU kernels.
+  /// iOS stays on 'cpu' — CoreML causes OOM (2.9GB on iPhone).
+  static String get _preferredProvider =>
+      Platform.isAndroid ? 'xnnpack' : 'cpu';
+
   sherpa.OfflineRecognizer? _recognizer;
   sherpa.VoiceActivityDetector? _vad;
   bool _isInitialized = false;
@@ -85,7 +93,7 @@ class LocalSttEngine {
             tokens: '$modelDir/tokens.txt',
             numThreads: numThreads,
             debug: false,
-            provider: 'cpu',
+            provider: _preferredProvider,
           ),
           decodingMethod: 'greedy_search',
         );
@@ -107,7 +115,7 @@ class LocalSttEngine {
             tokens: '$modelDir/tokens.txt',
             numThreads: numThreads,
             debug: false,
-            provider: 'cpu',
+            provider: _preferredProvider,
           ),
         );
       } else {
@@ -123,7 +131,7 @@ class LocalSttEngine {
             modelType: 'nemo_transducer',
             numThreads: numThreads,
             debug: false,
-            provider: 'cpu',
+            provider: _preferredProvider,
           ),
           decodingMethod: 'greedy_search',
         );
@@ -158,7 +166,7 @@ class LocalSttEngine {
         ),
         sampleRate: sampleRate,
         numThreads: 1,
-        provider: 'cpu',
+        provider: _preferredProvider,
         debug: false,
       );
 
@@ -249,6 +257,15 @@ class LocalSttEngine {
         final durationMs = ((endTime - startTime) * 1000).toInt();
 
         debugPrint('[LocalSttEngine] VAD segment #$segCount: ${segment.samples.length} samples (${durationMs}ms), start=${startTime.toStringAsFixed(2)}s');
+
+        // Skip short noise bursts: segments < 0.8s with energy below -40dB
+        if (durationMs < 800) {
+          final rmsDb = audio.computeRmsDb(segment.samples);
+          if (rmsDb < -40.0) {
+            debugPrint('[LocalSttEngine] Skipping low-energy segment: ${durationMs}ms, ${rmsDb.toStringAsFixed(1)}dB');
+            continue;
+          }
+        }
 
         // Append silence padding so the decoder sees end-of-utterance.
         // Canary needs more padding (0.5s) than transducer models (0.3s)

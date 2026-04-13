@@ -330,8 +330,10 @@ class _SttWorker {
           '(${(pcm16.length / 32000.0).toStringAsFixed(2)}s audio, '
           'offset ${offsetSeconds.toStringAsFixed(1)}s)');
 
-      // Convert PCM16 to Float32 and decode
-      final samples = _pcm16ToFloat32(Uint8List.fromList(pcm16));
+      // Convert PCM16 to Float32, pre-process, and decode
+      var samples = _pcm16ToFloat32(Uint8List.fromList(pcm16));
+      samples = audio.highPassFilter80Hz(samples);
+      samples = audio.normalizeAudio(samples);
       final results = _engine.processAudio(samples);
 
       final vadActive = _engine.isSpeechDetected;
