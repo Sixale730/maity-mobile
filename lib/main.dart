@@ -49,6 +49,7 @@ import 'package:omi/providers/role_provider.dart';
 import 'package:omi/services/auth_service.dart';
 import 'package:omi/services/background_upload_service.dart';
 import 'package:omi/services/recording/wav_backup_cleanup.dart';
+import 'package:omi/services/local_stt/device_memory_service.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
 import 'package:omi/services/local_stt/speaker_model_download_service.dart';
 import 'package:omi/providers/local_stt_provider.dart';
@@ -152,6 +153,9 @@ Future _init() async {
   await NotificationService.instance.initialize();
 
   await SharedPreferencesUtil.init();
+
+  // Detect device RAM tier for adaptive local STT configuration
+  await DeviceMemoryService.initialize();
 
   // Initialize always-on crash logging (before anything else that might fail)
   await CrashLogManager.instance.init();

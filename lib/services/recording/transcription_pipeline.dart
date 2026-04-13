@@ -11,6 +11,7 @@ import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/connectivity_service.dart';
+import 'package:omi/services/local_stt/device_memory_service.dart';
 import 'package:omi/services/local_stt/audio_chunk_writer.dart';
 import 'package:omi/services/local_stt/chunk_queue_manager.dart';
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
@@ -651,6 +652,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
     // --- First-time path: create writer, controller, session ---
     await queueManager.initialize();
+    queueManager.setMaxQueueSize(DeviceMemoryService.cachedQueueCap);
     final sessionDir = await queueManager.startSession(chunkSessionId!);
 
     // Create chunk writer that flushes to disk every 5s

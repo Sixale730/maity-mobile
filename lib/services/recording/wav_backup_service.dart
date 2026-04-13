@@ -126,6 +126,7 @@ class WavBackupService {
       final currentPos = _raf!.positionSync();
       _raf!.setPositionSync(0);
       _raf!.writeFromSync(_buildWavHeader(_dataBytes));
+      _raf!.flushSync();
       _raf!.setPositionSync(currentPos);
     } catch (e) {
       debugPrint('[WavBackup] Header refresh error: $e');

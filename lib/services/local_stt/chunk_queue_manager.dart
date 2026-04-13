@@ -27,6 +27,10 @@ class ChunkQueueManager {
   /// Per-session chunk index: sessionId → ordered list of ChunkMeta.
   final Map<String, List<ChunkMeta>> _chunkIndex = {};
 
+  /// Maximum pending chunks per session (prevents unbounded growth on low-RAM devices).
+  /// Set via [setMaxQueueSize] based on [DeviceTier]. Default: 200 (high tier).
+  int _maxQueueSize = 200;
+
   /// Tracks which sessions have been finalized (ready for cleanup).
   final Set<String> _finalizedSessions = {};
 
@@ -53,6 +57,12 @@ class ChunkQueueManager {
   static const String _indexFileName = 'chunk_index.json';
 
   ChunkQueueManager._();
+
+  /// Set queue cap based on device tier.
+  void setMaxQueueSize(int cap) {
+    _maxQueueSize = cap;
+    debugPrint('[ChunkQueueManager] Queue cap set to $_maxQueueSize');
+  }
 
   /// Initialize: load persisted index, recover pending chunks.
   Future<void> initialize() async {
@@ -88,7 +98,24 @@ class ChunkQueueManager {
   /// Enqueue a new chunk (called by AudioChunkWriter.onChunkWritten).
   Future<void> enqueueChunk(ChunkMeta meta) async {
     _chunkIndex.putIfAbsent(meta.sessionId, () => []);
-    _chunkIndex[meta.sessionId]!.add(meta);
+    final sessionChunks = _chunkIndex[meta.sessionId]!;
+
+    // Enforce queue cap: drop oldest pending chunk if over limit
+    final pendingCount =
+        sessionChunks.where((c) => c.state == ChunkState.pending).length;
+    if (pendingCount >= _maxQueueSize) {
+      try {
+        final oldest =
+            sessionChunks.firstWhere((c) => c.state == ChunkState.pending);
+        oldest.state = ChunkState.deleted;
+        debugPrint('[ChunkQueueManager] Queue cap reached ($_maxQueueSize), '
+            'dropping chunk ${oldest.sequence}');
+      } catch (_) {
+        // No pending chunks to drop (shouldn't happen given pendingCount > 0)
+      }
+    }
+
+    sessionChunks.add(meta);
     await _saveIndex();
     debugPrint(
         '[ChunkQueueManager] Enqueued chunk ${meta.sequence} for ${meta.sessionId} '

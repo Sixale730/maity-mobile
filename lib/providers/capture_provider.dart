@@ -32,6 +32,7 @@ import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/platform/platform_service.dart';
 
 // New decomposed services
+import 'package:omi/services/local_stt/device_memory_service.dart';
 import 'package:omi/services/recording/recording_state_machine.dart';
 import 'package:omi/services/recording/audio_transport_service.dart';
 import 'package:omi/services/recording/transcription_pipeline.dart';
@@ -291,10 +292,41 @@ class CaptureProvider extends ChangeNotifier
   }
 
   // ---------------------------------------------------------------------------
+  // Pre-flight checks
+  // ---------------------------------------------------------------------------
+
+  /// Returns true if there's enough RAM to start local STT recording.
+  /// Only applies when using on-device STT (Parakeet/Moonshine/Canary).
+  Future<bool> _passesPreFlightRamCheck() async {
+    final config = SharedPreferencesUtil().customSttConfig;
+    if (!config.isEnabled) return true; // Default cloud STT, no RAM concern
+
+    final provider = config.provider;
+    if (provider != SttProvider.localParakeet &&
+        provider != SttProvider.localMoonshine &&
+        provider != SttProvider.localCanary) {
+      return true; // Cloud STT doesn't need RAM check
+    }
+
+    final ramMb = await DeviceMemoryService.getAvailableRamMb();
+    if (ramMb < DeviceMemoryService.minRamForRecordingMb) {
+      debugPrint('[CaptureProvider] Pre-flight RAM check failed: ${ramMb}MB available '
+          '(min ${DeviceMemoryService.minRamForRecordingMb}MB)');
+      return false;
+    }
+    return true;
+  }
+
+  // ---------------------------------------------------------------------------
   // Phone mic recording
   // ---------------------------------------------------------------------------
 
   Future<void> streamRecording() async {
+    if (!await _passesPreFlightRamCheck()) {
+      debugPrint('[CaptureProvider] Recording blocked: insufficient RAM');
+      return;
+    }
+
     updateRecordingState(RecordingState.initialising);
     _recordingReadyCompleter = Completer<void>();
 
@@ -450,6 +482,11 @@ class CaptureProvider extends ChangeNotifier
   // ---------------------------------------------------------------------------
 
   Future<void> streamDeviceRecording({BtDevice? device}) async {
+    if (!await _passesPreFlightRamCheck()) {
+      debugPrint('[CaptureProvider] Recording blocked: insufficient RAM');
+      return;
+    }
+
     if (device != null) updateRecordingDevice(device);
 
     final userId = SupabaseAuthService.instance.maityUserId;
@@ -578,6 +615,11 @@ class CaptureProvider extends ChangeNotifier
   Future<void> streamSystemAudioRecording() async {
     if (!PlatformService.isDesktop) {
       notifyError('System audio recording is only available on macOS and Windows.');
+      return;
+    }
+
+    if (!await _passesPreFlightRamCheck()) {
+      debugPrint('[CaptureProvider] Recording blocked: insufficient RAM');
       return;
     }
 

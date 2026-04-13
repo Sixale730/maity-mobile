@@ -12,6 +12,7 @@ import 'package:omi/env/env.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/services/capture_log_service.dart';
+import 'package:omi/services/local_stt/device_memory_service.dart';
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/local_stt_socket.dart';
 import 'package:omi/services/notifications.dart';
@@ -519,8 +520,8 @@ class TranscriptSocketServiceFactory {
       LocalSttModelType.moonshine => null, // uses engine default (30s)
     };
 
-    // Platform-based thread count: desktop gets more threads, mobile stays conservative
-    final numThreads = Platform.isAndroid || Platform.isIOS ? 2 : 4;
+    // Tier-based thread count: adapts to available RAM on mobile
+    final numThreads = DeviceMemoryService.cachedThreadCount;
 
     final localSocket = LocalSttSocket(
       modelPath: modelPath,
