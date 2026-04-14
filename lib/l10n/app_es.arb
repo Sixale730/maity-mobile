@@ -802,5 +802,26 @@
   "viewDownload": "Ver descarga",
   "speakerModelDownloading": "Descargando modelo de identificacion de voz...",
   "omiRecording": "Grabando con OMI",
-  "viewTranscription": "Ver transcripción"
+  "viewTranscription": "Ver transcripción",
+
+  "consentTitle": "Datos y Privacidad",
+  "consentSignInWith": "Iniciar sesión con {provider}",
+  "@consentSignInWith": {
+    "placeholders": {
+      "provider": {"type": "String"}
+    }
+  },
+  "consentContinue": "Continuar",
+  "consentContinueWith": "Continuar con {provider}",
+  "@consentContinueWith": {
+    "placeholders": {
+      "provider": {"type": "String"}
+    }
+  },
+  "consentCancel": "Cancelar",
+  "consentMainMessage": "Al continuar, las transcripciones de tus conversaciones (texto) se enviarán a OpenAI para generar resúmenes, tareas e insights de comunicación. Tus datos se almacenan de forma segura en nuestros servidores.",
+  "consentPrivacyNotice": "Tus datos están protegidos y regidos por nuestra ",
+  "consentPrivacyPolicy": "Política de Privacidad",
+  "consentAnd": " y ",
+  "consentTermsOfService": "Términos de Servicio"
 }

@@ -1075,5 +1075,26 @@
   "viewDownload": "View download",
   "speakerModelDownloading": "Downloading speaker identification model...",
   "omiRecording": "Recording with OMI",
-  "viewTranscription": "View Transcription"
+  "viewTranscription": "View Transcription",
+
+  "consentTitle": "Data & Privacy",
+  "consentSignInWith": "Sign in with {provider}",
+  "@consentSignInWith": {
+    "placeholders": {
+      "provider": {"type": "String"}
+    }
+  },
+  "consentContinue": "Continue",
+  "consentContinueWith": "Continue with {provider}",
+  "@consentContinueWith": {
+    "placeholders": {
+      "provider": {"type": "String"}
+    }
+  },
+  "consentCancel": "Cancel",
+  "consentMainMessage": "By continuing, your conversation transcripts (text) will be sent to OpenAI to generate summaries, tasks, and communication insights. Your data is stored securely on our servers.",
+  "consentPrivacyNotice": "Your data is protected and governed by our ",
+  "consentPrivacyPolicy": "Privacy Policy",
+  "consentAnd": " and ",
+  "consentTermsOfService": "Terms of Service"
 }

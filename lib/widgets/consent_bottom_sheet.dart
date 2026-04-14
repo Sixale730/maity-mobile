@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -16,6 +17,9 @@ class ConsentBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final providerName = authMethod == 'apple' ? 'Apple' : 'Google';
+
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFF1C1C1E),
@@ -41,9 +45,9 @@ class ConsentBottomSheet extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Title
-                const Text(
-                  'Data & Privacy',
-                  style: TextStyle(
+                Text(
+                  l10n.consentTitle,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -78,8 +82,8 @@ class ConsentBottomSheet extends StatelessWidget {
                     const SizedBox(width: 12),
                     Text(
                       authMethod == 'anonymous'
-                          ? 'Continuar'
-                          : 'Sign in with ${authMethod == 'apple' ? 'Apple' : 'Google'}',
+                          ? l10n.consentContinue
+                          : l10n.consentSignInWith(providerName),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -91,10 +95,10 @@ class ConsentBottomSheet extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-                // Main message
-                const Text(
-                  'By continuing, all data you share with this app (including your conversations, recordings, and personal information) will be securely stored on our servers to provide you with AI-powered insights and enable all app features.',
-                  style: TextStyle(
+                // Main message with AI disclosure
+                Text(
+                  l10n.consentMainMessage,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     height: 1.4,
@@ -112,9 +116,9 @@ class ConsentBottomSheet extends StatelessWidget {
                       height: 1.4,
                     ),
                     children: [
-                      const TextSpan(text: 'Your data is protected and governed by our '),
+                      TextSpan(text: l10n.consentPrivacyNotice),
                       TextSpan(
-                        text: 'Privacy Policy',
+                        text: l10n.consentPrivacyPolicy,
                         style: const TextStyle(
                           color: Colors.white,
                           decoration: TextDecoration.underline,
@@ -124,9 +128,9 @@ class ConsentBottomSheet extends StatelessWidget {
                             context.read<AuthenticationProvider>().openPrivacyPolicy();
                           },
                       ),
-                      const TextSpan(text: ' and '),
+                      TextSpan(text: l10n.consentAnd),
                       TextSpan(
-                        text: 'Terms of Service',
+                        text: l10n.consentTermsOfService,
                         style: const TextStyle(
                           color: Colors.white,
                           decoration: TextDecoration.underline,
@@ -165,8 +169,8 @@ class ConsentBottomSheet extends StatelessWidget {
                         ),
                         child: Text(
                           authMethod == 'anonymous'
-                              ? 'Continuar'
-                              : 'Continue with ${authMethod == 'apple' ? 'Apple' : 'Google'}',
+                              ? l10n.consentContinue
+                              : l10n.consentContinueWith(providerName),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -191,9 +195,9 @@ class ConsentBottomSheet extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(
+                        child: Text(
+                          l10n.consentCancel,
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
                           ),
