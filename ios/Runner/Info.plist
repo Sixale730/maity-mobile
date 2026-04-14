@@ -97,6 +97,8 @@
 	<string>Camera access is required to report issues</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Access contacts for event attendee editing.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>When creating your memories, we use your location for determining where they were created.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>When creating your memories, we use your location for determining where they were created.</string>
 	<key>NSMicrophoneUsageDescription</key>
