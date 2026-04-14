@@ -287,26 +287,6 @@ class OnboardingProvider extends BaseProvider with MessageNotifierMixin implemen
     }
   }
 
-  Future<bool> alwaysAllowLocation() async {
-    if (PlatformService.isDesktop) {
-      try {
-        String locationStatus = await _screenCaptureChannel.invokeMethod('checkLocationPermission');
-        bool granted = locationStatus == 'granted';
-        updateLocationPermission(granted);
-        return granted;
-      } catch (e) {
-        debugPrint('Error checking location permission on macOS: $e');
-        updateLocationPermission(false);
-        return false;
-      }
-    } else {
-      PermissionStatus locationStatus = await Permission.locationAlways.request();
-      debugPrint('alwaysAllowLocation permission status: $locationStatus');
-      updateLocationPermission(locationStatus.isGranted);
-      return locationStatus.isGranted;
-    }
-  }
-
   Future askForMicrophonePermissions() async {
     if (PlatformService.isDesktop) {
       try {

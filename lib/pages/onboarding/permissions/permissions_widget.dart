@@ -105,41 +105,9 @@ class _PermissionsWidgetState extends State<PermissionsWidget> {
                                 );
                               } else {
                                 if (permissionStatus.isGranted) {
-                                  await provider.alwaysAllowLocation();
-                                  Permission.locationAlways.onDeniedCallback(() {
-                                    showDialog(
-                                      context: context,
-                                      builder: (ctx) {
-                                        return getDialog(
-                                          context,
-                                          () => Navigator.of(context).pop(),
-                                          () => Navigator.of(context).pop(),
-                                          'Background Location Access Denied',
-                                          'Please go to device settings and set location permission to "Always Allow"',
-                                          singleButton: true,
-                                          okButtonText: 'Continue',
-                                        );
-                                      },
-                                    );
-                                  });
-                                  Permission.locationAlways.onGrantedCallback(() {
-                                    provider.updateLocationPermission(true);
-                                  });
+                                  provider.updateLocationPermission(true);
                                 } else {
-                                  showDialog(
-                                    context: context,
-                                    builder: (ctx) {
-                                      return getDialog(
-                                        context,
-                                        () => Navigator.of(context).pop(),
-                                        () => Navigator.of(context).pop(),
-                                        'Background Location Access Denied',
-                                        'Please go to device settings and set location permission to "Always Allow"',
-                                        singleButton: true,
-                                        okButtonText: 'Continue',
-                                      );
-                                    },
-                                  );
+                                  provider.updateLocationPermission(false);
                                 }
                               }
                             } else {
@@ -194,23 +162,9 @@ class _PermissionsWidgetState extends State<PermissionsWidget> {
                                     await Permission.locationWhenInUse.request().then(
                                       (value) async {
                                         if (value.isGranted) {
-                                          await Permission.locationAlways.request().then(
-                                            (value) async {
-                                              if (value.isGranted) {
-                                                provider.updateLocationPermission(true);
-                                                widget.goNext();
-                                                provider.setLoading(false);
-                                              } else {
-                                                Future.delayed(const Duration(milliseconds: 2500), () async {
-                                                  if (await Permission.locationAlways.status.isGranted) {
-                                                    provider.updateLocationPermission(true);
-                                                  }
-                                                  widget.goNext();
-                                                  provider.setLoading(false);
-                                                });
-                                              }
-                                            },
-                                          );
+                                          provider.updateLocationPermission(true);
+                                          widget.goNext();
+                                          provider.setLoading(false);
                                         } else {
                                           widget.goNext();
                                           provider.setLoading(false);

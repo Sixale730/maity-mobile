@@ -7,10 +7,8 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:permission_handler/permission_handler.dart';
-import 'package:omi/backend/http/api/users.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/app.dart';
-import 'package:omi/backend/schema/geolocation.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/main.dart';
 import 'package:omi/pages/apps/app_detail/app_detail.dart';
@@ -225,16 +223,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       return;
     }
 
-    if (!(data.containsKey('latitude') && data.containsKey('longitude'))) return;
-    await updateUserGeolocation(
-      geolocation: Geolocation(
-        latitude: data['latitude'],
-        longitude: data['longitude'],
-        accuracy: data['accuracy'],
-        altitude: data['altitude'],
-        time: DateTime.parse(data['time']).toUtc(),
-      ),
-    );
+    // Location data no longer sent from foreground service
   }
 
   @override
