@@ -15,8 +15,9 @@ import 'package:omi/services/local_stt/device_memory_service.dart';
 import 'package:omi/services/local_stt/audio_chunk_writer.dart';
 import 'package:omi/services/local_stt/chunk_queue_manager.dart';
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
-import 'package:omi/services/local_stt/local_stt_socket.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
+import 'package:omi/services/stt/local/local_stt_engine_service.dart';
+import 'dart:io' show File;
 import 'package:omi/services/recording/telemetry_collector.dart';
 import 'package:omi/services/recording/ui_segment_controller.dart';
 import 'package:omi/services/recording/wav_backup_service.dart';
@@ -48,7 +49,21 @@ typedef OnNotifyListeners = void Function();
 /// Those are PersistenceManager's responsibility and are triggered via
 /// the [onSegmentsReceived] callback.
 class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
+  /// Cloud STT (Deepgram / Gemini) WebSocket-based service. Null when the
+  /// active provider is on-device — in that case [_localEngine] handles the
+  /// worker isolate directly without routing through this abstraction.
   TranscriptSegmentSocketService? _socket;
+
+  /// Local STT worker service (Parakeet / Moonshine / Canary). Null when
+  /// cloud STT is active. Exposes typed callbacks so segments flow straight
+  /// into [_onLocalSegments] without a JSON string round-trip.
+  LocalSttEngineService? _localEngine;
+
+  /// Cached codec from the most recent [initiateWebsocket] call. The cloud
+  /// socket used to expose it via `_socket.codec`, but when local STT is
+  /// active there is no socket — [_initChunkPipeline] reads this instead so
+  /// it can configure the audio transcoder.
+  BleAudioCodec? _currentCodec;
 
   // ---------------------------------------------------------------------------
   // Keep-alive
@@ -290,6 +305,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     String? source,
   }) async {
     Logger.debug('initiateWebsocket in TranscriptionPipeline');
+    _currentCodec = audioCodec;
 
     // Update timestamp offset on reconnection (not first connection)
     if (_recordingStartTime != null) {
@@ -381,6 +397,34 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       'force': force,
       'source': source,
     });
+
+    // Local STT branch: skip the cloud socket abstraction entirely and drive
+    // the worker isolate via [LocalSttEngineService]. Segments come back as
+    // typed `List<TranscriptSegment>` — no WebSocket, no jsonDecode chain.
+    if (effectiveConfig != null &&
+        _isLocalSttProvider(effectiveConfig.provider)) {
+      final engine = _createLocalEngineFromConfig(effectiveConfig.provider);
+      if (engine == null) {
+        _captureLog.log('socket', 'local_stt_init_failed',
+            severity: 'error',
+            details: {'provider': effectiveConfig.provider.name});
+        return;
+      }
+      _wireLocalEngineCallbacks(engine);
+      final ok = await engine.connect();
+      if (!ok) {
+        debugPrint('[TranscriptionPipeline] LocalSttEngineService connect failed');
+        _captureLog.log('socket', 'local_stt_connect_failed', severity: 'error');
+        return;
+      }
+      _localEngine = engine;
+      _transcriptServiceReady = true;
+      _activeSttProvider = effectiveConfig.provider;
+      TelemetryCollector.instance.setSttProvider(_activeSttProvider?.name);
+      _walEnabled = false;
+      await _initChunkPipeline();
+      return;
+    }
 
     // Connect to the transcript socket
     try {
@@ -581,14 +625,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       // Chunk writer = crash-safety backup on disk. Always on.
       _chunkWriter!.addBytes(pcmBytes);
       _wavBackupService?.writeAudio(pcmBytes);
-      // Streaming fast path: also push PCM directly to the worker isolate for
+      // Streaming fast path: push PCM directly to the worker isolate for
       // low-latency in-memory decode. Gated by the kill-switch flag so we can
       // disable it in Developer Settings without redeploy.
       if (SharedPreferencesUtil().useStreamingPipeline) {
-        final localSocket = _socket?.socket;
-        if (localSocket is LocalSttSocket) {
-          localSocket.send(pcmBytes);
-        }
+        _localEngine?.pushAudio(pcmBytes);
       }
       return;
     }
@@ -677,8 +718,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _wavBackupService = WavBackupService();
     await _wavBackupService!.start(chunkSessionId!);
 
-    // Create audio transcoder for non-PCM16 codecs (BLE/OMI sends Opus)
-    final codec = _socket?.codec ?? BleAudioCodec.pcm16;
+    // Create audio transcoder for non-PCM16 codecs (BLE/OMI sends Opus).
+    // For local STT the engine owns the worker directly (no _socket), so fall
+    // back to the cached codec tracked at session start.
+    final codec = _socket?.codec ?? _currentCodec ?? BleAudioCodec.pcm16;
     if (codec != BleAudioCodec.pcm16) {
       _audioTranscoder = AudioTranscoderFactory.createToRawPcm(
         sourceCodec: codec,
@@ -699,74 +742,73 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     debugPrint('[TranscriptionPipeline] Chunk pipeline initialized for session $chunkSessionId');
   }
 
-  /// Wire ChunkQueueManager ↔ LocalSttSocket callbacks.
-  /// Extracted so both first-init and reconnect paths share the same wiring.
+  /// Wire ChunkQueueManager ↔ LocalSttEngineService callbacks.
+  /// Shared by first-init and reconnect paths.
   void _wireChunkSocketCallbacks(ChunkQueueManager queueManager) {
-    final localSocket = _socket?.socket;
-    if (localSocket is LocalSttSocket) {
-      // When queue has a chunk ready, send it to the worker
-      queueManager.onProcessChunk = (chunk) {
-        localSocket.processChunk(
-          chunk.filePath,
-          '${chunk.sessionId}_${chunk.sequence}',
-          chunk.offsetSeconds,
-        );
-      };
+    final engine = _localEngine;
+    if (engine == null) return;
 
-      // When worker finishes a chunk, mark it completed in the queue
-      // and reset the silence timer (even if no segments were produced).
-      localSocket.onChunkProcessed = (chunkId) {
-        final parts = chunkId.split('_');
-        if (parts.length >= 2) {
-          final seq = int.tryParse(parts.last);
-          final sessionId = parts.sublist(0, parts.length - 1).join('_');
-          if (seq != null) {
-            queueManager.markCompleted(sessionId, seq);
-          }
+    // Queue has a chunk ready → worker processes it.
+    queueManager.onProcessChunk = (chunk) {
+      engine.processChunkFile(
+        chunk.filePath,
+        '${chunk.sessionId}_${chunk.sequence}',
+        chunk.offsetSeconds,
+      );
+    };
+
+    // Worker finished a chunk → mark it completed in the queue.
+    engine.onChunkProcessed = (chunkId) {
+      final parts = chunkId.split('_');
+      if (parts.length >= 2) {
+        final seq = int.tryParse(parts.last);
+        final sessionId = parts.sublist(0, parts.length - 1).join('_');
+        if (seq != null) {
+          queueManager.markCompleted(sessionId, seq);
         }
-        // Chunk processed — silence timer NOT reset here.
-        // Timer only resets when speech is detected (onSegmentsReceived).
-      };
-
-      // Wire VAD state changes
-      localSocket.onVadStateChanged = (active) => onVadStateChanged(active);
-
-      // Toggle queue mode when streaming health changes.
-      // Healthy → stream-primary: new chunks accumulate as disk backup only.
-      // Unhealthy → chunk-primary: drain backlog after the streaming watermark
-      // so the user still gets transcription while we wait for streaming to
-      // auto-recover on the next successful stream_result.
-      final streamingOn = SharedPreferencesUtil().useStreamingPipeline;
-      if (streamingOn) {
-        queueManager.switchMode(ChunkProcessingMode.streamPrimary);
-        TelemetryCollector.instance.recordStreamingEvent('streaming_started');
       }
-      localSocket.onStreamingHealthChanged = (healthy, reason) {
-        debugPrint(
-            '[TranscriptionPipeline] Streaming health: $healthy ($reason)');
-        DebugLogManager.logEvent('streaming_health_changed', {
-          'healthy': healthy,
-          'reason': reason,
-          'watermark_sec': localSocket.streamingWatermark,
-        });
-        TelemetryCollector.instance.recordStreamingEvent(
-          healthy ? 'streaming_recovered' : 'streaming_fallback',
-          details: {
-            'reason': reason,
-            'watermark_sec': localSocket.streamingWatermark,
-          },
-        );
-        if (!healthy) {
-          queueManager.switchMode(
-            ChunkProcessingMode.chunkPrimary,
-            streamingWatermarkSec: localSocket.streamingWatermark,
-            sessionId: chunkSessionId,
-          );
-        } else {
-          queueManager.switchMode(ChunkProcessingMode.streamPrimary);
-        }
-      };
+      // Silence timer NOT reset here — only resets on speech detection.
+    };
+
+    // VAD callback is already wired via _wireLocalEngineCallbacks, but
+    // re-wire here on reconnect paths in case the engine was replaced.
+    engine.onVadStateChanged = onVadStateChanged;
+
+    // Toggle queue mode when streaming health changes.
+    // Healthy → stream-primary: new chunks accumulate as disk backup only.
+    // Unhealthy → chunk-primary: drain backlog after the streaming watermark
+    // so the user still gets transcription while we wait for streaming to
+    // auto-recover on the next successful stream_result.
+    final streamingOn = SharedPreferencesUtil().useStreamingPipeline;
+    if (streamingOn) {
+      queueManager.switchMode(ChunkProcessingMode.streamPrimary);
+      TelemetryCollector.instance.recordStreamingEvent('streaming_started');
     }
+    engine.onStreamingHealthChanged = (healthy, reason) {
+      debugPrint(
+          '[TranscriptionPipeline] Streaming health: $healthy ($reason)');
+      DebugLogManager.logEvent('streaming_health_changed', {
+        'healthy': healthy,
+        'reason': reason,
+        'watermark_sec': engine.streamingWatermark,
+      });
+      TelemetryCollector.instance.recordStreamingEvent(
+        healthy ? 'streaming_recovered' : 'streaming_fallback',
+        details: {
+          'reason': reason,
+          'watermark_sec': engine.streamingWatermark,
+        },
+      );
+      if (!healthy) {
+        queueManager.switchMode(
+          ChunkProcessingMode.chunkPrimary,
+          streamingWatermarkSec: engine.streamingWatermark,
+          sessionId: chunkSessionId,
+        );
+      } else {
+        queueManager.switchMode(ChunkProcessingMode.streamPrimary);
+      }
+    };
   }
 
   /// Flush the chunk writer (for app lifecycle pause).
@@ -1458,6 +1500,93 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   }
 
   // ---------------------------------------------------------------------------
+  // Local STT engine (Parakeet / Moonshine / Canary)
+  // ---------------------------------------------------------------------------
+
+  /// Build a [LocalSttEngineService] from the user's preferences. Mirrors the
+  /// config-reading logic used by [TranscriptSocketServiceFactory.createLocalStt]
+  /// but returns the typed engine instead of a WebSocket-style adapter. Returns
+  /// null when the model path isn't configured (caller should surface an error).
+  LocalSttEngineService? _createLocalEngineFromConfig(SttProvider provider) {
+    final prefs = SharedPreferencesUtil();
+    final modelType = switch (provider) {
+      SttProvider.localMoonshine => LocalSttModelType.moonshine,
+      SttProvider.localCanary => LocalSttModelType.canary,
+      _ => LocalSttModelType.parakeet,
+    };
+    final modelPath = switch (modelType) {
+      LocalSttModelType.moonshine => prefs.localSttMoonshinePath,
+      LocalSttModelType.canary => prefs.localSttCanaryPath,
+      LocalSttModelType.parakeet => prefs.localSttModelPath,
+    };
+    if (modelPath.isEmpty) {
+      debugPrint(
+          '[TranscriptionPipeline] ${modelType.name} model path empty — local STT unavailable');
+      return null;
+    }
+
+    String? speakerModelPath;
+    Uint8List? userEmbeddingBytes;
+    final speakerPath = prefs.speakerModelPath;
+    final embeddingPath = prefs.localSpeakerEmbeddingPath;
+    if (speakerPath.isNotEmpty && embeddingPath.isNotEmpty) {
+      final f = File(embeddingPath);
+      if (f.existsSync()) {
+        final bytes = f.readAsBytesSync();
+        if (bytes.length % 4 == 0 && bytes.isNotEmpty) {
+          speakerModelPath = speakerPath;
+          userEmbeddingBytes = bytes;
+        }
+      }
+    }
+
+    String? acousticProfileJson;
+    final profilePath = prefs.acousticProfilePath;
+    if (profilePath.isNotEmpty) {
+      final f = File(profilePath);
+      if (f.existsSync()) {
+        try {
+          acousticProfileJson = f.readAsStringSync();
+        } catch (_) {}
+      }
+    }
+
+    final double? maxSpeechDuration = switch (modelType) {
+      LocalSttModelType.canary => prefs.localSttCanaryMaxSpeechDuration,
+      LocalSttModelType.parakeet => 20.0,
+      LocalSttModelType.moonshine => null,
+    };
+
+    return LocalSttEngineService(
+      modelPath: modelPath,
+      modelType: modelType,
+      speakerModelPath: speakerModelPath,
+      userEmbeddingBytes: userEmbeddingBytes,
+      maxSpeechDuration: maxSpeechDuration,
+      numThreads: DeviceMemoryService.cachedThreadCount,
+      acousticProfileJson: acousticProfileJson,
+    );
+  }
+
+  /// Hook the engine's typed callbacks into the pipeline's internal handlers.
+  /// Done in [initiateWebsocket] before connect so no events are lost.
+  void _wireLocalEngineCallbacks(LocalSttEngineService engine) {
+    engine.onSegments = _onLocalSegments;
+    engine.onVadStateChanged = onVadStateChanged;
+    engine.onError = (err, _) => onError(err);
+    // onStreamingHealthChanged and onChunkProcessed are wired by
+    // [_wireChunkSocketCallbacks] once the chunk pipeline is initialized.
+  }
+
+  /// Local STT segments bypass [TranscriptSegmentSocketService]. They arrive
+  /// as typed [TranscriptSegment] objects from the worker isolate and go
+  /// directly into the same per-segment processing used by cloud STT.
+  void _onLocalSegments(List<TranscriptSegment> segments) {
+    if (segments.isEmpty) return;
+    onSegmentReceived(segments);
+  }
+
+  // ---------------------------------------------------------------------------
   // Dispose
   // ---------------------------------------------------------------------------
 
@@ -1494,6 +1623,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
     await _socket?.stop(reason: 'pipeline disposed');
     _socket = null;
+    await _localEngine?.disconnect();
+    _localEngine = null;
     _transcriptServiceReady = false;
     _activeSttProvider = null;
     _reconnectAudioBuffer.clear();
