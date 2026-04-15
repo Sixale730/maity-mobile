@@ -16,13 +16,13 @@ import 'package:omi/services/stt/local/audio_chunk_writer.dart';
 import 'package:omi/services/stt/local/chunk_queue_manager.dart';
 import 'package:omi/services/stt/local/local_stt_model_type.dart';
 import 'package:omi/services/stt/local/model_download_service.dart';
+import 'package:omi/services/stt/cloud/cloud_stt_orchestrator.dart';
 import 'package:omi/services/stt/local/local_stt_engine_service.dart';
 import 'dart:io' show File;
 import 'package:omi/services/recording/telemetry_collector.dart';
 import 'package:omi/services/recording/ui_segment_controller.dart';
 import 'package:omi/services/recording/wav_backup_service.dart';
 import 'package:omi/services/notifications/notification_service.dart';
-import 'package:omi/services/services.dart';
 import 'package:omi/services/stt/cloud/transcription_service.dart';
 import 'package:omi/services/vad/vad_service.dart';
 import 'package:omi/services/vad/vad_state.dart';
@@ -49,10 +49,13 @@ typedef OnNotifyListeners = void Function();
 /// Those are PersistenceManager's responsibility and are triggered via
 /// the [onSegmentsReceived] callback.
 class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
-  /// Cloud STT (Deepgram / Gemini) WebSocket-based service. Null when the
-  /// active provider is on-device — in that case [_localEngine] handles the
-  /// worker isolate directly without routing through this abstraction.
-  TranscriptSegmentSocketService? _socket;
+  /// Cloud STT transport (Deepgram / Gemini WebSocket). Null when the active
+  /// provider is on-device. Owns the socket, WAL capture, timestamp offset,
+  /// and reconnect buffer.
+  CloudSttOrchestrator? _cloudOrchestrator;
+
+  /// Convenience accessor: the underlying socket while cloud STT is active.
+  TranscriptSegmentSocketService? get _socket => _cloudOrchestrator?.socket;
 
   /// Local STT worker service (Parakeet / Moonshine / Canary). Null when
   /// cloud STT is active. Exposes typed callbacks so segments flow straight
@@ -207,24 +210,16 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   TranscriptSegmentSocketService? get socket => _socket;
 
   // ---------------------------------------------------------------------------
-  // WAL (Write-Ahead Log) support
+  // Cloud-only state — owned by [_cloudOrchestrator]. These accessors keep
+  // the pipeline's internal code readable; mutations delegate to the
+  // orchestrator. For local STT all of these are null/zero.
   // ---------------------------------------------------------------------------
-  bool _walEnabled = false;
+  bool get walEnabled => _cloudOrchestrator?.walEnabled ?? false;
+  void setWalEnabled(bool enabled) =>
+      _cloudOrchestrator?.setWalEnabled(enabled);
 
-  /// Enable or disable WAL audio buffering.
-  void setWalEnabled(bool enabled) {
-    _walEnabled = enabled;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Timestamp offset for Deepgram reconnections
-  // ---------------------------------------------------------------------------
-  /// Cumulative time offset for Deepgram timestamp correction across reconnections.
-  /// Each new Deepgram session starts at t=0; we offset by the elapsed recording time.
-  Duration _cumulativeOffset = Duration.zero;
-
-  /// Timestamp of the recording start (set when first socket connects).
-  DateTime? _recordingStartTime;
+  Duration get _cumulativeOffset =>
+      _cloudOrchestrator?.cumulativeOffset ?? Duration.zero;
 
   // ---------------------------------------------------------------------------
   // Reconnection flags
@@ -254,16 +249,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// Maximum audio buffer bytes (~5 seconds at 16kHz PCM16).
   static const int maxAudioBufferBytes = 160000;
 
-  // ---------------------------------------------------------------------------
-  // Reconnect audio buffer (B5 fix)
-  // ---------------------------------------------------------------------------
-  /// Audio bytes buffered during reconnection gap, replayed after socket connects.
-  final List<List<int>> _reconnectAudioBuffer = [];
-  int _reconnectAudioBufferBytes = 0;
-  bool _isBufferingForReconnect = false;
-
-  /// Max reconnect buffer: ~5s of 16kHz 16-bit mono PCM = 160,000 bytes.
-  static const int _maxReconnectBufferBytes = 160000;
+  // Reconnect audio buffer is owned by [CloudSttOrchestrator]; reached via
+  // [_cloudOrchestrator?.bufferAudioFrame] / [drainReconnectBuffer].
 
   // ---------------------------------------------------------------------------
   // WS bytes sent counter (exposed for CaptureProvider metrics)
@@ -308,7 +295,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _currentCodec = audioCodec;
 
     // Update timestamp offset on reconnection (not first connection)
-    if (_recordingStartTime != null) {
+    if (_cloudOrchestrator?.recordingStartTime != null) {
       _updateTimestampOffset();
       TelemetryCollector.instance.recordReconnection(reason: source);
     }
@@ -421,116 +408,76 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       _transcriptServiceReady = true;
       _activeSttProvider = effectiveConfig.provider;
       TelemetryCollector.instance.setSttProvider(_activeSttProvider?.name);
-      _walEnabled = false;
+      // Local STT never uses WAL — the orchestrator isn't created for this
+      // session, so walEnabled defaults to false.
       await _initChunkPipeline();
       return;
     }
 
-    // Connect to the transcript socket
-    try {
-      _socket = await ServiceManager.instance().socket.conversation(
-            codec: codec,
-            sampleRate: sampleRate,
-            language: language,
-            force: force,
-            source: source,
-            customSttConfig: effectiveConfig,
-          );
-    } catch (e) {
-      _captureLog.log('socket', 'websocket_connection_failed',
-          severity: 'error',
-          details: {
-            'error': e.toString(),
-            'codec': codec.name,
-            'custom_stt': effectiveConfig != null,
-          });
-      debugPrint('[TranscriptionPipeline] WebSocket connection failed: $e');
+    // Cloud STT branch: build the orchestrator and connect.
+    final orchestrator = CloudSttOrchestrator(
+      captureLog: _captureLog,
+      onRawMessage: (_) {}, // wired in a later commit
+      onSocketConnected: onConnected,
+      onSocketClosed: onClosed,
+      onSocketError: (err, _) => onError(err),
+      onTranscriptionStalled: () => onTranscriptionStalled?.call(),
+      onAutoFinalize: () => onAutoFinalizeNeeded?.call() ?? Future.value(),
+      onMessageEventReceived: (event) => onMessageEventReceived(event),
+      onNotifyListeners: () => onNotifyListeners?.call(),
+    );
 
-      // Fallback to local STT if cloud connection failed and any local model is ready
-      if (!_isLocalSttProvider(effectiveConfig?.provider) &&
-          ModelDownloadService.instance.isAnyModelReady) {
+    final connected = await orchestrator.connect(
+      codec: codec,
+      sampleRate: sampleRate,
+      language: language,
+      force: force,
+      source: source,
+      customSttConfig: effectiveConfig,
+    );
+    if (!connected) {
+      // Cloud failed. Fall back to local STT if any model is ready. This used
+      // to route through the factory, but local STT now bypasses it entirely
+      // — we build a LocalSttEngineService directly here.
+      await orchestrator.dispose();
+      if (ModelDownloadService.instance.isAnyModelReady) {
         final fallbackProvider = _bestLocalSttProvider();
         if (fallbackProvider != null) {
           debugPrint(
               '[TranscriptionPipeline] Cloud failed, falling back to local ${fallbackProvider.name}');
-          final fallbackConfig = CustomSttConfig(provider: fallbackProvider);
-          try {
-            _socket = await ServiceManager.instance().socket.conversation(
-                  codec: codec,
-                  sampleRate: sampleRate,
-                  language: language,
-                  force: true,
-                  source: source,
-                  customSttConfig: fallbackConfig,
-                );
-            if (_socket != null) effectiveConfig = fallbackConfig;
-          } catch (_) {
-            // Local also failed -- give up
+          final engine = _createLocalEngineFromConfig(fallbackProvider);
+          if (engine != null) {
+            _wireLocalEngineCallbacks(engine);
+            if (await engine.connect()) {
+              _localEngine = engine;
+              _transcriptServiceReady = true;
+              _activeSttProvider = fallbackProvider;
+              TelemetryCollector.instance
+                  .setSttProvider(_activeSttProvider?.name);
+              await _initChunkPipeline();
+              return;
+            }
           }
-        }
-      }
-
-      if (_socket == null) {
-        if (_isLocalSttProvider(effectiveConfig?.provider)) {
-          debugPrint('[TranscriptionPipeline] Local STT failed to initialize — not retrying');
+          debugPrint('[TranscriptionPipeline] Local fallback also failed');
           _captureLog.log('socket', 'local_stt_init_failed', severity: 'error');
           return;
         }
-        _startKeepAlive();
-        return;
       }
+      _startKeepAlive();
+      return;
     }
-    if (_socket == null) {
-      _captureLog.log('socket', 'websocket_creation_failed',
-          severity: 'error',
-          details: {
-            'codec': codec.name,
-            'custom_stt': effectiveConfig != null,
-          });
 
-      // Fallback to local STT if cloud socket creation returned null and any local model is ready
-      if (!_isLocalSttProvider(effectiveConfig?.provider) &&
-          ModelDownloadService.instance.isAnyModelReady) {
-        final fallbackProvider = _bestLocalSttProvider();
-        if (fallbackProvider != null) {
-          debugPrint(
-              '[TranscriptionPipeline] Socket null, falling back to local ${fallbackProvider.name}');
-          final fallbackConfig = CustomSttConfig(provider: fallbackProvider);
-          try {
-            _socket = await ServiceManager.instance().socket.conversation(
-                  codec: codec,
-                  sampleRate: sampleRate,
-                  language: language,
-                  force: true,
-                  source: source,
-                  customSttConfig: fallbackConfig,
-                );
-            if (_socket != null) effectiveConfig = fallbackConfig;
-          } catch (_) {}
-        }
-      }
-
-      if (_socket == null) {
-        if (_isLocalSttProvider(effectiveConfig?.provider)) {
-          debugPrint('[TranscriptionPipeline] Local STT failed to initialize — not retrying');
-          _captureLog.log('socket', 'local_stt_init_failed', severity: 'error');
-          return;
-        }
-        _startKeepAlive();
-        debugPrint("Can not create new conversation socket");
-        return;
-      }
-    }
-    // Only cloud STT reaches this point — the local branch returns early
-    // after LocalSttEngineService.connect(). No local-specific flag guards
-    // needed here anymore.
+    _cloudOrchestrator = orchestrator;
+    // Pipeline stays subscribed as the ITransctiptSegmentSocketServiceListener
+    // for now; the orchestrator will take ownership of the subscription in a
+    // later commit once the listener methods move too.
     _socket?.subscribe(this, this);
     _transcriptServiceReady = true;
     _activeSttProvider = effectiveConfig?.provider ?? SttProvider.deepgramLive;
     TelemetryCollector.instance.setSttProvider(_activeSttProvider?.name);
 
-    // Track recording start time for timestamp offset calculation
-    _recordingStartTime ??= DateTime.now();
+    // Track recording start time for timestamp offset calculation.
+    orchestrator.markRecordingStartIfNeeded();
 
     // Proactive token refresh: reconnect before JWT expires (~1hr).
     _tokenRefreshTimer?.cancel();
@@ -554,15 +501,16 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// Stop the socket cleanly.
   Future<void> stopSocket(String reason) async {
     _tokenRefreshTimer?.cancel();
-    _isBufferingForReconnect = true; // Buffer audio during reconnect gap
+    _cloudOrchestrator?.setBufferingForReconnect(true);
     // Mark the start of an audio-gap window. The window is closed in
     // _replayReconnectBuffer() (after reconnect) or in markStopped()
     // (when the user actually stops the recording).
     TelemetryCollector.instance.beginAudioGap();
     _captureLog.log('socket', 'socket_stopping',
         details: {'reason': reason});
-    await _socket?.stop(reason: reason);
-    _socket = null;
+    await _cloudOrchestrator?.disconnect(reason: reason);
+    await _cloudOrchestrator?.dispose();
+    _cloudOrchestrator = null;
     _transcriptServiceReady = false;
 
     // Clean up chunk pipeline so next session creates fresh instances.
@@ -578,20 +526,16 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   }
 
   /// Updates the cumulative timestamp offset based on elapsed recording time.
-  /// Called before reconnecting the socket so new Deepgram segments (which
-  /// restart at t=0) are shifted to the correct position in the timeline.
+  /// Called before reconnecting the cloud socket so new Deepgram segments
+  /// (which restart at t=0) are shifted to the correct position in the
+  /// timeline. No-op when local STT is active.
   void _updateTimestampOffset() {
-    if (_recordingStartTime != null) {
-      _cumulativeOffset = DateTime.now().difference(_recordingStartTime!);
-      debugPrint(
-          '[TranscriptionPipeline] Updated timestamp offset: ${_cumulativeOffset.inSeconds}s');
-    }
+    _cloudOrchestrator?.updateTimestampOffsetOnReconnect();
   }
 
   /// Resets the timestamp offset state. Called when recording fully stops.
   void resetTimestampOffset() {
-    _cumulativeOffset = Duration.zero;
-    _recordingStartTime = null;
+    _cloudOrchestrator?.resetTimestampOffset();
   }
 
   /// Send raw bytes to the socket (used by AudioTransportService).
@@ -627,41 +571,14 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       return;
     }
 
-    // Cloud STT path (unchanged)
-    // Always capture to WAL (Write-Ahead Log) for recovery on reconnect
-    if (_walEnabled && data is List<int>) {
-      try {
-        ServiceManager.instance().wal.getSyncs().phone.onByteStream(data);
-      } catch (e) {
-        debugPrint('[TranscriptionPipeline] WAL onByteStream error: $e');
-      }
-    }
-
-    // WAV backup for cloud STT path
+    // Cloud STT path: the orchestrator handles WAL capture, socket send,
+    // and reconnect buffering. Pipeline only layers WAV backup on top since
+    // that's a shared concern (both local and cloud write WAV).
     if (_wavBackupService != null && data is List<int>) {
-      _wavBackupService!.writeAudio(data is Uint8List ? data : Uint8List.fromList(data));
+      _wavBackupService!
+          .writeAudio(data is Uint8List ? data : Uint8List.fromList(data));
     }
-
-    if (_socket?.state == SocketServiceState.connected) {
-      _socket?.send(data);
-      // Mark as synced in WAL only after successful send
-      if (_walEnabled && data is List<int>) {
-        try {
-          ServiceManager.instance().wal.getSyncs().phone.onBytesSync(data);
-        } catch (e) {
-          debugPrint('[TranscriptionPipeline] WAL onBytesSync error: $e');
-        }
-      }
-    } else if (_isBufferingForReconnect && data is List<int>) {
-      // Buffer audio during reconnect gap for replay after new socket connects
-      _reconnectAudioBuffer.add(data);
-      _reconnectAudioBufferBytes += data.length;
-      // Trim oldest frames if buffer exceeds ~5 seconds
-      while (_reconnectAudioBufferBytes > _maxReconnectBufferBytes &&
-          _reconnectAudioBuffer.isNotEmpty) {
-        _reconnectAudioBufferBytes -= _reconnectAudioBuffer.removeAt(0).length;
-      }
-    }
+    _cloudOrchestrator?.sendAudio(data);
   }
 
   // ---------------------------------------------------------------------------
@@ -941,15 +858,13 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     // Close any in-progress telemetry audio-gap window — the socket is back.
     TelemetryCollector.instance.endAudioGap();
 
-    if (_reconnectAudioBuffer.isEmpty) {
-      _isBufferingForReconnect = false;
-      return;
-    }
+    final orchestrator = _cloudOrchestrator;
+    if (orchestrator == null) return;
 
-    final buffered = List<List<int>>.from(_reconnectAudioBuffer);
-    _reconnectAudioBuffer.clear();
-    _reconnectAudioBufferBytes = 0;
-    _isBufferingForReconnect = false;
+    final buffered = orchestrator.drainReconnectBuffer();
+    orchestrator.setBufferingForReconnect(false);
+
+    if (buffered.isEmpty) return;
 
     for (final chunk in buffered) {
       _socket?.send(chunk);
@@ -1482,14 +1397,14 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _lastSegmentReceivedAt = null;
     _sttReconnectAttempts = 0;
     _transcriptionServiceStatuses = [];
-    _walEnabled = false;
     _activeSttProvider = null;
     _audioTranscoder = null;
-    _reconnectAudioBuffer.clear();
-    _reconnectAudioBufferBytes = 0;
-    _isBufferingForReconnect = false;
+    // Cloud-only state (WAL, reconnect buffer, offset) is owned by the
+    // orchestrator — reset/clear via its API.
+    _cloudOrchestrator?.setWalEnabled(false);
+    _cloudOrchestrator?.clearReconnectBuffer();
+    _cloudOrchestrator?.resetTimestampOffset();
     vadSpeechActive.value = false;
-    resetTimestampOffset();
   }
 
   // ---------------------------------------------------------------------------
@@ -1614,15 +1529,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     vadStateNotifier.dispose();
     vadSpeechActive.dispose();
 
-    await _socket?.stop(reason: 'pipeline disposed');
-    _socket = null;
+    await _cloudOrchestrator?.dispose();
+    _cloudOrchestrator = null;
     await _localEngine?.disconnect();
     _localEngine = null;
     _transcriptServiceReady = false;
     _activeSttProvider = null;
-    _reconnectAudioBuffer.clear();
-    _reconnectAudioBufferBytes = 0;
-    _isBufferingForReconnect = false;
-    resetTimestampOffset();
   }
 }

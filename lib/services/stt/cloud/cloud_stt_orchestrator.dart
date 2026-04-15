@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/backend/schema/message_event.dart';
+import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/services/capture_log_service.dart';
+import 'package:omi/services/services.dart';
 import 'package:omi/services/stt/cloud/transcription_service.dart';
 
 /// Orchestrates the Deepgram / WebSocket cloud STT transport.
@@ -51,9 +53,10 @@ class CloudSttOrchestrator {
         _onNotifyListeners = onNotifyListeners;
 
   // ---------------------------------------------------------------------------
-  // Injected dependencies
+  // Injected dependencies — callbacks connect the orchestrator to the
+  // pipeline without importing it. Most are wired in later commits (C3 uses
+  // stalled / auto-finalize; C4 uses connected / closed / error).
   // ---------------------------------------------------------------------------
-  // ignore: unused_field
   final CaptureLogService _captureLog;
   // ignore: unused_field
   final void Function(String rawJsonSegments) _onRawMessage;
@@ -73,12 +76,27 @@ class CloudSttOrchestrator {
   final void Function() _onNotifyListeners;
 
   // ---------------------------------------------------------------------------
-  // Socket (owned starting C2). Exposed as getter today so the pipeline can
-  // still reach into it during migration.
+  // Socket (owned by the orchestrator since C2). Exposed as a getter so the
+  // pipeline can still subscribe as ITransctiptSegmentSocketServiceListener
+  // during migration; the subscription moves fully to the orchestrator in a
+  // later commit.
   // ---------------------------------------------------------------------------
-  TranscriptSegmentSocketService? socket;
-  SocketServiceState? get socketState => socket?.state;
-  BleAudioCodec? get codec => socket?.codec;
+  TranscriptSegmentSocketService? _socket;
+  TranscriptSegmentSocketService? get socket => _socket;
+  SocketServiceState? get socketState => _socket?.state;
+  BleAudioCodec? get codec => _socket?.codec;
+
+  // ---------------------------------------------------------------------------
+  // WAL capture flag
+  // ---------------------------------------------------------------------------
+  bool _walEnabled = false;
+  bool get walEnabled => _walEnabled;
+
+  /// Enable / disable Write-Ahead Log capture for cloud sessions. Local STT
+  /// sessions never call this (their pipeline forces it false).
+  void setWalEnabled(bool enabled) {
+    _walEnabled = enabled;
+  }
 
   // ---------------------------------------------------------------------------
   // Timestamp offset (Deepgram restarts at t=0 on every reconnect)
@@ -168,14 +186,111 @@ class CloudSttOrchestrator {
   }
 
   // ---------------------------------------------------------------------------
+  // Socket lifecycle
+  // ---------------------------------------------------------------------------
+
+  /// Open a cloud WebSocket via [ServiceManager.socket.conversation]. Returns
+  /// `true` when the socket is attached to this orchestrator, `false` on any
+  /// failure (exception, factory returned null). The pipeline interprets
+  /// failure and decides whether to fall back to local STT.
+  ///
+  /// Idempotent: if a socket already exists it is stopped first.
+  Future<bool> connect({
+    required BleAudioCodec codec,
+    required int sampleRate,
+    required String language,
+    required bool force,
+    required String? source,
+    required CustomSttConfig? customSttConfig,
+  }) async {
+    await _socket?.stop(reason: 'reconnecting');
+    _socket = null;
+    try {
+      _socket = await ServiceManager.instance().socket.conversation(
+            codec: codec,
+            sampleRate: sampleRate,
+            language: language,
+            force: force,
+            source: source,
+            customSttConfig: customSttConfig,
+          );
+    } catch (e) {
+      _captureLog.log('socket', 'websocket_connection_failed',
+          severity: 'error',
+          details: {
+            'error': e.toString(),
+            'codec': codec.name,
+            'custom_stt': customSttConfig != null,
+          });
+      debugPrint('[CloudSttOrchestrator] WebSocket connection failed: $e');
+      return false;
+    }
+    if (_socket == null) {
+      _captureLog.log('socket', 'websocket_creation_failed',
+          severity: 'error',
+          details: {
+            'codec': codec.name,
+            'custom_stt': customSttConfig != null,
+          });
+      return false;
+    }
+    return true;
+  }
+
+  /// Close and drop the socket. Idempotent.
+  Future<void> disconnect({String? reason}) async {
+    await _socket?.stop(reason: reason ?? 'disconnect');
+    _socket = null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Audio send
+  // ---------------------------------------------------------------------------
+
+  /// Route an audio frame for the cloud path:
+  /// - Capture to WAL (if enabled) before sending — always, regardless of
+  ///   socket state, so we can recover if delivery fails later.
+  /// - Send to the socket if connected, and mark the frame as WAL-synced.
+  /// - Buffer it for replay if we are between sockets (reconnect gap).
+  ///
+  /// Behaviour is bit-identical to the pre-extraction logic in
+  /// `TranscriptionPipeline.sendToSocket`; refactor follows later.
+  void sendAudio(dynamic data) {
+    // Always capture to WAL (Write-Ahead Log) for recovery on reconnect.
+    if (_walEnabled && data is List<int>) {
+      try {
+        ServiceManager.instance().wal.getSyncs().phone.onByteStream(data);
+      } catch (e) {
+        debugPrint('[CloudSttOrchestrator] WAL onByteStream error: $e');
+      }
+    }
+
+    if (_socket?.state == SocketServiceState.connected) {
+      _socket?.send(data);
+      // Mark as synced in WAL only after successful send.
+      if (_walEnabled && data is List<int>) {
+        try {
+          ServiceManager.instance().wal.getSyncs().phone.onBytesSync(data);
+        } catch (e) {
+          debugPrint('[CloudSttOrchestrator] WAL onBytesSync error: $e');
+        }
+      }
+    } else if (_isBufferingForReconnect && data is List<int>) {
+      bufferAudioFrame(data);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Dispose
   // ---------------------------------------------------------------------------
 
-  /// Cancel timers and drop owned state. Safe to call multiple times.
-  /// Future commits extend this to also cancel health / keep-alive /
-  /// token-refresh timers and close the socket.
+  /// Cancel timers, close the socket, and drop owned state. Safe to call
+  /// multiple times. Future commits extend this to also cancel health /
+  /// keep-alive / token-refresh timers.
   Future<void> dispose() async {
+    await disconnect(reason: 'orchestrator disposed');
     clearReconnectBuffer();
     resetTimestampOffset();
+    _walEnabled = false;
   }
 }
