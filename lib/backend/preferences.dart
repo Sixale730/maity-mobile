@@ -135,6 +135,14 @@ class SharedPreferencesUtil {
   bool get localSttAutoFallback => getBool('localSttAutoFallback', defaultValue: true);
   set localSttAutoFallback(bool value) => saveBool('localSttAutoFallback', value);
 
+  /// Streaming fast path kill-switch. When true, the transcription pipeline
+  /// pushes PCM audio directly to the local STT worker for memory-only VAD +
+  /// decode (~<1s latency). Default on. Disable via Developer Settings if the
+  /// streaming path ever misbehaves in the wild — the chunk-based pipeline on
+  /// disk keeps running as an automatic fallback either way.
+  bool get useStreamingPipeline => getBool('useStreamingPipeline', defaultValue: true);
+  set useStreamingPipeline(bool value) => saveBool('useStreamingPipeline', value);
+
   // Local STT (Moonshine) configuration
   bool get localSttMoonshineDownloaded => getBool('localSttMoonshineDownloaded');
   set localSttMoonshineDownloaded(bool value) => saveBool('localSttMoonshineDownloaded', value);

@@ -578,8 +578,18 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
         return;
       }
       if (pcmBytes.isEmpty) return;
+      // Chunk writer = crash-safety backup on disk. Always on.
       _chunkWriter!.addBytes(pcmBytes);
       _wavBackupService?.writeAudio(pcmBytes);
+      // Streaming fast path: also push PCM directly to the worker isolate for
+      // low-latency in-memory decode. Gated by the kill-switch flag so we can
+      // disable it in Developer Settings without redeploy.
+      if (SharedPreferencesUtil().useStreamingPipeline) {
+        final localSocket = _socket?.socket;
+        if (localSocket is LocalSttSocket) {
+          localSocket.send(pcmBytes);
+        }
+      }
       return;
     }
 
@@ -720,6 +730,34 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
       // Wire VAD state changes
       localSocket.onVadStateChanged = (active) => onVadStateChanged(active);
+
+      // Toggle queue mode when streaming health changes.
+      // Healthy → stream-primary: new chunks accumulate as disk backup only.
+      // Unhealthy → chunk-primary: drain backlog after the streaming watermark
+      // so the user still gets transcription while we wait for streaming to
+      // auto-recover on the next successful stream_result.
+      final streamingOn = SharedPreferencesUtil().useStreamingPipeline;
+      if (streamingOn) {
+        queueManager.switchMode(ChunkProcessingMode.streamPrimary);
+      }
+      localSocket.onStreamingHealthChanged = (healthy, reason) {
+        debugPrint(
+            '[TranscriptionPipeline] Streaming health: $healthy ($reason)');
+        DebugLogManager.logEvent('streaming_health_changed', {
+          'healthy': healthy,
+          'reason': reason,
+          'watermark_sec': localSocket.streamingWatermark,
+        });
+        if (!healthy) {
+          queueManager.switchMode(
+            ChunkProcessingMode.chunkPrimary,
+            streamingWatermarkSec: localSocket.streamingWatermark,
+            sessionId: chunkSessionId,
+          );
+        } else {
+          queueManager.switchMode(ChunkProcessingMode.streamPrimary);
+        }
+      };
     }
   }
 
