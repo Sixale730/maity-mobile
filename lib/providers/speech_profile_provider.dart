@@ -11,7 +11,6 @@ import 'package:omi/backend/http/api/users.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/backend/schema/conversation.dart';
-import 'package:omi/backend/schema/message_event.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/providers/device_provider.dart';
 import 'package:omi/services/audio/audio_processing_utils.dart' as audio;
@@ -20,7 +19,7 @@ import 'package:omi/services/audio/spectral_utils.dart' as spectral;
 import 'package:omi/services/audio/audio_augmentation.dart' as aug;
 import 'package:omi/services/devices.dart';
 import 'package:omi/services/services.dart';
-import 'package:omi/services/sockets/transcription_service.dart';
+import 'package:omi/services/stt/local/local_stt_engine_service.dart';
 import 'package:omi/services/speaker/speaker_types.dart';
 import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/services/local_stt/speaker_embedding_service.dart';
@@ -31,7 +30,7 @@ import 'package:path_provider/path_provider.dart';
 
 class SpeechProfileProvider extends ChangeNotifier
     with MessageNotifierMixin
-    implements IDeviceServiceSubsciption, ITransctiptSegmentSocketServiceListener {
+    implements IDeviceServiceSubsciption {
   DeviceProvider? deviceProvider;
   bool? permissionEnabled;
   bool loading = false;
@@ -49,7 +48,7 @@ class SpeechProfileProvider extends ChangeNotifier
   late WavBytesUtil audioStorage;
   StreamSubscription? _bleBytesStream;
 
-  TranscriptSegmentSocketService? _socket;
+  LocalSttEngineService? _engine;
 
   bool startedRecording = false;
   double percentageCompleted = 0;
@@ -112,7 +111,7 @@ class SpeechProfileProvider extends ChangeNotifier
     await _initiateWebsocket(codec: codec, force: true);
 
     if (device != null) await initiateFriendAudioStreaming();
-    if (_socket?.state != SocketServiceState.connected) {
+    if (_engine?.isConnected != true) {
       // wait for websocket to connect
       await Future.delayed(const Duration(seconds: 2));
     }
@@ -133,7 +132,7 @@ class SpeechProfileProvider extends ChangeNotifier
     await _initiateWebsocket(codec: codec, force: true, sampleRate: 16000);
     await _startPhoneMicStreaming();
 
-    if (_socket?.state != SocketServiceState.connected) {
+    if (_engine?.isConnected != true) {
       await Future.delayed(const Duration(seconds: 2));
     }
 
@@ -147,8 +146,8 @@ class SpeechProfileProvider extends ChangeNotifier
       onByteReceived: (Uint8List bytes) {
         if (bytes.isEmpty) return;
         audioStorage.storeRawAudioBytes(bytes);
-        if (_socket?.state == SocketServiceState.connected) {
-          _socket?.send(bytes);
+        if (_engine?.isConnected == true) {
+          _engine?.pushAudio(bytes);
         }
       },
       onRecording: () {
@@ -176,18 +175,49 @@ class SpeechProfileProvider extends ChangeNotifier
   }
 
   Future<void> _initiateWebsocket({required BleAudioCodec codec, bool force = false, int? sampleRate}) async {
-    // Connect to the transcript socket
-    String language =
-        SharedPreferencesUtil().hasSetPrimaryLanguage ? SharedPreferencesUtil().userPrimaryLanguage : "multi";
-    sampleRate ??= (codec.isOpusSupported() ? 16000 : 8000);
-
-    _socket = await ServiceManager.instance()
-        .socket
-        .speechProfile(codec: codec, sampleRate: sampleRate, language: language, force: force);
-    if (_socket == null) {
-      throw Exception("Can not create new speech profile socket");
+    // Enrollment uses local STT directly — no cloud socket.
+    final engine = _buildEnrollmentEngine();
+    if (engine == null) {
+      throw Exception('Local STT model not configured for enrollment');
     }
-    _socket?.subscribe(this, this);
+    engine.onSegments = onSegmentReceived;
+    engine.onError = (err, _) => onError(err);
+    final ok = await engine.connect();
+    if (!ok) {
+      throw Exception('Can not start speech profile engine');
+    }
+    _engine = engine;
+  }
+
+  /// Instantiate the same [LocalSttEngineService] configuration used by the
+  /// recording pipeline, so enrollment transcription quality matches what the
+  /// user will see in real sessions.
+  LocalSttEngineService? _buildEnrollmentEngine() {
+    final prefs = SharedPreferencesUtil();
+    final modelPath = prefs.localSttModelPath;
+    if (modelPath.isEmpty) return null;
+
+    String? speakerModelPath;
+    Uint8List? userEmbeddingBytes;
+    final speakerPath = prefs.speakerModelPath;
+    final embeddingPath = prefs.localSpeakerEmbeddingPath;
+    if (speakerPath.isNotEmpty && embeddingPath.isNotEmpty) {
+      final f = File(embeddingPath);
+      if (f.existsSync()) {
+        final bytes = f.readAsBytesSync();
+        if (bytes.length % 4 == 0 && bytes.isNotEmpty) {
+          speakerModelPath = speakerPath;
+          userEmbeddingBytes = bytes;
+        }
+      }
+    }
+
+    return LocalSttEngineService(
+      modelPath: modelPath,
+      speakerModelPath: speakerModelPath,
+      userEmbeddingBytes: userEmbeddingBytes,
+      maxSpeechDuration: 20.0,
+    );
   }
 
   _handleCompletion() async {
@@ -230,7 +260,8 @@ class SpeechProfileProvider extends ChangeNotifier
       }
       uploadingProfile = true;
       notifyListeners();
-      await _socket?.stop(reason: 'finalizing');
+      await _engine?.disconnect();
+      _engine = null;
       forceCompletionTimer?.cancel();
       connectionStateListener?.cancel();
       _bleBytesStream?.cancel();
@@ -507,8 +538,8 @@ class SpeechProfileProvider extends ChangeNotifier
         audioStorage.storeFramePacket(value);
 
         value.removeRange(0, 3);
-        if (_socket?.state == SocketServiceState.connected) {
-          _socket?.send(value);
+        if (_engine?.isConnected == true) {
+          _engine?.pushAudio(Uint8List.fromList(value));
         }
       },
     );
@@ -578,7 +609,8 @@ class SpeechProfileProvider extends ChangeNotifier
     percentageCompleted = 0;
     uploadingProfile = false;
     profileCompleted = false;
-    await _socket?.stop(reason: 'closing');
+    await _engine?.disconnect();
+    _engine = null;
     notifyListeners();
   }
 
@@ -592,7 +624,8 @@ class SpeechProfileProvider extends ChangeNotifier
     }
     forceCompletionTimer?.cancel();
     _finalizedCallback = null;
-    _socket?.unsubscribe(this);
+    _engine?.disconnect();
+    _engine = null;
     ServiceManager.instance().device.unsubscribe(this);
 
     super.dispose();
@@ -626,22 +659,14 @@ class SpeechProfileProvider extends ChangeNotifier
   @override
   void onStatusChanged(DeviceServiceStatus status) {}
 
-  @override
   void onClosed([int? closeCode]) {
-    // TODO: implement onClosed
+    // Engine closed — nothing to do here.
   }
 
-  @override
   void onError(Object err) {
     notifyError('WS_ERR');
   }
 
-  @override
-  void onMessageEventReceived(MessageEvent event) {
-    // TODO: implement onMessageEventReceived
-  }
-
-  @override
   void onSegmentReceived(List<TranscriptSegment> newSegments) {
     if (newSegments.isEmpty) return;
     if (segments.isEmpty) {
@@ -662,10 +687,8 @@ class SpeechProfileProvider extends ChangeNotifier
     debugPrint('Conversation creation timer restarted');
   }
 
-  @override
   void onConnected() {}
 
-  @override
   void onTerminalFailure(String reason) {
     debugPrint('[SpeechProfileProvider] Terminal failure: $reason');
   }
