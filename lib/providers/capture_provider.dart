@@ -297,6 +297,8 @@ class CaptureProvider extends ChangeNotifier
 
   /// Returns true if there's enough RAM to start local STT recording.
   /// Only applies when using on-device STT (Parakeet/Moonshine/Canary).
+  /// On failure, surfaces a user-visible notification so the session aborts
+  /// with an explanation instead of silently failing.
   Future<bool> _passesPreFlightRamCheck() async {
     final config = SharedPreferencesUtil().customSttConfig;
     if (!config.isEnabled) return true; // Default cloud STT, no RAM concern
@@ -308,10 +310,19 @@ class CaptureProvider extends ChangeNotifier
       return true; // Cloud STT doesn't need RAM check
     }
 
-    final ramMb = await DeviceMemoryService.getAvailableRamMb();
-    if (ramMb < DeviceMemoryService.minRamForRecordingMb) {
-      debugPrint('[CaptureProvider] Pre-flight RAM check failed: ${ramMb}MB available '
+    final result = await DeviceMemoryService.canStartRecording();
+    if (!result.canStart) {
+      debugPrint('[CaptureProvider] Pre-flight RAM check failed: '
+          '${result.availableMb}MB available '
           '(min ${DeviceMemoryService.minRamForRecordingMb}MB)');
+      NotificationService.instance.createNotification(
+        title: 'Memoria insuficiente',
+        body:
+            'La grabación no puede iniciar: sólo ${result.availableMb}MB libres '
+            '(mínimo ${DeviceMemoryService.minRamForRecordingMb}MB). '
+            'Cierra otras apps e intenta de nuevo.',
+        notificationId: 5,
+      );
       return false;
     }
     return true;

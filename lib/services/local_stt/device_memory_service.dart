@@ -102,4 +102,19 @@ class DeviceMemoryService {
         DeviceTier.mid => 100,
         DeviceTier.low => 50,
       };
+
+  /// Pre-flight gate before starting a recording. Refreshes RAM reading
+  /// live (not the cached tier) because the tier is set once at app start
+  /// and may not reflect current conditions hours later.
+  ///
+  /// Returns `canStart: false` when the device has less than
+  /// [minRamForRecordingMb] MB free. The caller is expected to surface a
+  /// user-visible message and abort the session.
+  static Future<({bool canStart, int availableMb})> canStartRecording() async {
+    final availableMb = await getAvailableRamMb();
+    final ok = availableMb >= minRamForRecordingMb;
+    debugPrint('[DeviceMemory] Pre-flight: ${availableMb}MB free, '
+        'minimum ${minRamForRecordingMb}MB — canStart=$ok');
+    return (canStart: ok, availableMb: availableMb);
+  }
 }
