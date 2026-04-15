@@ -31,10 +31,13 @@ import 'package:omi/services/speaker/speaker_types.dart';
 /// **Responses (worker → main):**
 /// - `['ready']` — engine initialized
 /// - `['error', String message, String? stackTrace]` — error occurred
-/// - `['chunk_result', String chunkId, String? jsonSegments, bool vadSpeechActive]` — chunk decoded (file-based)
-/// - `['stream_result', String? jsonSegments, bool vadSpeechActive]` — streaming audio decoded (memory-based, fast path)
-/// - `['flushed', String? jsonSegments]` — flush complete
+/// - `['chunk_result', String chunkId, List<Map<String, Object?>>? segments, bool vadSpeechActive]` — chunk decoded (file-based)
+/// - `['stream_result', List<Map<String, Object?>>? segments, bool vadSpeechActive]` — streaming audio decoded (memory-based, fast path)
+/// - `['flushed', List<Map<String, Object?>>? segments]` — flush complete
 /// - `['vad_state', bool isSpeechActive]` — emitted on VAD state transitions during processing
+///
+/// Segment maps are transferred as Dart primitives (no JSON round-trip) so
+/// consumers can call [TranscriptSegment.fromJson] directly on each map.
 @pragma('vm:entry-point')
 void workerEntryPoint(SendPort mainSendPort) {
   final workerReceivePort = ReceivePort();
@@ -349,7 +352,7 @@ class _SttWorker {
 
       if (results.isNotEmpty) {
         // Apply timestamp offset so segments have absolute times.
-        // LocalSttResult fields are final, so we adjust in _encodeResults.
+        // LocalSttResult fields are final, so we adjust inside _resultsToMaps.
 
         for (final r in results) {
           print(
@@ -357,8 +360,8 @@ class _SttWorker {
               '(${r.startTime.toStringAsFixed(2)}-${r.endTime.toStringAsFixed(2)}s)');
         }
 
-        final json = _encodeResults(results, offsetSeconds: offsetSeconds);
-        _mainSendPort.send(['chunk_result', chunkId, json, vadActive]);
+        final segments = _resultsToMaps(results, offsetSeconds: offsetSeconds);
+        _mainSendPort.send(['chunk_result', chunkId, segments, vadActive]);
       } else {
         _mainSendPort.send(['chunk_result', chunkId, null, vadActive]);
       }
@@ -374,9 +377,9 @@ class _SttWorker {
   /// Unlike handleProcessChunk which reads from disk, this receives bytes
   /// directly via SendPort for low-latency live transcription.
   ///
-  /// Emits `['stream_result', jsonSegments?, vadActive]` — distinct from
-  /// `chunk_result` so the socket can route streaming segments to the
-  /// watermark path and keep circuit-breaker state separate.
+  /// Emits `['stream_result', segments?, vadActive]` where `segments` is a
+  /// `List<Map<String, Object?>>` (or null). Consumers rebuild
+  /// [TranscriptSegment]s on receipt — no JSON string round-trip.
   void handleSendAudio(Uint8List pcm16Bytes) {
     try {
       final samples = _pcm16ToFloat32(pcm16Bytes);
@@ -389,8 +392,8 @@ class _SttWorker {
       }
 
       if (results.isNotEmpty) {
-        final json = _encodeResults(results);
-        _mainSendPort.send(['stream_result', json, vadActive]);
+        final segments = _resultsToMaps(results);
+        _mainSendPort.send(['stream_result', segments, vadActive]);
       } else {
         _mainSendPort.send(['stream_result', null, vadActive]);
       }
@@ -412,8 +415,8 @@ class _SttWorker {
       }
 
       if (flushed.isNotEmpty) {
-        final json = _encodeResults(flushed);
-        _mainSendPort.send(['flushed', json]);
+        final segments = _resultsToMaps(flushed);
+        _mainSendPort.send(['flushed', segments]);
       } else {
         _mainSendPort.send(['flushed', null]);
       }
@@ -432,16 +435,24 @@ class _SttWorker {
     _engine.dispose();
   }
 
-  /// Encode results as JSON segment array.
+  /// Build per-segment Maps ready to cross the isolate boundary.
+  ///
+  /// Returns a list of `Map<String, Object?>` using only primitives (int,
+  /// double, String, bool), which Dart's [SendPort] can transfer without a
+  /// JSON round-trip. Consumers rebuild [TranscriptSegment]s on the other
+  /// side via `TranscriptSegment.fromJson`.
   ///
   /// When [offsetSeconds] > 0, timestamps are shifted so they become
   /// absolute offsets from the start of the recording (chunk N starts
   /// at N * 5 seconds).
-  String _encodeResults(List<LocalSttResult> results, {double offsetSeconds = 0}) {
+  List<Map<String, Object?>> _resultsToMaps(
+    List<LocalSttResult> results, {
+    double offsetSeconds = 0,
+  }) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     var index = 0;
 
-    final segmentsJson = results.map((r) {
+    return results.map((r) {
       final start = r.startTime + offsetSeconds;
       final end = r.endTime + offsetSeconds;
       final segmentId =
@@ -469,7 +480,7 @@ class _SttWorker {
         }
       }
 
-      return {
+      return <String, Object?>{
         'id': segmentId,
         'text': r.text,
         'speaker': speaker,
@@ -481,8 +492,6 @@ class _SttWorker {
         'end': end,
       };
     }).toList();
-
-    return jsonEncode(segmentsJson);
   }
 
   /// Convert PCM16 little-endian bytes to Float32 samples normalized to [-1, 1].

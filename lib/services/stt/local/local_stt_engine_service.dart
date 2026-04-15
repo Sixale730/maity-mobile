@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
@@ -309,29 +308,27 @@ class LocalSttEngineService {
 
       case 'chunk_result':
         final chunkId = message.length > 1 ? message[1] as String : '';
-        final jsonSegments =
-            message.length > 2 ? message[2] as String? : null;
+        final segments = _extractSegments(message, 2);
         final vadActive = message.length > 3 ? message[3] as bool : false;
 
-        if (jsonSegments != null) {
+        if (segments != null) {
           _consecutiveErrors = 0;
-          _emitSegmentsFromJson(jsonSegments);
+          _emitSegments(segments);
         }
         _vadActive = vadActive;
         onVadStateChanged?.call(vadActive);
         onChunkProcessed?.call(chunkId);
 
       case 'stream_result':
-        final jsonSegments =
-            message.length > 1 ? message[1] as String? : null;
+        final segments = _extractSegments(message, 1);
         final vadActive = message.length > 2 ? message[2] as bool : false;
 
         _lastStreamResultAt = DateTime.now();
         _vadActive = vadActive;
 
-        if (jsonSegments != null) {
+        if (segments != null) {
           _consecutiveErrors = 0;
-          _emitSegmentsFromJson(jsonSegments);
+          _emitSegments(segments);
         }
         if (!_isStreamingHealthy) {
           _setStreamingHealth(true, 'stream_result_ok');
@@ -339,8 +336,9 @@ class LocalSttEngineService {
         onVadStateChanged?.call(vadActive);
 
       case 'flushed':
-        if (message.length > 1 && message[1] is String) {
-          _emitSegmentsFromJson(message[1] as String);
+        final segments = _extractSegments(message, 1);
+        if (segments != null) {
+          _emitSegments(segments);
         }
         _flushCompleter?.complete();
 
@@ -353,17 +351,26 @@ class LocalSttEngineService {
     }
   }
 
-  /// Decode a JSON segment array coming from the worker **once**, build
-  /// typed [TranscriptSegment]s, update the streaming watermark, and invoke
-  /// [onSegments]. This is the single decode boundary — callers never see
-  /// the JSON string.
-  void _emitSegmentsFromJson(String jsonSegments) {
+  /// Normalize the worker's segment payload at the given index of the
+  /// message. The worker emits `List<Map<String, Object?>>` after the
+  /// Commit-2 protocol change (no JSON string in flight).
+  List<Map<String, Object?>>? _extractSegments(List<dynamic> message, int at) {
+    if (message.length <= at) return null;
+    final raw = message[at];
+    if (raw == null) return null;
+    if (raw is List) {
+      return raw.whereType<Map>().map((m) => m.cast<String, Object?>()).toList();
+    }
+    return null;
+  }
+
+  /// Build typed [TranscriptSegment]s from raw Maps, update the streaming
+  /// watermark, and invoke [onSegments]. This is the **only** decode
+  /// boundary on the main isolate side — callers never see JSON.
+  void _emitSegments(List<Map<String, Object?>> raw) {
     try {
-      final decoded = jsonDecode(jsonSegments);
-      if (decoded is! List) return;
-      final segments = decoded
-          .whereType<Map<String, dynamic>>()
-          .map(TranscriptSegment.fromJson)
+      final segments = raw
+          .map((m) => TranscriptSegment.fromJson(Map<String, dynamic>.from(m)))
           .toList();
 
       for (final seg in segments) {

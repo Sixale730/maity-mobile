@@ -486,15 +486,16 @@ class LocalSttSocket implements IPureSocket {
 
       case 'chunk_result':
         final chunkId = message.length > 1 ? message[1] as String : '';
-        final jsonSegments =
-            message.length > 2 ? message[2] as String? : null;
+        final segments = _extractSegments(message, 2);
         final vadActive =
             message.length > 3 ? message[3] as bool : false;
 
         // Reset circuit breaker on successful decode
-        if (jsonSegments != null) {
+        if (segments != null) {
           _consecutiveErrors = 0;
-          onMessage(jsonSegments);
+          // Bridge: TranscripSegmentSocketService.onMessage still expects a
+          // JSON string. Removed when LocalSttSocket is deleted (Commit 6).
+          onMessage(jsonEncode(segments));
         }
 
         // Notify VAD state
@@ -505,8 +506,7 @@ class LocalSttSocket implements IPureSocket {
 
       case 'stream_result':
         // Streaming fast path: memory-only audio decoded without disk I/O.
-        final jsonSegments =
-            message.length > 1 ? message[1] as String? : null;
+        final segments = _extractSegments(message, 1);
         final vadActive =
             message.length > 2 ? message[2] as bool : false;
 
@@ -515,11 +515,11 @@ class LocalSttSocket implements IPureSocket {
         _lastStreamResultAt = DateTime.now();
         _vadActive = vadActive;
 
-        if (jsonSegments != null) {
+        if (segments != null) {
           _consecutiveErrors = 0;
-          _streamingWatermark = _maxEndTimeFromSegments(
-              jsonSegments, _streamingWatermark);
-          onMessage(jsonSegments);
+          _streamingWatermark =
+              _maxEndTimeFromMaps(segments, _streamingWatermark);
+          onMessage(jsonEncode(segments));
         }
         // Any successful worker response confirms streaming is healthy again,
         // which is how we auto-recover after a transient stall or respawn.
@@ -529,8 +529,9 @@ class LocalSttSocket implements IPureSocket {
         onVadStateChanged?.call(vadActive);
 
       case 'flushed':
-        if (message.length > 1 && message[1] is String) {
-          onMessage(message[1]);
+        final segments = _extractSegments(message, 1);
+        if (segments != null) {
+          onMessage(jsonEncode(segments));
         }
         _flushCompleter?.complete();
 
@@ -543,25 +544,30 @@ class LocalSttSocket implements IPureSocket {
     }
   }
 
-  /// Scan a JSON array of [LocalSttResult]-shaped maps and return the maximum
-  /// `endTime` seen, clamped to never decrease below [current]. Parse failures
-  /// are swallowed — we'd rather keep the previous watermark than crash.
-  double _maxEndTimeFromSegments(String jsonSegments, double current) {
-    try {
-      final decoded = jsonDecode(jsonSegments);
-      if (decoded is! List) return current;
-      var best = current;
-      for (final item in decoded) {
-        if (item is! Map) continue;
-        final end = item['endTime'];
-        if (end is num && end.toDouble() > best) {
-          best = end.toDouble();
-        }
-      }
-      return best;
-    } catch (_) {
-      return current;
+  /// Normalize the worker's segment payload at the given index of the
+  /// message. After the Commit-2 protocol change segments arrive as
+  /// `List<Map<String, Object?>>`. Returns null if nothing is there.
+  List<Map<String, Object?>>? _extractSegments(List<dynamic> message, int at) {
+    if (message.length <= at) return null;
+    final raw = message[at];
+    if (raw == null) return null;
+    if (raw is List) {
+      return raw.whereType<Map>().map((m) => m.cast<String, Object?>()).toList();
     }
+    return null;
+  }
+
+  /// Max `end` across segment maps, clamped to never decrease below [current].
+  double _maxEndTimeFromMaps(
+      List<Map<String, Object?>> segments, double current) {
+    var best = current;
+    for (final item in segments) {
+      final end = item['end'];
+      if (end is num && end.toDouble() > best) {
+        best = end.toDouble();
+      }
+    }
+    return best;
   }
 
   @override
