@@ -11,17 +11,17 @@ import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/notifications.dart';
-import 'package:omi/services/sockets/pure_socket.dart';
-import 'package:omi/services/sockets/transcription_service.dart';
+import 'package:omi/services/stt/cloud/pure_socket.dart';
+import 'package:omi/services/stt/cloud/transcription_service.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 
 export 'package:omi/utils/audio/audio_transcoder.dart';
-export 'package:omi/services/sockets/composite_transcription_socket.dart';
-export 'package:omi/services/sockets/pure_polling.dart';
-export 'package:omi/services/sockets/pure_streaming_stt.dart';
+export 'package:omi/services/stt/cloud/composite_transcription_socket.dart';
+export 'package:omi/services/stt/cloud/pure_polling.dart';
+export 'package:omi/services/stt/cloud/pure_streaming_stt.dart';
 export 'package:omi/models/stt_response_schema.dart';
 export 'package:omi/models/stt_result.dart';
-export 'package:omi/services/sockets/transcription_polling_service.dart';
+export 'package:omi/services/stt/cloud/transcription_polling_service.dart';
 
 abstract interface class ITransctiptSegmentSocketServiceListener {
   void onMessageEventReceived(MessageEvent event);

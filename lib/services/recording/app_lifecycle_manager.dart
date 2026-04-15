@@ -9,7 +9,7 @@ import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/utils/app_state_collector.dart';
-import 'package:omi/services/sockets/transcription_service.dart';
+import 'package:omi/services/stt/cloud/transcription_service.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/platform/platform_service.dart';

@@ -1,5 +1,5 @@
-import 'package:omi/services/local_stt/local_stt_model_type.dart';
-import 'package:omi/services/local_stt/model_manifest.dart';
+import 'package:omi/services/stt/local/local_stt_model_type.dart';
+import 'package:omi/services/stt/local/model_manifest.dart';
 
 /// Manifest for NVIDIA Canary 180M Flash (en/es/de/fr, int8 quantized).
 ///

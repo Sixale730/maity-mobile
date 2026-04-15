@@ -11,7 +11,7 @@ import 'package:omi/services/conversation_processor.dart';
 import 'package:omi/services/recording/telemetry_collector.dart';
 import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/services/transcript_recovery_service.dart';
-import 'package:omi/services/local_stt/chunk_queue_manager.dart';
+import 'package:omi/services/stt/local/chunk_queue_manager.dart';
 import 'package:omi/services/recording/wav_gap_recovery.dart';
 import 'package:omi/utils/mutex.dart';
 import 'package:path_provider/path_provider.dart';

@@ -13,11 +13,11 @@ import 'package:omi/models/stt_provider.dart';
 import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/role_provider.dart';
 import 'package:omi/services/services.dart';
-import 'package:omi/services/sockets/transcription_service.dart';
+import 'package:omi/services/stt/cloud/transcription_service.dart';
 import 'package:omi/services/custom_stt_log_service.dart';
 import 'package:omi/pages/settings/widgets/local_stt_model_card.dart';
-import 'package:omi/services/local_stt/local_stt_model_type.dart';
-import 'package:omi/services/local_stt/model_download_service.dart';
+import 'package:omi/services/stt/local/local_stt_model_type.dart';
+import 'package:omi/services/stt/local/model_download_service.dart';
 import 'package:provider/provider.dart';
 
 class TranscriptionSettingsPage extends StatefulWidget {

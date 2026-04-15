@@ -1,4 +1,4 @@
-import 'package:omi/services/local_stt/local_stt_model_type.dart';
+import 'package:omi/services/stt/local/local_stt_model_type.dart';
 
 // ---------------------------------------------------------------------------
 // Abstract interface for any local STT model manifest

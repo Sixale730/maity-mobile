@@ -8,8 +8,8 @@ import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 import 'package:omi/services/audio/audio_processing_utils.dart' as audio;
 import 'package:omi/services/audio/pitch_utils.dart' as pitch;
 import 'package:omi/services/audio/spectral_utils.dart' as spectral;
-import 'package:omi/services/local_stt/local_stt_engine.dart';
-import 'package:omi/services/local_stt/local_stt_model_type.dart';
+import 'package:omi/services/stt/local/local_stt_engine.dart';
+import 'package:omi/services/stt/local/local_stt_model_type.dart';
 import 'package:omi/services/speaker/multi_signal_scorer.dart' as scorer;
 import 'package:omi/services/speaker/speaker_types.dart';
 

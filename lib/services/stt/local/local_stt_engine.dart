@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 
 import 'package:omi/services/audio/audio_processing_utils.dart' as audio;
-import 'package:omi/services/local_stt/local_stt_model_type.dart';
+import 'package:omi/services/stt/local/local_stt_model_type.dart';
 
 /// Result from a local STT decode operation.
 class LocalSttResult {

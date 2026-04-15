@@ -9,7 +9,7 @@ import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/services.dart';
-import 'package:omi/services/sockets/transcription_service.dart';
+import 'package:omi/services/stt/cloud/transcription_service.dart';
 import 'package:omi/services/voice_profile_service.dart';
 import 'package:omi/services/vad/vad_service.dart';
 import 'package:omi/services/wals.dart';

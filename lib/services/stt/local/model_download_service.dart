@@ -6,10 +6,10 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/preferences.dart';
-import 'package:omi/services/local_stt/local_stt_model_type.dart';
-import 'package:omi/services/local_stt/canary_model_manifest.dart';
-import 'package:omi/services/local_stt/model_manifest.dart';
-import 'package:omi/services/local_stt/moonshine_model_manifest.dart';
+import 'package:omi/services/stt/local/local_stt_model_type.dart';
+import 'package:omi/services/stt/local/canary_model_manifest.dart';
+import 'package:omi/services/stt/local/model_manifest.dart';
+import 'package:omi/services/stt/local/moonshine_model_manifest.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 

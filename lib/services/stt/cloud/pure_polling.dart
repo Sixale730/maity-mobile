@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:omi/utils/audio/audio_transcoder.dart';
-import 'package:omi/services/sockets/pure_socket.dart';
+import 'package:omi/services/stt/cloud/pure_socket.dart';
 import 'package:omi/services/custom_stt_log_service.dart';
 import 'package:omi/models/stt_result.dart';
 import 'package:omi/services/connectivity_service.dart';

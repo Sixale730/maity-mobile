@@ -20,7 +20,7 @@ import 'package:omi/providers/people_provider.dart';
 import 'package:omi/providers/usage_provider.dart';
 import 'package:omi/services/connectivity_service.dart';
 import 'package:omi/services/services.dart';
-import 'package:omi/services/sockets/transcription_service.dart';
+import 'package:omi/services/stt/cloud/transcription_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/services/vad/vad_state.dart';
@@ -32,7 +32,7 @@ import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/platform/platform_service.dart';
 
 // New decomposed services
-import 'package:omi/services/local_stt/device_memory_service.dart';
+import 'package:omi/services/stt/local/device_memory_service.dart';
 import 'package:omi/services/recording/recording_state_machine.dart';
 import 'package:omi/services/recording/audio_transport_service.dart';
 import 'package:omi/services/recording/transcription_pipeline.dart';

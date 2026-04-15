@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:omi/services/sockets/pure_socket.dart';
+import 'package:omi/services/stt/cloud/pure_socket.dart';
 import 'package:omi/services/custom_stt_log_service.dart';
 
 class CompositeTranscriptionSocket implements IPureSocket {

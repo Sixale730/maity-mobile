@@ -3,8 +3,8 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
-import 'package:omi/services/local_stt/local_stt_model_type.dart';
-import 'package:omi/services/local_stt/local_stt_worker.dart';
+import 'package:omi/services/stt/local/local_stt_model_type.dart';
+import 'package:omi/services/stt/local/local_stt_worker.dart';
 
 /// Pending chunk buffered while the worker isolate is starting up or respawning.
 class _PendingChunk {

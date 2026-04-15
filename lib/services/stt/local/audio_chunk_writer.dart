@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:omi/services/local_stt/chunk_meta.dart';
+import 'package:omi/services/stt/local/chunk_meta.dart';
 
 /// Buffers incoming PCM16 audio bytes in memory and flushes to disk
 /// every [_flushInterval] (5 seconds).

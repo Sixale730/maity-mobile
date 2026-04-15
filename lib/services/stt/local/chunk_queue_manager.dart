@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:omi/services/local_stt/chunk_meta.dart';
+import 'package:omi/services/stt/local/chunk_meta.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// Whether the queue actively feeds chunks to the worker.

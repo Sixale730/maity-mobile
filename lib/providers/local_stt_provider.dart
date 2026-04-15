@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/preferences.dart';
-import 'package:omi/services/local_stt/local_stt_model_type.dart';
-import 'package:omi/services/local_stt/model_download_service.dart';
-import 'package:omi/services/local_stt/speaker_model_download_service.dart';
+import 'package:omi/services/stt/local/local_stt_model_type.dart';
+import 'package:omi/services/stt/local/model_download_service.dart';
+import 'package:omi/services/stt/local/speaker_model_download_service.dart';
 
 class LocalSttProvider extends ChangeNotifier {
   bool _deviceRamWarning = false;

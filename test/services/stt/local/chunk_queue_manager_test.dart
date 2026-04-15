@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omi/services/local_stt/chunk_meta.dart';
-import 'package:omi/services/local_stt/chunk_queue_manager.dart';
+import 'package:omi/services/stt/local/chunk_meta.dart';
+import 'package:omi/services/stt/local/chunk_queue_manager.dart';
 
 /// These tests cover the dual-mode behavior introduced for the streaming
 /// fast path. They don't touch disk persistence — the singleton is reset

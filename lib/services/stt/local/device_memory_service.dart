@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:omi/services/local_stt/model_manifest.dart';
+import 'package:omi/services/stt/local/model_manifest.dart';
 
 /// Device classification based on available RAM.
 enum DeviceTier { high, mid, low }

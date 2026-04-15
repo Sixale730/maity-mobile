@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:omi/services/sockets/pure_polling.dart';
+import 'package:omi/services/stt/cloud/pure_polling.dart';
 import 'package:omi/services/custom_stt_log_service.dart';
 import 'package:omi/models/stt_response_schema.dart';
 import 'package:omi/models/stt_result.dart';

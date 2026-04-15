@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:omi/backend/preferences.dart';
-import 'package:omi/services/local_stt/model_download_service.dart';
-import 'package:omi/services/local_stt/speaker_model_manifest.dart';
+import 'package:omi/services/stt/local/model_download_service.dart';
+import 'package:omi/services/stt/local/speaker_model_manifest.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// Manages downloading the speaker embedding model (~28 MB) for on-device
