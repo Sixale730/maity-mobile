@@ -68,16 +68,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// it can configure the audio transcoder.
   BleAudioCodec? _currentCodec;
 
-  // Keep-alive + token refresh: owned by [CloudSttOrchestrator].
-
-  // ---------------------------------------------------------------------------
-  // Health monitor
-  // ---------------------------------------------------------------------------
-  Timer? _socketHealthTimer;
-  DateTime? _lastSegmentReceivedAt;
-  int _sttReconnectAttempts = 0;
-  static const int _maxSttReconnectAttempts = 3;
-  DateTime? _lastAudioBytesSentAt;
+  // Keep-alive, token refresh, and health monitor timers/counters: owned
+  // by [CloudSttOrchestrator]. Pipeline reads them through the orchestrator
+  // so its own _checkSocketHealth / _handleTranscriptionStalled can still
+  // reason about stall state without duplicating fields.
 
   // BLE devices always send audio bytes (even silence), so the
   // audio-flowing check in _onSilenceTimeout doesn't apply to them.
@@ -710,7 +704,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
   /// Update the last audio bytes sent timestamp (for STT stall detection).
   void updateLastAudioBytesSentAt() {
-    _lastAudioBytesSentAt = DateTime.now();
+    _cloudOrchestrator?.updateLastAudioBytesSentAt();
   }
 
   // ---------------------------------------------------------------------------
@@ -957,9 +951,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     }());
     hasTranscripts = true;
 
-    // Update health monitor timestamp
-    _lastSegmentReceivedAt = DateTime.now();
-    _sttReconnectAttempts = 0;
+    // Update health monitor timestamp (no-op when local STT is active).
+    _cloudOrchestrator?.markSegmentReceived();
 
     // Reset silence timer (auto-save after N seconds of no speech)
     resetSilenceTimer();
@@ -1034,46 +1027,36 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   // ---------------------------------------------------------------------------
 
   /// Start the socket health monitor to detect stalled transcription.
+  /// No-op when local STT is active — the on-device engine doesn't stall
+  /// like a cloud WebSocket, so we don't need to watch it.
   void startHealthMonitor() {
-    _socketHealthTimer?.cancel();
-    _lastSegmentReceivedAt = null;
-
-    _socketHealthTimer =
-        Timer.periodic(const Duration(seconds: 10), (_) {
-      _checkSocketHealth();
-    });
+    _cloudOrchestrator?.startHealthMonitor(_checkSocketHealth);
   }
 
   /// Stop the socket health monitor.
   void stopHealthMonitor() {
-    _socketHealthTimer?.cancel();
-    _socketHealthTimer = null;
-    _lastSegmentReceivedAt = null;
+    _cloudOrchestrator?.stopHealthMonitor();
   }
 
-  /// Check if transcription has stalled.
+  /// Check if transcription has stalled. Fires every 10 s from the
+  /// orchestrator's timer.
   void _checkSocketHealth() {
     try {
       if (_socket == null) return;
-
-      // Skip stall detection for local STT: silence just means nobody is
-      // talking — the on-device engine doesn't stall like a cloud WebSocket.
       if (_isLocalStt) return;
 
-      // Only for custom STT mode
       final customSttConfig = SharedPreferencesUtil().customSttConfig;
       if (!customSttConfig.isEnabled) return;
 
-      // Check if socket is disconnected
       if (_socket?.state != SocketServiceState.connected) {
         debugPrint(
             '[TranscriptionPipeline] Health monitor: socket disconnected');
         return;
       }
 
-      // Check if segments have stopped arriving (>60s gap)
-      if (_lastSegmentReceivedAt != null && segments.isNotEmpty) {
-        final gap = DateTime.now().difference(_lastSegmentReceivedAt!);
+      final lastAt = _cloudOrchestrator?.lastSegmentReceivedAt;
+      if (lastAt != null && segments.isNotEmpty) {
+        final gap = DateTime.now().difference(lastAt);
         if (gap.inSeconds > 60) {
           _captureLog.log('health', 'health_check_stall_detected',
               severity: 'warning',
@@ -1094,29 +1077,32 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
   /// Called when transcription appears to have stalled.
   void _handleTranscriptionStalled() {
-    if (_lastSegmentReceivedAt == null) return;
+    final orchestrator = _cloudOrchestrator;
+    if (orchestrator == null) return;
+    if (orchestrator.lastSegmentReceivedAt == null) return;
 
+    final attemptBefore = orchestrator.sttReconnectAttempts;
     _captureLog.log('health', 'transcription_stalled',
         severity: 'error',
         details: {
           'total_segments': segments.length,
-          'reconnect_attempt': _sttReconnectAttempts,
+          'reconnect_attempt': attemptBefore,
         });
 
-    // Clear timestamp to avoid repeated triggers
-    _lastSegmentReceivedAt = null;
+    // Clear timestamp to avoid repeated triggers while reconnect is in flight.
+    orchestrator.clearLastSegmentReceivedAt();
 
-    _sttReconnectAttempts++;
-    if (_sttReconnectAttempts > _maxSttReconnectAttempts) {
+    final attempt = orchestrator.incrementSttReconnectAttempts();
+    if (attempt > orchestrator.maxSttReconnectAttempts) {
       debugPrint(
-          '[TranscriptionPipeline] Max STT reconnect attempts reached ($_maxSttReconnectAttempts) - notifying user');
+          '[TranscriptionPipeline] Max STT reconnect attempts reached (${orchestrator.maxSttReconnectAttempts}) - notifying user');
       _showStallNotification();
       onAutoFinalizeNeeded?.call();
       return;
     }
 
     debugPrint(
-        '[TranscriptionPipeline] Transcription stalled - STT reconnect attempt $_sttReconnectAttempts/$_maxSttReconnectAttempts');
+        '[TranscriptionPipeline] Transcription stalled - STT reconnect attempt $attempt/${orchestrator.maxSttReconnectAttempts}');
 
     // Delegate reconnection to CaptureProvider which knows recording state
     onTranscriptionStalled?.call();
@@ -1124,8 +1110,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     // Reset silence timer to give new socket time
     resetSilenceTimer();
 
-    // Set timestamp so health monitor can detect if reconnected socket also stalls
-    _lastSegmentReceivedAt = DateTime.now();
+    // Restamp so the monitor can detect if the reconnected socket also stalls.
+    orchestrator.touchLastSegmentReceivedAt();
   }
 
   /// Show a notification when transcription stalled and reconnection failed.
@@ -1176,8 +1162,9 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     // Check if audio is still flowing (STT stall vs real silence).
     // BLE devices always send raw audio bytes (even during silence), so the
     // audio-flowing heuristic doesn't apply — treat timer expiry as real silence.
-    if (!_isBleSource && _lastAudioBytesSentAt != null) {
-      final audioGap = DateTime.now().difference(_lastAudioBytesSentAt!);
+    final lastAudioAt = _cloudOrchestrator?.lastAudioBytesSentAt;
+    if (!_isBleSource && lastAudioAt != null) {
+      final audioGap = DateTime.now().difference(lastAudioAt);
       if (audioGap.inSeconds < 10) {
         // Local STT: let silence timeout proceed normally.
         // Chunk processing every 5s doesn't mean speech is happening.
@@ -1309,16 +1296,14 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _segmentController = null;
     _segmentsVersion = 0;
     hasTranscripts = false;
-    _lastSegmentReceivedAt = null;
-    _sttReconnectAttempts = 0;
     _transcriptionServiceStatuses = [];
     _activeSttProvider = null;
     _audioTranscoder = null;
-    // Cloud-only state (WAL, reconnect buffer, offset) is owned by the
-    // orchestrator — reset/clear via its API.
+    // Cloud-only state lives in the orchestrator — reset via its API.
     _cloudOrchestrator?.setWalEnabled(false);
     _cloudOrchestrator?.clearReconnectBuffer();
     _cloudOrchestrator?.resetTimestampOffset();
+    _cloudOrchestrator?.resetHealth();
     vadSpeechActive.value = false;
   }
 
@@ -1415,11 +1400,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
   /// Dispose all resources. Must be called when the pipeline is no longer needed.
   Future<void> dispose() async {
-    // Cloud-side timers (keep-alive, token refresh) are cancelled by the
-    // orchestrator's own dispose later in this method.
-    _socketHealthTimer?.cancel();
-    _socketHealthTimer = null;
-
+    // Cloud-side timers (keep-alive, token refresh, health monitor) are
+    // cancelled by the orchestrator's own dispose later in this method.
     _silenceTimer?.cancel();
     _silenceTimer = null;
 

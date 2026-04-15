@@ -200,6 +200,75 @@ class CloudSttOrchestrator {
   }
 
   // ---------------------------------------------------------------------------
+  // Health monitor (stalled transcription detection)
+  // ---------------------------------------------------------------------------
+  Timer? _socketHealthTimer;
+  DateTime? _lastSegmentReceivedAt;
+  int _sttReconnectAttempts = 0;
+  static const int _maxSttReconnectAttempts = 3;
+  DateTime? _lastAudioBytesSentAt;
+
+  /// Wall-clock of the most recent segment the pipeline received. Used by
+  /// the stall detector to flag >60 s gaps.
+  DateTime? get lastSegmentReceivedAt => _lastSegmentReceivedAt;
+
+  /// Current count of STT reconnect attempts since the last successful stream.
+  int get sttReconnectAttempts => _sttReconnectAttempts;
+  int get maxSttReconnectAttempts => _maxSttReconnectAttempts;
+
+  /// Wall-clock of the most recent audio frame pushed via [sendAudio].
+  DateTime? get lastAudioBytesSentAt => _lastAudioBytesSentAt;
+
+  /// Set the timestamp for a freshly received segment. Pipeline calls this
+  /// every time onSegmentReceived fires.
+  void markSegmentReceived() {
+    _lastSegmentReceivedAt = DateTime.now();
+    _sttReconnectAttempts = 0;
+  }
+
+  /// Increment the reconnect counter and return the new value. Called by
+  /// the pipeline after a stall is detected.
+  int incrementSttReconnectAttempts() => ++_sttReconnectAttempts;
+
+  /// Clear the stall timestamp without resetting counters. Used by the
+  /// pipeline to avoid re-firing the stall callback while a reconnect is
+  /// in flight.
+  void clearLastSegmentReceivedAt() => _lastSegmentReceivedAt = null;
+
+  /// Restamp the stall timestamp after the pipeline gives a new socket a
+  /// grace window to produce segments.
+  void touchLastSegmentReceivedAt() => _lastSegmentReceivedAt = DateTime.now();
+
+  /// Pipeline calls this from its audio-transport hook so the stall
+  /// heuristic can distinguish "socket quiet because nobody's talking"
+  /// (audio still flowing) from "socket dead".
+  void updateLastAudioBytesSentAt() => _lastAudioBytesSentAt = DateTime.now();
+
+  /// Reset all health counters. Called on clearSegments / new session.
+  void resetHealth() {
+    _lastSegmentReceivedAt = null;
+    _sttReconnectAttempts = 0;
+    _lastAudioBytesSentAt = null;
+  }
+
+  /// Start the periodic health-check tick. The [onTick] callback reads
+  /// pipeline state (segments, etc.) and decides whether to raise a stall.
+  /// Safe to call multiple times; cancels any prior timer first.
+  void startHealthMonitor(void Function() onTick) {
+    _socketHealthTimer?.cancel();
+    _lastSegmentReceivedAt = null;
+    _socketHealthTimer =
+        Timer.periodic(const Duration(seconds: 10), (_) => onTick());
+  }
+
+  /// Stop the health-check tick and forget the stall timestamp.
+  void stopHealthMonitor() {
+    _socketHealthTimer?.cancel();
+    _socketHealthTimer = null;
+    _lastSegmentReceivedAt = null;
+  }
+
+  // ---------------------------------------------------------------------------
   // Timestamp offset (Deepgram restarts at t=0 on every reconnect)
   // ---------------------------------------------------------------------------
   Duration _cumulativeOffset = Duration.zero;
@@ -391,11 +460,13 @@ class CloudSttOrchestrator {
   /// multiple times. Future commits extend this to also cancel health /
   /// keep-alive / token-refresh timers.
   Future<void> dispose() async {
+    stopHealthMonitor();
     cancelKeepAlive();
     _cancelTokenRefresh();
     await disconnect(reason: 'orchestrator disposed');
     clearReconnectBuffer();
     resetTimestampOffset();
+    resetHealth();
     _walEnabled = false;
   }
 }
