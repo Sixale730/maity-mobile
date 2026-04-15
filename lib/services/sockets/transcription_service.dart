@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:omi/backend/preferences.dart';
@@ -12,9 +10,6 @@ import 'package:omi/env/env.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/services/capture_log_service.dart';
-import 'package:omi/services/local_stt/device_memory_service.dart';
-import 'package:omi/services/local_stt/local_stt_model_type.dart';
-import 'package:omi/services/local_stt/local_stt_socket.dart';
 import 'package:omi/services/notifications.dart';
 import 'package:omi/services/sockets/pure_socket.dart';
 import 'package:omi/services/sockets/transcription_service.dart';
@@ -360,18 +355,17 @@ class TranscriptSocketServiceFactory {
       return createDefault(sampleRate, codec, language, source: source);
     }
 
-    // Local on-device: Parakeet or Moonshine, no composite wrapper needed
-    if (config.provider == SttProvider.localParakeet) {
-      return createLocalStt(sampleRate, codec, language, source: source);
-    }
-    if (config.provider == SttProvider.localMoonshine) {
-      return createLocalStt(sampleRate, codec, language,
-          source: source, modelType: LocalSttModelType.moonshine);
-    }
-    if (config.provider == SttProvider.localCanary) {
-      return createLocalStt(sampleRate, codec, language,
-          source: source, modelType: LocalSttModelType.canary);
-    }
+    // Local on-device providers (Parakeet / Moonshine / Canary) are owned by
+    // [LocalSttEngineService] and handled directly by [TranscriptionPipeline]
+    // before this factory is ever reached — they have no WebSocket, no
+    // composite, and no cloud fallback inside the factory.
+    assert(
+      config.provider != SttProvider.localParakeet &&
+          config.provider != SttProvider.localMoonshine &&
+          config.provider != SttProvider.localCanary,
+      'Local STT providers must not reach TranscriptSocketServiceFactory. '
+      'Pipeline should branch to LocalSttEngineService first.',
+    );
 
     final sttConfigId = config.sttConfigId;
     final effectiveLang = config.effectiveLanguage;
@@ -411,18 +405,15 @@ class TranscriptSocketServiceFactory {
       return createDefault(sampleRate, codec, language, source: source);
     }
 
-    // Local on-device engine: Parakeet or Moonshine, no network
-    if (config.provider == SttProvider.localParakeet) {
-      return createLocalStt(sampleRate, codec, language, source: source);
-    }
-    if (config.provider == SttProvider.localMoonshine) {
-      return createLocalStt(sampleRate, codec, language,
-          source: source, modelType: LocalSttModelType.moonshine);
-    }
-    if (config.provider == SttProvider.localCanary) {
-      return createLocalStt(sampleRate, codec, language,
-          source: source, modelType: LocalSttModelType.canary);
-    }
+    // Local on-device providers are handled by LocalSttEngineService in the
+    // pipeline — they never reach this factory. See the matching assert in
+    // createFromCustomConfig.
+    assert(
+      config.provider != SttProvider.localParakeet &&
+          config.provider != SttProvider.localMoonshine &&
+          config.provider != SttProvider.localCanary,
+      'Local STT providers must not reach TranscriptSocketServiceFactory.',
+    );
 
     final sttConfigId = config.sttConfigId;
     debugPrint(
@@ -446,109 +437,9 @@ class TranscriptSocketServiceFactory {
     );
   }
 
-  /// Create a local STT transcription service using an on-device model.
-  /// No network required -- audio is decoded locally via sherpa_onnx.
-  ///
-  /// Each call creates a fresh [LocalSttSocket] whose [connect] spawns a new
-  /// worker isolate with its own engine instance.  This ensures a clean VAD
-  /// state on every reconnect.
-  static TranscriptSegmentSocketService createLocalStt(
-    int sampleRate,
-    BleAudioCodec codec,
-    String language, {
-    String? source,
-    LocalSttModelType modelType = LocalSttModelType.parakeet,
-  }) {
-    final prefs = SharedPreferencesUtil();
-    final modelPath = switch (modelType) {
-      LocalSttModelType.moonshine => prefs.localSttMoonshinePath,
-      LocalSttModelType.canary => prefs.localSttCanaryPath,
-      LocalSttModelType.parakeet => prefs.localSttModelPath,
-    };
-    debugPrint(
-        '[STTFactory] Creating LocalSttSocket, model: ${modelType.name}, path: $modelPath');
-
-    if (modelPath.isEmpty) {
-      debugPrint(
-          '[STTFactory] ERROR: ${modelType.name} model path is empty — cannot create local STT');
-      throw StateError(
-          '${modelType.name} model path not configured. Download the model first.');
-    }
-
-    // Load speaker model path and user embedding for on-device speaker ID
-    String? speakerModelPath;
-    Uint8List? userEmbeddingBytes;
-
-    final speakerPath = prefs.speakerModelPath;
-    final embeddingPath = prefs.localSpeakerEmbeddingPath;
-
-    if (speakerPath.isNotEmpty && embeddingPath.isNotEmpty) {
-      final embeddingFile = File(embeddingPath);
-      if (embeddingFile.existsSync()) {
-        final bytes = embeddingFile.readAsBytesSync();
-        if (bytes.length % 4 == 0 && bytes.isNotEmpty) {
-          speakerModelPath = speakerPath;
-          userEmbeddingBytes = bytes;
-          debugPrint('[STTFactory] Speaker ID enabled for local STT');
-        }
-      }
-    }
-
-    // Load acoustic profile if available
-    String? acousticProfileJson;
-    final profilePath = prefs.acousticProfilePath;
-    if (profilePath.isNotEmpty) {
-      final profileFile = File(profilePath);
-      if (profileFile.existsSync()) {
-        try {
-          acousticProfileJson = profileFile.readAsStringSync();
-          debugPrint('[STTFactory] Acoustic profile loaded for local STT');
-        } catch (e) {
-          debugPrint('[STTFactory] Failed to load acoustic profile: $e');
-        }
-      }
-    }
-
-    // maxSpeechDuration per model: VAD native mechanism (threshold→0.9) activates
-    // at this threshold, force-flush is the hard cap if no pause is found.
-    // Parakeet (transducer): 20s — tolerates arbitrary cuts, aligned with
-    //   sherpa-onnx C API default. Ref: c-api.cc SHERPA_ONNX_OR(..., 20)
-    // Canary (encoder-decoder): 10s — needs complete utterances, configurable.
-    final double? maxSpeechDuration = switch (modelType) {
-      LocalSttModelType.canary => prefs.localSttCanaryMaxSpeechDuration,
-      LocalSttModelType.parakeet => 20.0,
-      LocalSttModelType.moonshine => null, // uses engine default (30s)
-    };
-
-    // Tier-based thread count: adapts to available RAM on mobile
-    final numThreads = DeviceMemoryService.cachedThreadCount;
-
-    final localSocket = LocalSttSocket(
-      modelPath: modelPath,
-      modelType: modelType,
-      speakerModelPath: speakerModelPath,
-      userEmbeddingBytes: userEmbeddingBytes,
-      maxSpeechDuration: maxSpeechDuration,
-      numThreads: numThreads,
-      acousticProfileJson: acousticProfileJson,
-    );
-
-    final service = TranscriptSegmentSocketService.withSocket(
-      sampleRate,
-      codec,
-      language,
-      localSocket,
-      includeSpeechProfile: false,
-      source: source,
-      customSttMode: true,
-      sttConfigId: '${modelType.name}:ondevice',
-    );
-
-    // VAD state and chunk processing callbacks are wired by
-    // TranscriptionPipeline._initChunkPipeline() after socket connects.
-
-    return service;
-  }
+  // createLocalStt removed: local providers are now owned by
+  // LocalSttEngineService and routed directly by TranscriptionPipeline /
+  // SpeechProfileProvider. See lib/services/stt/local/local_stt_engine_service.dart.
 
   /// Create streaming WebSocket for live STT
   static IPureSocket _createStreamingSocket(

@@ -521,30 +521,23 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
         return;
       }
     }
+    // Only cloud STT reaches this point — the local branch returns early
+    // after LocalSttEngineService.connect(). No local-specific flag guards
+    // needed here anymore.
     _socket?.subscribe(this, this);
     _transcriptServiceReady = true;
     _activeSttProvider = effectiveConfig?.provider ?? SttProvider.deepgramLive;
     TelemetryCollector.instance.setSttProvider(_activeSttProvider?.name);
-    if (_isLocalStt) {
-      _walEnabled = false;
-
-      // Wire chunk-based processing for local STT
-      await _initChunkPipeline();
-    }
 
     // Track recording start time for timestamp offset calculation
     _recordingStartTime ??= DateTime.now();
 
     // Proactive token refresh: reconnect before JWT expires (~1hr).
-    // Skip for local STT: no tokens involved, and reconnecting destroys
-    // the worker isolate (losing VAD state).
     _tokenRefreshTimer?.cancel();
-    if (!_isLocalStt) {
-      _tokenRefreshTimer = Timer(const Duration(minutes: 50), () {
-        _captureLog.log('socket', 'token_refresh_reconnect', details: {});
-        onTranscriptionStalled?.call();
-      });
-    }
+    _tokenRefreshTimer = Timer(const Duration(minutes: 50), () {
+      _captureLog.log('socket', 'token_refresh_reconnect', details: {});
+      onTranscriptionStalled?.call();
+    });
 
     // Initialize VAD if enabled and using custom STT with PCM16 codec
     await initializeVadService(codec, effectiveConfig);
