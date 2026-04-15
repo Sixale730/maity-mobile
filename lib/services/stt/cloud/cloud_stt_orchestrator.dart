@@ -7,6 +7,7 @@ import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/services/stt/cloud/transcription_service.dart';
+import 'package:omi/utils/debug_log_manager.dart';
 
 /// Orchestrates the Deepgram / WebSocket cloud STT transport.
 ///
@@ -96,6 +97,106 @@ class CloudSttOrchestrator {
   /// sessions never call this (their pipeline forces it false).
   void setWalEnabled(bool enabled) {
     _walEnabled = enabled;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Token refresh timer (JWT expires ~1hr, we preempt at 50 min)
+  // ---------------------------------------------------------------------------
+  Timer? _tokenRefreshTimer;
+
+  static const Duration _tokenRefreshInterval = Duration(minutes: 50);
+
+  /// Schedule a proactive token-refresh reconnect. Called internally after a
+  /// successful [connect]. The pipeline's `onTranscriptionStalled` callback
+  /// handles the actual reconnect logic.
+  void _scheduleTokenRefresh() {
+    _tokenRefreshTimer?.cancel();
+    _tokenRefreshTimer = Timer(_tokenRefreshInterval, () {
+      _captureLog.log('socket', 'token_refresh_reconnect', details: {});
+      _onTranscriptionStalled();
+    });
+  }
+
+  /// Cancel the token refresh timer (e.g., on disconnect / dispose).
+  void _cancelTokenRefresh() {
+    _tokenRefreshTimer?.cancel();
+    _tokenRefreshTimer = null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Keep-alive timer (fires on socket disconnect to try reconnecting)
+  // ---------------------------------------------------------------------------
+  Timer? _keepAliveTimer;
+  DateTime? _keepAliveLastExecutedAt;
+  int _keepAliveAttempts = 0;
+  static const int _maxKeepAliveAttempts = 10;
+  static const Duration _keepAliveInterval = Duration(seconds: 15);
+
+  /// Start the keep-alive loop. Tries reconnecting (via the stall callback)
+  /// every [_keepAliveInterval]; stops on reconnect or after
+  /// [_maxKeepAliveAttempts] failures (triggers auto-finalize).
+  void startKeepAlive() {
+    _captureLog.log('socket', 'keepalive_started');
+    _keepAliveTimer?.cancel();
+    _keepAliveAttempts = 0;
+
+    _keepAliveTimer = Timer.periodic(_keepAliveInterval, (t) async {
+      _keepAliveAttempts++;
+
+      DebugLogManager.logEvent('keep_alive_tick', {
+        'attempt': _keepAliveAttempts,
+        'max_attempts': _maxKeepAliveAttempts,
+        'socket_state': _socket != null ? _socket!.state.name : 'null',
+      });
+
+      debugPrint(
+          '[CloudSttOrchestrator] keep alive - attempt $_keepAliveAttempts/$_maxKeepAliveAttempts');
+
+      if (_keepAliveAttempts >= _maxKeepAliveAttempts) {
+        DebugLogManager.logEvent('keep_alive_max_reached', {
+          'attempts': _keepAliveAttempts,
+        });
+        debugPrint(
+            '[CloudSttOrchestrator] keep alive - max attempts reached, stopping');
+        t.cancel();
+        _keepAliveTimer = null;
+        await _onAutoFinalize();
+        return;
+      }
+
+      // H5 bug fix: rate-limit on a 15s floor since we fire every 15s.
+      if (_keepAliveLastExecutedAt != null) {
+        final elapsed =
+            DateTime.now().difference(_keepAliveLastExecutedAt!);
+        if (elapsed.inSeconds < 15) {
+          debugPrint(
+              '[CloudSttOrchestrator] keep alive - rate limited (${elapsed.inSeconds}s since last)');
+          return;
+        }
+      }
+
+      _keepAliveLastExecutedAt = DateTime.now();
+
+      if (_socket?.state == SocketServiceState.connected) {
+        debugPrint(
+            '[CloudSttOrchestrator] keep alive - socket connected, stopping');
+        t.cancel();
+        _keepAliveTimer = null;
+        _keepAliveAttempts = 0;
+        return;
+      }
+
+      // Let the pipeline/CaptureProvider decide how to re-initiate.
+      _onTranscriptionStalled();
+    });
+  }
+
+  /// Cancel the keep-alive loop.
+  void cancelKeepAlive() {
+    _keepAliveTimer?.cancel();
+    _keepAliveTimer = null;
+    _keepAliveAttempts = 0;
+    _keepAliveLastExecutedAt = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -234,11 +335,13 @@ class CloudSttOrchestrator {
           });
       return false;
     }
+    _scheduleTokenRefresh();
     return true;
   }
 
   /// Close and drop the socket. Idempotent.
   Future<void> disconnect({String? reason}) async {
+    _cancelTokenRefresh();
     await _socket?.stop(reason: reason ?? 'disconnect');
     _socket = null;
   }
@@ -288,6 +391,8 @@ class CloudSttOrchestrator {
   /// multiple times. Future commits extend this to also cancel health /
   /// keep-alive / token-refresh timers.
   Future<void> dispose() async {
+    cancelKeepAlive();
+    _cancelTokenRefresh();
     await disconnect(reason: 'orchestrator disposed');
     clearReconnectBuffer();
     resetTimestampOffset();

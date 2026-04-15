@@ -68,13 +68,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// it can configure the audio transcoder.
   BleAudioCodec? _currentCodec;
 
-  // ---------------------------------------------------------------------------
-  // Keep-alive
-  // ---------------------------------------------------------------------------
-  Timer? _keepAliveTimer;
-  DateTime? _keepAliveLastExecutedAt;
-  int _keepAliveAttempts = 0;
-  static const int _maxKeepAliveAttempts = 10;
+  // Keep-alive + token refresh: owned by [CloudSttOrchestrator].
 
   // ---------------------------------------------------------------------------
   // Health monitor
@@ -93,11 +87,6 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   void setBleSource(bool value) {
     _isBleSource = value;
   }
-
-  // ---------------------------------------------------------------------------
-  // Token refresh
-  // ---------------------------------------------------------------------------
-  Timer? _tokenRefreshTimer;
 
   // ---------------------------------------------------------------------------
   // Silence timer
@@ -477,14 +466,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     TelemetryCollector.instance.setSttProvider(_activeSttProvider?.name);
 
     // Track recording start time for timestamp offset calculation.
+    // Token refresh is scheduled internally by orchestrator.connect().
     orchestrator.markRecordingStartIfNeeded();
-
-    // Proactive token refresh: reconnect before JWT expires (~1hr).
-    _tokenRefreshTimer?.cancel();
-    _tokenRefreshTimer = Timer(const Duration(minutes: 50), () {
-      _captureLog.log('socket', 'token_refresh_reconnect', details: {});
-      onTranscriptionStalled?.call();
-    });
 
     // Initialize VAD if enabled and using custom STT with PCM16 codec
     await initializeVadService(codec, effectiveConfig);
@@ -500,7 +483,6 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
   /// Stop the socket cleanly.
   Future<void> stopSocket(String reason) async {
-    _tokenRefreshTimer?.cancel();
     _cloudOrchestrator?.setBufferingForReconnect(true);
     // Mark the start of an audio-gap window. The window is closed in
     // _replayReconnectBuffer() (after reconnect) or in markStopped()
@@ -848,7 +830,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   void onConnected() {
     _captureLog.log('socket', 'socket_connected');
     _transcriptServiceReady = true;
-    _keepAliveAttempts = 0;
+    _cloudOrchestrator?.cancelKeepAlive();
     _replayReconnectBuffer();
     onNotifyListeners?.call();
   }
@@ -902,8 +884,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     _transcriptServiceReady = false;
 
     // Cancel keep-alive and health monitor — the socket won't recover
-    _keepAliveTimer?.cancel();
-    _keepAliveTimer = null;
+    _cloudOrchestrator?.cancelKeepAlive();
     stopHealthMonitor();
 
     // Trigger auto-finalize to save whatever we have
@@ -1038,81 +1019,15 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   // Keep-alive
   // ---------------------------------------------------------------------------
 
-  /// Start keep-alive periodic timer for reconnecting a dead socket.
-  void _startKeepAlive() {
-    _captureLog.log('socket', 'keepalive_started');
-    _keepAliveTimer?.cancel();
-    _keepAliveAttempts = 0;
-
-    _keepAliveTimer =
-        Timer.periodic(const Duration(seconds: 15), (t) async {
-      _keepAliveAttempts++;
-
-      DebugLogManager.logEvent('keep_alive_tick', {
-        'attempt': _keepAliveAttempts,
-        'max_attempts': _maxKeepAliveAttempts,
-        'socket_state': _socket != null ? _socket!.state.name : 'null',
-      });
-
-      debugPrint(
-          "[TranscriptionPipeline] keep alive - attempt $_keepAliveAttempts/$_maxKeepAliveAttempts");
-
-      // Check if max attempts reached
-      if (_keepAliveAttempts >= _maxKeepAliveAttempts) {
-        DebugLogManager.logEvent('keep_alive_max_reached', {
-          'attempts': _keepAliveAttempts,
-        });
-        debugPrint(
-            "[TranscriptionPipeline] keep alive - max attempts reached, stopping");
-        t.cancel();
-        _keepAliveTimer = null;
-        // Auto-finalize conversation with existing segments
-        await onAutoFinalizeNeeded?.call();
-        return;
-      }
-
-      // H5 bug fix: Correct rate limit check
-      // The original code had inverted logic that was always true immediately.
-      if (_keepAliveLastExecutedAt != null) {
-        final elapsed =
-            DateTime.now().difference(_keepAliveLastExecutedAt!);
-        if (elapsed.inSeconds < 15) {
-          debugPrint(
-              "[TranscriptionPipeline] keep alive - rate limited (${elapsed.inSeconds}s since last)");
-          return;
-        }
-      }
-
-      _keepAliveLastExecutedAt = DateTime.now();
-
-      // If socket is already connected, stop keep-alive
-      if (_socket?.state == SocketServiceState.connected) {
-        debugPrint(
-            "[TranscriptionPipeline] keep alive - socket connected, stopping");
-        t.cancel();
-        _keepAliveTimer = null;
-        _keepAliveAttempts = 0;
-        return;
-      }
-
-      // Attempt reconnection - let CaptureProvider decide which codec/source
-      // by calling initiateWebsocket through the stall handler
-      await onTranscriptionStalled?.call();
-    });
-  }
+  /// Start keep-alive timer (cloud STT only). No-op when local STT is active
+  /// because the local worker never disappears from under us.
+  void _startKeepAlive() => _cloudOrchestrator?.startKeepAlive();
 
   /// Start keep-alive timer (public entry point for delegate).
-  void startKeepAlive() {
-    _startKeepAlive();
-  }
+  void startKeepAlive() => _cloudOrchestrator?.startKeepAlive();
 
   /// Stop the keep-alive timer.
-  void stopKeepAlive() {
-    _keepAliveTimer?.cancel();
-    _keepAliveTimer = null;
-    _keepAliveAttempts = 0;
-    _keepAliveLastExecutedAt = null;
-  }
+  void stopKeepAlive() => _cloudOrchestrator?.cancelKeepAlive();
 
   // ---------------------------------------------------------------------------
   // Health monitor
@@ -1500,12 +1415,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
   /// Dispose all resources. Must be called when the pipeline is no longer needed.
   Future<void> dispose() async {
-    _keepAliveTimer?.cancel();
-    _keepAliveTimer = null;
-
-    _tokenRefreshTimer?.cancel();
-    _tokenRefreshTimer = null;
-
+    // Cloud-side timers (keep-alive, token refresh) are cancelled by the
+    // orchestrator's own dispose later in this method.
     _socketHealthTimer?.cancel();
     _socketHealthTimer = null;
 
