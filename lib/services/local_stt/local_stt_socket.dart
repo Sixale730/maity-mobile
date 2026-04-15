@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
@@ -75,6 +76,41 @@ class LocalSttSocket implements IPureSocket {
   bool _isRespawning = false;
   static const Duration _heartbeatInterval = Duration(seconds: 10);
   static const Duration _heartbeatTimeout = Duration(seconds: 15);
+
+  // --- Streaming fast path state ---
+  /// Last endTime (seconds) emitted by a streaming segment. Downstream
+  /// (ChunkQueueManager) uses this to skip chunks whose audio was already
+  /// covered by streaming when falling back to chunk-based decode.
+  double _streamingWatermark = 0.0;
+
+  /// Whether the streaming path is currently considered healthy.
+  /// Becomes false when: heartbeat fails, circuit breaker opens, or VAD is
+  /// active but no stream_result arrives for [_streamingStallTimeout].
+  bool _isStreamingHealthy = true;
+
+  /// Most recent wall-clock time a stream_result arrived (for stall detection).
+  DateTime? _lastStreamResultAt;
+
+  /// Most recent VAD state seen from the worker. The watchdog only fires when
+  /// VAD is active — silence is legitimately quiet.
+  bool _vadActive = false;
+
+  /// Watchdog timer: fires every [_streamingWatchdogInterval] and checks
+  /// whether streaming has gone quiet during active VAD.
+  Timer? _streamingWatchdog;
+  static const Duration _streamingWatchdogInterval = Duration(seconds: 10);
+  static const Duration _streamingStallTimeout = Duration(seconds: 60);
+
+  /// Invoked when [_isStreamingHealthy] transitions. The pipeline uses this
+  /// to toggle [ChunkQueueManager] between stream-primary and chunk-primary
+  /// processing modes.
+  void Function(bool healthy, String reason)? onStreamingHealthChanged;
+
+  /// Current streaming watermark in seconds. Reset to 0 on connect.
+  double get streamingWatermark => _streamingWatermark;
+
+  /// Whether streaming is considered healthy right now.
+  bool get isStreamingHealthy => _isStreamingHealthy;
 
   LocalSttSocket({
     required String? modelPath,
@@ -164,7 +200,14 @@ class LocalSttSocket implements IPureSocket {
       _status = PureSocketStatus.connected;
       _circuitOpen = false;
       _consecutiveErrors = 0;
+      // Reset streaming state and mark healthy on a fresh worker. The first
+      // stream_result (or stall) will confirm or revoke this optimistic state.
+      _streamingWatermark = 0.0;
+      _lastStreamResultAt = null;
+      _vadActive = false;
+      _setStreamingHealth(true, 'connected');
       _startHeartbeat();
+      _startStreamingWatchdog();
       onConnected();
       return true;
     } catch (e) {
@@ -205,10 +248,11 @@ class LocalSttSocket implements IPureSocket {
 
   @override
   void send(dynamic message) {
-    // For chunk-based recording (TranscriptionPipeline), audio is routed to
-    // AudioChunkWriter before reaching this method — so send() is never called.
-    // For speech profile enrollment (SpeechProfileProvider), audio is sent
-    // directly here. Forward to the worker isolate for streaming decode.
+    // Streaming fast path: forwards raw PCM16 bytes to the worker isolate for
+    // memory-only VAD + decode. The worker replies with `stream_result` events
+    // (see [_handleWorkerMessage]). Used by:
+    //   - SpeechProfileProvider (voice enrollment)
+    //   - TranscriptionPipeline dual-write (when `useStreamingPipeline` is on)
     if (_workerSendPort == null) return;
     if (message is Uint8List) {
       _workerSendPort!.send(['send_audio', message]);
@@ -244,6 +288,7 @@ class LocalSttSocket implements IPureSocket {
     await flushNow();
 
     _stopHeartbeat();
+    _stopStreamingWatchdog();
     _shutdownWorker();
     _status = PureSocketStatus.disconnected;
     debugPrint('[LocalSttSocket] Disconnected');
@@ -253,6 +298,7 @@ class LocalSttSocket implements IPureSocket {
   @override
   Future stop() async {
     _stopHeartbeat();
+    _stopStreamingWatchdog();
     _shutdownWorker();
     _status = PureSocketStatus.disconnected;
   }
@@ -280,6 +326,8 @@ class LocalSttSocket implements IPureSocket {
     _workerIsolate = null;
     _initCompleter = null;
     _flushCompleter = null;
+    _streamingWatchdog?.cancel();
+    _streamingWatchdog = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -313,6 +361,8 @@ class LocalSttSocket implements IPureSocket {
     if (_isRespawning) return;
     _isRespawning = true;
     _stopHeartbeat();
+    _stopStreamingWatchdog();
+    _setStreamingHealth(false, 'worker_respawn');
     debugPrint('[LocalSttSocket] Respawning worker isolate...');
 
     try {
@@ -334,6 +384,48 @@ class LocalSttSocket implements IPureSocket {
     } finally {
       _isRespawning = false;
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Streaming watchdog + health state
+  // ---------------------------------------------------------------------------
+
+  void _startStreamingWatchdog() {
+    _streamingWatchdog?.cancel();
+    _streamingWatchdog = Timer.periodic(
+      _streamingWatchdogInterval,
+      (_) => _checkStreamingStall(),
+    );
+  }
+
+  void _stopStreamingWatchdog() {
+    _streamingWatchdog?.cancel();
+    _streamingWatchdog = null;
+  }
+
+  /// Detects the "worker alive but not producing segments during speech" case.
+  /// Heartbeat only catches a dead isolate; this catches a wedged one.
+  void _checkStreamingStall() {
+    if (!_vadActive) return; // silence is expected to be quiet
+    if (_lastStreamResultAt == null) return;
+    final stalled =
+        DateTime.now().difference(_lastStreamResultAt!) > _streamingStallTimeout;
+    if (stalled && _isStreamingHealthy) {
+      debugPrint('[LocalSttSocket] Streaming stalled '
+          '(no stream_result in ${_streamingStallTimeout.inSeconds}s with VAD active)');
+      _setStreamingHealth(false, 'stream_stall');
+    }
+  }
+
+  /// Transition streaming health and fire [onStreamingHealthChanged] if it
+  /// actually changed. Reason is for logs/telemetry — callers should pass a
+  /// short stable tag (e.g. 'worker_respawn', 'circuit_open', 'stream_stall').
+  void _setStreamingHealth(bool healthy, String reason) {
+    if (_isStreamingHealthy == healthy) return;
+    _isStreamingHealthy = healthy;
+    debugPrint(
+        '[LocalSttSocket] Streaming health → ${healthy ? "HEALTHY" : "UNHEALTHY"} ($reason)');
+    onStreamingHealthChanged?.call(healthy, reason);
   }
 
   // ---------------------------------------------------------------------------
@@ -381,6 +473,9 @@ class LocalSttSocket implements IPureSocket {
           _circuitOpen = true;
           debugPrint('[LocalSttSocket] Circuit breaker OPEN '
               'after $_consecutiveErrors consecutive errors');
+          // Circuit opening means downstream can't trust streaming any more —
+          // pipeline will switch to chunk-primary mode on this signal.
+          _setStreamingHealth(false, 'circuit_open');
         }
 
         onError(Exception(errorMsg), trace);
@@ -408,6 +503,31 @@ class LocalSttSocket implements IPureSocket {
         // Notify chunk completion (so ChunkQueueManager can proceed)
         onChunkProcessed?.call(chunkId);
 
+      case 'stream_result':
+        // Streaming fast path: memory-only audio decoded without disk I/O.
+        final jsonSegments =
+            message.length > 1 ? message[1] as String? : null;
+        final vadActive =
+            message.length > 2 ? message[2] as bool : false;
+
+        // Always bump the stall timestamp — even empty results from the worker
+        // count as "worker is alive and keeping up".
+        _lastStreamResultAt = DateTime.now();
+        _vadActive = vadActive;
+
+        if (jsonSegments != null) {
+          _consecutiveErrors = 0;
+          _streamingWatermark = _maxEndTimeFromSegments(
+              jsonSegments, _streamingWatermark);
+          onMessage(jsonSegments);
+        }
+        // Any successful worker response confirms streaming is healthy again,
+        // which is how we auto-recover after a transient stall or respawn.
+        if (!_isStreamingHealthy) {
+          _setStreamingHealth(true, 'stream_result_ok');
+        }
+        onVadStateChanged?.call(vadActive);
+
       case 'flushed':
         if (message.length > 1 && message[1] is String) {
           onMessage(message[1]);
@@ -416,8 +536,31 @@ class LocalSttSocket implements IPureSocket {
 
       case 'vad_state':
         if (message.length > 1) {
-          onVadStateChanged?.call(message[1] as bool);
+          final active = message[1] as bool;
+          _vadActive = active;
+          onVadStateChanged?.call(active);
         }
+    }
+  }
+
+  /// Scan a JSON array of [LocalSttResult]-shaped maps and return the maximum
+  /// `endTime` seen, clamped to never decrease below [current]. Parse failures
+  /// are swallowed — we'd rather keep the previous watermark than crash.
+  double _maxEndTimeFromSegments(String jsonSegments, double current) {
+    try {
+      final decoded = jsonDecode(jsonSegments);
+      if (decoded is! List) return current;
+      var best = current;
+      for (final item in decoded) {
+        if (item is! Map) continue;
+        final end = item['endTime'];
+        if (end is num && end.toDouble() > best) {
+          best = end.toDouble();
+        }
+      }
+      return best;
+    } catch (_) {
+      return current;
     }
   }
 

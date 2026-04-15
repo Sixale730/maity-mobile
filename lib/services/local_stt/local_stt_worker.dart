@@ -31,7 +31,8 @@ import 'package:omi/services/speaker/speaker_types.dart';
 /// **Responses (worker → main):**
 /// - `['ready']` — engine initialized
 /// - `['error', String message, String? stackTrace]` — error occurred
-/// - `['chunk_result', String chunkId, String? jsonSegments, bool vadSpeechActive]` — chunk decoded
+/// - `['chunk_result', String chunkId, String? jsonSegments, bool vadSpeechActive]` — chunk decoded (file-based)
+/// - `['stream_result', String? jsonSegments, bool vadSpeechActive]` — streaming audio decoded (memory-based, fast path)
 /// - `['flushed', String? jsonSegments]` — flush complete
 /// - `['vad_state', bool isSpeechActive]` — emitted on VAD state transitions during processing
 @pragma('vm:entry-point')
@@ -369,9 +370,13 @@ class _SttWorker {
     }
   }
 
-  /// Process streaming PCM16 audio (used by speech profile enrollment).
+  /// Process streaming PCM16 audio (fast path for recording + enrollment).
   /// Unlike handleProcessChunk which reads from disk, this receives bytes
   /// directly via SendPort for low-latency live transcription.
+  ///
+  /// Emits `['stream_result', jsonSegments?, vadActive]` — distinct from
+  /// `chunk_result` so the socket can route streaming segments to the
+  /// watermark path and keep circuit-breaker state separate.
   void handleSendAudio(Uint8List pcm16Bytes) {
     try {
       final samples = _pcm16ToFloat32(pcm16Bytes);
@@ -385,7 +390,9 @@ class _SttWorker {
 
       if (results.isNotEmpty) {
         final json = _encodeResults(results);
-        _mainSendPort.send(['chunk_result', 'stream', json, vadActive]);
+        _mainSendPort.send(['stream_result', json, vadActive]);
+      } else {
+        _mainSendPort.send(['stream_result', null, vadActive]);
       }
     } catch (e, trace) {
       print('[SttWorker] handleSendAudio ERROR: $e');
