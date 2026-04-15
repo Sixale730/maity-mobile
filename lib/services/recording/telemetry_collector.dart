@@ -175,6 +175,16 @@ class TelemetryCollector {
     });
   }
 
+  /// Record a streaming-path lifecycle event. Types used in the pipeline:
+  /// `streaming_started`, `streaming_fallback`, `streaming_recovered`,
+  /// `ram_check_failed`. Adds to raw_metrics.events for post-hoc analysis
+  /// of how often the streaming fast path stays healthy in production.
+  void recordStreamingEvent(String type, {Map<String, dynamic>? details}) {
+    final ev = <String, dynamic>{'type': type};
+    if (details != null) ev.addAll(details);
+    _addEvent(ev);
+  }
+
   /// Mark the start of a buffering / disconnected period (cloud STT only).
   void beginAudioGap() {
     _gapStartedAt ??= DateTime.now();

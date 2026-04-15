@@ -315,6 +315,13 @@ class CaptureProvider extends ChangeNotifier
       debugPrint('[CaptureProvider] Pre-flight RAM check failed: '
           '${result.availableMb}MB available '
           '(min ${DeviceMemoryService.minRamForRecordingMb}MB)');
+      TelemetryCollector.instance.recordStreamingEvent(
+        'ram_check_failed',
+        details: {
+          'available_mb': result.availableMb,
+          'required_mb': DeviceMemoryService.minRamForRecordingMb,
+        },
+      );
       NotificationService.instance.createNotification(
         title: 'Memoria insuficiente',
         body:

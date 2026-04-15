@@ -739,6 +739,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       final streamingOn = SharedPreferencesUtil().useStreamingPipeline;
       if (streamingOn) {
         queueManager.switchMode(ChunkProcessingMode.streamPrimary);
+        TelemetryCollector.instance.recordStreamingEvent('streaming_started');
       }
       localSocket.onStreamingHealthChanged = (healthy, reason) {
         debugPrint(
@@ -748,6 +749,13 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
           'reason': reason,
           'watermark_sec': localSocket.streamingWatermark,
         });
+        TelemetryCollector.instance.recordStreamingEvent(
+          healthy ? 'streaming_recovered' : 'streaming_fallback',
+          details: {
+            'reason': reason,
+            'watermark_sec': localSocket.streamingWatermark,
+          },
+        );
         if (!healthy) {
           queueManager.switchMode(
             ChunkProcessingMode.chunkPrimary,
