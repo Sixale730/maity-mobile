@@ -6,6 +6,16 @@ import 'package:flutter/foundation.dart';
 import 'package:omi/services/local_stt/chunk_meta.dart';
 import 'package:path_provider/path_provider.dart';
 
+/// Whether the queue actively feeds chunks to the worker.
+///
+/// - [streamPrimary]: streaming pipeline is the source of truth. Chunks are
+///   still written to disk as a crash-safety backup, but [processNextChunk]
+///   is a no-op. If streaming later fails, the pipeline calls
+///   [ChunkQueueManager.switchMode] with a watermark to drain the backlog.
+/// - [chunkPrimary]: original behavior. Every enqueued chunk is dispatched
+///   to the worker for decode. This is the recovery mode.
+enum ChunkProcessingMode { streamPrimary, chunkPrimary }
+
 /// Manages the lifecycle of audio chunks for local STT recording sessions.
 ///
 /// This is the **coordinator** in the log-structured processing pipeline.
@@ -36,6 +46,15 @@ class ChunkQueueManager {
 
   /// Whether the worker is currently processing a chunk.
   bool _workerBusy = false;
+
+  /// Active processing mode. Defaults to [ChunkProcessingMode.chunkPrimary]
+  /// so legacy callers (and crash recovery) behave exactly as before. The
+  /// pipeline flips this to [ChunkProcessingMode.streamPrimary] once the
+  /// streaming socket connects and back to chunk-primary on streaming failure.
+  ChunkProcessingMode _mode = ChunkProcessingMode.chunkPrimary;
+
+  /// Current processing mode.
+  ChunkProcessingMode get mode => _mode;
 
   /// Callback to send a chunk to the worker for processing.
   /// Set by TranscriptionPipeline when wiring up the local STT socket.
@@ -119,11 +138,70 @@ class ChunkQueueManager {
     await _saveIndex();
     debugPrint(
         '[ChunkQueueManager] Enqueued chunk ${meta.sequence} for ${meta.sessionId} '
-        '(${meta.byteCount} bytes)');
+        '(${meta.byteCount} bytes, mode=${_mode.name})');
+
+    // In stream-primary mode the chunk is only a crash-safety backup — the
+    // streaming pipeline is decoding the same audio in memory, so we skip the
+    // dispatch. The chunk stays `pending` so that a later switchMode(chunkPrimary)
+    // or a crash-recovery run can still decode it.
+    if (_mode == ChunkProcessingMode.streamPrimary) return;
 
     // If worker is idle, kick off processing.
     if (!_workerBusy) {
       processNextChunk(meta.sessionId);
+    }
+  }
+
+  /// Switch between stream-primary and chunk-primary processing.
+  ///
+  /// Transitioning to [ChunkProcessingMode.chunkPrimary] marks any chunk
+  /// whose audio range is fully covered by [streamingWatermarkSec] as
+  /// `deleted` (streaming already emitted segments for that range) and then
+  /// kicks the queue so the remaining pending chunks are decoded.
+  ///
+  /// Transitioning to [ChunkProcessingMode.streamPrimary] just flips the flag
+  /// — new chunks will accumulate silently.
+  Future<void> switchMode(
+    ChunkProcessingMode newMode, {
+    double streamingWatermarkSec = 0.0,
+    String? sessionId,
+  }) async {
+    if (_mode == newMode) return;
+    final previous = _mode;
+    _mode = newMode;
+    debugPrint(
+        '[ChunkQueueManager] Mode ${previous.name} → ${newMode.name} '
+        '(watermark=${streamingWatermarkSec.toStringAsFixed(2)}s)');
+
+    if (newMode == ChunkProcessingMode.chunkPrimary) {
+      _markChunksCoveredByStream(streamingWatermarkSec, sessionId);
+      await _saveIndex();
+      if (!_workerBusy) processNextChunk(sessionId);
+    }
+  }
+
+  /// Mark pending chunks as `deleted` when their entire audio range lies at
+  /// or before [watermarkSec]. Those ranges were already transcribed via the
+  /// streaming fast path, so re-decoding them would just produce duplicates.
+  void _markChunksCoveredByStream(double watermarkSec, String? sessionId) {
+    final sessions = sessionId != null
+        ? [if (_chunkIndex.containsKey(sessionId)) _chunkIndex[sessionId]!]
+        : _chunkIndex.values;
+    var skipped = 0;
+    for (final chunks in sessions) {
+      for (final chunk in chunks) {
+        if (chunk.state != ChunkState.pending) continue;
+        final chunkEnd = chunk.offsetSeconds + chunk.durationSeconds;
+        if (chunkEnd <= watermarkSec) {
+          chunk.state = ChunkState.deleted;
+          skipped++;
+        }
+      }
+    }
+    if (skipped > 0) {
+      debugPrint(
+          '[ChunkQueueManager] Skipped $skipped chunks already covered by stream '
+          '(watermark=${watermarkSec.toStringAsFixed(2)}s)');
     }
   }
 
@@ -361,6 +439,7 @@ class ChunkQueueManager {
     _initialized = false;
     _saveInFlight = false;
     _savePending = false;
+    _mode = ChunkProcessingMode.chunkPrimary;
     onProcessChunk = null;
     onChunkCompleted = null;
   }
