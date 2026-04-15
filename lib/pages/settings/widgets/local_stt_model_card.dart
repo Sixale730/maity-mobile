@@ -5,6 +5,7 @@ import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/providers/capture_provider.dart';
 import 'package:omi/providers/local_stt_provider.dart';
+import 'package:omi/providers/role_provider.dart';
 import 'package:omi/services/local_stt/local_stt_model_type.dart';
 import 'package:omi/services/local_stt/model_download_service.dart';
 import 'package:omi/pages/speech_profile/page.dart';
@@ -61,6 +62,14 @@ class LocalSttModelCard extends StatelessWidget {
             // Auto-fallback toggle (only when any model is ready)
             if (provider.isReadyFor(selected))
               _buildAutoFallbackToggle(provider, l10n),
+
+            // Streaming kill switch (admin-only). Lets us disable the
+            // in-memory streaming fast path without redeploy if it misbehaves.
+            if (provider.isReadyFor(selected) &&
+                context.read<RoleProvider>().isAdmin) ...[
+              const SizedBox(height: 8),
+              _buildStreamingToggle(context),
+            ],
 
             // Canary max speech duration slider
             if (selected == LocalSttModelType.canary &&
@@ -516,6 +525,60 @@ class LocalSttModelCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// Admin-only kill switch for the streaming fast path. Reads and writes
+  /// [SharedPreferencesUtil.useStreamingPipeline]. Uses a [StatefulBuilder]
+  /// so the switch reflects the new state without rebuilding the whole card,
+  /// since the preference is not exposed through a ChangeNotifier.
+  Widget _buildStreamingToggle(BuildContext context) {
+    final prefs = SharedPreferencesUtil();
+    return StatefulBuilder(
+      builder: (context, setLocalState) {
+        final enabled = prefs.useStreamingPipeline;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.shade800),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Streaming fast path (admin)',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Transcribe directo en memoria (~<1s). Si lo apagas, vuelve al pipeline chunk-based de 5s.',
+                      style: TextStyle(
+                          color: Colors.grey.shade500, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: enabled,
+                onChanged: (v) {
+                  prefs.useStreamingPipeline = v;
+                  setLocalState(() {});
+                },
+                activeThumbColor: Colors.white,
+                activeTrackColor: Colors.green,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
