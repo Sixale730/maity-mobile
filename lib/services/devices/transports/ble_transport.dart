@@ -36,14 +36,12 @@ class BleTransport extends DeviceTransport {
           }
           _updateState(DeviceTransportState.disconnected);
           break;
-        case BluetoothConnectionState.connecting:
-          _updateState(DeviceTransportState.connecting);
-          break;
         case BluetoothConnectionState.connected:
           _updateState(DeviceTransportState.connected);
           break;
-        case BluetoothConnectionState.disconnecting:
-          _updateState(DeviceTransportState.disconnecting);
+        // connecting/disconnecting are deprecated in flutter_blue_plus 1.33+
+        // (iOS/Android never emit them), but must be listed for exhaustiveness.
+        default:
           break;
       }
     });

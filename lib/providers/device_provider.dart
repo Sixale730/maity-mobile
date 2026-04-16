@@ -561,6 +561,7 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
       Future.delayed(const Duration(milliseconds: 500), () {
         final context = MyApp.navigatorKey.currentContext;
         if (context != null) {
+          // ignore: use_build_context_synchronously — GlobalKey context, null-checked
           showFirmwareUpdateDialog(context);
         }
       });
@@ -651,8 +652,6 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
           _disconnectDebouncer.run(onDeviceDisconnected);
         }
         break;
-      default:
-        Logger.debug("Device connection state is not supported $state");
     }
   }
 

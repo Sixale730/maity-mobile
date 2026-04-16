@@ -303,14 +303,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       // Navigate
       switch (pageAlias) {
         case "apps":
-          if (detailPageId != null && detailPageId.isNotEmpty) {
-            // Capture references before async operation
-            final appProvider = context.read<AppProvider>();
-            final navigator = Navigator.of(context);
+          if (detailPageId != null && detailPageId.isNotEmpty && mounted) {
+            final appProvider = Provider.of<AppProvider>(context, listen: false);
+            final nav = Navigator.of(context);
 
             var app = await appProvider.getAppFromId(detailPageId);
             if (app != null && mounted) {
-              navigator.push(
+              nav.push(
                 MaterialPageRoute(
                   builder: (context) => AppDetailPage(app: app),
                 ),
