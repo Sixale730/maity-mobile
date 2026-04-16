@@ -385,10 +385,29 @@ class LocalSttOrchestrator {
     await initChunkPipeline();
   }
 
-  /// Send an audio frame through the local pipeline (dual-write: disk
-  /// backup + optional streaming fast path). Implemented in C4.
-  Future<void> sendAudio(dynamic data) async {
-    // No-op until C4.
+  /// Route an audio frame through the local pipeline:
+  /// 1. Transcode if needed (Opus → PCM16).
+  /// 2. Write to chunk writer (disk backup — always on).
+  /// 3. Write to WAV backup (crash-safety).
+  /// 4. Push to engine streaming fast path (if [_streamingEnabled]).
+  void sendAudio(List<int> data) {
+    if (_chunkWriter == null) return;
+    final bytes = data is Uint8List ? data : Uint8List.fromList(data);
+    Uint8List pcmBytes;
+    try {
+      pcmBytes = _audioTranscoder != null
+          ? _audioTranscoder!.transcode(bytes)
+          : bytes;
+    } catch (e) {
+      debugPrint('[LocalSttOrchestrator] Transcode error, skipping: $e');
+      return;
+    }
+    if (pcmBytes.isEmpty) return;
+    _chunkWriter!.addBytes(pcmBytes);
+    _wavBackupService?.writeAudio(pcmBytes);
+    if (_streamingEnabled) {
+      _engine?.pushAudio(pcmBytes);
+    }
   }
 
   /// Flush any buffered PCM bytes to disk. Used on app-pause to guarantee
