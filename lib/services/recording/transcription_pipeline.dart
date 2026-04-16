@@ -11,16 +11,12 @@ import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/models/custom_stt_config.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/connectivity_service.dart';
-import 'package:omi/services/stt/local/device_memory_service.dart';
-import 'package:omi/services/stt/local/audio_chunk_writer.dart';
-import 'package:omi/services/stt/local/chunk_queue_manager.dart';
 import 'package:omi/services/stt/local/local_stt_model_type.dart';
 import 'package:omi/services/stt/local/model_download_service.dart';
 import 'package:omi/services/stt/cloud/cloud_stt_orchestrator.dart';
 import 'package:omi/services/stt/local/local_stt_engine_service.dart';
+import 'package:omi/services/stt/local/local_stt_orchestrator.dart';
 import 'package:omi/services/recording/telemetry_collector.dart';
-import 'package:omi/services/recording/ui_segment_controller.dart';
-import 'package:omi/services/recording/wav_backup_service.dart';
 import 'package:omi/services/notifications/notification_service.dart';
 import 'package:omi/services/stt/cloud/transcription_service.dart';
 import 'package:omi/services/vad/vad_service.dart';
@@ -56,16 +52,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// Convenience accessor: the underlying socket while cloud STT is active.
   TranscriptSegmentSocketService? get _socket => _cloudOrchestrator?.socket;
 
-  /// Local STT worker service (Parakeet / Moonshine / Canary). Null when
-  /// cloud STT is active. Exposes typed callbacks so segments flow straight
-  /// into [_onLocalSegments] without a JSON string round-trip.
-  LocalSttEngineService? _localEngine;
-
-  /// True when [_localEngine] came from an external owner (LocalSttProvider's
-  /// warm-up pool). In that case the pipeline must NOT call disconnect() on
-  /// teardown — it invokes [onLocalEngineReleased] instead so the provider
-  /// can keep the engine alive for the next recording.
-  bool _engineIsInjected = false;
+  /// Local STT transport (Parakeet / Moonshine / Canary). Null when cloud
+  /// STT is active. Owns the worker isolate, chunk pipeline, streaming
+  /// fast-path toggle, and WAV backup — symmetric with [_cloudOrchestrator].
+  LocalSttOrchestrator? _localOrchestrator;
 
   /// Invoked on recording stop when the active engine was injected (not
   /// built by the pipeline). The owner (LocalSttProvider) keeps the engine
@@ -77,12 +67,6 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// The typical wiring is CaptureProvider → LocalSttProvider.acquireEngine.
   /// Returning null causes the pipeline to cold-build an engine as before.
   LocalSttEngineService? Function()? warmEngineProvider;
-
-  /// Cached codec from the most recent [initiateWebsocket] call. The cloud
-  /// socket used to expose it via `_socket.codec`, but when local STT is
-  /// active there is no socket — [_initChunkPipeline] reads this instead so
-  /// it can configure the audio transcoder.
-  BleAudioCodec? _currentCodec;
 
   // Keep-alive, token refresh, and health monitor timers/counters: owned
   // by [CloudSttOrchestrator]. Pipeline reads them through the orchestrator
@@ -117,17 +101,6 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   int get segmentsVersion => _segmentsVersion;
   bool hasTranscripts = false;
 
-  // ---------------------------------------------------------------------------
-  // Chunk-based local STT (log-structured processing)
-  // ---------------------------------------------------------------------------
-  AudioChunkWriter? _chunkWriter;
-  WavBackupService? _wavBackupService;
-  UISegmentController? _segmentController;
-
-  /// Audio transcoder for non-PCM16 codecs (e.g., Opus from BLE/OMI devices).
-  /// Decodes to PCM16 before writing to chunk writer. Null for PCM16 (no-op).
-  IAudioTranscoder? _audioTranscoder;
-
   /// VAD activity indicator — replaces preview text.
   /// True when the worker's VAD detects active speech.
   final ValueNotifier<bool> vadSpeechActive = ValueNotifier(false);
@@ -135,19 +108,20 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// Segments from the bounded UISegmentController (local STT) or the
   /// unbounded list (cloud STT) for display.
   List<TranscriptSegment> get displaySegments =>
-      _segmentController?.displaySegments ?? segments;
+      _localOrchestrator?.displaySegments ?? segments;
 
   /// Whether the chunk pipeline has audio data that hasn't been decoded yet.
   /// Used to prevent premature cancel when back is pressed before first segment.
   bool get hasUnprocessedAudio =>
-      _chunkWriter != null && _chunkWriter!.chunksWritten > 0;
+      _localOrchestrator?.hasUnprocessedAudio ?? false;
 
   /// Whether archived pages are available for scroll-up pagination.
-  bool get hasArchivedPages => _segmentController?.hasArchivedPages ?? false;
+  bool get hasArchivedPages =>
+      _localOrchestrator?.hasArchivedPages ?? false;
 
   /// Load an archived page of segments (for scroll-up pagination).
   Future<List<TranscriptSegment>> loadArchivedPage(int pageIndex) =>
-      _segmentController?.loadPage(pageIndex) ?? Future.value([]);
+      _localOrchestrator?.loadArchivedPage(pageIndex) ?? Future.value([]);
 
   // ---------------------------------------------------------------------------
   // Connection state
@@ -292,7 +266,6 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     LocalSttEngineService? warmEngine,
   }) async {
     Logger.debug('initiateWebsocket in TranscriptionPipeline');
-    _currentCodec = audioCodec;
 
     // Update timestamp offset on reconnection (not first connection)
     if (_cloudOrchestrator?.recordingStartTime != null) {
@@ -385,42 +358,30 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       'source': source,
     });
 
-    // Local STT branch: skip the cloud socket abstraction entirely and drive
-    // the worker isolate via [LocalSttEngineService]. Segments come back as
-    // typed `List<TranscriptSegment>` — no WebSocket, no jsonDecode chain.
+    // Local STT branch: delegate to LocalSttOrchestrator which owns the
+    // worker isolate, chunk pipeline, streaming fast-path, and WAV backup.
     if (effectiveConfig != null &&
         _isLocalSttProvider(effectiveConfig.provider)) {
-      // Prefer an injected pre-warmed engine (hands off the ~2-4 s cold
-      // start latency from LocalSttProvider). Fall back to a cold build
-      // when no warm one is available.
-      LocalSttEngineService? engine = warmEngine ?? warmEngineProvider?.call();
-      if (engine != null && engine.isConnected) {
-        _engineIsInjected = true;
-        _wireLocalEngineCallbacks(engine);
-      } else {
-        _engineIsInjected = false;
-        engine = _createLocalEngineFromConfig(effectiveConfig.provider);
-        if (engine == null) {
-          _captureLog.log('socket', 'local_stt_init_failed',
-              severity: 'error',
-              details: {'provider': effectiveConfig.provider.name});
-          return;
-        }
-        _wireLocalEngineCallbacks(engine);
-        final ok = await engine.connect();
-        if (!ok) {
-          debugPrint('[TranscriptionPipeline] LocalSttEngineService connect failed');
-          _captureLog.log('socket', 'local_stt_connect_failed', severity: 'error');
-          return;
-        }
-      }
-      _localEngine = engine;
+      final orch = LocalSttOrchestrator(
+        provider: effectiveConfig.provider,
+        codec: codec,
+        sessionId: chunkSessionId ?? 'unknown',
+        streamingEnabled: SharedPreferencesUtil().useStreamingPipeline,
+        captureLog: _captureLog,
+        warmEngine: warmEngine ?? warmEngineProvider?.call(),
+        onSegments: (segs) => _processNewSegmentReceived(segs),
+        onVadStateChanged: onVadStateChanged,
+        onError: (err) => onError(err),
+        onEngineReleased: onLocalEngineReleased,
+        onNotifyListeners: () => onNotifyListeners?.call(),
+      );
+      final ok = await orch.connect();
+      if (!ok) return;
+      await orch.initChunkPipeline();
+      _localOrchestrator = orch;
       _transcriptServiceReady = true;
       _activeSttProvider = effectiveConfig.provider;
       TelemetryCollector.instance.setSttProvider(_activeSttProvider?.name);
-      // Local STT never uses WAL — the orchestrator isn't created for this
-      // session, so walEnabled defaults to false.
-      await _initChunkPipeline();
       return;
     }
 
@@ -455,18 +416,26 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
         if (fallbackProvider != null) {
           debugPrint(
               '[TranscriptionPipeline] Cloud failed, falling back to local ${fallbackProvider.name}');
-          final engine = _createLocalEngineFromConfig(fallbackProvider);
-          if (engine != null) {
-            _wireLocalEngineCallbacks(engine);
-            if (await engine.connect()) {
-              _localEngine = engine;
-              _transcriptServiceReady = true;
-              _activeSttProvider = fallbackProvider;
-              TelemetryCollector.instance
-                  .setSttProvider(_activeSttProvider?.name);
-              await _initChunkPipeline();
-              return;
-            }
+          final fallbackOrch = LocalSttOrchestrator(
+            provider: fallbackProvider,
+            codec: codec,
+            sessionId: chunkSessionId ?? 'unknown',
+            streamingEnabled: SharedPreferencesUtil().useStreamingPipeline,
+            captureLog: _captureLog,
+            onSegments: (segs) => _processNewSegmentReceived(segs),
+            onVadStateChanged: onVadStateChanged,
+            onError: (err) => onError(err),
+            onEngineReleased: onLocalEngineReleased,
+            onNotifyListeners: () => onNotifyListeners?.call(),
+          );
+          if (await fallbackOrch.connect()) {
+            await fallbackOrch.initChunkPipeline();
+            _localOrchestrator = fallbackOrch;
+            _transcriptServiceReady = true;
+            _activeSttProvider = fallbackProvider;
+            TelemetryCollector.instance
+                .setSttProvider(_activeSttProvider?.name);
+            return;
           }
           debugPrint('[TranscriptionPipeline] Local fallback also failed');
           _captureLog.log('socket', 'local_stt_init_failed', severity: 'error');
@@ -514,18 +483,11 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     await _cloudOrchestrator?.disconnect(reason: reason);
     await _cloudOrchestrator?.dispose();
     _cloudOrchestrator = null;
-    _transcriptServiceReady = false;
 
-    // Clean up chunk pipeline so next session creates fresh instances.
-    // Without this, _initChunkPipeline sees _chunkWriter != null and takes
-    // the reconnect path with stale state instead of creating a new session.
-    await _chunkWriter?.dispose();
-    _chunkWriter = null;
-    await _wavBackupService?.stop();
-    _wavBackupService = null;
-    _segmentController?.dispose();
-    _segmentController = null;
-    _audioTranscoder = null;
+    await _localOrchestrator?.dispose();
+    _localOrchestrator = null;
+
+    _transcriptServiceReady = false;
   }
 
   /// Updates the cumulative timestamp offset based on elapsed recording time.
@@ -550,37 +512,14 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// For cloud STT: sends directly to the WebSocket (unchanged behavior).
   /// WAL captures all audio frames; only marks as synced what the socket received.
   void sendToSocket(dynamic data) {
-    // Local STT: route to chunk writer (audio goes to disk, not socket).
-    // Transcode if needed (e.g., Opus from BLE/OMI → PCM16 for VAD + decode).
-    if (_isLocalStt && _chunkWriter != null && data is List<int>) {
-      final bytes = data is Uint8List ? data : Uint8List.fromList(data);
-      Uint8List pcmBytes;
-      try {
-        pcmBytes = _audioTranscoder != null ? _audioTranscoder!.transcode(bytes) : bytes;
-      } catch (e) {
-        debugPrint('[TranscriptionPipeline] Transcode error, skipping chunk: $e');
-        return;
-      }
-      if (pcmBytes.isEmpty) return;
-      // Chunk writer = crash-safety backup on disk. Always on.
-      _chunkWriter!.addBytes(pcmBytes);
-      _wavBackupService?.writeAudio(pcmBytes);
-      // Streaming fast path: push PCM directly to the worker isolate for
-      // low-latency in-memory decode. Gated by the kill-switch flag so we can
-      // disable it in Developer Settings without redeploy.
-      if (SharedPreferencesUtil().useStreamingPipeline) {
-        _localEngine?.pushAudio(pcmBytes);
-      }
+    // Local STT: delegate to the orchestrator (dual-write + streaming).
+    if (_isLocalStt && _localOrchestrator != null && data is List<int>) {
+      _localOrchestrator!.sendAudio(data);
       return;
     }
 
     // Cloud STT path: the orchestrator handles WAL capture, socket send,
-    // and reconnect buffering. Pipeline only layers WAV backup on top since
-    // that's a shared concern (both local and cloud write WAV).
-    if (_wavBackupService != null && data is List<int>) {
-      _wavBackupService!
-          .writeAudio(data is Uint8List ? data : Uint8List.fromList(data));
-    }
+    // and reconnect buffering.
     _cloudOrchestrator?.sendAudio(data);
   }
 
@@ -591,142 +530,9 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// Session ID for the current chunk pipeline. Set by CaptureProvider.
   String? chunkSessionId;
 
-  /// Initialize chunk writer + queue manager for local STT.
-  ///
-  /// On reconnect (when `_chunkWriter` already exists), only re-wires the new
-  /// socket's callbacks and resumes queue processing — does NOT recreate the
-  /// writer, segment controller, or session, which would destroy accumulated
-  /// transcription state.
-  Future<void> _initChunkPipeline() async {
-    if (chunkSessionId == null) {
-      debugPrint('[TranscriptionPipeline] WARNING: chunkSessionId not set, cannot init chunk pipeline');
-      return;
-    }
-
-    final queueManager = ChunkQueueManager.instance;
-
-    // --- Reconnect path: pipeline already exists, just re-wire socket ---
-    if (_chunkWriter != null) {
-      debugPrint('[TranscriptionPipeline] Chunk pipeline exists — re-wiring socket callbacks for reconnect');
-      _wireChunkSocketCallbacks(queueManager);
-      // Kick the queue in case there are pending chunks the old socket never processed.
-      queueManager.processNextChunk(chunkSessionId);
-      return;
-    }
-
-    // --- First-time path: create writer, controller, session ---
-    await queueManager.initialize();
-    queueManager.setMaxQueueSize(DeviceMemoryService.cachedQueueCap);
-    final sessionDir = await queueManager.startSession(chunkSessionId!);
-
-    // Create chunk writer that flushes to disk every 5s
-    _chunkWriter = AudioChunkWriter(
-      sessionId: chunkSessionId!,
-      baseDir: sessionDir,
-      onChunkWritten: (meta) => queueManager.enqueueChunk(meta),
-    );
-    _chunkWriter!.start();
-
-    // Start WAV backup for this session (parallel to chunk writer)
-    _wavBackupService = WavBackupService();
-    await _wavBackupService!.start(chunkSessionId!);
-
-    // Create audio transcoder for non-PCM16 codecs (BLE/OMI sends Opus).
-    // For local STT the engine owns the worker directly (no _socket), so fall
-    // back to the cached codec tracked at session start.
-    final codec = _socket?.codec ?? _currentCodec ?? BleAudioCodec.pcm16;
-    if (codec != BleAudioCodec.pcm16) {
-      _audioTranscoder = AudioTranscoderFactory.createToRawPcm(
-        sourceCodec: codec,
-        sampleRate: 16000,
-      );
-      debugPrint('[TranscriptionPipeline] Audio transcoder: ${codec.name} → PCM16');
-    } else {
-      _audioTranscoder = null;
-    }
-
-    // Create bounded segment controller
-    _segmentController = UISegmentController();
-    _segmentController!.startSession(chunkSessionId!, sessionDir);
-
-    // Wire queue manager → socket → worker
-    _wireChunkSocketCallbacks(queueManager);
-
-    debugPrint('[TranscriptionPipeline] Chunk pipeline initialized for session $chunkSessionId');
-  }
-
-  /// Wire ChunkQueueManager ↔ LocalSttEngineService callbacks.
-  /// Shared by first-init and reconnect paths.
-  void _wireChunkSocketCallbacks(ChunkQueueManager queueManager) {
-    final engine = _localEngine;
-    if (engine == null) return;
-
-    // Queue has a chunk ready → worker processes it.
-    queueManager.onProcessChunk = (chunk) {
-      engine.processChunkFile(
-        chunk.filePath,
-        '${chunk.sessionId}_${chunk.sequence}',
-        chunk.offsetSeconds,
-      );
-    };
-
-    // Worker finished a chunk → mark it completed in the queue.
-    engine.onChunkProcessed = (chunkId) {
-      final parts = chunkId.split('_');
-      if (parts.length >= 2) {
-        final seq = int.tryParse(parts.last);
-        final sessionId = parts.sublist(0, parts.length - 1).join('_');
-        if (seq != null) {
-          queueManager.markCompleted(sessionId, seq);
-        }
-      }
-      // Silence timer NOT reset here — only resets on speech detection.
-    };
-
-    // VAD callback is already wired via _wireLocalEngineCallbacks, but
-    // re-wire here on reconnect paths in case the engine was replaced.
-    engine.onVadStateChanged = onVadStateChanged;
-
-    // Toggle queue mode when streaming health changes.
-    // Healthy → stream-primary: new chunks accumulate as disk backup only.
-    // Unhealthy → chunk-primary: drain backlog after the streaming watermark
-    // so the user still gets transcription while we wait for streaming to
-    // auto-recover on the next successful stream_result.
-    final streamingOn = SharedPreferencesUtil().useStreamingPipeline;
-    if (streamingOn) {
-      queueManager.switchMode(ChunkProcessingMode.streamPrimary);
-      TelemetryCollector.instance.recordStreamingEvent('streaming_started');
-    }
-    engine.onStreamingHealthChanged = (healthy, reason) {
-      debugPrint(
-          '[TranscriptionPipeline] Streaming health: $healthy ($reason)');
-      DebugLogManager.logEvent('streaming_health_changed', {
-        'healthy': healthy,
-        'reason': reason,
-        'watermark_sec': engine.streamingWatermark,
-      });
-      TelemetryCollector.instance.recordStreamingEvent(
-        healthy ? 'streaming_recovered' : 'streaming_fallback',
-        details: {
-          'reason': reason,
-          'watermark_sec': engine.streamingWatermark,
-        },
-      );
-      if (!healthy) {
-        queueManager.switchMode(
-          ChunkProcessingMode.chunkPrimary,
-          streamingWatermarkSec: engine.streamingWatermark,
-          sessionId: chunkSessionId,
-        );
-      } else {
-        queueManager.switchMode(ChunkProcessingMode.streamPrimary);
-      }
-    };
-  }
-
   /// Flush the chunk writer (for app lifecycle pause).
   Future<void> flushChunkWriter({bool synchronous = false}) async {
-    await _chunkWriter?.flush(synchronous: synchronous);
+    await _localOrchestrator?.flushChunkWriter(synchronous: synchronous);
   }
 
   /// Update the last audio bytes sent timestamp (for STT stall detection).
@@ -939,7 +745,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
       return true;
     }());
 
-    if (segments.isEmpty && (_segmentController?.activeSegments.isEmpty ?? true)) {
+    final segCtrl = _localOrchestrator?.segmentController;
+    if (segments.isEmpty && (segCtrl?.activeSegments.isEmpty ?? true)) {
       _captureLog.log('segment', 'first_segment_received', details: {
         'new_count': newSegments.length,
       });
@@ -953,9 +760,9 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
         });
 
     // Route to UISegmentController (bounded, O(k)) or direct list (unbounded)
-    if (_segmentController != null) {
-      _segmentController!.addSegments(newSegments);
-      _segmentsVersion = _segmentController!.version;
+    if (segCtrl != null) {
+      segCtrl.addSegments(newSegments);
+      _segmentsVersion = segCtrl.version;
     } else {
       // Cloud STT path: unbounded list (existing behavior)
       final insertStartIndex = segments.length;
@@ -1319,13 +1126,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// Clear all segments and reset state.
   void clearSegments() {
     segments.clear();
-    _segmentController?.dispose();
-    _segmentController = null;
     _segmentsVersion = 0;
     hasTranscripts = false;
     _transcriptionServiceStatuses = [];
     _activeSttProvider = null;
-    _audioTranscoder = null;
     // Cloud-only state lives in the orchestrator — reset via its API.
     _cloudOrchestrator?.setWalEnabled(false);
     _cloudOrchestrator?.clearReconnectBuffer();
@@ -1335,62 +1139,16 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   }
 
   // ---------------------------------------------------------------------------
-  // Local STT engine (Parakeet / Moonshine / Canary)
-  // ---------------------------------------------------------------------------
-
-  /// Build a [LocalSttEngineService] from the user's preferences. Mirrors the
-  /// config-reading logic used by [TranscriptSocketServiceFactory.createLocalStt]
-  /// but returns the typed engine instead of a WebSocket-style adapter. Returns
-  /// null when the model path isn't configured (caller should surface an error).
-  LocalSttEngineService? _createLocalEngineFromConfig(SttProvider provider) {
-    final modelType = switch (provider) {
-      SttProvider.localMoonshine => LocalSttModelType.moonshine,
-      SttProvider.localCanary => LocalSttModelType.canary,
-      _ => LocalSttModelType.parakeet,
-    };
-    return LocalSttEngineService.fromPreferences(modelType);
-  }
-
-  /// Hook the engine's typed callbacks into the pipeline's internal handlers.
-  /// Done in [initiateWebsocket] before connect so no events are lost.
-  void _wireLocalEngineCallbacks(LocalSttEngineService engine) {
-    engine.onSegments = _onLocalSegments;
-    engine.onVadStateChanged = onVadStateChanged;
-    engine.onError = (err, _) => onError(err);
-    // onStreamingHealthChanged and onChunkProcessed are wired by
-    // [_wireChunkSocketCallbacks] once the chunk pipeline is initialized.
-  }
-
-  /// Local STT segments bypass [TranscriptSegmentSocketService]. They arrive
-  /// as typed [TranscriptSegment] objects from the worker isolate and go
-  /// directly into the same per-segment processing used by cloud STT.
-  void _onLocalSegments(List<TranscriptSegment> segments) {
-    if (segments.isEmpty) return;
-    onSegmentReceived(segments);
-  }
-
-  // ---------------------------------------------------------------------------
   // Dispose
   // ---------------------------------------------------------------------------
 
   /// Dispose all resources. Must be called when the pipeline is no longer needed.
   Future<void> dispose() async {
-    // Cloud-side timers (keep-alive, token refresh, health monitor) are
-    // cancelled by the orchestrator's own dispose later in this method.
     _silenceTimer?.cancel();
     _silenceTimer = null;
 
     _segmentNotifyPending = false;
     _segmentFrameInFlight = false;
-
-    // Flush and dispose chunk writer + WAV backup (local STT)
-    await _chunkWriter?.dispose();
-    _chunkWriter = null;
-    await _wavBackupService?.stop();
-    _wavBackupService = null;
-    _segmentController?.dispose();
-    _segmentController = null;
-    _audioTranscoder = null;
 
     await _vadService?.dispose();
     _vadService = null;
@@ -1399,33 +1157,9 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
     await _cloudOrchestrator?.dispose();
     _cloudOrchestrator = null;
-    await _releaseOrDisposeLocalEngine();
+    await _localOrchestrator?.dispose();
+    _localOrchestrator = null;
     _transcriptServiceReady = false;
     _activeSttProvider = null;
-  }
-
-  /// Disposes the local engine or hands it back to its owner.
-  ///
-  /// When the pipeline built the engine itself (cold path, no warm-up),
-  /// we own it and must `disconnect()` to free the ~640 MB of model RAM.
-  /// When the engine was injected by [LocalSttProvider] (warm path), the
-  /// provider keeps ownership — we just flush the VAD tail and notify it
-  /// via [onLocalEngineReleased].
-  Future<void> _releaseOrDisposeLocalEngine() async {
-    final engine = _localEngine;
-    if (engine == null) return;
-    _localEngine = null;
-
-    if (_engineIsInjected) {
-      _engineIsInjected = false;
-      try {
-        await engine.flush();
-      } catch (e) {
-        debugPrint('[TranscriptionPipeline] flush on release error: $e');
-      }
-      onLocalEngineReleased?.call(engine);
-    } else {
-      await engine.disconnect();
-    }
   }
 }
