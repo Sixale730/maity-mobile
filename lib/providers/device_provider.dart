@@ -265,15 +265,16 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
           return;
         }
 
-        // Connection failed, increment retries and schedule next attempt
+        // Connection failed, increment retries
         _reconnectRetries++;
         if (_reconnectRetries >= _maxReconnectRetries) {
-          CaptureLogService.instance.log('ble', 'reconnect_max_retries', severity: 'error', details: {
-            'max_retries': _maxReconnectRetries,
+          CaptureLogService.instance.log('ble', 'reconnect_slow_poll', severity: 'warning', details: {
+            'retries_exhausted': _maxReconnectRetries,
+            'entering_slow_poll': true,
           });
-          debugPrint("Max reconnect retries reached ($_maxReconnectRetries)");
-          _reconnectRetries = 0; // Reset for future attempts
-          return;
+          debugPrint("Fast retries exhausted, entering slow poll (every ${_maxBackoffMs}ms)");
+          // Don't reset retries — keep capped so backoff stays at max (60s)
+          // Don't return — fall through to _scheduleNextReconnect
         }
 
         _scheduleNextReconnect(boundDeviceOnly);

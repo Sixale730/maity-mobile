@@ -84,12 +84,14 @@ class BleTransport extends DeviceTransport {
         throw Exception('Bluetooth adapter not ready');
       }
 
-      // Connect to device with 15s timeout to prevent hanging connections
+      // Connect with autoConnect: true — chipset reconnects automatically when
+      // device returns to range (same pattern as BT headphones).
+      // 30s timeout prevents hanging on first connection attempts.
       try {
-        await _bleDevice.connect(autoConnect: false, mtu: null)
-            .timeout(const Duration(seconds: 15));
+        await _bleDevice.connect(autoConnect: true, mtu: null)
+            .timeout(const Duration(seconds: 30));
       } on TimeoutException {
-        debugPrint('[BleTransport] Connection timeout after 15s');
+        debugPrint('[BleTransport] Connection timeout after 30s');
         _updateState(DeviceTransportState.disconnected);
         throw Exception('BLE connection timeout');
       }
