@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
+import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
+import 'package:omi/services/stt/local/device_memory_service.dart';
 import 'package:omi/services/stt/local/local_stt_model_type.dart';
 import 'package:omi/services/stt/local/local_stt_worker.dart';
 
@@ -50,6 +53,72 @@ class LocalSttEngineService {
         _maxSpeechDuration = maxSpeechDuration,
         _numThreads = numThreads,
         _acousticProfileJson = acousticProfileJson;
+
+  /// Build an engine from the user's preferences for the given model. Returns
+  /// null when the model path isn't configured — caller should handle that as
+  /// "local STT unavailable" and fall back to cloud or surface an error.
+  ///
+  /// Reads speaker embedding + acoustic profile from disk if present. Used by
+  /// both [TranscriptionPipeline] (recording) and [LocalSttProvider]
+  /// (pre-warm), so both paths build configured engines identically.
+  static LocalSttEngineService? fromPreferences(LocalSttModelType modelType) {
+    final prefs = SharedPreferencesUtil();
+    final modelPath = switch (modelType) {
+      LocalSttModelType.moonshine => prefs.localSttMoonshinePath,
+      LocalSttModelType.canary => prefs.localSttCanaryPath,
+      LocalSttModelType.parakeet => prefs.localSttModelPath,
+    };
+    if (modelPath.isEmpty) {
+      debugPrint(
+          '[LocalSttEngineService] ${modelType.name} model path empty — local STT unavailable');
+      return null;
+    }
+
+    String? speakerModelPath;
+    Uint8List? userEmbeddingBytes;
+    final speakerPath = prefs.speakerModelPath;
+    final embeddingPath = prefs.localSpeakerEmbeddingPath;
+    if (speakerPath.isNotEmpty && embeddingPath.isNotEmpty) {
+      final f = File(embeddingPath);
+      if (f.existsSync()) {
+        final bytes = f.readAsBytesSync();
+        if (bytes.length % 4 == 0 && bytes.isNotEmpty) {
+          speakerModelPath = speakerPath;
+          userEmbeddingBytes = bytes;
+        }
+      }
+    }
+
+    String? acousticProfileJson;
+    final profilePath = prefs.acousticProfilePath;
+    if (profilePath.isNotEmpty) {
+      final f = File(profilePath);
+      if (f.existsSync()) {
+        try {
+          acousticProfileJson = f.readAsStringSync();
+        } catch (_) {}
+      }
+    }
+
+    final double? maxSpeechDuration = switch (modelType) {
+      LocalSttModelType.canary => prefs.localSttCanaryMaxSpeechDuration,
+      LocalSttModelType.parakeet => 20.0,
+      LocalSttModelType.moonshine => null,
+    };
+
+    return LocalSttEngineService(
+      modelPath: modelPath,
+      modelType: modelType,
+      speakerModelPath: speakerModelPath,
+      userEmbeddingBytes: userEmbeddingBytes,
+      maxSpeechDuration: maxSpeechDuration,
+      numThreads: DeviceMemoryService.cachedThreadCount,
+      acousticProfileJson: acousticProfileJson,
+    );
+  }
+
+  /// Active model type (used by provider to detect stale warm engines).
+  LocalSttModelType get modelType => _modelType;
 
   // ---------------------------------------------------------------------------
   // Configuration

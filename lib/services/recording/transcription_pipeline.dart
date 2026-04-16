@@ -18,7 +18,6 @@ import 'package:omi/services/stt/local/local_stt_model_type.dart';
 import 'package:omi/services/stt/local/model_download_service.dart';
 import 'package:omi/services/stt/cloud/cloud_stt_orchestrator.dart';
 import 'package:omi/services/stt/local/local_stt_engine_service.dart';
-import 'dart:io' show File;
 import 'package:omi/services/recording/telemetry_collector.dart';
 import 'package:omi/services/recording/ui_segment_controller.dart';
 import 'package:omi/services/recording/wav_backup_service.dart';
@@ -1316,64 +1315,12 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// but returns the typed engine instead of a WebSocket-style adapter. Returns
   /// null when the model path isn't configured (caller should surface an error).
   LocalSttEngineService? _createLocalEngineFromConfig(SttProvider provider) {
-    final prefs = SharedPreferencesUtil();
     final modelType = switch (provider) {
       SttProvider.localMoonshine => LocalSttModelType.moonshine,
       SttProvider.localCanary => LocalSttModelType.canary,
       _ => LocalSttModelType.parakeet,
     };
-    final modelPath = switch (modelType) {
-      LocalSttModelType.moonshine => prefs.localSttMoonshinePath,
-      LocalSttModelType.canary => prefs.localSttCanaryPath,
-      LocalSttModelType.parakeet => prefs.localSttModelPath,
-    };
-    if (modelPath.isEmpty) {
-      debugPrint(
-          '[TranscriptionPipeline] ${modelType.name} model path empty — local STT unavailable');
-      return null;
-    }
-
-    String? speakerModelPath;
-    Uint8List? userEmbeddingBytes;
-    final speakerPath = prefs.speakerModelPath;
-    final embeddingPath = prefs.localSpeakerEmbeddingPath;
-    if (speakerPath.isNotEmpty && embeddingPath.isNotEmpty) {
-      final f = File(embeddingPath);
-      if (f.existsSync()) {
-        final bytes = f.readAsBytesSync();
-        if (bytes.length % 4 == 0 && bytes.isNotEmpty) {
-          speakerModelPath = speakerPath;
-          userEmbeddingBytes = bytes;
-        }
-      }
-    }
-
-    String? acousticProfileJson;
-    final profilePath = prefs.acousticProfilePath;
-    if (profilePath.isNotEmpty) {
-      final f = File(profilePath);
-      if (f.existsSync()) {
-        try {
-          acousticProfileJson = f.readAsStringSync();
-        } catch (_) {}
-      }
-    }
-
-    final double? maxSpeechDuration = switch (modelType) {
-      LocalSttModelType.canary => prefs.localSttCanaryMaxSpeechDuration,
-      LocalSttModelType.parakeet => 20.0,
-      LocalSttModelType.moonshine => null,
-    };
-
-    return LocalSttEngineService(
-      modelPath: modelPath,
-      modelType: modelType,
-      speakerModelPath: speakerModelPath,
-      userEmbeddingBytes: userEmbeddingBytes,
-      maxSpeechDuration: maxSpeechDuration,
-      numThreads: DeviceMemoryService.cachedThreadCount,
-      acousticProfileJson: acousticProfileJson,
-    );
+    return LocalSttEngineService.fromPreferences(modelType);
   }
 
   /// Hook the engine's typed callbacks into the pipeline's internal handlers.
