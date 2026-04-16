@@ -8,10 +8,14 @@ import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/recording/ui_segment_controller.dart';
 import 'package:omi/services/recording/wav_backup_service.dart';
 import 'package:omi/services/stt/cloud/transcription_service.dart'
-    show IAudioTranscoder;
+    show AudioTranscoderFactory, IAudioTranscoder;
+import 'package:omi/services/recording/telemetry_collector.dart';
 import 'package:omi/services/stt/local/audio_chunk_writer.dart';
+import 'package:omi/services/stt/local/chunk_queue_manager.dart';
+import 'package:omi/services/stt/local/device_memory_service.dart';
 import 'package:omi/services/stt/local/local_stt_engine_service.dart';
 import 'package:omi/services/stt/local/local_stt_model_type.dart';
+import 'package:omi/utils/debug_log_manager.dart';
 
 /// Orchestrates the on-device (Parakeet / Moonshine / Canary) STT transport.
 ///
@@ -256,17 +260,135 @@ class LocalSttOrchestrator {
     // _wireChunkSocketCallbacks (C3) once the chunk pipeline is initialized.
   }
 
-  /// Send an audio frame through the local pipeline (dual-write: disk
-  /// backup + optional streaming fast path). Implemented in C4.
-  Future<void> sendAudio(dynamic data) async {
-    // No-op until C4.
+  // ---------------------------------------------------------------------------
+  // Chunk pipeline (C3)
+  // ---------------------------------------------------------------------------
+
+  /// Initialize chunk writer + queue manager + segment controller. On
+  /// reconnect (when [_chunkWriter] already exists), only re-wires the new
+  /// engine's callbacks and resumes queue processing — does NOT recreate the
+  /// writer, segment controller, or session.
+  Future<void> initChunkPipeline() async {
+    final queueManager = ChunkQueueManager.instance;
+
+    // --- Reconnect path: pipeline already exists, just re-wire socket ---
+    if (_chunkWriter != null) {
+      debugPrint(
+          '[LocalSttOrchestrator] Chunk pipeline exists — re-wiring for reconnect');
+      _wireChunkSocketCallbacks(queueManager);
+      queueManager.processNextChunk(_sessionId);
+      return;
+    }
+
+    // --- First-time path: create writer, controller, session ---
+    await queueManager.initialize();
+    queueManager.setMaxQueueSize(DeviceMemoryService.cachedQueueCap);
+    final sessionDir = await queueManager.startSession(_sessionId);
+
+    _chunkWriter = AudioChunkWriter(
+      sessionId: _sessionId,
+      baseDir: sessionDir,
+      onChunkWritten: (meta) => queueManager.enqueueChunk(meta),
+    );
+    _chunkWriter!.start();
+
+    _wavBackupService = WavBackupService();
+    await _wavBackupService!.start(_sessionId);
+
+    // Create audio transcoder for non-PCM16 codecs (BLE/OMI sends Opus).
+    if (_codec != BleAudioCodec.pcm16) {
+      _audioTranscoder = AudioTranscoderFactory.createToRawPcm(
+        sourceCodec: _codec,
+        sampleRate: 16000,
+      );
+      debugPrint(
+          '[LocalSttOrchestrator] Audio transcoder: ${_codec.name} → PCM16');
+    } else {
+      _audioTranscoder = null;
+    }
+
+    _segmentController = UISegmentController();
+    _segmentController!.startSession(_sessionId, sessionDir);
+
+    _wireChunkSocketCallbacks(queueManager);
+
+    debugPrint(
+        '[LocalSttOrchestrator] Chunk pipeline initialized for session $_sessionId');
+  }
+
+  /// Wire ChunkQueueManager ↔ LocalSttEngineService callbacks. Shared by
+  /// first-init and reconnect paths.
+  void _wireChunkSocketCallbacks(ChunkQueueManager queueManager) {
+    final engine = _engine;
+    if (engine == null) return;
+
+    queueManager.onProcessChunk = (chunk) {
+      engine.processChunkFile(
+        chunk.filePath,
+        '${chunk.sessionId}_${chunk.sequence}',
+        chunk.offsetSeconds,
+      );
+    };
+
+    engine.onChunkProcessed = (chunkId) {
+      final parts = chunkId.split('_');
+      if (parts.length >= 2) {
+        final seq = int.tryParse(parts.last);
+        final sid = parts.sublist(0, parts.length - 1).join('_');
+        if (seq != null) {
+          queueManager.markCompleted(sid, seq);
+        }
+      }
+    };
+
+    engine.onVadStateChanged = (active) {
+      if (vadSpeechActive.value != active) {
+        vadSpeechActive.value = active;
+      }
+      _onVadStateChanged(active);
+    };
+
+    if (_streamingEnabled) {
+      queueManager.switchMode(ChunkProcessingMode.streamPrimary);
+      TelemetryCollector.instance.recordStreamingEvent('streaming_started');
+    }
+    engine.onStreamingHealthChanged = (healthy, reason) {
+      debugPrint(
+          '[LocalSttOrchestrator] Streaming health: $healthy ($reason)');
+      DebugLogManager.logEvent('streaming_health_changed', {
+        'healthy': healthy,
+        'reason': reason,
+        'watermark_sec': engine.streamingWatermark,
+      });
+      TelemetryCollector.instance.recordStreamingEvent(
+        healthy ? 'streaming_recovered' : 'streaming_fallback',
+        details: {
+          'reason': reason,
+          'watermark_sec': engine.streamingWatermark,
+        },
+      );
+      if (!healthy) {
+        queueManager.switchMode(
+          ChunkProcessingMode.chunkPrimary,
+          streamingWatermarkSec: engine.streamingWatermark,
+          sessionId: _sessionId,
+        );
+      } else {
+        queueManager.switchMode(ChunkProcessingMode.streamPrimary);
+      }
+    };
   }
 
   /// Re-wire the engine ↔ queue-manager callbacks after a reconnect that
   /// replaced the engine instance but kept writer / controller state.
-  /// Implemented in C3.
   Future<void> rewireForReconnect() async {
-    // No-op until C3.
+    await initChunkPipeline();
+  }
+
+  /// Send an audio frame through the local pipeline (dual-write: disk
+  /// backup + optional streaming fast path). Implemented in C4.
+  Future<void> sendAudio(dynamic data) async {
+    // No-op until C4.
   }
 
   /// Flush any buffered PCM bytes to disk. Used on app-pause to guarantee
