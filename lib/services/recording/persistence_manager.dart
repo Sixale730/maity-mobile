@@ -9,6 +9,7 @@ import 'package:omi/services/background_upload_service.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/conversation_processor.dart';
 import 'package:omi/services/recording/telemetry_collector.dart';
+import 'package:omi/services/connectivity_service.dart';
 import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/services/transcript_recovery_service.dart';
 import 'package:omi/services/stt/local/chunk_queue_manager.dart';
@@ -244,11 +245,16 @@ class PersistenceManager {
     // Cancel recovery timer (don't clear data yet — only after successful queue)
     _recoveryTimer?.cancel();
 
-    // Resolve userId if null
+    // Resolve userId if null — use cached getter first (no network),
+    // only fetch actively when online to avoid 7s retry delay offline.
     var effectiveUserId = userId;
     if (effectiveUserId == null) {
-      debugPrint('[PersistenceManager] userId null, attempting fetch...');
-      effectiveUserId = await SupabaseAuthService.instance.fetchMaityUserId();
+      effectiveUserId = SupabaseAuthService.instance.maityUserId;
+      if (effectiveUserId == null && ConnectivityService().isConnected) {
+        debugPrint('[PersistenceManager] userId null, attempting fetch...');
+        effectiveUserId =
+            await SupabaseAuthService.instance.fetchMaityUserId();
+      }
     }
     debugPrint('[PersistenceManager] userId=$effectiveUserId');
 
