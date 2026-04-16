@@ -5,6 +5,7 @@ import 'package:omi/backend/http/api/conversations.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/structured.dart';
+import 'package:omi/services/connectivity_service.dart';
 import 'package:omi/services/local_conversations_service.dart';
 import 'package:omi/services/maity_api_service.dart';
 import 'package:omi/services/omi_supabase_service.dart';
@@ -46,6 +47,8 @@ class ConversationProvider extends ChangeNotifier {
 
   List<ServerConversation> processingConversations = [];
 
+  StreamSubscription<bool>? _connectivitySubscription;
+
   final AppReviewService _appReviewService = AppReviewService();
 
   bool isFetchingConversations = false;
@@ -54,6 +57,13 @@ class ConversationProvider extends ChangeNotifier {
     _preload();
     // Listen for background upload completions to auto-refresh conversations
     BackgroundUploadService.instance.uploadCompleted.addListener(_onUploadCompleted);
+    // Refresh conversation list when connectivity is restored
+    _connectivitySubscription =
+        ConnectivityService().onConnectionChange.listen((connected) {
+      if (connected && conversations.isNotEmpty) {
+        forceRefreshConversations();
+      }
+    });
   }
 
   void _onUploadCompleted() {
@@ -554,6 +564,12 @@ class ConversationProvider extends ChangeNotifier {
   }
 
   Future<List<ServerConversation>> _getConversationsFromServer() async {
+    // Offline fast-path: return cache immediately, no network calls
+    if (!ConnectivityService().isConnected) {
+      debugPrint('[ConversationProvider] Offline -> returning cached conversations');
+      return SharedPreferencesUtil().cachedConversations;
+    }
+
     // Try to get from Supabase first (our own database)
     // Wait for maityUserId to be available (max 5 seconds) - handles race condition after app reinstall
     String? userId = SupabaseAuthService.instance.maityUserId;
@@ -595,7 +611,8 @@ class ConversationProvider extends ChangeNotifier {
           userId: userId,
           limit: 10,
           includeDiscarded: showDiscardedConversations,
-        );
+        ).timeout(const Duration(seconds: 8),
+            onTimeout: () => <OmiConversation>[]);
         debugPrint('[ConversationProvider] Received ${supabaseConvos.length} conversations from Supabase');
         if (supabaseConvos.isNotEmpty) {
           debugPrint('[ConversationProvider] Loaded ${supabaseConvos.length} conversations from Supabase');
@@ -873,6 +890,7 @@ class ConversationProvider extends ChangeNotifier {
   void dispose() {
     _processingConversationWatchTimer?.cancel();
     _refreshDebounceTimer?.cancel();
+    _connectivitySubscription?.cancel();
     BackgroundUploadService.instance.uploadCompleted.removeListener(_onUploadCompleted);
     super.dispose();
   }
