@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:omi/services/services.dart';
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:permission_handler/permission_handler.dart';
@@ -149,9 +148,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     } else if (state == AppLifecycleState.resumed) {
       event = 'App is resumed';
 
-      // Reload convos — but skip during recording to avoid main thread jank
-      // from fetching/parsing conversations during lifecycle transitions
       if (mounted) {
+        // Re-kick BLE connection if device is paired but disconnected
+        // (backoff retries may have been exhausted while app was in background)
+        final deviceProvider = Provider.of<DeviceProvider>(context, listen: false);
+        if (deviceProvider.connectedDevice == null &&
+            SharedPreferencesUtil().btDevice.id.isNotEmpty) {
+          deviceProvider.periodicConnect('app_resumed_reconnect');
+        }
+
+        // Reload convos — but skip during recording to avoid main thread jank
+        // from fetching/parsing conversations during lifecycle transitions
         final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
         final isRecording = captureProvider.recordingState == RecordingState.record ||
             captureProvider.recordingState == RecordingState.deviceRecord ||
@@ -180,52 +187,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   };
   bool? previousConnection;
 
-  void _onReceiveTaskData(dynamic data) async {
-    if (data is! Map<String, dynamic>) return;
-
-    // Handle notification button actions (pause/resume/stop from foreground service)
-    if (data.containsKey('action')) {
-      final action = data['action'] as String;
-      final captureProvider = Provider.of<CaptureProvider>(context, listen: false);
-      switch (action) {
-        case 'pause_recording':
-          if (captureProvider.recordingState == RecordingState.record) {
-            captureProvider.stopStreamRecording();
-          }
-          break;
-        case 'resume_recording':
-          if (captureProvider.isPaused || captureProvider.recordingState == RecordingState.pause) {
-            captureProvider.streamRecording();
-          }
-          break;
-        case 'stop_recording':
-          final stopState = captureProvider.recordingState;
-          if (stopState == RecordingState.record) {
-            captureProvider.stopStreamRecording();
-          } else if (stopState == RecordingState.systemAudioRecord) {
-            captureProvider.stopSystemAudioRecording();
-          } else if (stopState == RecordingState.pause || captureProvider.isPaused) {
-            captureProvider.streamRecording().then((_) {
-              Future.delayed(const Duration(milliseconds: 300), () {
-                captureProvider.stopStreamRecording();
-              });
-            });
-          } else if (stopState == RecordingState.initialising) {
-            captureProvider.clearTranscripts();
-            captureProvider.updateRecordingState(RecordingState.stop);
-          }
-          break;
-        case 'use_phone_mic':
-          if (captureProvider.recordingState == RecordingState.stop) {
-            _handleRecordButtonPress(context, captureProvider);
-          }
-          break;
-      }
-      return;
-    }
-
-    // Location data no longer sent from foreground service
-  }
+  // Foreground notification button actions (pause/resume/stop) are handled
+  // by the single callback registered in MyApp._initForegroundTaskListener()
+  // (main.dart). Do NOT duplicate that logic here — a previous duplicate
+  // called stopStreamRecording() on "pause" instead of pausePhoneMicRecording(),
+  // which destroyed the active session and wiped segments.
 
   @override
   void initState() {
@@ -423,8 +389,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     _setupAutoSaveListener();
     super.initState();
 
-    // After init
-    FlutterForegroundTask.addTaskDataCallback(_onReceiveTaskData);
+    // Foreground task data callback is registered once in MyApp (main.dart).
+    // Do NOT register a second one here — see _onReceiveTaskData() comment.
 
     // Check for interrupted recording sessions after a short delay
     // to allow providers to initialize
