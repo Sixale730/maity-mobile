@@ -25,6 +25,13 @@ class CrashLogManager {
   static const int _maxStackTraceChars = 4000;
   static const int _maxErrorMessageChars = 1000;
 
+  /// Error types that are transient and handled by existing retry paths; they
+  /// inflate the crash dashboard without representing real failures. Matched by
+  /// [Object.runtimeType].toString() to avoid importing private gotrue symbols.
+  static const Set<String> _ignoredErrorTypes = {
+    'AuthRetryableFetchException',
+  };
+
   static final DateFormat _ts = DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 
   String? _filePath;
@@ -86,12 +93,18 @@ class CrashLogManager {
     try {
       if (_filePath == null) return;
 
+      final errorType = error.runtimeType.toString();
+
+      // Transient network errors that the app already handles via retry (Supabase
+      // auth refresh, etc.). The app survives — logging them as crashes just
+      // pollutes the platform_logs dashboard without adding signal.
+      if (shouldIgnore(errorType)) return;
+
       final file = File(_filePath!);
 
       // Rotate if needed
       _rotateIfNeeded(file);
 
-      final errorType = error.runtimeType.toString();
       final errorMessage = _truncate(error.toString(), _maxErrorMessageChars);
       final stackTrace = stack != null ? _truncate(stack.toString(), _maxStackTraceChars) : null;
 
@@ -202,4 +215,10 @@ class CrashLogManager {
     if (s.length <= max) return s;
     return '${s.substring(0, max)}...[truncated]';
   }
+
+  /// Whether a given error [runtimeType] string should be dropped by [logCrash].
+  /// Exposed for unit tests; the list itself is defined by [_ignoredErrorTypes].
+  @visibleForTesting
+  static bool shouldIgnore(String runtimeType) =>
+      _ignoredErrorTypes.contains(runtimeType);
 }
