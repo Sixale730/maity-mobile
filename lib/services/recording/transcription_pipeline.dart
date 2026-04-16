@@ -299,11 +299,18 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     CustomSttConfig? effectiveConfig =
         customSttConfig.isEnabled ? customSttConfig : null;
 
-    // Auto-fallback to local STT when offline and any model is ready
-    if (effectiveConfig == null &&
-        !ConnectivityService().isConnected &&
+    // Auto-fallback to local STT when offline and any model is ready.
+    // Covers both: no custom config (effectiveConfig == null) AND cloud
+    // config active (e.g. Deepgram) — avoids 150s of keep-alive retries
+    // hammering a dead cloud socket while a local model sits idle.
+    final isOffline = !ConnectivityService().isConnected;
+    final shouldFallbackToLocal = isOffline &&
         SharedPreferencesUtil().localSttAutoFallback &&
-        ModelDownloadService.instance.isAnyModelReady) {
+        ModelDownloadService.instance.isAnyModelReady;
+
+    if (shouldFallbackToLocal &&
+        (effectiveConfig == null ||
+            !_isLocalSttProvider(effectiveConfig.provider))) {
       final fallbackProvider = _bestLocalSttProvider();
       if (fallbackProvider != null) {
         effectiveConfig = CustomSttConfig(provider: fallbackProvider);
