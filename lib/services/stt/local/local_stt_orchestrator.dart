@@ -11,6 +11,7 @@ import 'package:omi/services/stt/cloud/transcription_service.dart'
     show IAudioTranscoder;
 import 'package:omi/services/stt/local/audio_chunk_writer.dart';
 import 'package:omi/services/stt/local/local_stt_engine_service.dart';
+import 'package:omi/services/stt/local/local_stt_model_type.dart';
 
 /// Orchestrates the on-device (Parakeet / Moonshine / Canary) STT transport.
 ///
@@ -65,13 +66,11 @@ class LocalSttOrchestrator {
   // Configuration — set once at construction, snapshot of the session's
   // environment. Immutable for the orchestrator's lifetime.
   // ---------------------------------------------------------------------------
-  // ignore: unused_field
   final SttProvider _provider;
   // ignore: unused_field
   final BleAudioCodec _codec;
   final String _sessionId;
   final bool _streamingEnabled;
-  // ignore: unused_field
   final CaptureLogService _captureLog;
 
   /// Active STT provider for this session. Set at construction, immutable.
@@ -93,11 +92,8 @@ class LocalSttOrchestrator {
   // pipeline without importing it.
   // ---------------------------------------------------------------------------
   final LocalSttEngineService? _warmEngine;
-  // ignore: unused_field
   final void Function(List<TranscriptSegment> segments) _onSegments;
-  // ignore: unused_field
   final void Function(bool active) _onVadStateChanged;
-  // ignore: unused_field
   final void Function(Object err) _onError;
   final void Function(LocalSttEngineService engine)? _onEngineReleased;
   // ignore: unused_field
@@ -172,23 +168,92 @@ class LocalSttOrchestrator {
   bool get isStreamingHealthy => _engine?.isStreamingHealthy ?? false;
 
   // ---------------------------------------------------------------------------
-  // Lifecycle — full implementations land in C2/C3/C4. C1 ships placeholders
-  // that close what the orchestrator already owns (the VAD notifier).
+  // Engine lifecycle (C2)
   // ---------------------------------------------------------------------------
 
-  /// Open the worker + initialise the chunk pipeline. Returns true on
-  /// success. Implemented in C2 (engine) + C3 (chunk pipeline).
+  /// Open the worker isolate. If a warm engine was supplied at construction
+  /// and it's already connected, reuses it (zero cold-start latency); falls
+  /// back to a cold build from preferences otherwise.
+  ///
+  /// Returns true when the engine is live and callbacks are wired. Chunk
+  /// pipeline initialisation (C3) runs after this returns; the caller chains
+  /// both steps.
   Future<bool> connect() async {
-    // C2/C3 will fill this in. Until then, callers that instantiate the
-    // orchestrator are expected to drive the engine + chunk pipeline
-    // themselves via the existing pipeline code path.
-    return false;
+    LocalSttEngineService? engine = _warmEngine;
+    if (engine != null && engine.isConnected) {
+      _engineIsInjected = true;
+      _wireEngineCallbacks(engine);
+    } else {
+      _engineIsInjected = false;
+      engine = _createEngineFromConfig();
+      if (engine == null) {
+        _captureLog.log('socket', 'local_stt_init_failed',
+            severity: 'error', details: {'provider': _provider.name});
+        return false;
+      }
+      _wireEngineCallbacks(engine);
+      final ok = await engine.connect();
+      if (!ok) {
+        debugPrint('[LocalSttOrchestrator] engine connect failed');
+        _captureLog.log('socket', 'local_stt_connect_failed',
+            severity: 'error');
+        return false;
+      }
+    }
+    _engine = engine;
+    return true;
   }
 
-  /// Stop the worker and reset session state without tearing down the
-  /// orchestrator. Implemented in C2/C3.
+  /// Hands the engine back to its owner (warm pool) or disconnects it.
+  ///
+  /// When the engine was injected via the warm pool, we flush residual VAD
+  /// audio and invoke [_onEngineReleased] so the provider can recycle it.
+  /// When it was cold-built, we own it and must `disconnect()` to free the
+  /// ~640 MB of model RAM.
   Future<void> disconnect() async {
-    // No-op until C2.
+    final engine = _engine;
+    if (engine == null) return;
+    _engine = null;
+
+    if (_engineIsInjected) {
+      _engineIsInjected = false;
+      try {
+        await engine.flush();
+      } catch (e) {
+        debugPrint('[LocalSttOrchestrator] flush on release error: $e');
+      }
+      _onEngineReleased?.call(engine);
+    } else {
+      await engine.disconnect();
+    }
+  }
+
+  /// Build a [LocalSttEngineService] from the user's preferences. Mirrors
+  /// the config-reading logic used by [TranscriptionPipeline]. Returns null
+  /// when the model path isn't configured.
+  LocalSttEngineService? _createEngineFromConfig() {
+    final modelType = switch (_provider) {
+      SttProvider.localMoonshine => LocalSttModelType.moonshine,
+      SttProvider.localCanary => LocalSttModelType.canary,
+      _ => LocalSttModelType.parakeet,
+    };
+    return LocalSttEngineService.fromPreferences(modelType);
+  }
+
+  /// Hook the engine's typed callbacks into the orchestrator's injected
+  /// callbacks. Done during [connect] before the engine starts producing
+  /// segments so no events are lost.
+  void _wireEngineCallbacks(LocalSttEngineService engine) {
+    engine.onSegments = _onSegments;
+    engine.onVadStateChanged = (active) {
+      if (vadSpeechActive.value != active) {
+        vadSpeechActive.value = active;
+      }
+      _onVadStateChanged(active);
+    };
+    engine.onError = (err, _) => _onError(err);
+    // onStreamingHealthChanged and onChunkProcessed are wired by
+    // _wireChunkSocketCallbacks (C3) once the chunk pipeline is initialized.
   }
 
   /// Send an audio frame through the local pipeline (dual-write: disk
@@ -205,14 +270,12 @@ class LocalSttOrchestrator {
   }
 
   /// Flush any buffered PCM bytes to disk. Used on app-pause to guarantee
-  /// recovery files are up to date. Implemented in C4.
+  /// recovery files are up to date.
   Future<void> flushChunkWriter({bool synchronous = false}) async {
     await _chunkWriter?.flush(synchronous: synchronous);
   }
 
-  /// Tear down the orchestrator. Safe to call multiple times. Subsequent
-  /// commits extend this to also dispose the chunk pipeline and release
-  /// (or disconnect) the engine.
+  /// Tear down the orchestrator. Safe to call multiple times.
   Future<void> dispose() async {
     await _chunkWriter?.dispose();
     _chunkWriter = null;
@@ -222,19 +285,8 @@ class LocalSttOrchestrator {
     _segmentController = null;
     _audioTranscoder = null;
 
-    // Engine release lifecycle moves here in C2. For now, just clear the
-    // reference — the pipeline still owns disconnect / release today.
-    _engine = null;
-    _engineIsInjected = false;
+    await disconnect();
 
     vadSpeechActive.dispose();
-  }
-
-  /// Silence analyzer warnings about fields populated by future commits.
-  // ignore: unused_element
-  void _retainFutureFields() {
-    // Referenced from C2 onwards; keeping the fields live so the skeleton
-    // compiles without `unused_field` warnings that noise up the C1 diff.
-    if (_warmEngine == null && _onEngineReleased == null) return;
   }
 }
