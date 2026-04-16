@@ -48,6 +48,10 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
   StreamSubscription<List<int>>? _bleBatteryLevelListener;
   int batteryLevel = -1;
   bool _hasLowBatteryAlerted = false;
+
+  // Battery filtering: median + initial-100% rejection (firmware bug workaround)
+  final List<int> _batteryReadings = [];
+  bool _isFirstBatteryRead = true;
   Timer? _reconnectionTimer;
   DateTime? _reconnectAt;
 
@@ -168,25 +172,52 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
     _bleBatteryLevelListener = await _getBleBatteryLevelListener(
       connectedDevice!.id,
       onBatteryLevelChange: (int value) {
-        // Filter out small fluctuations (noise from ADC readings)
-        // Only update if change is >= 3% or if this is the first reading
-        if ((batteryLevel - value).abs() < 3 && batteryLevel != -1) {
-          return; // Ignore small fluctuations
-        }
-        batteryLevel = value;
-        if (batteryLevel < 20 && !_hasLowBatteryAlerted) {
-          _hasLowBatteryAlerted = true;
-          NotificationService.instance.createNotification(
-            title: "Low Battery Alert",
-            body: "Your device is running low on battery. Time for a recharge!",
-          );
-        } else if (batteryLevel > 20) {
-          _hasLowBatteryAlerted = true;
-        }
-        notifyListeners();
+        _processBatteryReading(value);
       },
     );
     notifyListeners();
+  }
+
+  /// Centralized battery reading pipeline: rejects false 100% on first connect,
+  /// applies median filter (window of 3) to smooth outliers from firmware ADC noise,
+  /// then applies 3% threshold to suppress unnecessary UI rebuilds.
+  void _processBatteryReading(int rawValue) {
+    if (rawValue < 0 || rawValue > 100) return;
+
+    // Filter 1: Reject false 100% on first read after connect
+    if (_isFirstBatteryRead) {
+      _isFirstBatteryRead = false;
+      if (rawValue == 100) return;
+    }
+
+    // Filter 2: Median of last 3 readings
+    _batteryReadings.add(rawValue);
+    if (_batteryReadings.length > 3) {
+      _batteryReadings.removeAt(0);
+    }
+    final medianValue = _computeMedian(_batteryReadings);
+
+    // Existing 3% noise filter applied to median output
+    if ((batteryLevel - medianValue).abs() < 3 && batteryLevel > 0) return;
+
+    batteryLevel = medianValue;
+
+    if (batteryLevel < 20 && !_hasLowBatteryAlerted) {
+      _hasLowBatteryAlerted = true;
+      NotificationService.instance.createNotification(
+        title: "Low Battery Alert",
+        body: "Your device is running low on battery. Time for a recharge!",
+      );
+    } else if (batteryLevel > 20) {
+      _hasLowBatteryAlerted = true;
+    }
+    notifyListeners();
+  }
+
+  int _computeMedian(List<int> values) {
+    if (values.isEmpty) return -1;
+    final sorted = List<int>.from(values)..sort();
+    return sorted[sorted.length ~/ 2];
   }
 
   Future periodicConnect(String printer, {bool boundDeviceOnly = false}) async {
@@ -352,6 +383,7 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
 
   @override
   void dispose() {
+    _batteryReadings.clear();
     _bleBatteryLevelListener?.cancel();
     _reconnectionTimer?.cancel();
     _bleDisconnectRecordingTimer?.cancel();
@@ -374,6 +406,11 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
         reason: connectedDevice?.name,
       );
     }
+    // Reset battery filter state for next connection
+    _batteryReadings.clear();
+    _isFirstBatteryRead = true;
+    batteryLevel = -1;
+
     _havingNewFirmware = false;
     setConnectedDevice(null);
     setisDeviceStorageSupport();
@@ -476,10 +513,10 @@ class DeviceProvider extends ChangeNotifier implements IDeviceServiceSubsciption
     setisDeviceStorageSupport();
     setIsConnected(true);
 
-    // Read initial battery level
+    // Read initial battery level (routed through filter pipeline)
     int currentLevel = await _retrieveBatteryLevel(device.id);
     if (currentLevel != -1) {
-      batteryLevel = currentLevel;
+      _processBatteryReading(currentLevel);
     }
 
     // Then set up listener for battery changes
