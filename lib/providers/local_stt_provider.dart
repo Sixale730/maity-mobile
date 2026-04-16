@@ -143,8 +143,11 @@ class LocalSttProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _disposed = false;
+
   Future<void> _checkDeviceRam() async {
     _deviceRamWarning = await ModelDownloadService.instance.isLowRamDevice();
+    if (_disposed) return;
     notifyListeners();
   }
 
@@ -325,6 +328,7 @@ class LocalSttProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     for (final type in LocalSttModelType.values) {
       ModelDownloadService.instance
           .progressFor(type)
