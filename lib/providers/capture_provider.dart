@@ -17,6 +17,7 @@ import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/providers/conversation_provider.dart';
 import 'package:omi/providers/message_provider.dart';
 import 'package:omi/providers/people_provider.dart';
+import 'package:omi/providers/local_stt_provider.dart';
 import 'package:omi/providers/usage_provider.dart';
 import 'package:omi/services/connectivity_service.dart';
 import 'package:omi/services/services.dart';
@@ -75,6 +76,16 @@ class CaptureProvider extends ChangeNotifier
   MessageProvider? messageProvider;
   PeopleProvider? peopleProvider;
   UsageProvider? usageProvider;
+
+  /// Wire the [LocalSttProvider] for engine warm-up. Call from HomePage
+  /// once (it's safe to call multiple times; only the latest reference
+  /// is kept). After this, every call to `streamRecording*` will try to
+  /// grab a pre-warmed engine from the provider instead of paying the
+  /// cold-start cost.
+  void setLocalSttProvider(LocalSttProvider provider) {
+    _pipeline.warmEngineProvider = provider.acquireEngine;
+    _pipeline.onLocalEngineReleased = provider.releaseEngine;
+  }
 
   // ---------------------------------------------------------------------------
   // Services

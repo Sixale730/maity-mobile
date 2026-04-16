@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:omi/services/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -304,9 +305,27 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       }
       if (mounted) {
         final localSttProv = Provider.of<LocalSttProvider>(context, listen: false);
+        final captureProv = Provider.of<CaptureProvider>(context, listen: false);
+
+        // Give the capture pipeline a handle on the warm-engine pool so it
+        // can grab a pre-warmed LocalSttEngineService on the next record tap
+        // instead of paying the ~2-4 s cold-start cost.
+        captureProv.setLocalSttProvider(localSttProv);
+
+        // Fire-and-forget pre-warm: loads the ~640 MB Parakeet model into a
+        // background isolate while the user scrolls the home feed, so the
+        // first record tap feels instant. No-op on low-tier devices or when
+        // cloud STT is the active provider — LocalSttProvider gates that.
+        unawaited(localSttProv.warmUpEngine());
+
+        // Same idea for FlutterSound: openRecorder() takes ~500 ms. Claim
+        // the audio session ahead of time so start() only has to call
+        // startRecorder() when the user taps record.
+        unawaited(ServiceManager.instance().mic.prepareRecorder());
+
         if (localSttProv.isReadyFor(LocalSttModelType.parakeet)) {
-          await Provider.of<CaptureProvider>(context, listen: false)
-              .streamDeviceRecording(device: Provider.of<DeviceProvider>(context, listen: false).connectedDevice);
+          await captureProv.streamDeviceRecording(
+              device: Provider.of<DeviceProvider>(context, listen: false).connectedDevice);
         }
       }
 

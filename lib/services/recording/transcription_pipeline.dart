@@ -72,6 +72,12 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// alive for the next acquire rather than tearing it down.
   void Function(LocalSttEngineService engine)? onLocalEngineReleased;
 
+  /// Optional supplier that, when set, is queried at the start of each
+  /// [initiateWebsocket] cloud/local branch to reuse a pre-warmed engine.
+  /// The typical wiring is CaptureProvider → LocalSttProvider.acquireEngine.
+  /// Returning null causes the pipeline to cold-build an engine as before.
+  LocalSttEngineService? Function()? warmEngineProvider;
+
   /// Cached codec from the most recent [initiateWebsocket] call. The cloud
   /// socket used to expose it via `_socket.codec`, but when local STT is
   /// active there is no socket — [_initChunkPipeline] reads this instead so
@@ -386,9 +392,8 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
         _isLocalSttProvider(effectiveConfig.provider)) {
       // Prefer an injected pre-warmed engine (hands off the ~2-4 s cold
       // start latency from LocalSttProvider). Fall back to a cold build
-      // when the caller didn't hand one in or the warm one is already
-      // disposed.
-      LocalSttEngineService? engine = warmEngine;
+      // when no warm one is available.
+      LocalSttEngineService? engine = warmEngine ?? warmEngineProvider?.call();
       if (engine != null && engine.isConnected) {
         _engineIsInjected = true;
         _wireLocalEngineCallbacks(engine);
