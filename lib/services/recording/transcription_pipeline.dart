@@ -61,6 +61,17 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// into [_onLocalSegments] without a JSON string round-trip.
   LocalSttEngineService? _localEngine;
 
+  /// True when [_localEngine] came from an external owner (LocalSttProvider's
+  /// warm-up pool). In that case the pipeline must NOT call disconnect() on
+  /// teardown — it invokes [onLocalEngineReleased] instead so the provider
+  /// can keep the engine alive for the next recording.
+  bool _engineIsInjected = false;
+
+  /// Invoked on recording stop when the active engine was injected (not
+  /// built by the pipeline). The owner (LocalSttProvider) keeps the engine
+  /// alive for the next acquire rather than tearing it down.
+  void Function(LocalSttEngineService engine)? onLocalEngineReleased;
+
   /// Cached codec from the most recent [initiateWebsocket] call. The cloud
   /// socket used to expose it via `_socket.codec`, but when local STT is
   /// active there is no socket — [_initChunkPipeline] reads this instead so
@@ -272,6 +283,7 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     bool? isPcm,
     bool force = false,
     String? source,
+    LocalSttEngineService? warmEngine,
   }) async {
     Logger.debug('initiateWebsocket in TranscriptionPipeline');
     _currentCodec = audioCodec;
@@ -372,19 +384,30 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     // typed `List<TranscriptSegment>` — no WebSocket, no jsonDecode chain.
     if (effectiveConfig != null &&
         _isLocalSttProvider(effectiveConfig.provider)) {
-      final engine = _createLocalEngineFromConfig(effectiveConfig.provider);
-      if (engine == null) {
-        _captureLog.log('socket', 'local_stt_init_failed',
-            severity: 'error',
-            details: {'provider': effectiveConfig.provider.name});
-        return;
-      }
-      _wireLocalEngineCallbacks(engine);
-      final ok = await engine.connect();
-      if (!ok) {
-        debugPrint('[TranscriptionPipeline] LocalSttEngineService connect failed');
-        _captureLog.log('socket', 'local_stt_connect_failed', severity: 'error');
-        return;
+      // Prefer an injected pre-warmed engine (hands off the ~2-4 s cold
+      // start latency from LocalSttProvider). Fall back to a cold build
+      // when the caller didn't hand one in or the warm one is already
+      // disposed.
+      LocalSttEngineService? engine = warmEngine;
+      if (engine != null && engine.isConnected) {
+        _engineIsInjected = true;
+        _wireLocalEngineCallbacks(engine);
+      } else {
+        _engineIsInjected = false;
+        engine = _createLocalEngineFromConfig(effectiveConfig.provider);
+        if (engine == null) {
+          _captureLog.log('socket', 'local_stt_init_failed',
+              severity: 'error',
+              details: {'provider': effectiveConfig.provider.name});
+          return;
+        }
+        _wireLocalEngineCallbacks(engine);
+        final ok = await engine.connect();
+        if (!ok) {
+          debugPrint('[TranscriptionPipeline] LocalSttEngineService connect failed');
+          _captureLog.log('socket', 'local_stt_connect_failed', severity: 'error');
+          return;
+        }
       }
       _localEngine = engine;
       _transcriptServiceReady = true;
@@ -1371,9 +1394,33 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
 
     await _cloudOrchestrator?.dispose();
     _cloudOrchestrator = null;
-    await _localEngine?.disconnect();
-    _localEngine = null;
+    await _releaseOrDisposeLocalEngine();
     _transcriptServiceReady = false;
     _activeSttProvider = null;
+  }
+
+  /// Disposes the local engine or hands it back to its owner.
+  ///
+  /// When the pipeline built the engine itself (cold path, no warm-up),
+  /// we own it and must `disconnect()` to free the ~640 MB of model RAM.
+  /// When the engine was injected by [LocalSttProvider] (warm path), the
+  /// provider keeps ownership — we just flush the VAD tail and notify it
+  /// via [onLocalEngineReleased].
+  Future<void> _releaseOrDisposeLocalEngine() async {
+    final engine = _localEngine;
+    if (engine == null) return;
+    _localEngine = null;
+
+    if (_engineIsInjected) {
+      _engineIsInjected = false;
+      try {
+        await engine.flush();
+      } catch (e) {
+        debugPrint('[TranscriptionPipeline] flush on release error: $e');
+      }
+      onLocalEngineReleased?.call(engine);
+    } else {
+      await engine.disconnect();
+    }
   }
 }
