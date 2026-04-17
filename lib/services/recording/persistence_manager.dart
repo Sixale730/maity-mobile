@@ -194,6 +194,7 @@ class PersistenceManager {
     required bool isSpeechProfileMode,
     required Function() onSuccess,
     String? sessionId,
+    String? idempotencyKey,
   }) async {
     if (isSpeechProfileMode) {
       debugPrint('[PersistenceManager] SKIP: Speech profile mode active');
@@ -215,6 +216,7 @@ class PersistenceManager {
         startedAt: startedAt,
         onSuccess: onSuccess,
         sessionId: sessionId,
+        idempotencyKey: idempotencyKey,
       );
     } finally {
       _finalizeMutex.release();
@@ -228,6 +230,7 @@ class PersistenceManager {
     required DateTime? startedAt,
     required Function() onSuccess,
     String? sessionId,
+    String? idempotencyKey,
   }) async {
     final localSegments = List<TranscriptSegment>.from(segments);
     final transcript = localSegments.map((s) => s.text).join('\n').trim();
@@ -313,6 +316,7 @@ class PersistenceManager {
         source: 'omi',
         structured: structuredData,
         telemetry: telemetrySnapshot,
+        idempotencyKey: idempotencyKey,
       );
 
       // Reset collector now that the snapshot has been handed off to the

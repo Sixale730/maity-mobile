@@ -134,9 +134,10 @@ class BackgroundUploadService {
     String source = 'omi',
     Map<String, dynamic>? structured,
     Map<String, dynamic>? telemetry,
+    String? idempotencyKey,
   }) async {
     final id = const Uuid().v4();
-    final idempotencyKey = const Uuid().v4();
+    idempotencyKey ??= const Uuid().v4();
 
     // Save segments to a dedicated JSON file
     final dir = await _getUploadsDirectory();
