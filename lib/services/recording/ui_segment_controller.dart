@@ -194,6 +194,27 @@ class UISegmentController {
     return json;
   }
 
+  /// Collect ALL segments for finalization: active + all archived pages.
+  /// Loads unloaded pages temporarily and returns the complete ordered list.
+  /// Call BEFORE disposing the orchestrator.
+  Future<List<TranscriptSegment>> collectAllSegments() async {
+    final result = <TranscriptSegment>[];
+    // Load ALL archived pages (including unloaded ones)
+    for (int i = 0; i < _archivePages.length; i++) {
+      if (_loadedPages.containsKey(i)) {
+        result.addAll(_loadedPages[i]!);
+      } else {
+        final page = await loadPage(i);
+        result.addAll(page);
+        // Unload to keep memory bounded
+        unloadPage(i);
+      }
+    }
+    // Add active segments
+    result.addAll(_activeSegments);
+    return result;
+  }
+
   /// Clean up all archive files for the current session.
   Future<void> cleanup() async {
     for (final page in _archivePages) {
