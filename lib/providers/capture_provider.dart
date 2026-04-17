@@ -1,16 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_provider_utilities/flutter_provider_utilities.dart';
-import 'package:omi/backend/http/api/conversations.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/backend/schema/conversation.dart';
-import 'package:omi/backend/schema/message.dart';
 import 'package:omi/backend/schema/message_event.dart';
 import 'package:omi/backend/schema/person.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
@@ -24,7 +21,6 @@ import 'package:omi/services/services.dart';
 import 'package:omi/services/stt/cloud/transcription_service.dart';
 import 'package:omi/services/vad/vad_state.dart';
 import 'package:omi/services/vad/vad_metrics.dart';
-import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/services/widget_state_service.dart';
 import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/platform/platform_service.dart';
@@ -37,6 +33,7 @@ import 'package:omi/services/recording/persistence_manager.dart';
 import 'package:omi/services/recording/app_lifecycle_manager.dart';
 import 'package:omi/services/recording/session_lifecycle_manager.dart';
 import 'package:omi/services/recording/recording_controller.dart';
+import 'package:omi/services/recording/message_event_handler.dart';
 import 'package:omi/services/recording/telemetry_collector.dart';
 import 'package:omi/services/devices/led_breathing_service.dart';
 import 'package:omi/services/devices.dart';
@@ -82,6 +79,7 @@ class CaptureProvider extends ChangeNotifier
   final LedBreathingService _ledBreathing = LedBreathingService();
 
   late final RecordingController _recordingController;
+  final MessageEventHandler _messageEventHandler = MessageEventHandler();
 
   // ---------------------------------------------------------------------------
   // Connection state
@@ -116,6 +114,31 @@ class CaptureProvider extends ChangeNotifier
     };
     _recordingController.onAutoRestartNeeded = _autoRestartIfDeviceConnected;
 
+    // Wire message event handler callbacks
+    _messageEventHandler.onConversationUpserted = (conversation) {
+      conversationProvider?.upsertConversation(conversation);
+    };
+    _messageEventHandler.onProcessingStarted = (memory) {
+      conversationProvider?.addProcessingConversation(memory);
+    };
+    _messageEventHandler.onProcessingConversationRemoved = (id) {
+      conversationProvider?.removeProcessingConversation(id);
+    };
+    _messageEventHandler.onResetStateVariables = _resetStateVariables;
+    _messageEventHandler.onNotifyListeners = notifyListeners;
+    _messageEventHandler.getSegments = () => segments;
+    _messageEventHandler.getPhotos = () => photos;
+    _messageEventHandler.getTaggingSegmentIds = () => taggingSegmentIds;
+    _messageEventHandler.onSpeakerAssignment =
+        (speakerId, personId, personName, segmentIds) {
+      assignSpeakerToConversation(
+          speakerId, personId, personName, segmentIds);
+    };
+    _messageEventHandler.onSpeakerSuggestion = (event) {
+      suggestionsBySegmentId[event.segmentId] = event;
+      notifyListeners();
+    };
+
     _connectionStateListener =
         ConnectivityService().onConnectionChange.listen((bool connected) {
       _isConnected = connected;
@@ -125,7 +148,7 @@ class CaptureProvider extends ChangeNotifier
 
     // Wire up pipeline callbacks
     _pipeline.onSegmentsReceived = _onNewSegments;
-    _pipeline.onMessageEvent = _onMessageEvent;
+    _pipeline.onMessageEvent = _messageEventHandler.handleEvent;
     _pipeline.onAutoFinalizeNeeded = _recordingController.autoFinalizeOnConnectionLost;
     _pipeline.onNotifyListeners = notifyListeners;
     _pipeline.onSchedulePostFrame = (callback) {
@@ -598,50 +621,6 @@ class CaptureProvider extends ChangeNotifier
     );
   }
 
-  void _onMessageEvent(MessageEvent event) {
-    if (event is ConversationProcessingStartedEvent) {
-      conversationProvider!.addProcessingConversation(event.memory);
-      _resetStateVariables();
-      return;
-    }
-    if (event is ConversationEvent) {
-      event.memory.isNew = true;
-      conversationProvider!.removeProcessingConversation(event.memory.id);
-      _processConversationCreated(
-          event.memory, event.messages.cast<ServerMessage>());
-      return;
-    }
-    if (event is LastConversationEvent) {
-      _handleLastConvoEvent(event.memoryId);
-      return;
-    }
-    if (event is SpeakerLabelSuggestionEvent) {
-      _handleSpeakerLabelSuggestionEvent(event);
-      return;
-    }
-    if (event is TranslationEvent) {
-      _handleTranslationEvent(event.segments);
-      return;
-    }
-    if (event is PhotoProcessingEvent) {
-      final idx = photos.indexWhere((p) => p.id == event.tempId);
-      if (idx != -1) {
-        photos[idx].id = event.photoId;
-        notifyListeners();
-      }
-      return;
-    }
-    if (event is PhotoDescribedEvent) {
-      final idx = photos.indexWhere((p) => p.id == event.photoId);
-      if (idx != -1) {
-        photos[idx].description = event.description;
-        photos[idx].discarded = event.discarded;
-        notifyListeners();
-      }
-      return;
-    }
-  }
-
   // ---------------------------------------------------------------------------
   // Auto-restart after finalize
   // ---------------------------------------------------------------------------
@@ -683,51 +662,6 @@ class CaptureProvider extends ChangeNotifier
         _sessionLifecycle.transition(SessionPhase.idle);
       }
     });
-  }
-
-  // ---------------------------------------------------------------------------
-  // Message event handlers
-  // ---------------------------------------------------------------------------
-
-  Future<void> _processConversationCreated(
-      ServerConversation? conversation, List<ServerMessage> messages) async {
-    if (conversation == null) return;
-    conversationProvider?.upsertConversation(conversation);
-    MixpanelManager().conversationCreated(conversation);
-  }
-
-  Future<void> _handleLastConvoEvent(String memoryId) async {
-    bool exists = conversationProvider?.conversations
-            .any((c) => c.id == memoryId) ??
-        false;
-    if (exists) return;
-    ServerConversation? conversation = await getConversationById(memoryId);
-    if (conversation != null) {
-      conversationProvider?.upsertConversation(conversation);
-    }
-  }
-
-  void _handleTranslationEvent(List<TranscriptSegment> translatedSegments) {
-    if (translatedSegments.isEmpty) return;
-    TranscriptSegment.updateSegments(segments, translatedSegments);
-    notifyListeners();
-  }
-
-  void _handleSpeakerLabelSuggestionEvent(SpeakerLabelSuggestionEvent event) {
-    if (taggingSegmentIds.contains(event.segmentId)) return;
-    var segment = segments.firstWhereOrNull((s) => s.id == event.segmentId);
-    if (segment != null &&
-        segment.id.isNotEmpty &&
-        (segment.personId != null || segment.isUser)) {
-      return;
-    }
-    if (SharedPreferencesUtil().autoCreateSpeakersEnabled) {
-      assignSpeakerToConversation(
-          event.speakerId, event.personId, event.personName, [event.segmentId]);
-    } else {
-      suggestionsBySegmentId[event.segmentId] = event;
-      notifyListeners();
-    }
   }
 
   // ---------------------------------------------------------------------------
