@@ -1561,6 +1561,8 @@ class CaptureProvider extends ChangeNotifier
   /// Auto-restart recording when an OMI device is still connected.
   /// Enables continuous recording: finish one conversation, immediately
   /// start capturing the next one (like original OMI behavior).
+  ///
+  /// Uses [SessionPhase.restarting] to prevent concurrent restarts.
   void _autoRestartIfDeviceConnected() {
     final device = _audioTransport.recordingDevice;
     if (device == null) return;
@@ -1572,20 +1574,33 @@ class CaptureProvider extends ChangeNotifier
         '[CaptureProvider] Auto-restart: device ${device.name} still connected'
         '${shouldPause ? ' (will pause)' : ''}');
 
-    // Brief delay to let state settle and avoid UI flash
-    Future.delayed(const Duration(milliseconds: 1500), () async {
-      // Guard: still stopped and device still available
-      if (recordingState != RecordingState.stop) return;
-      if (_audioTransport.recordingDevice == null) return;
-
+    // Transition to restarting phase (prevents concurrent restarts)
+    if (!_sessionLifecycle.transition(SessionPhase.restarting)) {
       debugPrint(
-          '[CaptureProvider] Auto-restarting recording with ${device.name}');
-      await streamDeviceRecording(device: device);
+          '[CaptureProvider] Auto-restart blocked: phase=${_sessionLifecycle.phase}');
+      return;
+    }
 
-      // Pause the new session if the previous one was paused
-      if (shouldPause && recordingState == RecordingState.deviceRecord) {
-        debugPrint('[CaptureProvider] Auto-pausing restarted recording');
-        await pauseDeviceRecording();
+    // Brief settle delay (reduced from 1500ms to 500ms)
+    Future.delayed(const Duration(milliseconds: 500), () async {
+      // Guard: still in restarting phase and device still available
+      if (_sessionLifecycle.phase != SessionPhase.restarting) return;
+      if (_audioTransport.recordingDevice == null) {
+        _sessionLifecycle.transition(SessionPhase.idle);
+        return;
+      }
+
+      try {
+        await streamDeviceRecording(device: device);
+        // streamDeviceRecording calls _sessionLifecycle.startSession() → active
+
+        if (shouldPause && recordingState == RecordingState.deviceRecord) {
+          debugPrint('[CaptureProvider] Auto-pausing restarted recording');
+          await pauseDeviceRecording();
+        }
+      } catch (e) {
+        debugPrint('[CaptureProvider] Auto-restart failed: $e');
+        _sessionLifecycle.transition(SessionPhase.idle);
       }
     });
   }
