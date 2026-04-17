@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:omi/pages/onboarding/wrapper.dart';
+import 'package:omi/pages/onboarding/model_download_page.dart';
 import 'package:omi/pages/home/page.dart';
 import 'package:omi/pages/onboarding/device_selection.dart';
 import 'package:omi/pages/persona/persona_profile.dart';
@@ -16,6 +17,10 @@ class MobileApp extends StatelessWidget {
       builder: (context, authProvider, child) {
         if (authProvider.isSignedIn()) {
           if (SharedPreferencesUtil().onboardingCompleted) {
+            if (!SharedPreferencesUtil().localSttModelDownloaded ||
+                !SharedPreferencesUtil().speakerModelDownloaded) {
+              return const ModelDownloadPage();
+            }
             return const HomePageWrapper();
           } else {
             return const OnboardingWrapper();

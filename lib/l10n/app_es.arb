@@ -823,5 +823,12 @@
   "consentPrivacyNotice": "Tus datos están protegidos y regidos por nuestra ",
   "consentPrivacyPolicy": "Política de Privacidad",
   "consentAnd": " y ",
-  "consentTermsOfService": "Términos de Servicio"
+  "consentTermsOfService": "Términos de Servicio",
+
+  "downloadingTranscriptionModel": "Descargando modelo de transcripcion...",
+  "downloadingSpeakerModel": "Descargando modelo de identificacion de voz...",
+  "validatingModel": "Verificando...",
+  "downloadErrorRetry": "Reintentar",
+  "downloadErrorMessage": "Error en la descarga. Verifica tu conexion a internet.",
+  "downloadNoInternet": "Se requiere conexion a internet para descargar los modelos."
 }

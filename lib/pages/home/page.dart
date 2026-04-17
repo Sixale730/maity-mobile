@@ -1095,6 +1095,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   Future<void> _triggerAutoModelDownload() async {
     final provider = Provider.of<LocalSttProvider>(context, listen: false);
 
+    // Models are guaranteed downloaded by ModelDownloadPage before reaching home.
+    // This method is kept only as a defensive fallback.
+    if (provider.isReadyFor(LocalSttModelType.parakeet) &&
+        SpeakerModelDownloadService.instance.isModelReady) {
+      return;
+    }
+
     // Skip if Parakeet is already ready or currently downloading
     if (provider.isReadyFor(LocalSttModelType.parakeet) ||
         provider.stateFor(LocalSttModelType.parakeet) == DownloadState.downloading) {
