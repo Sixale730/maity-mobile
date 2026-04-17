@@ -57,6 +57,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// fast-path toggle, and WAV backup — symmetric with [_cloudOrchestrator].
   LocalSttOrchestrator? _localOrchestrator;
 
+  /// Expose local orchestrator for segment snapshot collection.
+  /// Read-only — caller must NOT dispose.
+  LocalSttOrchestrator? get localOrchestrator => _localOrchestrator;
+
   /// Invoked on recording stop when the active engine was injected (not
   /// built by the pipeline). The owner (LocalSttProvider) keeps the engine
   /// alive for the next acquire rather than tearing it down.
@@ -72,6 +76,21 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   // by [CloudSttOrchestrator]. Pipeline reads them through the orchestrator
   // so its own _checkSocketHealth / _handleTranscriptionStalled can still
   // reason about stall state without duplicating fields.
+
+  // ---------------------------------------------------------------------------
+  // External audio-flow tracking
+  // ---------------------------------------------------------------------------
+  DateTime? _externalLastAudioAt;
+
+  /// Set an external audio-flow timestamp. Used by SessionLifecycleManager
+  /// to track the last time audio was received for silence detection in
+  /// local STT sessions.
+  void setExternalAudioFlowTimestamp(DateTime? timestamp) {
+    _externalLastAudioAt = timestamp;
+  }
+
+  /// Read the external audio-flow timestamp.
+  DateTime? get externalLastAudioAt => _externalLastAudioAt;
 
   // BLE devices always send audio bytes (even silence), so the
   // audio-flowing check in _onSilenceTimeout doesn't apply to them.
