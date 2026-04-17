@@ -22,52 +22,34 @@ import 'package:omi/providers/usage_provider.dart';
 import 'package:omi/services/connectivity_service.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/services/stt/cloud/transcription_service.dart';
-import 'package:uuid/uuid.dart';
-import 'package:omi/services/supabase_auth_service.dart';
 import 'package:omi/services/vad/vad_state.dart';
 import 'package:omi/services/vad/vad_metrics.dart';
-import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/services/widget_state_service.dart';
 import 'package:omi/utils/enums.dart';
 import 'package:omi/utils/platform/platform_service.dart';
 
-// New decomposed services
-import 'package:omi/services/stt/local/device_memory_service.dart';
+// Decomposed services
 import 'package:omi/services/recording/recording_state_machine.dart';
 import 'package:omi/services/recording/audio_transport_service.dart';
 import 'package:omi/services/recording/transcription_pipeline.dart';
 import 'package:omi/services/recording/persistence_manager.dart';
 import 'package:omi/services/recording/app_lifecycle_manager.dart';
 import 'package:omi/services/recording/session_lifecycle_manager.dart';
-import 'package:omi/services/recording/session_snapshot.dart';
+import 'package:omi/services/recording/recording_controller.dart';
 import 'package:omi/services/recording/telemetry_collector.dart';
-import 'package:omi/services/recording/telemetry_sender.dart';
-import 'package:omi/services/notifications/notification_service.dart';
 import 'package:omi/services/devices/led_breathing_service.dart';
 import 'package:omi/services/devices.dart';
-import 'package:omi/services/speaker/heuristic_correction.dart';
-import 'package:omi/services/speaker/speaker_types.dart';
 
-const _autoSaveNotificationMessages = {
-  'en': {
-    'title': 'Conversation Saved',
-    'body': 'Your conversation was saved automatically due to silence and is being processed.',
-  },
-  'es': {
-    'title': 'Conversación Guardada',
-    'body': 'Tu conversación fue guardada automáticamente por silencio y se está procesando.',
-  },
-};
-
-/// Slim coordinator that delegates to 5 focused services.
+/// Slim coordinator that delegates to focused services.
 ///
 /// Services:
-/// - [RecordingStateMachine] — FSM with validated state transitions
-/// - [AudioTransportService]  — Phone mic, BLE, system audio routing
-/// - [TranscriptionPipeline]  — Socket lifecycle, segment buffering, health monitor
-/// - [PersistenceManager]     — Save, recovery, finalize with Mutex
-/// - [AppLifecycleManager]    — Background/foreground handling
+/// - [RecordingStateMachine]   — FSM with validated state transitions
+/// - [AudioTransportService]   — Phone mic, BLE, system audio routing
+/// - [TranscriptionPipeline]   — Socket lifecycle, segment buffering, health monitor
+/// - [PersistenceManager]      — Save, recovery, finalize with Mutex
+/// - [AppLifecycleManager]     — Background/foreground handling
+/// - [RecordingController]     — Start/stop/pause/resume/cancel orchestration
 class CaptureProvider extends ChangeNotifier
     with MessageNotifierMixin
     implements AppLifecycleDelegate {
@@ -81,9 +63,7 @@ class CaptureProvider extends ChangeNotifier
 
   /// Wire the [LocalSttProvider] for engine warm-up. Call from HomePage
   /// once (it's safe to call multiple times; only the latest reference
-  /// is kept). After this, every call to `streamRecording*` will try to
-  /// grab a pre-warmed engine from the provider instead of paying the
-  /// cold-start cost.
+  /// is kept).
   void setLocalSttProvider(LocalSttProvider provider) {
     _pipeline.warmEngineProvider = provider.acquireEngine;
     _pipeline.onLocalEngineReleased = provider.releaseEngine;
@@ -101,6 +81,8 @@ class CaptureProvider extends ChangeNotifier
   final SessionLifecycleManager _sessionLifecycle = SessionLifecycleManager();
   final LedBreathingService _ledBreathing = LedBreathingService();
 
+  late final RecordingController _recordingController;
+
   // ---------------------------------------------------------------------------
   // Connection state
   // ---------------------------------------------------------------------------
@@ -112,26 +94,28 @@ class CaptureProvider extends ChangeNotifier
   bool _isWalSupported = false;
   bool get isWalSupported => _isWalSupported;
 
-  bool _restartPaused = false;
-
-  /// Single-flight guard: all reconnect paths coalesce onto one in-flight Future.
-  Completer<void>? _reconnectInflight;
-
-  /// Completed when recording state transitions to [RecordingState.record],
-  /// meaning the mic is actually capturing audio.  Created in
-  /// [streamRecording] so the caller can await until the session is truly live
-  /// before navigating to the capturing page.
-  Completer<void>? _recordingReadyCompleter;
-
-  final ValueNotifier<String?> autoSaveMessage = ValueNotifier(null);
-
-  CaptureLogService get _captureLog => CaptureLogService.instance;
-
   // ---------------------------------------------------------------------------
   // Constructor
   // ---------------------------------------------------------------------------
 
   CaptureProvider() {
+    // Build recording controller with all service dependencies
+    _recordingController = RecordingController(
+      stateMachine: _stateMachine,
+      audioTransport: _audioTransport,
+      pipeline: _pipeline,
+      persistence: _persistence,
+      sessionLifecycle: _sessionLifecycle,
+    );
+
+    // Wire controller callbacks
+    _recordingController.onRecordingStateChanged = updateRecordingState;
+    _recordingController.onNotifyListeners = notifyListeners;
+    _recordingController.onConversationFinalized = () {
+      conversationProvider?.refreshConversations();
+    };
+    _recordingController.onAutoRestartNeeded = _autoRestartIfDeviceConnected;
+
     _connectionStateListener =
         ConnectivityService().onConnectionChange.listen((bool connected) {
       _isConnected = connected;
@@ -142,13 +126,13 @@ class CaptureProvider extends ChangeNotifier
     // Wire up pipeline callbacks
     _pipeline.onSegmentsReceived = _onNewSegments;
     _pipeline.onMessageEvent = _onMessageEvent;
-    _pipeline.onAutoFinalizeNeeded = _autoFinalizeOnConnectionLost;
+    _pipeline.onAutoFinalizeNeeded = _recordingController.autoFinalizeOnConnectionLost;
     _pipeline.onNotifyListeners = notifyListeners;
     _pipeline.onSchedulePostFrame = (callback) {
       WidgetsBinding.instance.addPostFrameCallback((_) => callback());
     };
-    _pipeline.onSilenceTimeout = _onSilenceTimeout;
-    _pipeline.onTranscriptionStalled = _reconnectForStall;
+    _pipeline.onSilenceTimeout = _recordingController.onSilenceTimeout;
+    _pipeline.onTranscriptionStalled = _recordingController.reconnectForStall;
 
     // Wire up audio transport
     _audioTransport.setNotifyListenersCallback(notifyListeners);
@@ -252,8 +236,12 @@ class CaptureProvider extends ChangeNotifier
   Map<String, SpeakerLabelSuggestionEvent> suggestionsBySegmentId = {};
   List<String> taggingSegmentIds = [];
 
+  // Auto-save message (exposed from controller)
+  ValueNotifier<String?> get autoSaveMessage =>
+      _recordingController.autoSaveMessage;
+
   // ---------------------------------------------------------------------------
-  // Public API — Recording controls
+  // Public API — Recording controls (delegate to RecordingController)
   // ---------------------------------------------------------------------------
 
   @override
@@ -270,15 +258,8 @@ class CaptureProvider extends ChangeNotifier
     _lifecycle.updateForegroundNotification(_getNotificationState());
     _syncWidgetState();
 
-    // Signal callers awaiting recording readiness.
-    final c = _recordingReadyCompleter;
-    if (c != null && !c.isCompleted) {
-      if (state == RecordingState.record) {
-        c.complete();
-      } else if (state == RecordingState.stop || state == RecordingState.error) {
-        c.completeError(StateError('Recording failed to start: $state'));
-      }
-    }
+    // Signal recording controller's ready completer
+    _recordingController.signalRecordingReady(state);
   }
 
   void _syncWidgetState() {
@@ -305,490 +286,58 @@ class CaptureProvider extends ChangeNotifier
   }
 
   // ---------------------------------------------------------------------------
-  // Pre-flight checks
+  // Recording controls — thin delegates to RecordingController
   // ---------------------------------------------------------------------------
 
-  /// Returns true if there's enough RAM to start local STT recording.
-  /// Only applies when using on-device STT (Parakeet/Moonshine/Canary).
-  /// On failure, surfaces a user-visible notification so the session aborts
-  /// with an explanation instead of silently failing.
-  Future<bool> _passesPreFlightRamCheck() async {
-    final config = SharedPreferencesUtil().customSttConfig;
-    if (!config.isEnabled) return true; // Default cloud STT, no RAM concern
+  Future<void> streamRecording() => _recordingController.streamRecording();
 
-    final provider = config.provider;
-    if (provider != SttProvider.localParakeet &&
-        provider != SttProvider.localMoonshine &&
-        provider != SttProvider.localCanary) {
-      return true; // Cloud STT doesn't need RAM check
-    }
+  Future<void> stopStreamRecording() =>
+      _recordingController.stopStreamRecording();
 
-    final result = await DeviceMemoryService.canStartRecording();
-    if (!result.canStart) {
-      debugPrint('[CaptureProvider] Pre-flight RAM check failed: '
-          '${result.availableMb}MB available '
-          '(min ${DeviceMemoryService.minRamForRecordingMb}MB)');
-      TelemetryCollector.instance.recordStreamingEvent(
-        'ram_check_failed',
-        details: {
-          'available_mb': result.availableMb,
-          'required_mb': DeviceMemoryService.minRamForRecordingMb,
-        },
-      );
-      NotificationService.instance.createNotification(
-        title: 'Memoria insuficiente',
-        body:
-            'La grabación no puede iniciar: sólo ${result.availableMb}MB libres '
-            '(mínimo ${DeviceMemoryService.minRamForRecordingMb}MB). '
-            'Cierra otras apps e intenta de nuevo.',
-        notificationId: 5,
-      );
-      return false;
-    }
-    return true;
-  }
+  Future<void> streamDeviceRecording({BtDevice? device}) =>
+      _recordingController.streamDeviceRecording(device: device);
 
-  // ---------------------------------------------------------------------------
-  // Phone mic recording
-  // ---------------------------------------------------------------------------
-
-  Future<void> streamRecording() async {
-    if (!await _passesPreFlightRamCheck()) {
-      debugPrint('[CaptureProvider] Recording blocked: insufficient RAM');
-      return;
-    }
-
-    updateRecordingState(RecordingState.initialising);
-    _recordingReadyCompleter = Completer<void>();
-
-    final userId = SupabaseAuthService.instance.maityUserId;
-    final sessionId = const Uuid().v4();
-    _stateMachine.startSession(
-      source: RecordingSource.phoneMic,
-      sessionId: sessionId,
-      userId: userId,
-    );
-    _sessionLifecycle.startSession();
-    TelemetryCollector.instance.startSession(
-      sessionId: sessionId,
-      audioSource: 'phone_mic',
-      startedAt: _stateMachine.recordingStartTime,
-    );
-
-    _captureLog.startSession(
-      sessionId,
-      getRecordingState: () => recordingState.name,
-      getSegmentCount: () => segments.length,
-      getSocketState: () => _pipeline.socket?.state.name ?? 'null',
-    );
-    _captureLog.log('recording', 'recording_started', details: {
-      'source': 'phone_mic',
-      'codec': 'pcm16',
-      'sample_rate': 16000,
-    });
-
-    _pipeline.startHealthMonitor();
-    _pipeline.setWalEnabled(true);
-    _pipeline.chunkSessionId = sessionId;
-
-    // Set up socket sender for audio transport
-    _audioTransport.setSocketSender((bytes) {
-      _pipeline.sendToSocket(bytes);
-      _pipeline.updateLastAudioBytesSentAt();
-      _sessionLifecycle.markAudioReceived();
-      _pipeline.setExternalAudioFlowTimestamp(_sessionLifecycle.lastAudioReceivedAt);
-    });
-
-    try {
-      await _pipeline.initiateWebsocket(
-        audioCodec: BleAudioCodec.pcm16,
-        sampleRate: 16000,
-        source: ConversationSource.phone.name,
-      );
-
-      // Set VAD reference for audio transport
-      _audioTransport.setVadService(null); // VAD is handled inside pipeline
-
-      await _audioTransport.startPhoneMicRecording(
-        onStateChange: (state) => updateRecordingState(state),
-        socketState: () =>
-            _pipeline.socket?.state ?? SocketServiceState.disconnected,
-      );
-    } catch (e) {
-      debugPrint('[CaptureProvider] streamRecording failed: $e');
-      _captureLog.log('recording', 'stream_recording_failed',
-          severity: 'error', details: {'error': e.toString()});
-      _pipeline.stopHealthMonitor();
-      _audioTransport.setSocketSender(null);
-      await _resetStateVariables();
-      updateRecordingState(RecordingState.stop);
-      _captureLog.endSession();
-      _recordingReadyCompleter = null;
-      return;
-    }
-
-    // Wait until the mic callback fires RecordingState.record.
-    // The background service notifies asynchronously, so streamRecording()
-    // must not return while the state is still 'initialising'.
-    try {
-      await _recordingReadyCompleter!.future
-          .timeout(const Duration(seconds: 30));
-    } on TimeoutException {
-      debugPrint('[CaptureProvider] Timed out waiting for mic to start');
-      _captureLog.log('recording', 'mic_start_timeout', severity: 'error');
-      _pipeline.stopHealthMonitor();
-      _audioTransport.stopPhoneMicRecording();
-      _audioTransport.setSocketSender(null);
-      _pipeline.stopSocket('mic start timeout');
-      await _resetStateVariables();
-      updateRecordingState(RecordingState.stop);
-      _captureLog.endSession();
-    } catch (_) {
-      // Completer was completed with error (stop/error state) — already handled.
-    } finally {
-      _recordingReadyCompleter = null;
-    }
-  }
-
-  Future<void> stopStreamRecording() async {
-    CaptureProvider.isRecordingWithPhoneMic = false;
-    _pipeline.cancelSilenceTimer();
-    _captureLog.log('recording', 'recording_stop_requested',
-        details: {'source': 'phone_mic'});
-    _pipeline.stopHealthMonitor();
-    TelemetryCollector.instance.markStopped();
-
-    // CRITICAL FIX: Snapshot BEFORE stopSocket
-    _sessionLifecycle.transition(SessionPhase.stopping);
-
-    final segCtrl = _pipeline.localOrchestrator?.segmentController;
-    List<TranscriptSegment> allSegments;
-    if (segCtrl != null) {
-      allSegments = await segCtrl.collectAllSegments();
-    } else {
-      allSegments = List<TranscriptSegment>.from(_pipeline.segments);
-    }
-
-    // Instant UI feedback: transition to processing state
-    updateRecordingState(RecordingState.processing);
-
-    // Stop audio and socket (orchestrator disposed here)
-    _audioTransport.stopPhoneMicRecording();
-    _pipeline.stopSocket('stop stream recording');
-
-    final snapshot = SessionSnapshot(
-      sessionId: _stateMachine.currentSessionId!,
-      allSegments: allSegments,
-      startedAt: _stateMachine.recordingStartTime!,
-      stoppedAt: DateTime.now(),
-      userId: _stateMachine.cachedRecordingUserId ??
-          SupabaseAuthService.instance.maityUserId,
-      idempotencyKey: _sessionLifecycle
-          .deriveIdempotencyKey(_stateMachine.currentSessionId!),
-      source: _stateMachine.source!,
-    );
-    _sessionLifecycle.setSnapshot(snapshot);
-
-    // Fire-and-forget: finalize in background with snapshot
-    _backgroundFinalizeWithSnapshot(snapshot);
-  }
-
-  /// Cancel an active recording that has no segments.
-  /// Cleans up all recording resources without attempting finalization.
-  /// If segments arrived in the meantime, delegates to the normal stop flow.
-  Future<void> cancelRecording() async {
-    if (segments.isNotEmpty) {
-      if (recordingState == RecordingState.systemAudioRecord) {
-        await stopSystemAudioRecording();
-      } else {
-        await stopStreamRecording();
-      }
-      return;
-    }
-
-    debugPrint('[CaptureProvider] cancelRecording: no segments, stopping without finalize');
-    _captureLog.log('recording', 'recording_cancelled',
-        details: {'reason': 'user_cancel_no_segments'});
-
-    _pipeline.stopHealthMonitor();
-    _pipeline.cancelSilenceTimer();
-    await _cleanupCurrentState();
-    _audioTransport.stopPhoneMicRecording();
-    if (PlatformService.isDesktop) {
-      _audioTransport.stopSystemAudioRecording();
-    }
-    CaptureProvider.isRecordingWithPhoneMic = false;
-    _pipeline.stopSocket('user cancel - no segments');
-    updateRecordingState(RecordingState.stop);
-    _flushDiscardedTelemetry();
-    await _resetStateVariables();
-    _captureLog.endSession();
-  }
-
-  /// Send telemetry for a discarded session (no upload will be attached).
-  /// Used when the user cancels or silence-timeout fires with zero segments.
-  void _flushDiscardedTelemetry() {
-    if (TelemetryCollector.instance.currentSessionId == null) return;
-    TelemetryCollector.instance.markStopped();
-    final snap = TelemetryCollector.instance.snapshot();
-    TelemetrySender.send(snapshot: snap, outcome: 'discarded');
-    TelemetryCollector.instance.reset();
-  }
-
-  // ---------------------------------------------------------------------------
-  // BLE device recording
-  // ---------------------------------------------------------------------------
-
-  Future<void> streamDeviceRecording({BtDevice? device}) async {
-    if (!await _passesPreFlightRamCheck()) {
-      debugPrint('[CaptureProvider] Recording blocked: insufficient RAM');
-      return;
-    }
-
-    if (device != null) updateRecordingDevice(device);
-
-    final userId = SupabaseAuthService.instance.maityUserId;
-    final sessionId = const Uuid().v4();
-    _stateMachine.startSession(
-      source: RecordingSource.bleDevice,
-      sessionId: sessionId,
-      userId: userId,
-    );
-    _sessionLifecycle.startSession();
-    TelemetryCollector.instance.startSession(
-      sessionId: sessionId,
-      audioSource: 'ble',
-      startedAt: _stateMachine.recordingStartTime,
-    );
-
-    _captureLog.startSession(
-      sessionId,
-      getRecordingState: () => recordingState.name,
-      getSegmentCount: () => segments.length,
-      getSocketState: () => _pipeline.socket?.state.name ?? 'null',
-    );
-    _captureLog.log('recording', 'recording_started', details: {
-      'source': 'ble_device',
-      'device_id': device?.id,
-      'device_name': device?.name,
-      'device_type': device?.type.name,
-    });
-
-    _pipeline.startHealthMonitor();
-    _pipeline.setWalEnabled(true);
-    _pipeline.chunkSessionId = sessionId;
-    // Set up socket sender for BLE audio transport
-    _audioTransport.setSocketSender((bytes) {
-      _pipeline.sendToSocket(bytes);
-      _pipeline.updateLastAudioBytesSentAt();
-      _sessionLifecycle.markAudioReceived();
-      _pipeline.setExternalAudioFlowTimestamp(_sessionLifecycle.lastAudioReceivedAt);
-    });
-
-    try {
-      await _resetStateVariables();
-      await _resetState();
-    } catch (e) {
-      debugPrint('[CaptureProvider] streamDeviceRecording failed: $e');
-      _captureLog.log('recording', 'stream_device_recording_failed',
-          severity: 'error', details: {'error': e.toString()});
-      await _resetStateVariables();
-      updateRecordingState(RecordingState.stop);
-      _captureLog.endSession();
-    }
-  }
-
-  Future<void> stopStreamDeviceRecording({bool cleanDevice = false}) async {
-    _pipeline.cancelSilenceTimer();
-    _captureLog.log('recording', 'recording_stop_requested',
-        details: {'source': 'ble_device'});
-    _pipeline.stopHealthMonitor();
-    TelemetryCollector.instance.markStopped();
-
-    // CRITICAL FIX: Snapshot BEFORE stopSocket
-    _sessionLifecycle.transition(SessionPhase.stopping);
-
-    final segCtrl = _pipeline.localOrchestrator?.segmentController;
-    List<TranscriptSegment> allSegments;
-    if (segCtrl != null) {
-      allSegments = await segCtrl.collectAllSegments();
-    } else {
-      allSegments = List<TranscriptSegment>.from(_pipeline.segments);
-    }
-
-    // Instant UI feedback: transition to processing state
-    updateRecordingState(RecordingState.processing);
-
-    // Stop audio and socket (orchestrator disposed here)
-    await _cleanupCurrentState();
-    if (cleanDevice) updateRecordingDevice(null);
-    _pipeline.stopSocket('stop stream device recording');
-
-    final snapshot = SessionSnapshot(
-      sessionId: _stateMachine.currentSessionId!,
-      allSegments: allSegments,
-      startedAt: _stateMachine.recordingStartTime!,
-      stoppedAt: DateTime.now(),
-      userId: _stateMachine.cachedRecordingUserId ??
-          SupabaseAuthService.instance.maityUserId,
-      idempotencyKey: _sessionLifecycle
-          .deriveIdempotencyKey(_stateMachine.currentSessionId!),
-      source: _stateMachine.source!,
-    );
-    _sessionLifecycle.setSnapshot(snapshot);
-
-    // Fire-and-forget: finalize in background with snapshot
-    _backgroundFinalizeWithSnapshot(snapshot);
-  }
+  Future<void> stopStreamDeviceRecording({bool cleanDevice = false}) =>
+      _recordingController.stopStreamDeviceRecording(
+          cleanDevice: cleanDevice);
 
   Future<void> pauseDeviceRecording() async {
-    if (_audioTransport.recordingDevice == null) return;
-    _captureLog.log('recording', 'recording_paused',
-        details: {'source': 'ble_device'});
-    await _audioTransport.closeBleStream();
-    _stateMachine.transition(RecordingState.pause);
-    updateRecordingState(RecordingState.pause);
-    _pipeline.resetSilenceTimer();
+    await _recordingController.pauseDeviceRecording();
     _startBreathingLed();
   }
 
-  Future<void> resumeDeviceRecording() async {
-    if (_audioTransport.recordingDevice == null) return;
-    _captureLog.log('recording', 'recording_resumed',
-        details: {'source': 'ble_device'});
-    _stateMachine.transition(RecordingState.deviceRecord);
-    await _audioTransport.startDeviceAudioStreaming();
-    updateRecordingState(RecordingState.deviceRecord);
-  }
+  Future<void> resumeDeviceRecording() =>
+      _recordingController.resumeDeviceRecording();
 
-  // ---------------------------------------------------------------------------
-  // Phone mic pause/resume (without finalizing)
-  // ---------------------------------------------------------------------------
+  Future<void> pausePhoneMicRecording() =>
+      _recordingController.pausePhoneMicRecording();
 
-  Future<void> pausePhoneMicRecording() async {
-    _captureLog.log('recording', 'recording_paused',
-        details: {'source': 'phone_mic'});
-    _audioTransport.stopPhoneMicRecording();
-    _stateMachine.transition(RecordingState.pause);
-    updateRecordingState(RecordingState.pause);
-    _pipeline.resetSilenceTimer();
-  }
-
-  Future<void> resumePhoneMicRecording() async {
-    _captureLog.log('recording', 'recording_resumed',
-        details: {'source': 'phone_mic'});
-    _stateMachine.transition(RecordingState.record);
-    updateRecordingState(RecordingState.initialising);
-
-    _pipeline.setWalEnabled(true);
-    _audioTransport.setSocketSender(_pipeline.sendToSocket);
-
-    await _audioTransport.startPhoneMicRecording(
-      onStateChange: (state) => updateRecordingState(state),
-      socketState: () =>
-          _pipeline.socket?.state ?? SocketServiceState.disconnected,
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // System audio recording (desktop)
-  // ---------------------------------------------------------------------------
+  Future<void> resumePhoneMicRecording() =>
+      _recordingController.resumePhoneMicRecording();
 
   @override
   Future<void> streamSystemAudioRecording() async {
     if (!PlatformService.isDesktop) {
-      notifyError('System audio recording is only available on macOS and Windows.');
+      notifyError(
+          'System audio recording is only available on macOS and Windows.');
       return;
     }
-
-    if (!await _passesPreFlightRamCheck()) {
-      debugPrint('[CaptureProvider] Recording blocked: insufficient RAM');
-      return;
-    }
-
-    final userId = SupabaseAuthService.instance.maityUserId;
-    final sessionId = const Uuid().v4();
-    _stateMachine.startSession(
-      source: RecordingSource.systemAudio,
-      sessionId: sessionId,
-      userId: userId,
-    );
-    _sessionLifecycle.startSession();
-    _stateMachine.shouldAutoResumeAfterWake = true;
-    TelemetryCollector.instance.startSession(
-      sessionId: sessionId,
-      audioSource: 'system_audio',
-      startedAt: _stateMachine.recordingStartTime,
-    );
-
-    _captureLog.startSession(
-      sessionId,
-      getRecordingState: () => recordingState.name,
-      getSegmentCount: () => segments.length,
-      getSocketState: () => _pipeline.socket?.state.name ?? 'null',
-    );
-    _captureLog.log('recording', 'recording_started', details: {
-      'source': 'system_audio',
-      'codec': 'pcm16',
-      'sample_rate': 16000,
-    });
-
-    _pipeline.startHealthMonitor();
-    _pipeline.setWalEnabled(true);
-    _pipeline.chunkSessionId = sessionId;
-
-    try {
-      await _audioTransport.startSystemAudioRecording(
-        onStateChange: (state) => updateRecordingState(state),
-        socketState: () =>
-            _pipeline.socket?.state ?? SocketServiceState.disconnected,
-      );
-    } catch (e) {
-      debugPrint('[CaptureProvider] streamSystemAudioRecording failed: $e');
-      _captureLog.log('recording', 'stream_system_audio_failed',
-          severity: 'error', details: {'error': e.toString()});
-      _pipeline.stopHealthMonitor();
-      updateRecordingState(RecordingState.stop);
-      _captureLog.endSession();
-    }
+    await _recordingController.streamSystemAudioRecording();
   }
 
-  Future<void> stopSystemAudioRecording() async {
-    if (!PlatformService.isDesktop) return;
+  Future<void> stopSystemAudioRecording() =>
+      _recordingController.stopSystemAudioRecording();
 
-    _captureLog.log('recording', 'recording_stop_requested',
-        details: {'source': 'system_audio'});
-    _pipeline.stopHealthMonitor();
-    TelemetryCollector.instance.markStopped();
+  Future<void> pauseSystemAudioRecording({bool isAuto = false}) =>
+      _recordingController.pauseSystemAudioRecording(isAuto: isAuto);
 
-    // Instant UI feedback: transition to processing state
-    updateRecordingState(RecordingState.processing);
+  Future<void> resumeSystemAudioRecording() =>
+      _recordingController.resumeSystemAudioRecording();
 
-    // Stop audio and socket
-    _stateMachine.shouldAutoResumeAfterWake = false;
-    _audioTransport.stopSystemAudioRecording();
-    _pipeline.stopSocket('manual stop');
-    await _cleanupCurrentState();
+  Future<void> cancelRecording() => _recordingController.cancelRecording();
 
-    // Fire-and-forget: finalize in background
-    _backgroundFinalize();
-  }
-
-  Future<void> pauseSystemAudioRecording({bool isAuto = false}) async {
-    if (!PlatformService.isDesktop) return;
-    if (!isAuto) _stateMachine.shouldAutoResumeAfterWake = false;
-    _audioTransport.pauseSystemAudioRecording(isAuto: isAuto);
-    _stateMachine.transition(RecordingState.pause);
-    _pipeline.resetSilenceTimer();
-    notifyListeners();
-  }
-
-  Future<void> resumeSystemAudioRecording() async {
-    if (!PlatformService.isDesktop) return;
-    _stateMachine.shouldAutoResumeAfterWake = true;
-    _stateMachine.transition(RecordingState.systemAudioRecord);
-    await streamSystemAudioRecording();
-  }
+  Future<void> forceProcessingCurrentConversation() =>
+      _recordingController.forceProcessingCurrentConversation();
 
   // ---------------------------------------------------------------------------
   // Speech profile mode
@@ -811,51 +360,14 @@ class CaptureProvider extends ChangeNotifier
   }
 
   // ---------------------------------------------------------------------------
-  // Transcription settings changes
+  // Transcription settings changes (delegate to controller)
   // ---------------------------------------------------------------------------
 
-  Future<void> onRecordProfileSettingChanged() async {
-    await _resetState();
-  }
+  Future<void> onRecordProfileSettingChanged() =>
+      _recordingController.onRecordProfileSettingChanged();
 
-  Future<void> onTranscriptionSettingsChanged() async {
-    try {
-      final device = _audioTransport.recordingDevice;
-      if (device != null) {
-        await _pipeline.stopSocket('transcription settings changed');
-        BleAudioCodec codec = await _getAudioCodec(device.id);
-        await _pipeline.initiateWebsocket(
-          audioCodec: codec,
-          force: true,
-          source: _getConversationSourceFromDevice(),
-        );
-        return;
-      }
-      if (recordingState == RecordingState.record) {
-        await _pipeline.stopSocket('transcription settings changed');
-        await _pipeline.initiateWebsocket(
-          audioCodec: BleAudioCodec.pcm16,
-          sampleRate: 16000,
-          force: true,
-          source: ConversationSource.phone.name,
-        );
-        return;
-      }
-      if (recordingState == RecordingState.systemAudioRecord) {
-        await _pipeline.stopSocket('transcription settings changed');
-        await _pipeline.initiateWebsocket(
-          audioCodec: BleAudioCodec.pcm16,
-          sampleRate: 16000,
-          force: true,
-          source: ConversationSource.desktop.name,
-        );
-      }
-    } catch (e) {
-      debugPrint('[CaptureProvider] onTranscriptionSettingsChanged failed: $e');
-      _captureLog.log('recording', 'transcription_settings_change_failed',
-          severity: 'error', details: {'error': e.toString()});
-    }
-  }
+  Future<void> onTranscriptionSettingsChanged() =>
+      _recordingController.onTranscriptionSettingsChanged();
 
   Future<void> onVadSettingsChanged() async {
     if (recordingState == RecordingState.record ||
@@ -863,21 +375,26 @@ class CaptureProvider extends ChangeNotifier
       final customSttConfig = SharedPreferencesUtil().customSttConfig;
       final effectiveConfig =
           customSttConfig.isEnabled ? customSttConfig : null;
-      await _pipeline.initializeVadService(BleAudioCodec.pcm16, effectiveConfig);
+      await _pipeline.initializeVadService(
+          BleAudioCodec.pcm16, effectiveConfig);
       notifyListeners();
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Force processing / finalize
-  // ---------------------------------------------------------------------------
-
-  Future<void> forceProcessingCurrentConversation() async {
-    await _finalizeLocalConversation();
-    if (!_stateMachine.finalizeInProgress) {
-      _resetStateVariables();
-    }
-  }
+  Future<void> changeAudioRecordProfile({
+    required BleAudioCodec audioCodec,
+    int? sampleRate,
+    int? channels,
+    bool? isPcm,
+    String? source,
+  }) =>
+      _recordingController.changeAudioRecordProfile(
+        audioCodec: audioCodec,
+        sampleRate: sampleRate,
+        channels: channels,
+        isPcm: isPcm,
+        source: source,
+      );
 
   // ---------------------------------------------------------------------------
   // Recovery
@@ -975,7 +492,8 @@ class CaptureProvider extends ChangeNotifier
   @override
   Future<void> startHealthMonitor() async => _pipeline.startHealthMonitor();
   @override
-  Future<void> reconnectSocket() async => _reconnectForStall();
+  Future<void> reconnectSocket() async =>
+      _recordingController.reconnectForStall();
   @override
   void startKeepAlive() => _pipeline.startKeepAlive();
   @override
@@ -1013,7 +531,7 @@ class CaptureProvider extends ChangeNotifier
       _pipeline.stopSocket(reason);
   @override
   Future<void> autoFinalizeOnConnectionLost() async =>
-      _autoFinalizeOnConnectionLost();
+      _recordingController.autoFinalizeOnConnectionLost();
   @override
   void notifyListenersCallback() => notifyListeners();
 
@@ -1036,64 +554,7 @@ class CaptureProvider extends ChangeNotifier
     return 'waiting';
   }
 
-  String? _getConversationSourceFromDevice() {
-    final device = _audioTransport.recordingDevice;
-    if (device == null) return null;
-    switch (device.type) {
-      case DeviceType.friendPendant:
-        return 'friend_com';
-      case DeviceType.omi:
-        return 'omi';
-      case DeviceType.fieldy:
-        return 'fieldy';
-      case DeviceType.bee:
-        return 'bee';
-      case DeviceType.plaud:
-        return 'plaud';
-      case DeviceType.frame:
-        return 'frame';
-      case DeviceType.appleWatch:
-        return 'apple_watch';
-      case DeviceType.limitless:
-        return 'limitless';
-    }
-  }
-
-  Future<BleAudioCodec> _getAudioCodec(String deviceId) async {
-    var connection =
-        await ServiceManager.instance().device.ensureConnection(deviceId);
-    if (connection == null) return BleAudioCodec.pcm8;
-    return connection.getAudioCodec();
-  }
-
-  Future<void> _resetState() async {
-    await _cleanupCurrentState();
-    if (_audioTransport.recordingDevice != null) {
-      try {
-        await _pipeline.initiateWebsocket(
-          audioCodec: await _getAudioCodec(_audioTransport.recordingDevice!.id),
-          force: true,
-          source: _getConversationSourceFromDevice(),
-        );
-        await _audioTransport.startDeviceAudioStreaming();
-        updateRecordingState(RecordingState.deviceRecord);
-      } catch (e) {
-        debugPrint('[CaptureProvider] _resetState failed: $e');
-        _captureLog.log('recording', 'reset_state_failed',
-            severity: 'error', details: {'error': e.toString()});
-      }
-    }
-    notifyListeners();
-  }
-
-  Future<void> _cleanupCurrentState() async {
-    _pipeline.cancelSilenceTimer();
-    await _audioTransport.closeBleStream();
-    _pipeline.flushVad();
-    notifyListeners();
-  }
-
-  Future<void> _resetStateVariables() async {
+  void _resetStateVariables() {
     _pipeline.clearSegments();
     _audioTransport.photos.clear();
     suggestionsBySegmentId = {};
@@ -1112,19 +573,18 @@ class CaptureProvider extends ChangeNotifier
   // ---------------------------------------------------------------------------
 
   void _onNewSegments(List<TranscriptSegment> newSegments) {
-    // Keep telemetry segment/word counters fresh during the session.
-    // PersistenceManager re-derives the final counts at finalize time, but
-    // updating here means a discarded/cancelled session still reports
-    // accurate numbers when no upload happens.
     final wordCount = segments.fold<int>(
         0,
         (sum, s) =>
-            sum + s.text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length);
+            sum +
+            s.text
+                .split(RegExp(r'\s+'))
+                .where((w) => w.isNotEmpty)
+                .length);
     TelemetryCollector.instance.updateSegmentMetrics(
       segmentsCount: segments.length,
       wordsCount: wordCount,
     );
-    // Capture which STT provider produced these segments
     final activeProvider = _pipeline.activeSttProvider;
     if (activeProvider != null) {
       TelemetryCollector.instance.setSttProvider(activeProvider.name);
@@ -1182,397 +642,18 @@ class CaptureProvider extends ChangeNotifier
     }
   }
 
-  void _onSilenceTimeout() async {
-    if (segments.isEmpty) {
-      debugPrint('[CaptureProvider] Silence timeout with no segments, stopping without finalize');
-      _pipeline.stopHealthMonitor();
-      await _cleanupCurrentState();
-      _audioTransport.stopPhoneMicRecording();
-      _pipeline.stopSocket('silence timeout - no segments');
-      updateRecordingState(RecordingState.stop);
-      // Discarded session — send telemetry directly (no upload to attach to)
-      _flushDiscardedTelemetry();
-      _sessionLifecycle.reset();
-      await _resetStateVariables();
-      return;
-    }
-
-    // Capture pause state before FSM transitions clear it
-    _restartPaused = _stateMachine.isPaused;
-    TelemetryCollector.instance.markStopped();
-
-    _captureLog.log('recording', 'silence_timeout_auto_save', details: {
-      'segments_count': segments.length,
-      'was_paused': _restartPaused,
-    });
-
-    // CRITICAL FIX: Snapshot BEFORE stopSocket
-    _sessionLifecycle.transition(SessionPhase.stopping);
-
-    // Capture ALL segments while orchestrator is still alive
-    final segCtrl = _pipeline.localOrchestrator?.segmentController;
-    List<TranscriptSegment> allSegments;
-    if (segCtrl != null) {
-      allSegments = await segCtrl.collectAllSegments();
-    } else {
-      allSegments = List<TranscriptSegment>.from(_pipeline.segments);
-    }
-
-    // Save recovery data as backup (with the FULL segments)
-    if (_stateMachine.currentSessionId != null) {
-      await _persistence.saveRecoveryData(
-        allSegments,
-        _stateMachine.currentSessionId!,
-        _stateMachine.recordingStartTime ?? DateTime.now(),
-      );
-    }
-
-    // Full cleanup (mirrors stopStreamDeviceRecording / stopStreamRecording)
-    _pipeline.stopHealthMonitor();
-    updateRecordingState(RecordingState.processing);
-    await _cleanupCurrentState();
-    _audioTransport.stopPhoneMicRecording();
-    CaptureProvider.isRecordingWithPhoneMic = false;
-    _pipeline.stopSocket('silence timeout auto-save');
-
-    // Notify user
-    _showAutoSaveNotification();
-    final lang = SharedPreferencesUtil().appLanguage;
-    autoSaveMessage.value = lang == 'es'
-        ? 'Conversación guardada por silencio'
-        : 'Conversation saved due to silence';
-
-    // Create snapshot and finalize
-    final snapshot = SessionSnapshot(
-      sessionId: _stateMachine.currentSessionId!,
-      allSegments: allSegments,
-      startedAt: _stateMachine.recordingStartTime!,
-      stoppedAt: DateTime.now(),
-      userId: _stateMachine.cachedRecordingUserId ??
-          SupabaseAuthService.instance.maityUserId,
-      idempotencyKey: _sessionLifecycle
-          .deriveIdempotencyKey(_stateMachine.currentSessionId!),
-      source: _stateMachine.source!,
-    );
-    _sessionLifecycle.setSnapshot(snapshot);
-
-    // Fire-and-forget finalize with snapshot (transitions to stop when done)
-    _backgroundFinalizeWithSnapshot(snapshot);
-  }
-
-  void _showAutoSaveNotification() {
-    final lang = SharedPreferencesUtil().appLanguage;
-    final messages = _autoSaveNotificationMessages[lang] ??
-        _autoSaveNotificationMessages['en']!;
-    NotificationService.instance.createNotification(
-      title: messages['title']!,
-      body: messages['body']!,
-      notificationId: 4,
-    );
-  }
-
-  Future<void> _reconnectForStall() async {
-    // Single-flight: if a reconnect is already in progress, piggyback on it
-    if (_reconnectInflight != null) {
-      return _reconnectInflight!.future;
-    }
-    _reconnectInflight = Completer<void>();
-
-    _pipeline.stopKeepAlive();
-    _pipeline.setReconnecting(true);
-    await _pipeline.stopSocket('transcription stalled');
-    try {
-      if (recordingState == RecordingState.record) {
-        await _pipeline.initiateWebsocket(
-          audioCodec: BleAudioCodec.pcm16,
-          sampleRate: 16000,
-          force: true,
-          source: ConversationSource.phone.name,
-        );
-      } else if (recordingState == RecordingState.deviceRecord &&
-          _audioTransport.recordingDevice != null) {
-        BleAudioCodec codec =
-            await _getAudioCodec(_audioTransport.recordingDevice!.id);
-        await _pipeline.initiateWebsocket(
-            audioCodec: codec,
-            force: true,
-            source: _getConversationSourceFromDevice());
-      } else if (recordingState == RecordingState.systemAudioRecord) {
-        await _pipeline.initiateWebsocket(
-          audioCodec: BleAudioCodec.pcm16,
-          sampleRate: 16000,
-          force: true,
-          source: ConversationSource.desktop.name,
-        );
-      }
-      _reconnectInflight?.complete();
-    } catch (e) {
-      debugPrint('[CaptureProvider] _reconnectForStall failed: $e');
-      _captureLog.log('recording', 'reconnect_for_stall_failed',
-          severity: 'error', details: {'error': e.toString()});
-      _reconnectInflight?.completeError(e);
-    } finally {
-      _reconnectInflight = null;
-      _pipeline.setReconnecting(false);
-    }
-  }
-
-  Future<void> _autoFinalizeOnConnectionLost() async {
-    if (segments.isEmpty || _stateMachine.conversationFinalized) return;
-    if (_sessionLifecycle.phase == SessionPhase.stopping ||
-        _sessionLifecycle.phase == SessionPhase.finalizing) {
-      return;
-    }
-
-    _captureLog.log('recording', 'auto_finalize_connection_lost',
-        severity: 'warning',
-        details: {
-          'segments_count': segments.length,
-        });
-
-    // CRITICAL FIX: Snapshot BEFORE stopSocket
-    _sessionLifecycle.transition(SessionPhase.stopping);
-
-    final segCtrl = _pipeline.localOrchestrator?.segmentController;
-    List<TranscriptSegment> allSegments;
-    if (segCtrl != null) {
-      allSegments = await segCtrl.collectAllSegments();
-    } else {
-      allSegments = List<TranscriptSegment>.from(_pipeline.segments);
-    }
-
-    // Save recovery as backup (with the FULL segments)
-    if (_stateMachine.currentSessionId != null) {
-      await _persistence.saveRecoveryData(
-        allSegments,
-        _stateMachine.currentSessionId!,
-        _stateMachine.recordingStartTime ?? DateTime.now(),
-        synchronous: true,
-      );
-    }
-
-    await _pipeline.stopSocket('connection lost - auto finalizing');
-    await _audioTransport.closeBleStream();
-    _pipeline.flushVad();
-    ServiceManager.instance().mic.stop();
-    CaptureProvider.isRecordingWithPhoneMic = false;
-    _pipeline.stopHealthMonitor();
-    _pipeline.cancelSilenceTimer();
-
-    final snapshot = SessionSnapshot(
-      sessionId: _stateMachine.currentSessionId!,
-      allSegments: allSegments,
-      startedAt: _stateMachine.recordingStartTime!,
-      stoppedAt: DateTime.now(),
-      userId: _stateMachine.cachedRecordingUserId ??
-          SupabaseAuthService.instance.maityUserId,
-      idempotencyKey: _sessionLifecycle
-          .deriveIdempotencyKey(_stateMachine.currentSessionId!),
-      source: _stateMachine.source!,
-    );
-    _sessionLifecycle.setSnapshot(snapshot);
-
-    _backgroundFinalizeWithSnapshot(snapshot);
-  }
-
-  Future<void> _finalizeLocalConversation() async {
-    if (_sessionLifecycle.phase == SessionPhase.finalizing) {
-      debugPrint('[CaptureProvider] Finalize already in progress, skipping');
-      return;
-    }
-
-    // Apply heuristic speaker corrections on full segment list before upload.
-    // Only applies to local STT segments that have confidence scores.
-    _applyHeuristicCorrections();
-
-    final success = await _persistence.finalizeConversation(
-      segments: List.from(segments),
-      userId: _stateMachine.cachedRecordingUserId ??
-          SupabaseAuthService.instance.maityUserId,
-      startedAt: _stateMachine.recordingStartTime,
-      isSpeechProfileMode: _stateMachine.isSpeechProfileMode,
-      sessionId: _stateMachine.currentSessionId,
-      onSuccess: () {
-        conversationProvider?.refreshConversations();
-      },
-    );
-
-    if (success) {
-      _stateMachine.conversationFinalized = true;
-    }
-  }
-
-  /// Apply heuristic speaker corrections to all segments with confidence scores.
-  ///
-  /// Runs the 5 linguistic rules (question-answer, self-reference, isolated
-  /// speaker, turn rhythm, vocabulary) on the full segment list. Only corrects
-  /// segments with low confidence (< 0.60). Mutates [segments] in place.
-  void _applyHeuristicCorrections() {
-    // Only process segments that have confidence (local STT with scorer)
-    final scoredSegments = <ScoredSegment>[];
-    for (var i = 0; i < segments.length; i++) {
-      final seg = segments[i];
-      if (seg.confidence != null) {
-        scoredSegments.add(ScoredSegment(
-          index: i,
-          text: seg.text,
-          speakerId: seg.speakerId,
-          confidence: seg.confidence!,
-          startTime: seg.start,
-          endTime: seg.end,
-        ));
-      }
-    }
-
-    if (scoredSegments.length < 2) return;
-
-    final corrections = applyHeuristicCorrections(scoredSegments);
-    if (corrections.isEmpty) return;
-
-    debugPrint('[CaptureProvider] Applying ${corrections.length} heuristic corrections');
-
-    for (final c in corrections) {
-      final seg = segments[c.segmentIndex];
-      seg.isUser = c.correctedSpeaker == 0;
-      seg.speaker = 'SPEAKER_${c.correctedSpeaker}';
-      seg.speakerId = c.correctedSpeaker;
-      seg.correctionSource = c.correctionSource;
-    }
-  }
-
-  /// Apply heuristic speaker corrections on a standalone segment list.
-  ///
-  /// Same logic as [_applyHeuristicCorrections] but operates on a snapshot
-  /// list instead of the live pipeline segments.
-  void _applyHeuristicCorrectionsOnList(List<TranscriptSegment> segmentList) {
-    final scoredSegments = <ScoredSegment>[];
-    for (var i = 0; i < segmentList.length; i++) {
-      final seg = segmentList[i];
-      if (seg.confidence != null) {
-        scoredSegments.add(ScoredSegment(
-          index: i,
-          text: seg.text,
-          speakerId: seg.speakerId,
-          confidence: seg.confidence!,
-          startTime: seg.start,
-          endTime: seg.end,
-        ));
-      }
-    }
-
-    if (scoredSegments.length < 2) return;
-
-    final corrections = applyHeuristicCorrections(scoredSegments);
-    if (corrections.isEmpty) return;
-
-    debugPrint('[CaptureProvider] Applying ${corrections.length} heuristic corrections (snapshot)');
-
-    for (final c in corrections) {
-      final seg = segmentList[c.segmentIndex];
-      seg.isUser = c.correctedSpeaker == 0;
-      seg.speaker = 'SPEAKER_${c.correctedSpeaker}';
-      seg.speakerId = c.correctedSpeaker;
-      seg.correctionSource = c.correctionSource;
-    }
-  }
-
-  /// Fire-and-forget finalize with a pre-captured snapshot.
-  ///
-  /// Replaces [_backgroundFinalize] for all snapshot-based stop paths.
-  /// Uses the snapshot's segments (captured before engine disposal) instead
-  /// of reading from the live pipeline.
-  void _backgroundFinalizeWithSnapshot(SessionSnapshot snapshot) {
-    _sessionLifecycle.transition(SessionPhase.finalizing);
-    final sessionId = _stateMachine.currentSessionId;
-
-    // Apply heuristic corrections on snapshot segments
-    _applyHeuristicCorrectionsOnList(snapshot.allSegments);
-
-    _persistence.finalizeConversation(
-      segments: snapshot.allSegments,
-      userId: snapshot.userId,
-      startedAt: snapshot.startedAt,
-      isSpeechProfileMode: _stateMachine.isSpeechProfileMode,
-      sessionId: snapshot.sessionId,
-      idempotencyKey: snapshot.idempotencyKey,
-      onSuccess: () {
-        conversationProvider?.refreshConversations();
-      },
-    ).then((_) {
-      debugPrint('[CaptureProvider] Background finalize completed successfully');
-      _stateMachine.conversationFinalized = true;
-    }).catchError((e) {
-      debugPrint('[CaptureProvider] Background finalize error: $e');
-      _captureLog.log('recording', 'background_finalize_error',
-          severity: 'error', details: {'error': e.toString()});
-    }).whenComplete(() {
-      // Only reset if the session hasn't changed (no new recording started)
-      if (_stateMachine.currentSessionId == sessionId) {
-        _resetStateVariables();
-        _sessionLifecycle.reset();
-        updateRecordingState(RecordingState.stop);
-        _captureLog.endSession();
-
-        // Continuous recording: if OMI device still connected, auto-restart
-        _autoRestartIfDeviceConnected();
-      } else {
-        debugPrint('[CaptureProvider] Skipping reset: new session started '
-            '(old=$sessionId, new=${_stateMachine.currentSessionId})');
-      }
-    });
-  }
-
-  /// Fire-and-forget finalize: runs finalization in background and transitions
-  /// to stop state when complete. Logs errors but always transitions to stop.
-  ///
-  /// Legacy path — kept for [forceProcessingCurrentConversation] and any
-  /// code path that doesn't have a snapshot.
-  void _backgroundFinalize() {
-    if (_sessionLifecycle.phase == SessionPhase.finalizing) {
-      debugPrint('[CaptureProvider] Finalize already in progress, skipping background finalize');
-      return;
-    }
-    // Capture sessionId so we can detect if a new recording started mid-finalize
-    final sessionId = _stateMachine.currentSessionId;
-
-    _finalizeLocalConversation().then((_) {
-      debugPrint('[CaptureProvider] Background finalize completed successfully');
-    }).catchError((e) {
-      debugPrint('[CaptureProvider] Background finalize error: $e');
-      _captureLog.log('recording', 'background_finalize_error',
-          severity: 'error', details: {'error': e.toString()});
-    }).whenComplete(() {
-      // Only reset if the session hasn't changed (no new recording started)
-      if (_stateMachine.currentSessionId == sessionId) {
-        _resetStateVariables();
-        _sessionLifecycle.reset();
-        updateRecordingState(RecordingState.stop);
-        _captureLog.endSession();
-
-        // Continuous recording: if OMI device still connected, auto-restart
-        _autoRestartIfDeviceConnected();
-      } else {
-        debugPrint('[CaptureProvider] Skipping reset: new session started '
-            '(old=$sessionId, new=${_stateMachine.currentSessionId})');
-      }
-    });
-  }
+  // ---------------------------------------------------------------------------
+  // Auto-restart after finalize
+  // ---------------------------------------------------------------------------
 
   /// Auto-restart recording when an OMI device is still connected.
-  /// Enables continuous recording: finish one conversation, immediately
-  /// start capturing the next one (like original OMI behavior).
-  ///
-  /// Uses [SessionPhase.restarting] to prevent concurrent restarts.
-  void _autoRestartIfDeviceConnected() {
+  void _autoRestartIfDeviceConnected(bool wasPaused) {
     final device = _audioTransport.recordingDevice;
     if (device == null) return;
 
-    final shouldPause = _restartPaused;
-    _restartPaused = false;
-
     debugPrint(
         '[CaptureProvider] Auto-restart: device ${device.name} still connected'
-        '${shouldPause ? ' (will pause)' : ''}');
+        '${wasPaused ? ' (will pause)' : ''}');
 
     // Transition to restarting phase (prevents concurrent restarts)
     if (!_sessionLifecycle.transition(SessionPhase.restarting)) {
@@ -1581,7 +662,7 @@ class CaptureProvider extends ChangeNotifier
       return;
     }
 
-    // Brief settle delay (reduced from 1500ms to 500ms)
+    // Brief settle delay
     Future.delayed(const Duration(milliseconds: 500), () async {
       // Guard: still in restarting phase and device still available
       if (_sessionLifecycle.phase != SessionPhase.restarting) return;
@@ -1592,9 +673,8 @@ class CaptureProvider extends ChangeNotifier
 
       try {
         await streamDeviceRecording(device: device);
-        // streamDeviceRecording calls _sessionLifecycle.startSession() → active
 
-        if (shouldPause && recordingState == RecordingState.deviceRecord) {
+        if (wasPaused && recordingState == RecordingState.deviceRecord) {
           debugPrint('[CaptureProvider] Auto-pausing restarted recording');
           await pauseDeviceRecording();
         }
@@ -1606,7 +686,7 @@ class CaptureProvider extends ChangeNotifier
   }
 
   // ---------------------------------------------------------------------------
-  // Message event handlers (preserved from original)
+  // Message event handlers
   // ---------------------------------------------------------------------------
 
   Future<void> _processConversationCreated(
@@ -1647,32 +727,6 @@ class CaptureProvider extends ChangeNotifier
     } else {
       suggestionsBySegmentId[event.segmentId] = event;
       notifyListeners();
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Audio record profile changes
-  // ---------------------------------------------------------------------------
-
-  Future<void> changeAudioRecordProfile({
-    required BleAudioCodec audioCodec,
-    int? sampleRate,
-    int? channels,
-    bool? isPcm,
-    String? source,
-  }) async {
-    try {
-      await _resetState();
-      await _pipeline.initiateWebsocket(
-          audioCodec: audioCodec,
-          sampleRate: sampleRate,
-          channels: channels,
-          isPcm: isPcm,
-          source: source);
-    } catch (e) {
-      debugPrint('[CaptureProvider] changeAudioRecordProfile failed: $e');
-      _captureLog.log('recording', 'change_audio_profile_failed',
-          severity: 'error', details: {'error': e.toString()});
     }
   }
 
@@ -1723,6 +777,7 @@ class CaptureProvider extends ChangeNotifier
   void dispose() {
     debugPrint('[CaptureProvider] dispose() called');
     _connectionStateListener?.cancel();
+    _recordingController.dispose();
     _audioTransport.dispose();
     _pipeline.dispose();
     _persistence.dispose();
