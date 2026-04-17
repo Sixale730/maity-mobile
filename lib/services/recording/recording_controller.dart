@@ -329,6 +329,10 @@ class RecordingController {
   /// Start BLE device recording.
   Future<void> streamDeviceRecording({BtDevice? device}) async {
     if (device != null) _audioTransport.updateRecordingDevice(device);
+    if (_audioTransport.recordingDevice == null) {
+      debugPrint('[RecordingController] streamDeviceRecording: no device available, skipping');
+      return;
+    }
 
     final sessionId = await _initSession(
       source: RecordingSource.bleDevice,

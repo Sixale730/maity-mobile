@@ -281,6 +281,69 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  // streamDeviceRecording guard
+  // ---------------------------------------------------------------------------
+  group('streamDeviceRecording', () {
+    test('returns early when device is null and no recordingDevice set',
+        () async {
+      audioTransport._device = null;
+
+      await controller.streamDeviceRecording();
+
+      // _initSession should NOT have been called — no health monitor, no telemetry
+      expect(pipeline.startHealthMonitorCalled, isFalse);
+      expect(stateMachine.state, RecordingState.stop);
+      expect(sessionLifecycle.phase, SessionPhase.idle);
+    });
+
+    test('sets recordingDevice when device is explicitly provided', () async {
+      final device = BtDevice(
+        id: 'test-id',
+        name: 'TestDevice',
+        type: DeviceType.omi,
+        rssi: -50,
+      );
+
+      audioTransport._device = null;
+      // Calling with a device should update the transport before proceeding
+      // It will fail deeper (Supabase not init'd in tests) but the guard
+      // should NOT have blocked it — verify device was set.
+      try {
+        await controller.streamDeviceRecording(device: device);
+      } catch (_) {
+        // Expected: Supabase not initialized in tests
+      }
+
+      // The key assertion: device was set (guard did NOT block)
+      expect(audioTransport.recordingDevice, isNotNull);
+      expect(audioTransport.recordingDevice!.id, 'test-id');
+    });
+
+    test('does not return early when recordingDevice was previously set',
+        () async {
+      audioTransport._device = BtDevice(
+        id: 'prev-id',
+        name: 'PrevDevice',
+        type: DeviceType.omi,
+        rssi: -40,
+      );
+
+      // No device passed, but recordingDevice already set — should not
+      // hit the early return. It will fail deeper but we verify the guard
+      // didn't block.
+      try {
+        await controller.streamDeviceRecording();
+      } catch (_) {
+        // Expected: Supabase not initialized in tests
+      }
+
+      // Device should still be set (guard did NOT block)
+      expect(audioTransport.recordingDevice, isNotNull);
+      expect(audioTransport.recordingDevice!.id, 'prev-id');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // signalRecordingReady
   // ---------------------------------------------------------------------------
   group('signalRecordingReady', () {

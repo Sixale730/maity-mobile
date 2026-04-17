@@ -289,9 +289,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         // startRecorder() when the user taps record.
         unawaited(ServiceManager.instance().mic.prepareRecorder());
 
-        if (localSttProv.isReadyFor(LocalSttModelType.parakeet)) {
+        final deviceProv = Provider.of<DeviceProvider>(context, listen: false);
+        if (localSttProv.isReadyFor(LocalSttModelType.parakeet) &&
+            deviceProv.connectedDevice != null) {
           await captureProv.streamDeviceRecording(
-              device: Provider.of<DeviceProvider>(context, listen: false).connectedDevice);
+              device: deviceProv.connectedDevice);
         }
       }
 

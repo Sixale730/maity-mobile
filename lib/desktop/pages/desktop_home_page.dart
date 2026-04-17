@@ -249,8 +249,11 @@ class _DesktopHomePageState extends State<DesktopHomePage> with WidgetsBindingOb
         await Provider.of<HomeProvider>(context, listen: false).setUserPeople();
       }
       if (mounted) {
-        await Provider.of<CaptureProvider>(context, listen: false)
-            .streamDeviceRecording(device: Provider.of<DeviceProvider>(context, listen: false).connectedDevice);
+        final desktopDevice = Provider.of<DeviceProvider>(context, listen: false).connectedDevice;
+        if (desktopDevice != null) {
+          await Provider.of<CaptureProvider>(context, listen: false)
+              .streamDeviceRecording(device: desktopDevice);
+        }
       }
 
       // Handle navigation
