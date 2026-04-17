@@ -395,6 +395,8 @@ class CaptureProvider extends ChangeNotifier
     _audioTransport.setSocketSender((bytes) {
       _pipeline.sendToSocket(bytes);
       _pipeline.updateLastAudioBytesSentAt();
+      _sessionLifecycle.markAudioReceived();
+      _pipeline.setExternalAudioFlowTimestamp(_sessionLifecycle.lastAudioReceivedAt);
     });
 
     try {
@@ -575,12 +577,12 @@ class CaptureProvider extends ChangeNotifier
     _pipeline.startHealthMonitor();
     _pipeline.setWalEnabled(true);
     _pipeline.chunkSessionId = sessionId;
-    _pipeline.setBleSource(true);
-
     // Set up socket sender for BLE audio transport
     _audioTransport.setSocketSender((bytes) {
       _pipeline.sendToSocket(bytes);
       _pipeline.updateLastAudioBytesSentAt();
+      _sessionLifecycle.markAudioReceived();
+      _pipeline.setExternalAudioFlowTimestamp(_sessionLifecycle.lastAudioReceivedAt);
     });
 
     try {
@@ -1093,7 +1095,6 @@ class CaptureProvider extends ChangeNotifier
 
   Future<void> _resetStateVariables() async {
     _pipeline.clearSegments();
-    _pipeline.setBleSource(false);
     _audioTransport.photos.clear();
     suggestionsBySegmentId = {};
     taggingSegmentIds = [];
