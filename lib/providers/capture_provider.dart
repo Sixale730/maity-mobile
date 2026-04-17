@@ -628,7 +628,10 @@ class CaptureProvider extends ChangeNotifier
   /// Auto-restart recording when an OMI device is still connected.
   void _autoRestartIfDeviceConnected(bool wasPaused) {
     final device = _audioTransport.recordingDevice;
-    if (device == null) return;
+    if (device == null) {
+      _sessionLifecycle.transition(SessionPhase.idle);
+      return;
+    }
 
     debugPrint(
         '[CaptureProvider] Auto-restart: device ${device.name} still connected'

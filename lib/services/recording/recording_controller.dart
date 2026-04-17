@@ -881,12 +881,19 @@ class RecordingController {
     }).whenComplete(() {
       // Only reset if the session hasn't changed (no new recording started)
       if (_stateMachine.currentSessionId == sessionId) {
-        _resetStateVariables();
-        _sessionLifecycle.reset();
+        // Reset recording state but NOT the lifecycle phase — auto-restart
+        // needs to transition finalizing → restarting (idle → restarting
+        // is invalid in the session FSM).
+        _pipeline.clearSegments();
+        _audioTransport.photos.clear();
+        _stateMachine.endSession();
+        _persistence.reset();
         onRecordingStateChanged?.call(RecordingState.stop);
         _captureLog.endSession();
 
-        // Continuous recording: if OMI device still connected, auto-restart
+        // Continuous recording: if OMI device still connected, auto-restart.
+        // The callback transitions lifecycle: finalizing → restarting → active,
+        // or finalizing → idle if no device is available.
         final wasPaused = _restartPaused;
         _restartPaused = false;
         onAutoRestartNeeded?.call(wasPaused);
