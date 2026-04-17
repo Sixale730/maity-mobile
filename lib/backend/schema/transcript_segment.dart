@@ -67,7 +67,16 @@ class TranscriptSegment {
     this.energyDb,
     this.correctionSource,
   }) {
-    speakerId = speaker != null ? int.parse(speaker!.split('_')[1]) : 0;
+    speakerId = speaker != null ? _parseSpeakerId(speaker!) : 0;
+  }
+
+  static int _parseSpeakerId(String speaker) {
+    final parts = speaker.split('_');
+    if (parts.length >= 2) {
+      return int.tryParse(parts[1]) ?? 0;
+    }
+    // Handle bare numbers like "0" or "1"
+    return int.tryParse(speaker) ?? 0;
   }
 
   @override

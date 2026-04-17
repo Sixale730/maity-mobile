@@ -558,7 +558,7 @@ class OmiSegment {
     return TranscriptSegment(
       id: id,
       text: text,
-      speaker: speaker ?? 'SPEAKER_0$speakerId',
+      speaker: speaker ?? 'SPEAKER_$speakerId',
       isUser: isUser,
       personId: personId,
       start: startTime,
