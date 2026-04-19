@@ -124,7 +124,18 @@ class CaptureProvider extends ChangeNotifier
     _messageEventHandler.onProcessingConversationRemoved = (id) {
       conversationProvider?.removeProcessingConversation(id);
     };
-    _messageEventHandler.onResetStateVariables = _resetStateVariables;
+    _messageEventHandler.onResetStateVariables = () {
+      // Guard: only reset if no recording is active. Prevents
+      // ConversationProcessingStartedEvent for a prior conversation from
+      // destroying the current session.
+      if (_stateMachine.isIdle) {
+        _resetStateVariables();
+      } else {
+        debugPrint('[CaptureProvider] Ignoring onResetStateVariables from '
+            'MessageEventHandler — recording is active '
+            '(state=${_stateMachine.state.name})');
+      }
+    };
     _messageEventHandler.onNotifyListeners = notifyListeners;
     _messageEventHandler.getSegments = () => segments;
     _messageEventHandler.getPhotos = () => photos;

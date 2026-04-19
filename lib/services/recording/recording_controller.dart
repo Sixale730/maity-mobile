@@ -213,8 +213,9 @@ class RecordingController {
   // ---------------------------------------------------------------------------
 
   /// Stop recording and capture a snapshot of ALL segments before engine
-  /// disposal. Returns the snapshot for finalization.
-  Future<SessionSnapshot> _stopWithSnapshot(String reason) async {
+  /// disposal. Returns the snapshot for finalization, or null if the session
+  /// state is invalid (sessionId, startedAt, or source missing).
+  Future<SessionSnapshot?> _stopWithSnapshot(String reason) async {
     _pipeline.cancelSilenceTimer();
     _captureLog.log('recording', 'recording_stop_requested',
         details: {'reason': reason});
@@ -231,16 +232,32 @@ class RecordingController {
 
     onRecordingStateChanged?.call(RecordingState.processing);
 
+    final sessionId = _stateMachine.currentSessionId;
+    final startedAt = _stateMachine.recordingStartTime;
+    final source = _stateMachine.source;
+    if (sessionId == null || startedAt == null || source == null) {
+      debugPrint(
+          '[RecordingController] _stopWithSnapshot: session state invalid '
+          '(sid=$sessionId, start=$startedAt, src=$source)');
+      _captureLog.log('recording', 'stop_with_invalid_session',
+          severity: 'error',
+          details: {
+            'reason': reason,
+            'session_id': sessionId,
+            'source': source?.name,
+          });
+      return null;
+    }
+
     return SessionSnapshot(
-      sessionId: _stateMachine.currentSessionId!,
+      sessionId: sessionId,
       allSegments: allSegments,
-      startedAt: _stateMachine.recordingStartTime!,
+      startedAt: startedAt,
       stoppedAt: DateTime.now(),
       userId: _stateMachine.cachedRecordingUserId ??
           SupabaseAuthService.instance.maityUserId,
-      idempotencyKey: _sessionLifecycle
-          .deriveIdempotencyKey(_stateMachine.currentSessionId!),
-      source: _stateMachine.source!,
+      idempotencyKey: _sessionLifecycle.deriveIdempotencyKey(sessionId),
+      source: source,
     );
   }
 
@@ -318,6 +335,12 @@ class RecordingController {
     final snapshot = await _stopWithSnapshot('stop phone mic');
     _audioTransport.stopPhoneMicRecording();
     _pipeline.stopSocket('stop stream recording');
+    if (snapshot == null) {
+      await _resetStateVariables();
+      onRecordingStateChanged?.call(RecordingState.stop);
+      _captureLog.endSession();
+      return;
+    }
     _sessionLifecycle.setSnapshot(snapshot);
     _backgroundFinalizeWithSnapshot(snapshot);
   }
@@ -347,7 +370,8 @@ class RecordingController {
     if (sessionId.isEmpty) return;
 
     try {
-      await _resetStateVariables();
+      _pipeline.clearSegments();
+      _audioTransport.photos.clear();
       await _resetState();
     } catch (e) {
       debugPrint('[RecordingController] streamDeviceRecording failed: $e');
@@ -365,6 +389,12 @@ class RecordingController {
     await _cleanupCurrentState();
     if (cleanDevice) _audioTransport.updateRecordingDevice(null);
     _pipeline.stopSocket('stop stream device recording');
+    if (snapshot == null) {
+      await _resetStateVariables();
+      onRecordingStateChanged?.call(RecordingState.stop);
+      _captureLog.endSession();
+      return;
+    }
     _sessionLifecycle.setSnapshot(snapshot);
     _backgroundFinalizeWithSnapshot(snapshot);
   }
@@ -454,6 +484,7 @@ class RecordingController {
       _captureLog.log('recording', 'stream_system_audio_failed',
           severity: 'error', details: {'error': e.toString()});
       _pipeline.stopHealthMonitor();
+      await _resetStateVariables();
       onRecordingStateChanged?.call(RecordingState.stop);
       _captureLog.endSession();
     }
@@ -468,6 +499,12 @@ class RecordingController {
     _audioTransport.stopSystemAudioRecording();
     _pipeline.stopSocket('manual stop');
     await _cleanupCurrentState();
+    if (snapshot == null) {
+      await _resetStateVariables();
+      onRecordingStateChanged?.call(RecordingState.stop);
+      _captureLog.endSession();
+      return;
+    }
     _sessionLifecycle.setSnapshot(snapshot);
     _backgroundFinalizeWithSnapshot(snapshot);
   }
@@ -501,6 +538,8 @@ class RecordingController {
     if (segments.isNotEmpty) {
       if (_stateMachine.state == RecordingState.systemAudioRecord) {
         await stopSystemAudioRecording();
+      } else if (_stateMachine.state == RecordingState.deviceRecord) {
+        await stopStreamDeviceRecording();
       } else {
         await stopStreamRecording();
       }
@@ -557,6 +596,18 @@ class RecordingController {
 
     final snapshot = await _stopWithSnapshot('silence timeout auto-save');
 
+    // Stop remaining audio (regardless of snapshot validity)
+    await _cleanupCurrentState();
+    _audioTransport.stopPhoneMicRecording();
+    _pipeline.stopSocket('silence timeout auto-save');
+
+    if (snapshot == null) {
+      await _resetStateVariables();
+      onRecordingStateChanged?.call(RecordingState.stop);
+      _captureLog.endSession();
+      return;
+    }
+
     // Save recovery data as backup (with the FULL segments)
     if (_stateMachine.currentSessionId != null) {
       await _persistence.saveRecoveryData(
@@ -565,11 +616,6 @@ class RecordingController {
         _stateMachine.recordingStartTime ?? DateTime.now(),
       );
     }
-
-    // Stop remaining audio
-    await _cleanupCurrentState();
-    _audioTransport.stopPhoneMicRecording();
-    _pipeline.stopSocket('silence timeout auto-save');
 
     // Notify user
     _showAutoSaveNotification();
@@ -640,6 +686,18 @@ class RecordingController {
 
     final snapshot = await _stopWithSnapshot('connection lost auto-finalize');
 
+    await _pipeline.stopSocket('connection lost - auto finalizing');
+    await _audioTransport.closeBleStream();
+    _pipeline.flushVad();
+    ServiceManager.instance().mic.stop();
+
+    if (snapshot == null) {
+      await _resetStateVariables();
+      onRecordingStateChanged?.call(RecordingState.stop);
+      _captureLog.endSession();
+      return;
+    }
+
     // Save recovery as backup (with the FULL segments)
     if (_stateMachine.currentSessionId != null) {
       await _persistence.saveRecoveryData(
@@ -649,11 +707,6 @@ class RecordingController {
         synchronous: true,
       );
     }
-
-    await _pipeline.stopSocket('connection lost - auto finalizing');
-    await _audioTransport.closeBleStream();
-    _pipeline.flushVad();
-    ServiceManager.instance().mic.stop();
 
     _sessionLifecycle.setSnapshot(snapshot);
     _backgroundFinalizeWithSnapshot(snapshot);
@@ -879,8 +932,10 @@ class RecordingController {
       _captureLog.log('recording', 'background_finalize_error',
           severity: 'error', details: {'error': e.toString()});
     }).whenComplete(() {
-      // Only reset if the session hasn't changed (no new recording started)
-      if (_stateMachine.currentSessionId == sessionId) {
+      // Only reset if the session hasn't changed (no new recording started).
+      // Require sessionId != null to avoid `null == null → true` when the
+      // state machine was already cleared.
+      if (sessionId != null && _stateMachine.currentSessionId == sessionId) {
         // Reset recording state but NOT the lifecycle phase — auto-restart
         // needs to transition finalizing → restarting (idle → restarting
         // is invalid in the session FSM).
