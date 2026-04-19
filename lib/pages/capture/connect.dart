@@ -5,6 +5,7 @@ import 'package:omi/pages/home/page.dart';
 import 'package:omi/pages/onboarding/find_device/page.dart';
 import 'package:omi/utils/other/temp.dart';
 import 'package:omi/widgets/device_widget.dart';
+import 'package:omi/widgets/scanning_ripple.dart';
 import 'package:omi/providers/onboarding_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -41,11 +42,21 @@ class _ConnectDevicePageState extends State<ConnectDevicePage> {
           children: [
             Consumer<OnboardingProvider>(
               builder: (context, onboardingProvider, child) {
-                return DeviceAnimationWidget(
-                  isConnected: onboardingProvider.isConnected,
-                  deviceName: onboardingProvider.deviceName,
-                  deviceType: onboardingProvider.deviceType,
-                  animatedBackground: onboardingProvider.isConnected,
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (!onboardingProvider.isConnected)
+                      ScanningRippleWidget(
+                        isScanning: !onboardingProvider.isConnected,
+                        size: MediaQuery.sizeOf(context).height <= 700 ? 280 : 360,
+                      ),
+                    DeviceAnimationWidget(
+                      isConnected: onboardingProvider.isConnected,
+                      deviceName: onboardingProvider.deviceName,
+                      deviceType: onboardingProvider.deviceType,
+                      animatedBackground: onboardingProvider.isConnected,
+                    ),
+                  ],
                 );
               },
             ),
