@@ -42,9 +42,6 @@ import 'package:provider/provider.dart';
 import 'package:upgrader/upgrader.dart';
 import 'package:omi/utils/platform/platform_manager.dart';
 import 'package:omi/utils/enums.dart';
-import 'package:omi/services/stt/local/model_download_service.dart';
-import 'package:omi/services/stt/local/speaker_model_download_service.dart';
-import 'package:omi/services/connectivity_service.dart';
 
 import 'package:omi/pages/conversation_capturing/page.dart';
 import 'package:omi/services/transcript_recovery_service.dart';
@@ -298,10 +295,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         }
       }
 
-      if (mounted) {
-        // Fire-and-forget: never await or let this block the rest of the init closure.
-        unawaited(_triggerAutoModelDownload());
-      }
+      // Model downloads are gated behind the consent screen (ModelDownloadPage)
+      // after onboarding to comply with Apple Guideline 4.2.3. No auto-download
+      // fallback here — users who reach home without models must trigger the
+      // download manually from Settings with explicit size disclosure.
 
       // Navigate
       switch (pageAlias) {
@@ -1108,89 +1105,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       elevation: 0,
       centerTitle: true,
     );
-  }
-
-  Future<void> _triggerAutoModelDownload() async {
-    final provider = Provider.of<LocalSttProvider>(context, listen: false);
-
-    // Models are guaranteed downloaded by ModelDownloadPage before reaching home.
-    // This method is kept only as a defensive fallback.
-    if (provider.isReadyFor(LocalSttModelType.parakeet) &&
-        SpeakerModelDownloadService.instance.isModelReady) {
-      return;
-    }
-
-    // Skip if Parakeet is already ready or currently downloading
-    if (provider.isReadyFor(LocalSttModelType.parakeet) ||
-        provider.stateFor(LocalSttModelType.parakeet) == DownloadState.downloading) {
-      // Even if Parakeet is ready, check speaker model
-      if (provider.isReadyFor(LocalSttModelType.parakeet) &&
-          !SpeakerModelDownloadService.instance.isModelReady) {
-        await _triggerSpeakerModelDownload();
-      }
-      return;
-    }
-
-    // Wait for connectivity before attempting download
-    await ConnectivityService().initialized;
-    if (!mounted || !ConnectivityService().isConnected) {
-      debugPrint('[HomePage] No internet, skipping auto-download');
-      return;
-    }
-
-    // Start Parakeet download
-    debugPrint('[HomePage] Auto-downloading Parakeet model...');
-
-    if (mounted) {
-      final l10n = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n?.autoDownloadStarted ?? 'Descargando modelo de voz...'),
-          duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: l10n?.viewDownload ?? 'Ver descarga',
-            textColor: Colors.white,
-            onPressed: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const TranscriptionSettingsPage(),
-            )),
-          ),
-        ),
-      );
-    }
-
-    try {
-      await provider.startDownload(LocalSttModelType.parakeet);
-      debugPrint('[HomePage] Parakeet download completed');
-      if (mounted) {
-        await _triggerSpeakerModelDownload();
-      }
-    } catch (e) {
-      debugPrint('[HomePage] Parakeet auto-download failed: $e');
-    }
-  }
-
-  Future<void> _triggerSpeakerModelDownload() async {
-    final speakerService = SpeakerModelDownloadService.instance;
-    if (speakerService.isModelReady) return;
-
-    debugPrint('[HomePage] Auto-downloading Speaker model...');
-
-    if (mounted) {
-      final l10n = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n?.speakerModelDownloading ?? 'Descargando modelo de identificacion de voz...'),
-          duration: const Duration(seconds: 4),
-        ),
-      );
-    }
-
-    try {
-      await speakerService.downloadModel();
-      debugPrint('[HomePage] Speaker model download completed');
-    } catch (e) {
-      debugPrint('[HomePage] Speaker auto-download failed: $e');
-    }
   }
 
   @override

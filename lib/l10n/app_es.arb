@@ -830,5 +830,31 @@
   "validatingModel": "Verificando...",
   "downloadErrorRetry": "Reintentar",
   "downloadErrorMessage": "Error en la descarga. Verifica tu conexion a internet.",
-  "downloadNoInternet": "Se requiere conexion a internet para descargar los modelos."
+  "downloadNoInternet": "Se requiere conexion a internet para descargar los modelos.",
+
+  "modelDownloadConsentTitle": "Descargar modelos locales",
+  "modelDownloadConsentSubtitle": "Maity necesita descargar los siguientes recursos para funcionar:",
+  "modelDownloadConsentParakeet": "Modelo de transcripción",
+  "modelDownloadConsentSpeaker": "Modelo de identificación de voz",
+  "modelDownloadConsentTotalSize": "Tamaño total: ~{size} MB",
+  "@modelDownloadConsentTotalSize": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
+  "modelDownloadConsentWifi": "Se recomienda usar Wi-Fi. La descarga puede tardar varios minutos.",
+  "modelDownloadConsentButton": "Descargar ahora (~{size} MB)",
+  "@modelDownloadConsentButton": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
+  "modelDownloadSettingsConfirmTitle": "Confirmar descarga",
+  "modelDownloadSettingsConfirmMessage": "Este modelo ocupa aproximadamente {size} MB. Se recomienda usar Wi-Fi para evitar cargos de datos. ¿Descargar ahora?",
+  "@modelDownloadSettingsConfirmMessage": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
+  "modelDownloadSettingsConfirmDownload": "Descargar"
 }

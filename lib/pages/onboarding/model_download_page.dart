@@ -28,11 +28,19 @@ class ModelDownloadPage extends StatefulWidget {
   State<ModelDownloadPage> createState() => _ModelDownloadPageState();
 }
 
+// Sizes used for consent disclosure. Kept in sync with the manifests.
+const int _kParakeetSizeMb = 640;
+const int _kSpeakerSizeMb = 28;
+
 class _ModelDownloadPageState extends State<ModelDownloadPage> {
   _Phase _phase = _Phase.parakeet;
   bool _hasError = false;
   String _errorMessage = '';
   double _progress = 0.0;
+
+  // Apple Guideline 4.2.3: downloads must not start until the user taps a
+  // button that discloses the size. We stay on the consent view until then.
+  bool _downloadStarted = false;
 
   VoidCallback? _parakeetListener;
   VoidCallback? _speakerListener;
@@ -49,10 +57,6 @@ class _ModelDownloadPageState extends State<ModelDownloadPage> {
         .addListener(_parakeetListener!);
     SpeakerModelDownloadService.instance.downloadProgress
         .addListener(_speakerListener!);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startDownloads();
-    });
   }
 
   @override
@@ -95,6 +99,11 @@ class _ModelDownloadPageState extends State<ModelDownloadPage> {
         _errorMessage = p.errorMessage ?? '';
       }
     });
+  }
+
+  void _onDownloadConfirmed() {
+    setState(() => _downloadStarted = true);
+    _startDownloads();
   }
 
   Future<void> _startDownloads() async {
@@ -202,7 +211,176 @@ class _ModelDownloadPageState extends State<ModelDownloadPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
 
-    // Determine if spinner should be indeterminate (validating state)
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        body: SafeArea(
+          child: _downloadStarted
+              ? _buildDownloadingView(l10n)
+              : _buildConsentView(l10n),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConsentView(AppLocalizations? l10n) {
+    final parakeetReady = ModelDownloadService.instance
+        .isModelReadyFor(LocalSttModelType.parakeet);
+    final speakerReady = SpeakerModelDownloadService.instance.isModelReady;
+
+    final parakeetSize = parakeetReady ? 0 : _kParakeetSizeMb;
+    final speakerSize = speakerReady ? 0 : _kSpeakerSizeMb;
+    final totalSize = parakeetSize + speakerSize;
+    final totalSizeText = totalSize.toString();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 12),
+          const Center(
+            child: Icon(
+              Icons.download_for_offline_rounded,
+              size: 72,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            l10n?.modelDownloadConsentTitle ?? 'Descargar modelos locales',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            l10n?.modelDownloadConsentSubtitle ??
+                'Maity necesita descargar los siguientes recursos para funcionar:',
+            style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.4),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          if (!parakeetReady)
+            _buildModelBullet(
+              icon: Icons.memory_rounded,
+              label: l10n?.modelDownloadConsentParakeet ??
+                  'Modelo de transcripción',
+              sizeText: '~$_kParakeetSizeMb MB',
+            ),
+          if (!speakerReady)
+            _buildModelBullet(
+              icon: Icons.record_voice_over_rounded,
+              label: l10n?.modelDownloadConsentSpeaker ??
+                  'Modelo de identificación de voz',
+              sizeText: '~$_kSpeakerSizeMb MB',
+            ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.sd_storage_rounded,
+                    color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    l10n?.modelDownloadConsentTotalSize(totalSizeText) ??
+                        'Tamaño total: ~$totalSizeText MB',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.wifi_rounded,
+                  color: Colors.amber.shade200, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  l10n?.modelDownloadConsentWifi ??
+                      'Se recomienda usar Wi-Fi. La descarga puede tardar varios minutos.',
+                  style: TextStyle(
+                      color: Colors.amber.shade100,
+                      fontSize: 13,
+                      height: 1.3),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          SizedBox(
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: _onDownloadConfirmed,
+              icon: const Icon(Icons.download_rounded),
+              label: Text(
+                l10n?.modelDownloadConsentButton(totalSizeText) ??
+                    'Descargar ahora (~$totalSizeText MB)',
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(26)),
+                elevation: 0,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModelBullet({
+    required IconData icon,
+    required String label,
+    required String sizeText,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+            ),
+          ),
+          Text(
+            sizeText,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDownloadingView(AppLocalizations? l10n) {
     final bool isValidating = (_phase == _Phase.parakeet &&
             ModelDownloadService.instance
                     .progressFor(LocalSttModelType.parakeet)
@@ -218,93 +396,82 @@ class _ModelDownloadPageState extends State<ModelDownloadPage> {
     final percentText =
         isValidating ? '...' : '${(_progress * 100).toInt()}%';
 
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        body: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Spacer(),
-              // Spinner with percentage
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    width: 140,
-                    height: 140,
-                    child: CircularProgressIndicator(
-                      value: displayProgress,
-                      strokeWidth: 6,
-                      color: Colors.white,
-                      backgroundColor: Colors.white24,
-                    ),
-                  ),
-                  Text(
-                    percentText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Spacer(),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: 140,
+              height: 140,
+              child: CircularProgressIndicator(
+                value: displayProgress,
+                strokeWidth: 6,
+                color: Colors.white,
+                backgroundColor: Colors.white24,
               ),
-              const SizedBox(height: 32),
-              // Phase description
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: Text(
-                  _phaseText(l10n),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+            ),
+            Text(
+              percentText,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
               ),
-              const Spacer(),
-              // Error state
-              if (_hasError) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  child: Text(
-                    _errorMessage.isNotEmpty
-                        ? _errorMessage
-                        : (l10n?.downloadErrorMessage ??
-                            'Error en la descarga. Verifica tu conexion a internet.'),
-                    style: TextStyle(
-                      color: Colors.red.shade300,
-                      fontSize: 14,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                MaterialButton(
-                  onPressed: _retry,
-                  color: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                  child: Text(
-                    l10n?.downloadErrorRetry ?? 'Reintentar',
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 48),
-            ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 32),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Text(
+            _phaseText(l10n),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
-      ),
+        const Spacer(),
+        if (_hasError) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              _errorMessage.isNotEmpty
+                  ? _errorMessage
+                  : (l10n?.downloadErrorMessage ??
+                      'Error en la descarga. Verifica tu conexion a internet.'),
+              style: TextStyle(
+                color: Colors.red.shade300,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 16),
+          MaterialButton(
+            onPressed: _retry,
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28),
+            ),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+            child: Text(
+              l10n?.downloadErrorRetry ?? 'Reintentar',
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 48),
+      ],
     );
   }
 }

@@ -1103,5 +1103,31 @@
   "validatingModel": "Verifying...",
   "downloadErrorRetry": "Retry",
   "downloadErrorMessage": "Download error. Check your internet connection.",
-  "downloadNoInternet": "Internet connection required to download models."
+  "downloadNoInternet": "Internet connection required to download models.",
+
+  "modelDownloadConsentTitle": "Download local models",
+  "modelDownloadConsentSubtitle": "Maity needs to download the following resources to function:",
+  "modelDownloadConsentParakeet": "Transcription model",
+  "modelDownloadConsentSpeaker": "Speaker identification model",
+  "modelDownloadConsentTotalSize": "Total size: ~{size} MB",
+  "@modelDownloadConsentTotalSize": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
+  "modelDownloadConsentWifi": "Wi-Fi recommended. The download may take several minutes.",
+  "modelDownloadConsentButton": "Download now (~{size} MB)",
+  "@modelDownloadConsentButton": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
+  "modelDownloadSettingsConfirmTitle": "Confirm download",
+  "modelDownloadSettingsConfirmMessage": "This model takes approximately {size} MB. Wi-Fi is recommended to avoid data charges. Download now?",
+  "@modelDownloadSettingsConfirmMessage": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
+  "modelDownloadSettingsConfirmDownload": "Download"
 }

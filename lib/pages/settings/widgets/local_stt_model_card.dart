@@ -279,17 +279,21 @@ class LocalSttModelCard extends StatelessWidget {
       case DownloadState.error:
         return _buildErrorState(context, provider, l10n, type);
       default:
-        return _buildIdleState(provider, l10n, type);
+        return _buildIdleState(context, provider, l10n, type);
     }
   }
 
-  Widget _buildIdleState(
-      LocalSttProvider provider, AppLocalizations l10n, LocalSttModelType type) {
+  Widget _buildIdleState(BuildContext context, LocalSttProvider provider,
+      AppLocalizations l10n, LocalSttModelType type) {
     return SizedBox(
       width: double.infinity,
       height: 48,
       child: ElevatedButton.icon(
-        onPressed: () => provider.startDownload(type),
+        onPressed: () async {
+          if (await _confirmDownload(context, l10n, _sizeMbFor(type))) {
+            provider.startDownload(type);
+          }
+        },
         icon: const Icon(Icons.download_rounded, size: 20),
         label: Text(l10n.localSttDownloadModel),
         style: ElevatedButton.styleFrom(
@@ -512,7 +516,11 @@ class LocalSttModelCard extends StatelessWidget {
             width: double.infinity,
             height: 40,
             child: ElevatedButton(
-              onPressed: () => provider.startDownload(type),
+              onPressed: () async {
+                if (await _confirmDownload(context, l10n, _sizeMbFor(type))) {
+                  provider.startDownload(type);
+                }
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
@@ -871,7 +879,12 @@ class LocalSttModelCard extends StatelessWidget {
       width: double.infinity,
       height: 40,
       child: ElevatedButton.icon(
-        onPressed: () => provider.startSpeakerModelDownload(),
+        onPressed: () async {
+          final l10n = AppLocalizations.of(context)!;
+          if (await _confirmDownload(context, l10n, '28')) {
+            provider.startSpeakerModelDownload();
+          }
+        },
         icon: const Icon(Icons.download_rounded, size: 18),
         label: const Text('Download Speaker Model (28 MB)'),
         style: ElevatedButton.styleFrom(
@@ -914,6 +927,59 @@ class LocalSttModelCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Size in MB (as a string for placeholder interpolation) for each model.
+  /// Used by the consent dialog to disclose download size before starting.
+  String _sizeMbFor(LocalSttModelType type) {
+    switch (type) {
+      case LocalSttModelType.parakeet:
+        return '640';
+      case LocalSttModelType.moonshine:
+        return '50';
+      case LocalSttModelType.canary:
+        return '208';
+    }
+  }
+
+  /// Apple Guideline 4.2.3: confirm size and get explicit consent before
+  /// starting any model download. Returns true if the user tapped Download.
+  Future<bool> _confirmDownload(
+    BuildContext context,
+    AppLocalizations l10n,
+    String sizeMb,
+  ) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: Text(
+          l10n.modelDownloadSettingsConfirmTitle,
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          l10n.modelDownloadSettingsConfirmMessage(sizeMb),
+          style: TextStyle(color: Colors.grey.shade300),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              l10n.cancel,
+              style: TextStyle(color: Colors.grey.shade400),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              l10n.modelDownloadSettingsConfirmDownload,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+    return result == true;
   }
 
   void _confirmDelete(BuildContext context, LocalSttProvider provider,
