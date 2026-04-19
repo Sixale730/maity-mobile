@@ -287,7 +287,31 @@ class SharedPreferencesUtil {
 
   bool get onboardingCompleted => getBool('onboardingCompleted');
 
-  set onboardingCompleted(bool value) => saveBool('onboardingCompleted', value);
+  set onboardingCompleted(bool value) {
+    final previous = getBool('onboardingCompleted');
+    saveBool('onboardingCompleted', value);
+    if (value && !previous) {
+      // First-ever transition to completed — emit once per user lifetime.
+      // Import kept dynamic via deferred call so preferences.dart stays a
+      // leaf dependency; we look it up lazily via the Supabase client.
+      _notifyOnboardingCompleted();
+    }
+  }
+
+  /// Emits `onboarding.completed` to `platform_logs` exactly once, the first
+  /// time the user finishes onboarding. Uses a top-level function to avoid
+  /// making `SharedPreferencesUtil` depend on analytics internals.
+  void _notifyOnboardingCompleted() {
+    try {
+      onboardingCompletedListener?.call();
+    } catch (_) {
+      // Never let analytics break a settings write.
+    }
+  }
+
+  /// Optional hook wired from [main.dart] / [PlatformLogger] during startup
+  /// so we can emit the analytics event without circular imports.
+  static void Function()? onboardingCompletedListener;
 
   String gptCompletionCache(String key) => getString('gptCompletionCache:$key');
 

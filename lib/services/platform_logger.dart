@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:omi/backend/preferences.dart';
 import 'package:omi/utils/crash_log_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -28,6 +29,14 @@ class PlatformLogger {
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
+
+    // Hook SharedPreferencesUtil so the first false -> true transition of
+    // onboardingCompleted fires an analytics event. Avoids cluttering every
+    // onboarding exit path with a manual emit.
+    SharedPreferencesUtil.onboardingCompletedListener = () {
+      logEvent('onboarding.completed');
+    };
+
     debugPrint(
         '[PlatformLogger] init session=${CrashLogManager.instance.sessionId} '
         'version=${CrashLogManager.instance.appVersion}');
