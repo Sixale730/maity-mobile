@@ -289,9 +289,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
         // startRecorder() when the user taps record.
         unawaited(ServiceManager.instance().mic.prepareRecorder());
 
-        if (localSttProv.isReadyFor(LocalSttModelType.parakeet)) {
+        final deviceProv = Provider.of<DeviceProvider>(context, listen: false);
+        if (localSttProv.isReadyFor(LocalSttModelType.parakeet) &&
+            deviceProv.connectedDevice != null) {
           await captureProv.streamDeviceRecording(
-              device: Provider.of<DeviceProvider>(context, listen: false).connectedDevice);
+              device: deviceProv.connectedDevice);
         }
       }
 
@@ -1092,6 +1094,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
 
   Future<void> _triggerAutoModelDownload() async {
     final provider = Provider.of<LocalSttProvider>(context, listen: false);
+
+    // Models are guaranteed downloaded by ModelDownloadPage before reaching home.
+    // This method is kept only as a defensive fallback.
+    if (provider.isReadyFor(LocalSttModelType.parakeet) &&
+        SpeakerModelDownloadService.instance.isModelReady) {
+      return;
+    }
 
     // Skip if Parakeet is already ready or currently downloading
     if (provider.isReadyFor(LocalSttModelType.parakeet) ||

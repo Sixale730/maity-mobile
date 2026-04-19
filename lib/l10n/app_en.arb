@@ -1096,5 +1096,12 @@
   "consentPrivacyNotice": "Your data is protected and governed by our ",
   "consentPrivacyPolicy": "Privacy Policy",
   "consentAnd": " and ",
-  "consentTermsOfService": "Terms of Service"
+  "consentTermsOfService": "Terms of Service",
+
+  "downloadingTranscriptionModel": "Downloading transcription model...",
+  "downloadingSpeakerModel": "Downloading speaker identification model...",
+  "validatingModel": "Verifying...",
+  "downloadErrorRetry": "Retry",
+  "downloadErrorMessage": "Download error. Check your internet connection.",
+  "downloadNoInternet": "Internet connection required to download models."
 }

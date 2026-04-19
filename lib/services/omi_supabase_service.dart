@@ -7,6 +7,8 @@ import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/env/env.dart';
+import 'package:omi/services/supabase_auth_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service for OMI wearable data storage in Supabase
 /// All operations go through Vercel backend which uses service_role key
@@ -311,6 +313,35 @@ class OmiSupabaseService {
       return false;
     }
   }
+
+  /// Clean up orphan recording drafts directly via Supabase client.
+  ///
+  /// Marks conversations with status='recording' and words_count=0 older
+  /// than 24 hours as failed+deleted. This is a local fallback that runs
+  /// even when the backend endpoint is unreachable (offline startup).
+  /// Called once on app startup after [cleanupOrphanDrafts].
+  static Future<void> cleanupOrphanDraftsLocal() async {
+    try {
+      final userId = SupabaseAuthService.instance.maityUserId;
+      if (userId == null) return;
+
+      final cutoff =
+          DateTime.now().subtract(const Duration(hours: 24)).toUtc().toIso8601String();
+
+      await Supabase.instance.client
+          .schema('maity')
+          .from('omi_conversations')
+          .update({'status': 'failed', 'deleted': true})
+          .eq('user_id', userId)
+          .eq('status', 'recording')
+          .eq('words_count', 0)
+          .lt('created_at', cutoff);
+
+      debugPrint('[OmiSupabaseService] Local orphan draft cleanup completed');
+    } catch (e) {
+      debugPrint('[OmiSupabaseService] Local orphan cleanup error: $e');
+    }
+  }
 }
 
 /// Response from storing a conversation
@@ -558,7 +589,7 @@ class OmiSegment {
     return TranscriptSegment(
       id: id,
       text: text,
-      speaker: speaker ?? 'SPEAKER_0$speakerId',
+      speaker: speaker ?? 'SPEAKER_$speakerId',
       isUser: isUser,
       personId: personId,
       start: startTime,

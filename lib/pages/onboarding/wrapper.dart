@@ -5,7 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/gen/assets.gen.dart';
-import 'package:omi/pages/home/page.dart';
+import 'package:omi/pages/onboarding/model_download_page.dart';
 import 'package:omi/pages/onboarding/auth.dart';
 import 'package:omi/pages/onboarding/find_device/page.dart';
 import 'package:omi/pages/onboarding/name/name_widget.dart';
@@ -91,7 +91,7 @@ class _OnboardingWrapperState extends State<OnboardingWrapper> with TickerProvid
         if (mounted) {
           context.read<HomeProvider>().setupHasSpeakerProfile();
           if (SharedPreferencesUtil().onboardingCompleted) {
-            routeToPage(context, const HomePageWrapper(), replace: true);
+            routeToPage(context, ModelDownloadPage.destinationAfterOnboarding(), replace: true);
           } else {
             _controller!.animateTo(kNamePage);
           }
@@ -201,7 +201,7 @@ class _OnboardingWrapperState extends State<OnboardingWrapper> with TickerProvid
           context.read<HomeProvider>().setupHasSpeakerProfile();
           IntercomManager.instance.loginIdentifiedUser(SharedPreferencesUtil().uid);
           if (SharedPreferencesUtil().onboardingCompleted) {
-            routeToPage(context, const HomePageWrapper(), replace: true);
+            routeToPage(context, ModelDownloadPage.destinationAfterOnboarding(), replace: true);
           } else {
             _goNext(); // Go to Name page
           }
@@ -242,7 +242,7 @@ class _OnboardingWrapperState extends State<OnboardingWrapper> with TickerProvid
           SharedPreferencesUtil().onboardingCompleted = true;
           MixpanelManager().onboardingStepCompleted('Welcome Skipped');
           PaintingBinding.instance.imageCache.clear();
-          routeToPage(context, const HomePageWrapper(), replace: true);
+          routeToPage(context, ModelDownloadPage.destinationAfterOnboarding(), replace: true);
         },
       ),
       FindDevicesPage(
@@ -250,7 +250,7 @@ class _OnboardingWrapperState extends State<OnboardingWrapper> with TickerProvid
         onSkip: () {
           // Skipping device finding means skipping speech profile and device onboarding too
           SharedPreferencesUtil().onboardingCompleted = true;
-          routeToPage(context, const HomePageWrapper(), replace: true);
+          routeToPage(context, ModelDownloadPage.destinationAfterOnboarding(), replace: true);
         },
         goNext: () async {
           // Capture references before async operations

@@ -22,6 +22,13 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
   bool shouldUpdate = false;
   String updateMessage = '';
   bool isLoading = false;
+  DeviceProvider? _deviceProvider;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _deviceProvider = Provider.of<DeviceProvider>(context, listen: false);
+  }
 
   @override
   void initState() {
@@ -52,8 +59,7 @@ class _FirmwareUpdateState extends State<FirmwareUpdate> with FirmwareMixin {
 
   @override
   void dispose() {
-    final deviceProvider = Provider.of<DeviceProvider>(context, listen: false);
-    deviceProvider.resetFirmwareUpdateState();
+    _deviceProvider?.resetFirmwareUpdateState();
     super.dispose();
   }
 

@@ -165,7 +165,7 @@ Future onStart(ServiceInstance service) async {
 }
 
 class BackgroundService {
-  late FlutterBackgroundService _service;
+  FlutterBackgroundService? _service;
   BackgroundServiceStatus? _status;
 
   BackgroundServiceStatus? get status => _status;
@@ -174,7 +174,7 @@ class BackgroundService {
     _service = FlutterBackgroundService();
     _status = BackgroundServiceStatus.initiated;
 
-    await _service.configure(
+    await _service!.configure(
       iosConfiguration: IosConfiguration(
         autoStart: false,
         onForeground: onStart,
@@ -198,34 +198,34 @@ class BackgroundService {
   }
 
   Future<void> start() async {
-    _service.startService();
+    _service?.startService();
 
     // status
-    if (await _service.isRunning()) {
+    if (await _service?.isRunning() ?? false) {
       _status = BackgroundServiceStatus.running;
     }
 
     // heartbeat
-    _service.on('ui.ping').listen((event) {
-      _service.invoke("pong");
+    _service?.on('ui.ping').listen((event) {
+      _service?.invoke("pong");
     });
   }
 
   void stop() {
     debugPrint("invoke stop");
-    _service.invoke("stop");
+    _service?.invoke("stop");
   }
 
   /// Stops the recorder AND the entire background service.
   /// Use when the Flutter engine is about to die (app detached).
   void stopService() {
     debugPrint("[BackgroundService] Stopping service completely");
-    _service.invoke("recorder.stop");
-    _service.invoke("stop");
+    _service?.invoke("recorder.stop");
+    _service?.invoke("stop");
   }
 
   void onStop(ServiceInstance instance) async {
-    _service.invoke("recorder.stateUpdate", {"state": 'stopped'});
+    _service?.invoke("recorder.stateUpdate", {"state": 'stopped'});
     instance.stopSelf();
   }
 
@@ -235,12 +235,16 @@ class BackgroundService {
     Function()? onStop,
     Function()? onInitializing,
   }) {
-    StreamSubscription? recordAudioByteStream = _service.on('recorder.ui.audioBytes').listen((event) {
+    if (_service == null) {
+      debugPrint("[BackgroundService] Cannot start recorder: service not initialized");
+      return;
+    }
+    StreamSubscription? recordAudioByteStream = _service!.on('recorder.ui.audioBytes').listen((event) {
       Uint8List bytes = base64Decode(event!['data'] as String);
       onByteReceived(bytes);
     });
     StreamSubscription? recordStateStream;
-    recordStateStream = _service.on('recorder.ui.stateUpdate').listen((event) {
+    recordStateStream = _service!.on('recorder.ui.stateUpdate').listen((event) {
       if (event!['state'] == 'recording') {
         if (onRecording != null) {
           onRecording();
@@ -262,11 +266,11 @@ class BackgroundService {
     });
 
     // tell service > start record
-    _service.invoke("recorder.start");
+    _service!.invoke("recorder.start");
   }
 
   void stopRecorder() {
-    _service.invoke("recorder.stop");
+    _service?.invoke("recorder.stop");
   }
 }
 

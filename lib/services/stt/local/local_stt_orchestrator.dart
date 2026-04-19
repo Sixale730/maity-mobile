@@ -151,6 +151,14 @@ class LocalSttOrchestrator {
       Future.value(const <TranscriptSegment>[]);
 
   // ---------------------------------------------------------------------------
+  // Audio-flow callback
+  // ---------------------------------------------------------------------------
+
+  /// Optional callback invoked at the start of every [sendAudio] call.
+  /// Used by SessionLifecycleManager to track last-audio-received timestamps.
+  VoidCallback? onAudioReceived;
+
+  // ---------------------------------------------------------------------------
   // VAD activity indicator — flipped by the worker's VAD callback (wired in
   // C2). Exposed to the UI via a [ValueNotifier].
   // ---------------------------------------------------------------------------
@@ -391,6 +399,7 @@ class LocalSttOrchestrator {
   /// 3. Write to WAV backup (crash-safety).
   /// 4. Push to engine streaming fast path (if [_streamingEnabled]).
   void sendAudio(List<int> data) {
+    onAudioReceived?.call();
     if (_chunkWriter == null) return;
     final bytes = data is Uint8List ? data : Uint8List.fromList(data);
     Uint8List pcmBytes;

@@ -83,8 +83,14 @@ class CaptureLogService {
   }) {
     if (_sessionId == null || _disabled) return;
 
-    final authId = Supabase.instance.client.auth.currentUser?.id;
-    final userId = SupabaseAuthService.instance.maityUserId;
+    final String? authId;
+    final String? userId;
+    try {
+      authId = Supabase.instance.client.auth.currentUser?.id;
+      userId = SupabaseAuthService.instance.maityUserId;
+    } catch (_) {
+      return; // Supabase not initialized — skip silently
+    }
     if (authId == null || userId == null) return;
 
     // Enforce buffer cap to prevent OOM
@@ -142,7 +148,8 @@ class CaptureLogService {
     _buffer.clear();
 
     try {
-      await Supabase.instance.client
+      final client = Supabase.instance.client;
+      await client
           .schema('maity')
           .from('capture_debug_logs')
           .insert(batch);

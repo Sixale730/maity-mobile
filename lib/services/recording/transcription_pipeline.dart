@@ -57,6 +57,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   /// fast-path toggle, and WAV backup — symmetric with [_cloudOrchestrator].
   LocalSttOrchestrator? _localOrchestrator;
 
+  /// Expose local orchestrator for segment snapshot collection.
+  /// Read-only — caller must NOT dispose.
+  LocalSttOrchestrator? get localOrchestrator => _localOrchestrator;
+
   /// Invoked on recording stop when the active engine was injected (not
   /// built by the pipeline). The owner (LocalSttProvider) keeps the engine
   /// alive for the next acquire rather than tearing it down.
@@ -73,14 +77,23 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   // so its own _checkSocketHealth / _handleTranscriptionStalled can still
   // reason about stall state without duplicating fields.
 
-  // BLE devices always send audio bytes (even silence), so the
-  // audio-flowing check in _onSilenceTimeout doesn't apply to them.
-  bool _isBleSource = false;
+  // ---------------------------------------------------------------------------
+  // External audio-flow tracking
+  // ---------------------------------------------------------------------------
+  DateTime? _externalLastAudioAt;
 
-  /// Set whether audio comes from a BLE device (always sends bytes, even silence).
-  void setBleSource(bool value) {
-    _isBleSource = value;
+  /// Set an external audio-flow timestamp. Used by SessionLifecycleManager
+  /// to track the last time audio was received for silence detection in
+  /// local STT sessions.
+  void setExternalAudioFlowTimestamp(DateTime? timestamp) {
+    _externalLastAudioAt = timestamp;
   }
+
+  /// Read the external audio-flow timestamp.
+  DateTime? get externalLastAudioAt => _externalLastAudioAt;
+
+  // Note: _isBleSource guard removed — audio-flow timestamp tracking now
+  // covers both BLE and phone mic uniformly via _externalLastAudioAt.
 
   // ---------------------------------------------------------------------------
   // Silence timer
@@ -1001,10 +1014,10 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
     }
 
     // Check if audio is still flowing (STT stall vs real silence).
-    // BLE devices always send raw audio bytes (even during silence), so the
-    // audio-flowing heuristic doesn't apply — treat timer expiry as real silence.
-    final lastAudioAt = _cloudOrchestrator?.lastAudioBytesSentAt;
-    if (!_isBleSource && lastAudioAt != null) {
+    // Use cloud orchestrator timestamp if available, fall back to external
+    // timestamp (set by SessionLifecycleManager for local STT sessions).
+    final lastAudioAt = _cloudOrchestrator?.lastAudioBytesSentAt ?? _externalLastAudioAt;
+    if (lastAudioAt != null) {
       final audioGap = DateTime.now().difference(lastAudioAt);
       if (audioGap.inSeconds < 10) {
         // Local STT: let silence timeout proceed normally.

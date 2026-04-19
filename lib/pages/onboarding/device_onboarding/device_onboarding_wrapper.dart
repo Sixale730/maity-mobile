@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:omi/backend/preferences.dart';
-import 'package:omi/pages/home/page.dart';
+import 'package:omi/pages/onboarding/model_download_page.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/utils/other/temp.dart';
 
@@ -52,7 +52,7 @@ class _DeviceOnboardingWrapperState extends State<DeviceOnboardingWrapper> with 
     SharedPreferencesUtil().onboardingCompleted = true;
     MixpanelManager().onboardingStepCompleted('Device Onboarding Completed');
     PaintingBinding.instance.imageCache.clear();
-    routeToPage(context, const HomePageWrapper(), replace: true);
+    routeToPage(context, ModelDownloadPage.destinationAfterOnboarding(), replace: true);
   }
 
   @override
