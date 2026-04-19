@@ -6,6 +6,7 @@ import 'package:omi/pages/memories/page.dart';
 import 'package:omi/pages/settings/settings_drawer.dart';
 import 'package:omi/pages/speech_profile/page.dart';
 import 'package:omi/providers/home_provider.dart';
+import 'package:omi/services/platform_logger.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:provider/provider.dart';
 
@@ -98,9 +99,14 @@ class AppNavigationDrawer extends StatelessWidget {
                         onTap: () {
                           Navigator.pop(context); // Close drawer
                           MixpanelManager().track('Drawer Item Clicked', properties: {'item': 'Memories'});
+                          PlatformLogger.instance
+                              .logEvent('drawer.item_clicked', data: {'item': 'memories'});
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const MemoriesPage()),
+                            MaterialPageRoute(
+                              settings: const RouteSettings(name: 'memories'),
+                              builder: (context) => const MemoriesPage(),
+                            ),
                           );
                         },
                       ),
@@ -111,6 +117,8 @@ class AppNavigationDrawer extends StatelessWidget {
                         onTap: () {
                           Navigator.pop(context);
                           MixpanelManager().track('Drawer Item Clicked', properties: {'item': 'Daily Report'});
+                          PlatformLogger.instance
+                              .logEvent('drawer.item_clicked', data: {'item': 'daily_report'});
                           // Navigate to Insights which shows the report
                           context.read<HomeProvider>().setIndex(4);
                         },
@@ -129,6 +137,8 @@ class AppNavigationDrawer extends StatelessWidget {
                         onTap: () {
                           Navigator.pop(context);
                           MixpanelManager().track('Drawer Item Clicked', properties: {'item': 'Settings'});
+                          PlatformLogger.instance
+                              .logEvent('drawer.item_clicked', data: {'item': 'settings'});
                           SettingsDrawer.show(context);
                         },
                       ),
@@ -139,9 +149,14 @@ class AppNavigationDrawer extends StatelessWidget {
                         onTap: () {
                           Navigator.pop(context);
                           MixpanelManager().track('Drawer Item Clicked', properties: {'item': 'Voice Profile'});
+                          PlatformLogger.instance
+                              .logEvent('drawer.item_clicked', data: {'item': 'voice_profile'});
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const SpeechProfilePage()),
+                            MaterialPageRoute(
+                              settings: const RouteSettings(name: 'voice_profile'),
+                              builder: (context) => const SpeechProfilePage(),
+                            ),
                           );
                         },
                       ),
@@ -206,6 +221,9 @@ class AppNavigationDrawer extends StatelessWidget {
   void _navigateToTab(BuildContext context, int navIndex) {
     Navigator.pop(context); // Close drawer
     MixpanelManager().track('Drawer Item Clicked', properties: {'item': 'Tab $navIndex'});
+    const tabItems = {0: 'home', 1: 'conversations', 3: 'tasks', 4: 'insights'};
+    PlatformLogger.instance
+        .logEvent('drawer.item_clicked', data: {'item': tabItems[navIndex] ?? 'tab_$navIndex'});
     context.read<HomeProvider>().setIndex(navIndex);
   }
 }

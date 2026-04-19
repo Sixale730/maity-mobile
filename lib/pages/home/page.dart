@@ -677,6 +677,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
               backgroundColor: Theme.of(context).colorScheme.primary,
               appBar: _buildAppBar(context),
               drawer: const AppNavigationDrawer(),
+              onDrawerChanged: (isOpen) {
+                if (isOpen) PlatformLogger.instance.logEvent('drawer.opened');
+              },
               body: DefaultTabController(
                 length: 4,
                 initialIndex: homeProvider.stackIndex,
