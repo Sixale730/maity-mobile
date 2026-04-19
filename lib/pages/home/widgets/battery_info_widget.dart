@@ -204,7 +204,7 @@ class BatteryInfoWidget extends StatelessWidget {
                               ),
                             )
                           : Image.asset(
-                              Assets.images.logoTransparent.path,
+                              Assets.images.maityIcon.path,
                               fit: BoxFit.contain,
                             ),
                     ),

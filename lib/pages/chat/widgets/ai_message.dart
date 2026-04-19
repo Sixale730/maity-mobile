@@ -7,6 +7,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:omi/gen/assets.gen.dart';
 import 'package:omi/widgets/emoji_text.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/chat/widgets/files_handler_widget.dart';
@@ -210,17 +211,36 @@ class _AIMessageState extends State<AIMessage> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.max,
       children: [
-        buildMessageWidget(
-          widget.message,
-          widget.sendMessage,
-          widget.showTypingIndicator,
-          widget.displayOptions,
-          widget.appSender,
-          widget.updateConversation,
-          widget.setMessageNps,
+        Padding(
+          padding: const EdgeInsets.only(top: 4, right: 8),
+          child: ClipOval(
+            child: Image.asset(
+              Assets.images.maityIcon.path,
+              width: 28,
+              height: 28,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              buildMessageWidget(
+                widget.message,
+                widget.sendMessage,
+                widget.showTypingIndicator,
+                widget.displayOptions,
+                widget.appSender,
+                widget.updateConversation,
+                widget.setMessageNps,
+              ),
+            ],
+          ),
         ),
       ],
     );

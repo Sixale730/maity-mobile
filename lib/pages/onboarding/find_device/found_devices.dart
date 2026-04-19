@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_provider_utilities/flutter_provider_utilities.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/gen/assets.gen.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/providers/device_provider.dart';
 import 'package:omi/providers/onboarding_provider.dart';
@@ -209,6 +210,12 @@ class _FoundDevicesState extends State<FoundDevices> {
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            Image.asset(
+              Assets.images.maityIcon.path,
+              width: 64,
+              height: 64,
+            ),
+            const SizedBox(height: 16),
             !provider.isConnected
                 ? Text(
                     provider.deviceList.isEmpty

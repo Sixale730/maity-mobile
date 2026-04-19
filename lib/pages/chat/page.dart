@@ -935,10 +935,10 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
               ),
               child: Column(
                 children: [
-                  const FaIcon(
-                    FontAwesomeIcons.handPeace,
-                    size: 36,
-                    color: Color(0xFFFFD93D),
+                  Image.asset(
+                    Assets.images.maityIcon.path,
+                    width: 56,
+                    height: 56,
                   ),
                   const SizedBox(height: 12),
                   Text(

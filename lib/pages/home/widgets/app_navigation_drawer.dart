@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:omi/gen/assets.gen.dart';
 import 'package:omi/l10n/app_localizations.dart';
 import 'package:omi/pages/memories/page.dart';
 import 'package:omi/pages/settings/settings_drawer.dart';
@@ -32,15 +33,13 @@ class AppNavigationDrawer extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                   child: Row(
                     children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF485DF4).withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Center(
-                          child: Text('M', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF485DF4))),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.asset(
+                          Assets.images.maityIcon.path,
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.cover,
                         ),
                       ),
                       const SizedBox(width: 12),
