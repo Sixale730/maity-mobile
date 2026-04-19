@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/services/recording/recording_state_machine.dart';
 import 'package:omi/services/recording/session_lifecycle_manager.dart';
 import 'package:omi/services/recording/session_snapshot.dart';
