@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:omi/backend/http/api/speech_profile.dart';
 import 'package:omi/backend/http/api/users.dart';
 import 'package:omi/backend/preferences.dart';
+import 'package:omi/services/platform_logger.dart';
 import 'package:omi/utils/analytics/analytics_manager.dart';
 
 class HomeProvider extends ChangeNotifier {
@@ -96,11 +97,38 @@ class HomeProvider extends ChangeNotifier {
     }
   }
 
+  /// Maps a bottom-nav index to a stable page name used in product analytics.
+  /// Returns null for the FAB index (intercepted) or unknown indices.
+  static const Map<int, String> _navIndexToPage = {
+    0: 'dashboard',
+    1: 'conversations',
+    3: 'tasks',
+    4: 'insights',
+  };
+
   void setIndex(int index) {
     // Index 2 is FAB, don't change tab for it
     if (index == 2) return;
+    final previousIndex = selectedIndex;
     selectedIndex = index;
     notifyListeners();
+
+    // Product analytics: emit tab.changed + nav.page_view for the new tab.
+    // Bottom-nav tabs don't go through Navigator, so LoggerNavigatorObserver
+    // wouldn't see them.
+    if (previousIndex != index) {
+      final page = _navIndexToPage[index];
+      if (page != null) {
+        PlatformLogger.instance.logEvent('tab.changed', data: {
+          'from_tab': _navIndexToPage[previousIndex],
+          'to_tab': page,
+        });
+        PlatformLogger.instance.logEvent('nav.page_view', data: {
+          'page': page,
+          'source': 'tab',
+        });
+      }
+    }
   }
 
   void setIsLoading(bool loading) {
