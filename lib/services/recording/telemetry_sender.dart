@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:omi/services/platform_logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Sends a single recording-session telemetry record to Supabase via the
@@ -64,5 +65,18 @@ class TelemetrySender {
     } catch (e) {
       debugPrint('[TelemetrySender] Send failed (ignored): $e');
     }
+
+    // Mirror the event to platform_logs so the product-analytics dashboard
+    // can see recording duration/outcome without joining into the technical
+    // recording_session_telemetry table. Fire-and-forget; never throws.
+    PlatformLogger.instance.logEvent('recording.stopped', data: {
+      'recording_session_id': snapshot['session_id'],
+      'duration_seconds': snapshot['duration_seconds'],
+      'segments_count': snapshot['segments_count'],
+      'words_count': snapshot['words_count'],
+      'audio_source': snapshot['audio_source'],
+      'stt_provider': snapshot['stt_provider'],
+      'outcome': outcome,
+    }, meetingId: conversationId);
   }
 }

@@ -8,6 +8,7 @@ import 'package:omi/backend/schema/transcript_segment.dart';
 import 'package:omi/models/stt_provider.dart';
 import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/services/notifications/notification_service.dart';
+import 'package:omi/services/platform_logger.dart';
 import 'package:omi/services/recording/audio_transport_service.dart';
 import 'package:omi/services/recording/persistence_manager.dart';
 import 'package:omi/services/recording/recording_state_machine.dart';
@@ -179,6 +180,11 @@ class RecordingController {
       audioSource: audioSourceName,
       startedAt: _stateMachine.recordingStartTime,
     );
+
+    PlatformLogger.instance.logEvent('recording.started', data: {
+      'audio_source': audioSourceName,
+      'recording_session_id': sessionId,
+    });
 
     _captureLog.startSession(
       sessionId,
@@ -428,6 +434,8 @@ class RecordingController {
   Future<void> pausePhoneMicRecording() async {
     _captureLog.log('recording', 'recording_paused',
         details: {'source': 'phone_mic'});
+    PlatformLogger.instance
+        .logEvent('recording.paused', data: {'audio_source': 'phone_mic'});
     _audioTransport.stopPhoneMicRecording();
     _stateMachine.transition(RecordingState.pause);
     onRecordingStateChanged?.call(RecordingState.pause);
@@ -438,6 +446,8 @@ class RecordingController {
   Future<void> resumePhoneMicRecording() async {
     _captureLog.log('recording', 'recording_resumed',
         details: {'source': 'phone_mic'});
+    PlatformLogger.instance
+        .logEvent('recording.resumed', data: {'audio_source': 'phone_mic'});
     _stateMachine.transition(RecordingState.record);
     onRecordingStateChanged?.call(RecordingState.initialising);
 
@@ -513,6 +523,8 @@ class RecordingController {
   Future<void> pauseSystemAudioRecording({bool isAuto = false}) async {
     if (!PlatformService.isDesktop) return;
     if (!isAuto) _stateMachine.shouldAutoResumeAfterWake = false;
+    PlatformLogger.instance.logEvent('recording.paused',
+        data: {'audio_source': 'system_audio', 'is_auto': isAuto});
     _audioTransport.pauseSystemAudioRecording(isAuto: isAuto);
     _stateMachine.transition(RecordingState.pause);
     _pipeline.resetSilenceTimer();
@@ -522,6 +534,8 @@ class RecordingController {
   /// Resume system audio recording.
   Future<void> resumeSystemAudioRecording() async {
     if (!PlatformService.isDesktop) return;
+    PlatformLogger.instance
+        .logEvent('recording.resumed', data: {'audio_source': 'system_audio'});
     _stateMachine.shouldAutoResumeAfterWake = true;
     _stateMachine.transition(RecordingState.systemAudioRecord);
     await streamSystemAudioRecording();

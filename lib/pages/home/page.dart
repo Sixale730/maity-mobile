@@ -31,6 +31,7 @@ import 'package:omi/providers/home_provider.dart';
 import 'package:omi/providers/local_stt_provider.dart';
 import 'package:omi/providers/message_provider.dart';
 import 'package:omi/services/notifications.dart';
+import 'package:omi/services/platform_logger.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
 import 'package:omi/pages/settings/transcription_settings_page.dart';
 import 'package:omi/services/stt/local/local_stt_model_type.dart';
@@ -388,6 +389,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
 
     _listenToMessagesFromNotification();
     _setupAutoSaveListener();
+
+    // Emit an initial nav.page_view for the landing tab so analytics don't
+    // miss the view that users don't "navigate to" (they just open the app).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      const indexToPage = {0: 'dashboard', 1: 'conversations', 3: 'tasks', 4: 'insights'};
+      final page = indexToPage[homePageIdx];
+      if (page != null) {
+        PlatformLogger.instance.logEvent('nav.page_view', data: {
+          'page': page,
+          'source': 'launch',
+        });
+      }
+    });
+
     super.initState();
 
     // Foreground task data callback is registered once in MyApp (main.dart).
@@ -662,6 +677,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
               backgroundColor: Theme.of(context).colorScheme.primary,
               appBar: _buildAppBar(context),
               drawer: const AppNavigationDrawer(),
+              onDrawerChanged: (isOpen) {
+                if (isOpen) PlatformLogger.instance.logEvent('drawer.opened');
+              },
               body: DefaultTabController(
                 length: 4,
                 initialIndex: homeProvider.stackIndex,

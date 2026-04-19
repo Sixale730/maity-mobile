@@ -41,6 +41,20 @@ class CrashLogManager {
   String? _platform;
   bool _initialized = false;
 
+  /// Session ID stable per app launch. Exposed so [PlatformLogger] and other
+  /// telemetry can correlate events (nav, lifecycle, recording) with crashes
+  /// emitted during the same session.
+  String get sessionId => _sessionId;
+
+  /// Cached app version string (e.g. "1.2.3+45"). Null until [init] completes.
+  String? get appVersion => _appVersion;
+
+  /// Cached device info (e.g. "ios Version 17.4"). Null until [init] completes.
+  String? get deviceInfo => _deviceInfo;
+
+  /// Cached platform tag: 'android' | 'ios' | 'macos' | 'windows' | 'linux'.
+  String? get platform => _platform;
+
   /// Initialize the crash log manager. Call early in app startup,
   /// after [SharedPreferencesUtil.init()] but before [runApp].
   Future<void> init() async {

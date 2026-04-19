@@ -59,6 +59,8 @@ import 'package:omi/services/notifications.dart';
 import 'package:omi/services/services.dart';
 import 'package:omi/utils/analytics/growthbook.dart';
 import 'package:omi/services/crash_log_upload_service.dart';
+import 'package:omi/services/platform_logger.dart';
+import 'package:omi/utils/analytics/logger_navigator_observer.dart';
 import 'package:omi/utils/crash_log_manager.dart';
 import 'package:omi/utils/debug_log_manager.dart';
 import 'package:omi/utils/enums.dart';
@@ -189,6 +191,9 @@ Future _init() async {
   // Upload any crash logs from previous session to Supabase platform_logs
   await CrashLogUploadService.instance.initialize();
 
+  // Initialize product-analytics logger (depends on CrashLogManager context)
+  await PlatformLogger.instance.init();
+
   // Clean up old WAV backup recordings (>7 days)
   cleanupOldWavBackups(); // fire-and-forget, non-blocking
 
@@ -260,6 +265,11 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  /// True until the first `app.open` event has been emitted. Used to tag the
+  /// initial event with `cold_start: true` and every subsequent resume with
+  /// `cold_start: false`.
+  bool _coldStart = true;
+
   /// Triggers a rebuild of the entire app (useful for locale changes)
   void rebuildApp() {
     setState(() {});
@@ -273,6 +283,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (SharedPreferencesUtil().devLogsToFileEnabled) {
       DebugLogManager.setEnabled(true);
     }
+
+    // Emit app.open once on startup. RPC skips silently if unauthenticated.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PlatformLogger.instance.logEvent('app.open', data: {'cold_start': true});
+      _coldStart = false;
+    });
 
     // Auto-start macOS recording if enabled
     if (PlatformService.isDesktop) {
@@ -384,9 +400,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
-    if (state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.resumed) {
+      PlatformLogger.instance
+          .logEvent('app.open', data: {'cold_start': _coldStart});
+      _coldStart = false;
+    } else if (state == AppLifecycleState.paused) {
+      PlatformLogger.instance.logEvent('app.close');
       _onAppPaused();
     } else if (state == AppLifecycleState.detached) {
+      PlatformLogger.instance.logEvent('app.close');
       _deinit();
     }
   }
@@ -473,6 +495,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   debugShowCheckedModeBanner: false,
                   title: 'Maity',
                   navigatorKey: MyApp.navigatorKey,
+                  navigatorObservers: [LoggerNavigatorObserver()],
                   localizationsDelegates: const [
                     AppLocalizations.delegate,
                     GlobalMaterialLocalizations.delegate,

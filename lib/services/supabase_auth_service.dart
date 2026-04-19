@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/env/env.dart';
+import 'package:omi/services/platform_logger.dart';
 import 'package:omi/utils/logger.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -103,7 +104,28 @@ class SupabaseAuthService {
     // 4. Obtener maity.users.id
     await _fetchMaityUserId();
 
+    PlatformLogger.instance.logEvent('auth.signed_in', data: {
+      'method': 'google',
+      'is_new_user': _isLikelyNewUser(response.user),
+    });
+
     return response;
+  }
+
+  /// Heuristic: Supabase doesn't expose a definitive "new user" flag on
+  /// [AuthResponse], but [User.createdAt] is ISO-8601 and gets set exactly
+  /// once at sign-up. If it's within ~2 minutes of "now" we treat this as
+  /// a fresh account (good enough for product analytics).
+  bool _isLikelyNewUser(User? user) {
+    if (user == null) return false;
+    try {
+      final createdAt = DateTime.tryParse(user.createdAt)?.toUtc();
+      if (createdAt == null) return false;
+      final age = DateTime.now().toUtc().difference(createdAt).abs();
+      return age < const Duration(minutes: 2);
+    } catch (_) {
+      return false;
+    }
   }
 
   // ============================================================
@@ -171,6 +193,11 @@ class SupabaseAuthService {
 
     // 5. Obtener maity.users.id
     await _fetchMaityUserId();
+
+    PlatformLogger.instance.logEvent('auth.signed_in', data: {
+      'method': 'apple',
+      'is_new_user': _isLikelyNewUser(response.user),
+    });
 
     return response;
   }
