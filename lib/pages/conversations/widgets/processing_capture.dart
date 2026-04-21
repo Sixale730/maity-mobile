@@ -137,6 +137,12 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
         MixpanelManager().phoneMicRecordingStarted();
       } else if (recordingState == RecordingState.initialising) {
         debugPrint('initialising, have to wait');
+      } else if (recordingState == RecordingState.stop ||
+          recordingState == RecordingState.error) {
+        // Fresh start: widget is still visible (e.g. after auto-save or error)
+        // and the user tapped "Continuar Grabación".
+        await provider.streamRecording();
+        MixpanelManager().phoneMicRecordingStarted();
       }
     }
   }
@@ -268,7 +274,7 @@ class _ConversationCaptureWidgetState extends State<ConversationCaptureWidget> {
           context,
           () => _toggleRecording(context, captureProvider),
           captureProvider.recordingState,
-          isPhoneMicPaused: captureProvider.isPaused && captureProvider.recordingState == RecordingState.pause && !captureProvider.havingRecordingDevice,
+          isPhoneMicPaused: captureProvider.recordingState == RecordingState.pause && !captureProvider.havingRecordingDevice,
         ),
       );
     } else if (!isAnyRecordingActive &&
@@ -818,7 +824,18 @@ getPhoneMicRecordingButton(BuildContext context, VoidCallback toggleRecordingCb,
       );
     } else {
       text = l10n?.continueRecording ?? 'Continuar Grabación';
-      icon = const Icon(Icons.mic, size: 18);
+      icon = Container(
+        margin: const EdgeInsets.only(right: 4),
+        width: 24,
+        height: 24,
+        decoration: const BoxDecoration(
+          color: Color(0xFFF93A6E), // Maity brand pink
+          shape: BoxShape.circle,
+        ),
+        child: const Center(
+          child: Icon(Icons.mic, color: Colors.white, size: 14),
+        ),
+      );
     }
   }
 

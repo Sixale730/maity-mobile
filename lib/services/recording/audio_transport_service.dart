@@ -209,6 +209,7 @@ class AudioTransportService {
     await Permission.microphone.request();
 
     _audioBytesSent = 0;
+    startMetricsTracking();
     await ServiceManager.instance().mic.start(
       onByteReceived: (Uint8List bytes) {
         _lastAudioBytesSentAt = DateTime.now();
@@ -219,6 +220,7 @@ class AudioTransportService {
             socketState() == SocketServiceState.connected) {
           _vadService!.processAudioFrame(bytes);
         } else {
+          _wsSocketBytesSent += bytes.length;
           _socketSender?.call(bytes);
         }
         _audioBytesSent += bytes.length;
@@ -238,6 +240,7 @@ class AudioTransportService {
   /// Stops the phone microphone recording.
   /// Bug fix H3: properly awaits mic.stop() before any callbacks fire.
   Future<void> stopPhoneMicRecording() async {
+    stopMetricsTracking();
     // ServiceManager.mic.stop() is synchronous for BackgroundService variant
     // but we wrap in try/catch to be safe
     try {

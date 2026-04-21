@@ -691,9 +691,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                       Column(
                         children: [
                           Expanded(
-                            child: IndexedStack(
-                              index: context.watch<HomeProvider>().stackIndex,
-                              children: _pages,
+                            child: Builder(
+                              builder: (context) {
+                                final stackIndex =
+                                    context.watch<HomeProvider>().stackIndex;
+                                return IndexedStack(
+                                  index: stackIndex,
+                                  children: List.generate(_pages.length, (i) {
+                                    return TickerMode(
+                                      enabled: i == stackIndex,
+                                      child: _pages[i],
+                                    );
+                                  }),
+                                );
+                              },
                             ),
                           ),
                         ],

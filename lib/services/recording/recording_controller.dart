@@ -413,7 +413,7 @@ class RecordingController {
     await _audioTransport.closeBleStream();
     _stateMachine.transition(RecordingState.pause);
     onRecordingStateChanged?.call(RecordingState.pause);
-    _pipeline.resetSilenceTimer();
+    _pipeline.cancelSilenceTimer();
   }
 
   /// Resume BLE device recording.
@@ -439,7 +439,7 @@ class RecordingController {
     _audioTransport.stopPhoneMicRecording();
     _stateMachine.transition(RecordingState.pause);
     onRecordingStateChanged?.call(RecordingState.pause);
-    _pipeline.resetSilenceTimer();
+    _pipeline.cancelSilenceTimer();
   }
 
   /// Resume phone mic recording.
@@ -449,7 +449,7 @@ class RecordingController {
     PlatformLogger.instance
         .logEvent('recording.resumed', data: {'audio_source': 'phone_mic'});
     _stateMachine.transition(RecordingState.record);
-    onRecordingStateChanged?.call(RecordingState.initialising);
+    onRecordingStateChanged?.call(RecordingState.record);
 
     _pipeline.setWalEnabled(true);
     _audioTransport.setSocketSender(_pipeline.sendToSocket);
@@ -527,7 +527,7 @@ class RecordingController {
         data: {'audio_source': 'system_audio', 'is_auto': isAuto});
     _audioTransport.pauseSystemAudioRecording(isAuto: isAuto);
     _stateMachine.transition(RecordingState.pause);
-    _pipeline.resetSilenceTimer();
+    _pipeline.cancelSilenceTimer();
     onNotifyListeners?.call();
   }
 

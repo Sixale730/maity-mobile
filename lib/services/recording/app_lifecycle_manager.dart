@@ -284,12 +284,12 @@ class AppLifecycleManager with WidgetsBindingObserver {
       }
     }
 
-    // Paused recording: restart silence timer so it can auto-save after timeout.
-    // The timer was cancelled in _handleAppPaused and won't restart on its own
-    // because no new segments arrive while paused.
+    // Paused recording: keep silence timer cancelled — deliberate pause should
+    // not auto-save on silence. _backgroundFinalizeTimer (3 min) still covers
+    // prolonged background pause with segments.
     final isPaused = delegate.recordingState == RecordingState.pause;
     if (isPaused && delegate.currentSegments.isNotEmpty) {
-      delegate.resetSilenceTimer();
+      delegate.cancelSilenceTimer();
     }
 
   }
