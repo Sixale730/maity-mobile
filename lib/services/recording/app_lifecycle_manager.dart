@@ -7,7 +7,6 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:omi/backend/preferences.dart';
 import 'package:omi/backend/schema/bt_device/bt_device.dart';
 import 'package:omi/backend/schema/transcript_segment.dart';
-import 'package:omi/services/capture_log_service.dart';
 import 'package:omi/utils/app_state_collector.dart';
 import 'package:omi/services/stt/cloud/transcription_service.dart';
 import 'package:omi/utils/debug_log_manager.dart';
@@ -20,7 +19,6 @@ abstract class AppLifecycleDelegate {
   RecordingState get recordingState;
   bool get isPaused;
   bool get shouldAutoResumeAfterWake;
-  bool get conversationFinalized;
   BtDevice? get recordingDevice;
   List<TranscriptSegment> get currentSegments;
   bool get isSpeechProfileMode;
@@ -40,21 +38,28 @@ abstract class AppLifecycleDelegate {
   Future<void> stopMicService();
   Future<void> stopMicServiceCompletely();
   Future<void> stopSocket(String reason);
-  Future<void> autoFinalizeOnConnectionLost();
   Future<void> streamSystemAudioRecording();
   void updateRecordingState(RecordingState state);
   void notifyListenersCallback();
   void stopBreathingLed();
   void startBreathingLedIfPaused();
+
+  // Background policy hooks — owner routes these to BackgroundRecordingPolicy.
+  // AppLifecycleManager itself no longer decides when to auto-finalize.
+  void onAppBackgrounded();
+  void onAppForegrounded();
 }
 
 /// Manages app lifecycle states (paused/resumed/detached).
-/// Coordinates service pause/resume and background finalize timer.
+///
+/// Responsibility: observe Android lifecycle, coordinate save/recovery of
+/// transient state, and forward background/foreground transitions to the
+/// owner via [AppLifecycleDelegate.onAppBackgrounded] /
+/// [AppLifecycleDelegate.onAppForegrounded]. It intentionally does not
+/// know anything about sockets, STT providers, or recording health — those
+/// decisions live in `BackgroundRecordingPolicy`.
 class AppLifecycleManager with WidgetsBindingObserver {
   AppLifecycleDelegate? _delegate;
-
-  // Background finalize timer
-  Timer? _backgroundFinalizeTimer;
 
   // Background state flag
   bool _isAppInBackground = false;
@@ -70,8 +75,6 @@ class AppLifecycleManager with WidgetsBindingObserver {
   // Desktop method channels
   MethodChannel? _screenCaptureChannel;
   MethodChannel? _controlBarChannel;
-
-  CaptureLogService get _captureLog => CaptureLogService.instance;
 
   /// Initialize the lifecycle manager and register as observer.
   void initialize({
@@ -152,16 +155,9 @@ class AppLifecycleManager with WidgetsBindingObserver {
       delegate.cancelSilenceTimer();
     }
 
-    // Start background finalize timer: if socket stays dead for 3 min, auto-finalize.
-    // Include pause state — a paused recording with segments should also auto-finalize
-    // if the app stays in background long enough.
-    final isRecordingOrPaused = delegate.recordingState == RecordingState.record ||
-        delegate.recordingState == RecordingState.deviceRecord ||
-        delegate.recordingState == RecordingState.systemAudioRecord ||
-        delegate.recordingState == RecordingState.pause;
-    if (isRecordingOrPaused && delegate.currentSegments.isNotEmpty) {
-      _startBackgroundFinalizeTimer();
-    }
+    // Delegate the "should I auto-finalize?" decision to BackgroundRecordingPolicy
+    // via the owner. Lifecycle manager no longer makes that call itself.
+    delegate.onAppBackgrounded();
 
     // Save recovery data immediately to prevent data loss (synchronous: app may be killed)
     if (delegate.currentSegments.isNotEmpty && !delegate.isSpeechProfileMode) {
@@ -223,9 +219,9 @@ class AppLifecycleManager with WidgetsBindingObserver {
     _isAppInBackground = false;
     AppStateCollector.isInBackground = false;
 
-    // Cancel background finalize timer since user is back
-    _backgroundFinalizeTimer?.cancel();
-    _backgroundFinalizeTimer = null;
+    // Hand the foreground transition off to the owner; policy cancels any
+    // pending auto-finalize timers.
+    delegate.onAppForegrounded();
 
     DebugLogManager.logEvent('app_resumed_handling_start', {
       'recording_state': delegate.recordingState.name,
@@ -292,37 +288,6 @@ class AppLifecycleManager with WidgetsBindingObserver {
       delegate.cancelSilenceTimer();
     }
 
-  }
-
-  /// Starts a timer that auto-finalizes the conversation if the socket
-  /// remains disconnected while the app is in background for 3 minutes.
-  void _startBackgroundFinalizeTimer() {
-    final delegate = _delegate;
-    if (delegate == null) return;
-
-    _backgroundFinalizeTimer?.cancel();
-    _backgroundFinalizeTimer = Timer(const Duration(minutes: 3), () {
-      final d = _delegate;
-      if (d == null) return;
-
-      // Finalize if: socket disconnected (active recording) OR paused with segments.
-      // Pause state needs its own path because local STT socket stays "connected".
-      final isPaused = d.recordingState == RecordingState.pause;
-      if ((isPaused || d.socketState != SocketServiceState.connected) &&
-          d.currentSegments.isNotEmpty &&
-          !d.conversationFinalized) {
-        _captureLog.log('recording', 'background_auto_finalize', severity: 'warning', details: {
-          'segments_count': d.currentSegments.length,
-          'socket_state': d.socketState?.name ?? 'null',
-          'minutes_in_background': 3,
-        });
-        debugPrint('[AppLifecycleManager] Background timer: socket dead for 3 min, auto-finalizing');
-        d.autoFinalizeOnConnectionLost();
-
-        // Update notification after background auto-finalize
-        updateForegroundNotification('waiting');
-      }
-    });
   }
 
   /// Reconnect socket after app resumes from background.
@@ -448,9 +413,9 @@ class AppLifecycleManager with WidgetsBindingObserver {
     _controlBarChannel?.invokeMethod('updateRecordingState', stateData);
   }
 
-  /// Dispose of timers and remove lifecycle observer.
+  /// Remove lifecycle observer. Timers (if any) live in the policy owned
+  /// by the delegate, not here.
   void dispose() {
-    _backgroundFinalizeTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
   }
 }

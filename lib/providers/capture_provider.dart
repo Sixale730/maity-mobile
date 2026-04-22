@@ -31,6 +31,8 @@ import 'package:omi/services/recording/audio_transport_service.dart';
 import 'package:omi/services/recording/transcription_pipeline.dart';
 import 'package:omi/services/recording/persistence_manager.dart';
 import 'package:omi/services/recording/app_lifecycle_manager.dart';
+import 'package:omi/services/recording/background_recording_policy.dart';
+import 'package:omi/services/recording/recording_health_monitor.dart';
 import 'package:omi/services/recording/session_lifecycle_manager.dart';
 import 'package:omi/services/recording/recording_controller.dart';
 import 'package:omi/services/recording/message_event_handler.dart';
@@ -81,6 +83,15 @@ class CaptureProvider extends ChangeNotifier
   late final RecordingController _recordingController;
   final MessageEventHandler _messageEventHandler = MessageEventHandler();
 
+  /// Health monitor for the current session. Created lazily on first access
+  /// (once activeSttProvider is known) and disposed when the session ends.
+  RecordingHealthMonitor? _currentHealthMonitor;
+  SttProvider? _healthMonitorProvider; // provider tag used when caching
+
+  /// Background auto-finalize policy — replaces the old `_backgroundFinalizeTimer`
+  /// that used to live inside AppLifecycleManager.
+  late final BackgroundRecordingPolicy _backgroundPolicy;
+
   // ---------------------------------------------------------------------------
   // Connection state
   // ---------------------------------------------------------------------------
@@ -104,6 +115,20 @@ class CaptureProvider extends ChangeNotifier
       pipeline: _pipeline,
       persistence: _persistence,
       sessionLifecycle: _sessionLifecycle,
+    );
+
+    // Background auto-finalize policy. Uses lambdas so it observes the
+    // latest state each tick without holding direct references to services.
+    _backgroundPolicy = BackgroundRecordingPolicy(
+      getHealthMonitor: _resolveHealthMonitor,
+      isPaused: () => _stateMachine.isPaused,
+      segmentsCount: () => segments.length,
+      conversationFinalized: () => _stateMachine.conversationFinalized,
+      sessionPhase: () => _sessionLifecycle.phase,
+      onAutoFinalize: () {
+        _recordingController.autoFinalizeOnConnectionLost();
+        _lifecycle.updateForegroundNotification('waiting');
+      },
     );
 
     // Wire controller callbacks
@@ -503,8 +528,6 @@ class CaptureProvider extends ChangeNotifier
   // ---------------------------------------------------------------------------
 
   @override
-  bool get conversationFinalized => _stateMachine.conversationFinalized;
-  @override
   List<TranscriptSegment> get currentSegments => segments;
   @override
   bool get isSpeechProfileMode => _stateMachine.isSpeechProfileMode;
@@ -564,10 +587,19 @@ class CaptureProvider extends ChangeNotifier
   Future<void> stopSocket(String reason) async =>
       _pipeline.stopSocket(reason);
   @override
+  void notifyListenersCallback() => notifyListeners();
+
+  @override
+  void onAppBackgrounded() => _backgroundPolicy.onAppBackgrounded();
+
+  @override
+  void onAppForegrounded() => _backgroundPolicy.onAppForegrounded();
+
+  /// Public API — kept for other callers (pipeline onAutoFinalizeNeeded wiring)
+  /// even though AppLifecycleDelegate no longer exposes it. Forwards to
+  /// the controller.
   Future<void> autoFinalizeOnConnectionLost() async =>
       _recordingController.autoFinalizeOnConnectionLost();
-  @override
-  void notifyListenersCallback() => notifyListeners();
 
   // ---------------------------------------------------------------------------
   // Internal helpers
@@ -599,7 +631,56 @@ class CaptureProvider extends ChangeNotifier
     if (_sessionLifecycle.phase != SessionPhase.idle) {
       _sessionLifecycle.reset();
     }
+    _disposeHealthMonitor();
     notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Health monitor factory — resolves the right impl based on the current
+  // session's STT provider and audio source. Cached until the active
+  // provider changes (new session or cloud/local switch).
+  // ---------------------------------------------------------------------------
+
+  RecordingHealthMonitor? _resolveHealthMonitor() {
+    final provider = _pipeline.activeSttProvider;
+    if (provider == null) return null;
+
+    // Invalidate cache if provider changed mid-session (rare but possible).
+    if (_healthMonitorProvider != provider) {
+      _disposeHealthMonitor();
+      _healthMonitorProvider = provider;
+    }
+    if (_currentHealthMonitor != null) return _currentHealthMonitor;
+
+    final isLocal = provider == SttProvider.localParakeet ||
+        provider == SttProvider.localMoonshine ||
+        provider == SttProvider.localCanary;
+    final hasBleDevice = _audioTransport.recordingDevice != null;
+
+    if (hasBleDevice) {
+      _currentHealthMonitor = BleHealthMonitor(
+        getLastAudioBytesSentAt: () => _pipeline.lastAudioBytesSentAt,
+        getIsConnected: () => _audioTransport.recordingDevice != null,
+      );
+    } else if (isLocal) {
+      _currentHealthMonitor = LocalSttHealthMonitor(
+        getLastAudioBytesSentAt: () => _pipeline.lastAudioBytesSentAt,
+      );
+    } else {
+      _currentHealthMonitor = CloudSttHealthMonitor(
+        getLastAudioBytesSentAt: () => _pipeline.lastAudioBytesSentAt,
+        getLastSegmentReceivedAt: () => _pipeline.lastSegmentReceivedAt,
+        getSocketState: () => _pipeline.socket?.state,
+        getSegmentsCount: () => segments.length,
+      );
+    }
+    return _currentHealthMonitor;
+  }
+
+  void _disposeHealthMonitor() {
+    _currentHealthMonitor?.dispose();
+    _currentHealthMonitor = null;
+    _healthMonitorProvider = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -725,6 +806,8 @@ class CaptureProvider extends ChangeNotifier
   void dispose() {
     debugPrint('[CaptureProvider] dispose() called');
     _connectionStateListener?.cancel();
+    _backgroundPolicy.dispose();
+    _disposeHealthMonitor();
     _recordingController.dispose();
     _audioTransport.dispose();
     _pipeline.dispose();

@@ -37,6 +37,7 @@ class _StubAudioTransport extends AudioTransportService {
   Future<void> startPhoneMicRecording({
     required Function(RecordingState) onStateChange,
     required SocketServiceState Function() socketState,
+    VoidCallback? onUnexpectedStop,
   }) async {
     onStateChange(RecordingState.record);
   }

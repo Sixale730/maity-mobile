@@ -196,6 +196,25 @@ class TranscriptionPipeline implements ITransctiptSegmentSocketServiceListener {
   TranscriptSegmentSocketService? get socket => _socket;
 
   // ---------------------------------------------------------------------------
+  // Health signals exposed for RecordingHealthMonitor consumers.
+  //
+  // Pipeline-agnostic getters so monitors don't need to know whether the
+  // session is cloud or local — callers pass these as lambdas to the
+  // appropriate monitor impl.
+  // ---------------------------------------------------------------------------
+
+  /// Last time audio bytes were sent over the transport. For cloud STT this
+  /// comes from the orchestrator's socket layer; for local STT it comes from
+  /// the external timestamp set by SessionLifecycleManager.
+  DateTime? get lastAudioBytesSentAt =>
+      _cloudOrchestrator?.lastAudioBytesSentAt ?? _externalLastAudioAt;
+
+  /// Last time a transcript segment was received. Null until the first
+  /// segment arrives. Local STT also updates this when worker emits segments.
+  DateTime? get lastSegmentReceivedAt =>
+      _cloudOrchestrator?.lastSegmentReceivedAt;
+
+  // ---------------------------------------------------------------------------
   // Cloud-only state — owned by [_cloudOrchestrator]. These accessors keep
   // the pipeline's internal code readable; mutations delegate to the
   // orchestrator. For local STT all of these are null/zero.
