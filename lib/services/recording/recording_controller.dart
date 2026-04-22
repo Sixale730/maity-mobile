@@ -301,6 +301,7 @@ class RecordingController {
         onStateChange: (state) => onRecordingStateChanged?.call(state),
         socketState: () =>
             _pipeline.socket?.state ?? SocketServiceState.disconnected,
+        onUnexpectedStop: _handleMicUnexpectedStop,
       );
     } catch (e) {
       debugPrint('[RecordingController] streamRecording failed: $e');
@@ -458,7 +459,31 @@ class RecordingController {
       onStateChange: (state) => onRecordingStateChanged?.call(state),
       socketState: () =>
           _pipeline.socket?.state ?? SocketServiceState.disconnected,
+      onUnexpectedStop: _handleMicUnexpectedStop,
     );
+  }
+
+  /// Called when the mic background service dies without a user-initiated stop
+  /// (watchdog trip, channel dead, LMK). Triggers auto-finalize so segments
+  /// are saved as a conversation instead of silently lost.
+  ///
+  /// Idempotent: autoFinalizeOnConnectionLost early-returns if already
+  /// finalizing, so calling this multiple times is safe.
+  void _handleMicUnexpectedStop() {
+    if (_stateMachine.state != RecordingState.record) {
+      // Already transitioned out of recording; either user initiated the stop
+      // or a prior unexpected-stop already handled it. Nothing to do.
+      return;
+    }
+    _captureLog.log('recording', 'mic_unexpected_stop', severity: 'warning', details: {
+      'session_id': _stateMachine.currentSessionId,
+      'segments_count': _pipeline.displaySegments.length,
+    });
+    debugPrint(
+        '[RecordingController] Mic died unexpectedly, triggering auto-finalize');
+    // Fire-and-forget. If segments exist, snapshot + save. If not, state
+    // resets cleanly so the next recording starts fresh.
+    autoFinalizeOnConnectionLost();
   }
 
   // ---------------------------------------------------------------------------

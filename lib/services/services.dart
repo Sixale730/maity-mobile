@@ -136,32 +136,60 @@ Future onStart(ServiceInstance service) async {
   });
 
   // watchdog
+  //
+  // Primary signal: invoke-failure. If the main isolate port is gone
+  // (force-kill, OOM crash), `service.invoke()` throws. That's the
+  // deterministic signal the flutter_background_service plugin gives us.
+  //
+  // Safety net: 30 min without pong. Covers rare silent OS-kill where the
+  // port is still registered briefly. Very generous — normal background
+  // pauses (screen off, doze) do NOT trip this because invoke still
+  // succeeds; only the pong is delayed by Android throttling.
+  //
+  // Before retiring, we notify the main isolate via
+  // `recorder.unexpected_stop` so it can auto-finalize the conversation
+  // (save segments) instead of losing data silently.
   var pongAt = DateTime.now();
   service.on('pong').listen((event) async {
     pongAt = DateTime.now();
   });
   Timer.periodic(const Duration(seconds: 5), (timer) async {
-    if (pongAt.isBefore(DateTime.now().subtract(const Duration(seconds: 8)))) {
-      // retire
-      if (recorder?.status != RecorderServiceStatus.stop) {
-        recorder?.stop();
-      }
-      try {
-        service.invoke("recorder.ui.stateUpdate", {"state": 'stopped'});
-      } catch (_) {}
-      service.stopSelf();
-      return;
-    }
     try {
       service.invoke("ui.ping");
     } catch (e) {
+      debugPrint('[BGService Watchdog] Main isolate channel dead: $e');
       timer.cancel();
-      if (recorder?.status != RecorderServiceStatus.stop) {
-        recorder?.stop();
-      }
-      service.stopSelf();
+      _handleUnexpectedExit(recorder, service, reason: 'channel_dead');
+      return;
+    }
+
+    if (pongAt.isBefore(DateTime.now().subtract(const Duration(minutes: 30)))) {
+      debugPrint('[BGService Watchdog] No pong in 30 min, retiring');
+      timer.cancel();
+      _handleUnexpectedExit(recorder, service, reason: 'watchdog_30min');
     }
   });
+}
+
+/// Handle unexpected service exit (watchdog trip or channel dead).
+/// Notifies the main isolate via `recorder.unexpected_stop` so it can
+/// auto-finalize the conversation before we kill the recorder. The
+/// message queues on the main isolate's port even if it's in doze;
+/// when the isolate wakes up it will process it and save segments.
+void _handleUnexpectedExit(
+  MicRecorderService? recorder,
+  ServiceInstance service, {
+  required String reason,
+}) {
+  try {
+    service.invoke("recorder.unexpected_stop", {"reason": reason});
+  } catch (_) {
+    // Channel truly dead, nothing to do.
+  }
+  if (recorder?.status != RecorderServiceStatus.stop) {
+    recorder?.stop();
+  }
+  service.stopSelf();
 }
 
 class BackgroundService {
@@ -234,6 +262,7 @@ class BackgroundService {
     Function()? onRecording,
     Function()? onStop,
     Function()? onInitializing,
+    Function()? onUnexpectedStop,
   }) {
     if (_service == null) {
       debugPrint("[BackgroundService] Cannot start recorder: service not initialized");
@@ -244,6 +273,7 @@ class BackgroundService {
       onByteReceived(bytes);
     });
     StreamSubscription? recordStateStream;
+    StreamSubscription? unexpectedStopStream;
     recordStateStream = _service!.on('recorder.ui.stateUpdate').listen((event) {
       if (event!['state'] == 'recording') {
         if (onRecording != null) {
@@ -257,12 +287,21 @@ class BackgroundService {
         // Close streams
         recordAudioByteStream.cancel();
         recordStateStream?.cancel();
+        unexpectedStopStream?.cancel();
 
         // Callback
         if (onStop != null) {
           onStop();
         }
       }
+    });
+
+    // Listen for unexpected service death (watchdog trip, channel dead).
+    // Fires BEFORE the 'stopped' event so the main isolate can auto-finalize
+    // the in-flight conversation with whatever segments were emitted.
+    unexpectedStopStream = _service!.on('recorder.unexpected_stop').listen((event) {
+      debugPrint('[BackgroundService] Unexpected stop signal: $event');
+      onUnexpectedStop?.call();
     });
 
     // tell service > start record
@@ -286,6 +325,7 @@ abstract class IMicRecorderService {
     Function()? onRecording,
     Function()? onStop,
     Function()? onInitializing,
+    Function()? onUnexpectedStop,
   });
   void stop();
 
@@ -313,6 +353,7 @@ class MicRecorderBackgroundService implements IMicRecorderService {
     Function()? onRecording,
     Function()? onStop,
     Function()? onInitializing,
+    Function()? onUnexpectedStop,
   }) async {
     await _runner.ensureRunning();
 
@@ -321,6 +362,7 @@ class MicRecorderBackgroundService implements IMicRecorderService {
       onRecording: onRecording,
       onStop: onStop,
       onInitializing: onInitializing,
+      onUnexpectedStop: onUnexpectedStop,
     );
 
     return;
@@ -381,7 +423,10 @@ class MicRecorderService implements IMicRecorderService {
     Function()? onRecording,
     Function()? onStop,
     Function()? onInitializing,
+    Function()? onUnexpectedStop,
   }) async {
+    // MicRecorderService runs in-process (no background isolate, no watchdog),
+    // so onUnexpectedStop is never fired. Accepted for interface conformance.
     if (_status == RecorderServiceStatus.recording) {
       throw Exception("Recorder is recording, please stop it before start new recording.");
     }

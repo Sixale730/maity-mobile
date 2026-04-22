@@ -201,9 +201,13 @@ class AudioTransportService {
   /// Starts the phone microphone recording via the background service.
   /// [onStateChange] is called when the recording state transitions.
   /// [socketState] provides the current socket connection state.
+  /// [onUnexpectedStop] fires if the background service dies unexpectedly
+  /// (watchdog trip, channel dead) — caller should auto-finalize the
+  /// in-flight conversation to avoid silent data loss.
   Future<void> startPhoneMicRecording({
     required Function(RecordingState) onStateChange,
     required SocketServiceState Function() socketState,
+    VoidCallback? onUnexpectedStop,
   }) async {
     onStateChange(RecordingState.initialising);
     await Permission.microphone.request();
@@ -234,6 +238,7 @@ class AudioTransportService {
       onInitializing: () {
         onStateChange(RecordingState.initialising);
       },
+      onUnexpectedStop: onUnexpectedStop,
     );
   }
 
