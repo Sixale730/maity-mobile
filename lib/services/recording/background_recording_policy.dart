@@ -16,7 +16,7 @@ import 'package:omi/services/recording/session_lifecycle_manager.dart';
 ///
 /// | Scenario                                      | Behavior                        |
 /// |-----------------------------------------------|---------------------------------|
-/// | Active recording + background + healthy       | Keep recording, 30 min hard cap |
+/// | Active recording + background + healthy       | Keep recording, 3 hr hard cap   |
 /// | Active recording + background + stalled/failed| Finalize on next check (30s)    |
 /// | Paused + background                           | Finalize after 3 min grace      |
 /// | Foreground before any timer fires             | Cancel all timers, no-op        |
@@ -30,7 +30,7 @@ class BackgroundRecordingPolicy {
     required SessionPhase Function() sessionPhase,
     required VoidCallback onAutoFinalize,
     Duration pauseGracePeriod = const Duration(minutes: 3),
-    Duration backgroundHardCap = const Duration(minutes: 30),
+    Duration backgroundHardCap = const Duration(hours: 3),
     Duration healthCheckInterval = const Duration(seconds: 30),
   })  : _getHealthMonitor = getHealthMonitor,
         _isPaused = isPaused,

@@ -217,6 +217,7 @@ class TranscriptSegment {
   static void mergeConsecutiveSegmentsByTime(
     List<TranscriptSegment> segments, {
     double maxTimeGapSeconds = 3.0,
+    double maxMergedDurationSeconds = 60.0,
   }) {
     if (segments.length < 2) return;
 
@@ -227,7 +228,12 @@ class TranscriptSegment {
       final sameSpeaker = current.speaker == next.speaker;
       final sameIsUser = current.isUser == next.isUser;
       final timeGap = next.start - current.end;
-      final shouldMerge = sameSpeaker && sameIsUser && timeGap <= maxTimeGapSeconds && timeGap >= 0;
+      final mergedDuration = next.end - current.start;
+      final shouldMerge = sameSpeaker &&
+          sameIsUser &&
+          timeGap <= maxTimeGapSeconds &&
+          timeGap >= 0 &&
+          mergedDuration <= maxMergedDurationSeconds;
 
       if (shouldMerge) {
         current.text = '${current.text} ${next.text}'.trim();
@@ -250,6 +256,7 @@ class TranscriptSegment {
     List<TranscriptSegment> segments, {
     required int insertStartIndex,
     double maxTimeGapSeconds = 3.0,
+    double maxMergedDurationSeconds = 60.0,
   }) {
     if (segments.length < 2 || insertStartIndex <= 0) return;
     final startCheck = insertStartIndex - 1;
@@ -263,7 +270,12 @@ class TranscriptSegment {
       final sameSpeaker = current.speaker == next.speaker;
       final sameIsUser = current.isUser == next.isUser;
       final timeGap = next.start - current.end;
-      final shouldMerge = sameSpeaker && sameIsUser && timeGap <= maxTimeGapSeconds && timeGap >= 0;
+      final mergedDuration = next.end - current.start;
+      final shouldMerge = sameSpeaker &&
+          sameIsUser &&
+          timeGap <= maxTimeGapSeconds &&
+          timeGap >= 0 &&
+          mergedDuration <= maxMergedDurationSeconds;
 
       if (shouldMerge) {
         current.text = '${current.text} ${next.text}'.trim();
